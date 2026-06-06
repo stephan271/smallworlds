@@ -25,8 +25,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 1. Ask for local repository path
 DEFAULT_PATH="${SCRIPT_DIR}/../my-community-config"
-read -p "1. Enter the path where you want to create the repository [$DEFAULT_PATH]: " REPO_PATH
-REPO_PATH="${REPO_PATH:-$DEFAULT_PATH}"
+read -e -i "$DEFAULT_PATH" -p "1. Enter the path where you want to create the repository: " REPO_PATH
 
 # Resolve to absolute path
 mkdir -p "$REPO_PATH"
@@ -36,7 +35,7 @@ echo -e "Target directory: ${GREEN}${ABS_REPO_PATH}${NC}"
 echo ""
 
 # 2. Ask for the remote Git URL
-read -p "2. Enter your private Git Remote URL (optional, e.g., git@github.com:user/my-community-config.git): " REMOTE_URL
+read -e -p "2. Enter your private Git Remote URL (optional, e.g., git@github.com:user/my-community-config.git): " REMOTE_URL
 
 echo ""
 echo -e "${YELLOW}Initializing repository...${NC}"
@@ -113,8 +112,7 @@ if [ -n "$REMOTE_URL" ]; then
     
     echo -e "Remote 'origin' set to: ${GREEN}${REMOTE_URL}${NC}"
     
-    read -p "Would you like to attempt pushing to origin main now? (y/n) [y]: " PUSH_CHOICE
-    PUSH_CHOICE="${PUSH_CHOICE:-y}"
+    read -e -i "y" -p "Would you like to attempt pushing to origin main now? (y/n): " PUSH_CHOICE
     
     if [[ "$PUSH_CHOICE" =~ ^[Yy]$ ]]; then
         echo -e "${YELLOW}Pushing to remote repository...${NC}"
