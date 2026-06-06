@@ -1,0 +1,62 @@
+# ------------------------------------------------------------------------------
+# StorageClass: hetzner-local
+# Points to paths on the persistent Hetzner network volume mounted at
+# /mnt/smallworlds-data. This path is created by the bootstrap provisioner.
+# The volume survives VM re-creation, ensuring data persistence.
+# ------------------------------------------------------------------------------
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: hetzner-local
+provisioner: kubernetes.io/no-provisioner  # manual / static provisioning
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Retain
+---
+# PersistentVolume for Garage S3 storage
+# Garage's Helm chart PVC will bind to this when using storageClassName: hetzner-local
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: garage-data-pv
+spec:
+  capacity:
+    storage: 120Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: hetzner-local
+  local:
+    path: /mnt/smallworlds-data/garage
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - cc-pilot-node-01
+---
+# PersistentVolume for Immich photo library
+# The immich-library-pvc will bind to this by name.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: immich-library-pv
+spec:
+  capacity:
+    storage: 60Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: hetzner-local
+  volumeMode: Filesystem
+  local:
+    path: /mnt/smallworlds-data/immich-library
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - cc-pilot-node-01

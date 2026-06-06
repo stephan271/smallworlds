@@ -1,0 +1,128 @@
+# ==============================================================================
+# Sovereign SmallWorlds: Forgejo Tenant Helm Values Configuration
+# ==============================================================================
+
+# Disable built-in managed services (PostgreSQL, Redis) to leverage our 
+# isolated, production-grade Operators (CNPG and dedicated Redis).
+postgresql:
+  enabled: false
+postgresql-ha:
+  enabled: false
+redis:
+  enabled: false
+redis-cluster:
+  enabled: false
+
+# Main Forgejo configuration blocks
+gitea:
+  admin:
+    existingSecret: "forgejo-admin-creds"
+  # General app.ini key-value pairs. Each YAML section is mapped to an INI block.
+  # Values must be all caps to match Forgejo/Gitea's config-cheat-sheet.
+  config:
+    APP_NAME: "CitizenNet Forgejo - Sovereign Code Collaboration"
+    RUN_MODE: prod
+
+    service:
+      DISABLE_REGISTRATION: true
+      ALLOW_ONLY_EXTERNAL_REGISTRATION: true
+      ENABLE_PASSWORD_SIGNIN_FORM: false
+
+    server:
+      # Expose at your domain
+      ROOT_URL: "https://git.smallworlds.network/"
+      DOMAIN: "git.smallworlds.network"
+      HTTP_PORT: 3000
+      SSH_PORT: 22
+      DISABLE_SSH: false
+      SSH_DOMAIN: "git.smallworlds.network"
+      LANDING_PAGE: explore # Focus on community open source code exploration
+
+    database:
+      # Connect to CloudNativePG PostgreSQL database
+      DB_TYPE: postgres
+      HOST: forgejo-db-rw:5432
+      NAME: forgejo
+      USER: forgejo
+
+    session:
+      # Configure high-performance session state storing in Redis
+      PROVIDER: redis
+      PROVIDER_CONFIG: redis://forgejo-redis:6379/0?pool_size=100
+
+    cache:
+      # Enable high-speed query and metadata caching in Redis
+      ADAPTER: redis
+      HOST: redis://forgejo-redis:6379/0?pool_size=100
+
+    storage:
+      # Re-route all media, attachments, avatars, and Git LFS objects to Garage S3
+      STORAGE_TYPE: minio
+      MINIO_ENDPOINT: garage.garage-system.svc.cluster.local:3900
+      MINIO_BUCKET: forgejo
+      MINIO_USE_SSL: false
+      MINIO_LOCATION: garage
+
+    federation:
+      # Native ActivityPub ForgeFed federation settings
+      ENABLED: true
+      # Allows decentralized star, follow, and cross-instance PR interactions
+      SHARE_ALLOWED_HOSTS: "*"
+
+  # Inject credentials securely from secrets rather than committing plaintext passwords to Git.
+  # CloudNativePG generates the DB secret automatically. Garage bucket secret is generated in PreSync.
+  additionalConfigFromEnvs:
+    # --- PostgreSQL DB Password ---
+    - name: FORGEJO__DATABASE__PASSWD
+      valueFrom:
+        secretKeyRef:
+          name: forgejo-db-app
+          key: password
+    - name: GITEA__DATABASE__PASSWD
+      valueFrom:
+        secretKeyRef:
+          name: forgejo-db-app
+          key: password
+
+    # --- Garage S3/MinIO Credentials ---
+    - name: FORGEJO__STORAGE__MINIO_ACCESS_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: garage-secret
+          key: accessKeyId
+    - name: FORGEJO__STORAGE__MINIO_SECRET_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: garage-secret
+          key: secretAccessKey
+    - name: GITEA__STORAGE__MINIO_ACCESS_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: garage-secret
+          key: accessKeyId
+    - name: GITEA__STORAGE__MINIO_SECRET_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: garage-secret
+          key: secretAccessKey
+
+# Expose Forgejo securely using Ingress and Cert-Manager Let's Encrypt SSL
+ingress:
+  enabled: true
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: git.smallworlds.network
+      paths:
+        - path: "/"
+          pathType: Prefix
+  tls:
+    - secretName: forgejo-tls
+      hosts:
+        - git.smallworlds.network
+
+# Local volume persistence for Forgejo repository metadata, keys, and hooks
+persistence:
+  enabled: true
+  size: 50Gi
+  storageClass: local-path

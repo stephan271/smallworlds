@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: stalwart
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/stephan271/smallworlds.git'
+    targetRevision: HEAD
+    path: 00-letsgo/infrastructure/kubernetes/tenants/stalwart
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: stalwart
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

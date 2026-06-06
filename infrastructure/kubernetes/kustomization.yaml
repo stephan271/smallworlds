@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# This is the master base for SmallWorlds communities.
+# It includes the core backend components (via ArgoCD App CRDs) 
+# and the user-facing tenants (via Kustomize bases) so they can be easily patched.
+resources:
+  # 1. Backend Components (Installed as ArgoCD Apps)
+  - apps/cert-manager.yaml
+  - apps/cloudnative-pg.yaml
+  - apps/clusterissuer.yaml
+  - apps/garage.yaml
+  - apps/persistent-storage.yaml
+  - apps/traefik.yaml
+  
+  # 2. Frontend Tenants (Imported as direct Kustomize bases so domains can be patched)
+  - tenants/dashboard
+  - tenants/forgejo
+  - tenants/immich
+  - tenants/keycloak
+  - tenants/nextcloud
+  - tenants/roundcube
+  - tenants/stalwart

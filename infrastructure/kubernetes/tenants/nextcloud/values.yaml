@@ -1,0 +1,84 @@
+internalDatabase:
+  enabled: false
+externalDatabase:
+  enabled: true
+  type: postgresql
+  host: nextcloud-db-rw
+  database: nextcloud
+  existingSecret:
+    enabled: true
+    secretName: nextcloud-db-app
+    usernameKey: username
+    passwordKey: password
+
+externalRedis:
+  enabled: true
+  host: nextcloud-redis
+  
+postgresql:
+  enabled: false
+redis:
+  enabled: false
+  
+nextcloud:
+  host: files.smallworlds.network
+  # Admin credentials are auto-created from the secret provisioned by bootstrap.tf.
+  # The installer runs non-interactively and skips the setup wizard entirely.
+  existingSecret:
+    enabled: true
+    secretName: nextcloud-admin-creds
+    usernameKey: nextcloud-username
+    passwordKey: nextcloud-password
+  extraEnv:
+    - name: OBJECTSTORE_S3_KEY
+      valueFrom:
+        secretKeyRef:
+          name: garage-secret
+          key: accessKey
+    - name: OBJECTSTORE_S3_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: garage-secret
+          key: secretKey
+  configs:
+    trusted_domains.config.php: |-
+      <?php
+      $CONFIG = array (
+        'trusted_domains' => array (
+          0 => 'files.smallworlds.network',
+          1 => 'localhost',
+          2 => '127.0.0.1',
+          3 => '10.42.0.0/16',
+        ),
+      );
+    proxy.config.php: |-
+      <?php
+      $CONFIG = array (
+        'overwriteprotocol' => 'https',
+        'trusted_proxies' => array('10.42.0.0/16', '10.43.0.0/16'),
+      );
+  # Object Storage (S3) configuration
+  objectStore:
+    s3:
+      enabled: true
+      host: garage.garage-system.svc.cluster.local
+      port: 3900
+      usePathStyle: true
+      ssl: false
+      region: garage
+      bucket: nextcloud
+      existingSecret: garage-secret
+ingress:
+  enabled: true
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: files.smallworlds.network
+      paths:
+        - path: "/"
+  tls:
+    - secretName: nextcloud-tls
+      hosts:
+        - files.smallworlds.network
+persistence:
+  enabled: true

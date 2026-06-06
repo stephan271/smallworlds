@@ -1,0 +1,9 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: keycloak-redirect
+  namespace: keycloak
+spec:
+  redirectRegex:
+    regex: "^https://auth.smallworlds.network/?$"
+    replacement: "https://auth.smallworlds.network/realms/smallworlds/account/"

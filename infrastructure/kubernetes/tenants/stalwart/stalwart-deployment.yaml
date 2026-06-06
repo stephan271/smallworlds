@@ -1,0 +1,97 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: stalwart-config
+  namespace: stalwart
+data:
+  config.json: |
+    {
+      "@type": "PostgreSql",
+      "host": "stalwart-db-rw.stalwart.svc.cluster.local",
+      "database": "stalwart",
+      "port": 5432,
+      "authUsername": "stalwart",
+      "authSecret": {
+        "@type": "EnvironmentVariable",
+        "variableName": "DB_PASSWORD"
+      },
+      "useTls": false,
+      "allowInvalidCerts": false,
+      "timeout": 15000,
+      "poolMaxConnections": 10
+    }
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stalwart-mail
+  namespace: stalwart
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stalwart-mail
+  template:
+    metadata:
+      labels:
+        app: stalwart-mail
+    spec:
+      containers:
+        - name: stalwart
+          image: stalwartlabs/stalwart:latest
+          ports:
+            - containerPort: 25
+              name: smtp
+            - containerPort: 587
+              name: submission
+            - containerPort: 143
+              name: imap
+            - containerPort: 993
+              name: imaps
+            - containerPort: 8080
+              name: jmap
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: stalwart-db-app
+                  key: password
+            - name: STALWART_RECOVERY_ADMIN
+              valueFrom:
+                secretKeyRef:
+                  name: stalwart-admin-secret
+                  key: recovery-admin
+                  optional: true
+          volumeMounts:
+            - name: config
+              mountPath: /etc/stalwart/config.json
+              subPath: config.json
+      volumes:
+        - name: config
+          configMap:
+            name: stalwart-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stalwart-mail
+  namespace: stalwart
+spec:
+  type: LoadBalancer # Requests a public IP from Hetzner Cloud Controller
+  selector:
+    app: stalwart-mail
+  ports:
+    - name: smtp
+      port: 25
+      targetPort: 25
+    - name: submission
+      port: 587
+      targetPort: 587
+    - name: imaps
+      port: 993
+      targetPort: 993
+    - name: jmap
+      port: 8080
+      targetPort: 8080

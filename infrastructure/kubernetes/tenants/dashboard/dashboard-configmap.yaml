@@ -1,0 +1,286 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-content
+  namespace: dashboard
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Smallworlds Apps</title>
+        <link rel="stylesheet" href="styles.css">
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    </head>
+    <body>
+        <div class="background-mesh"></div>
+        <div class="container">
+            <header>
+                <h1>Smallworlds Apps</h1>
+                <p>Welcome to your citizen cloud. Select an application to get started.</p>
+            </header>
+            
+            <main class="app-grid">
+                <!-- Nextcloud -->
+                <a href="https://files.smallworlds.network" class="app-card" aria-label="Nextcloud Files">
+                    <div class="app-icon nextcloud-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                    </div>
+                    <h2>Files</h2>
+                    <p>Nextcloud</p>
+                </a>
+
+                <!-- Immich -->
+                <a href="https://photos.smallworlds.network" class="app-card" aria-label="Immich Photos">
+                    <div class="app-icon immich-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                            <polyline points="21 15 16 10 5 21"></polyline>
+                        </svg>
+                    </div>
+                    <h2>Photos</h2>
+                    <p>Immich</p>
+                </a>
+
+                <!-- Forgejo -->
+                <a href="https://git.smallworlds.network" class="app-card" aria-label="Forgejo Git">
+                    <div class="app-icon forgejo-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="6" y1="3" x2="6" y2="15"></line>
+                            <circle cx="18" cy="6" r="3"></circle>
+                            <circle cx="6" cy="18" r="3"></circle>
+                            <path d="M18 9a9 9 0 0 1-9 9"></path>
+                        </svg>
+                    </div>
+                    <h2>Git</h2>
+                    <p>Forgejo</p>
+                </a>
+
+
+
+                <!-- Keycloak -->
+                <a href="https://auth.smallworlds.network" class="app-card" aria-label="Keycloak Auth">
+                    <div class="app-icon keycloak-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path>
+                        </svg>
+                    </div>
+                    <h2>Auth</h2>
+                    <p>Keycloak</p>
+                </a>
+            </main>
+        </div>
+    </body>
+    </html>
+  styles.css: |
+    :root {
+        --bg-color: #0f172a;
+        --card-bg: rgba(30, 41, 59, 0.7);
+        --card-border: rgba(255, 255, 255, 0.1);
+        --text-primary: #f8fafc;
+        --text-secondary: #94a3b8;
+        --hover-glow: rgba(56, 189, 248, 0.15);
+        --accent-blue: #38bdf8;
+        --accent-purple: #c084fc;
+        --accent-green: #4ade80;
+        --accent-orange: #fb923c;
+        --accent-pink: #f472b6;
+    }
+
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    body {
+        font-family: 'Outfit', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-primary);
+        min-height: 100vh;
+        position: relative;
+        overflow-x: hidden;
+    }
+
+    /* Animated background mesh gradient */
+    .background-mesh {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: -1;
+        background-image: 
+            radial-gradient(at 10% 20%, rgba(56, 189, 248, 0.15) 0px, transparent 50%),
+            radial-gradient(at 80% 10%, rgba(192, 132, 252, 0.15) 0px, transparent 50%),
+            radial-gradient(at 40% 80%, rgba(74, 222, 128, 0.1) 0px, transparent 50%);
+        animation: pulse 15s ease-in-out infinite alternate;
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(1); opacity: 0.8; }
+        100% { transform: scale(1.05); opacity: 1; }
+    }
+
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 4rem 2rem;
+    }
+
+    header {
+        text-align: center;
+        margin-bottom: 4rem;
+        animation: fadeInDown 0.8s ease-out;
+    }
+
+    header h1 {
+        font-size: 3rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, var(--text-primary), var(--accent-blue));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    header p {
+        font-size: 1.2rem;
+        color: var(--text-secondary);
+        font-weight: 400;
+    }
+
+    /* Grid layout automatically adjusts cards based on screen size */
+    .app-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 2rem;
+        animation: fadeInUp 0.8s ease-out 0.2s both;
+    }
+
+    .app-card {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 20px;
+        padding: 2rem;
+        text-align: center;
+        text-decoration: none;
+        color: var(--text-primary);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        aspect-ratio: 1;
+    }
+
+    .app-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(circle at center, var(--hover-glow) 0%, transparent 70%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        z-index: 0;
+    }
+
+    .app-card:hover {
+        transform: translateY(-8px) scale(1.02);
+        border-color: rgba(255, 255, 255, 0.2);
+        box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.4);
+    }
+
+    .app-card:hover::before {
+        opacity: 1;
+    }
+
+    .app-icon {
+        width: 64px;
+        height: 64px;
+        margin-bottom: 1.5rem;
+        z-index: 1;
+        transition: transform 0.3s ease;
+    }
+
+    .app-card:hover .app-icon {
+        transform: scale(1.1);
+    }
+
+    .app-icon svg {
+        width: 100%;
+        height: 100%;
+    }
+
+    /* App-specific icon colors */
+    .nextcloud-icon { color: var(--accent-blue); }
+    .immich-icon { color: var(--accent-pink); }
+    .forgejo-icon { color: var(--accent-orange); }
+    .stalwart-icon { color: var(--accent-green); }
+    .keycloak-icon { color: var(--accent-purple); }
+
+    .app-card h2 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        z-index: 1;
+    }
+
+    .app-card p {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        z-index: 1;
+    }
+
+    /* Animations */
+    @keyframes fadeInDown {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 600px) {
+        .container {
+            padding: 2rem 1rem;
+        }
+        
+        header h1 {
+            font-size: 2.2rem;
+        }
+        
+        .app-grid {
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .app-card {
+            padding: 1.5rem;
+        }
+        
+        .app-icon {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 1rem;
+        }
+
+        .app-card h2 {
+            font-size: 1.2rem;
+        }
+    }

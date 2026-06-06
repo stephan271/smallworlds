@@ -1,0 +1,41 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: stalwart-db
+  namespace: stalwart
+spec:
+  instances: 2
+  imageName: ghcr.io/cloudnative-pg/postgresql:16.4
+  primaryUpdateStrategy: unsupervised
+  storage:
+    size: 20Gi
+  bootstrap:
+    initdb:
+      database: stalwart
+      owner: stalwart
+  backup:
+    retentionPolicy: "7d"
+    barmanObjectStore:
+      destinationPath: s3://postgres-backups/stalwart/
+      endpointURL: http://garage.garage-system.svc.cluster.local:3900
+      s3Credentials:
+        accessKeyId:
+          name: garage-secret
+          key: accessKeyId
+        secretAccessKey:
+          name: garage-secret
+          key: secretAccessKey
+      wal:
+        compression: gzip
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: stalwart-db-backup
+  namespace: stalwart
+spec:
+  schedule: "0 4 * * *"
+  cluster:
+    name: stalwart-db
+  immediate: true
+  backupOwnerReference: self

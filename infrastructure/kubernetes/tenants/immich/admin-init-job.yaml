@@ -1,0 +1,68 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: immich-admin-init
+  namespace: immich
+  annotations:
+    # Run alongside ArgoCD sync, the job itself waits for the server pod.
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: admin-init
+          image: curlimages/curl:latest
+          env:
+            - name: ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: immich-admin-creds
+                  key: email
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: immich-admin-creds
+                  key: password
+            - name: ADMIN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: immich-admin-creds
+                  key: name
+          command:
+            - /bin/sh
+            - -c
+            - |
+              IMMICH_URL="http://immich-server.immich.svc.cluster.local:2283"
+
+              echo "Waiting for Immich server to be ready..."
+              until curl -sf "$IMMICH_URL/api/server/ping" > /dev/null 2>&1; do
+                echo "  not ready yet, retrying in 10s..."
+                sleep 10
+              done
+              echo "Immich is up."
+
+              echo "Creating Immich admin account for: $ADMIN_EMAIL"
+              RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST "$IMMICH_URL/api/auth/admin-sign-up" \
+                -H "Content-Type: application/json" \
+                -d "{
+                  \"email\": \"$ADMIN_EMAIL\",
+                  \"password\": \"$ADMIN_PASSWORD\",
+                  \"name\": \"$ADMIN_NAME\"
+                }")
+
+              HTTP_STATUS=$(echo "$RESPONSE" | tr -d '\n' | sed -e 's/.*HTTP_STATUS://')
+              BODY=$(echo "$RESPONSE" | sed -e 's/HTTP_STATUS:.*//')
+
+              if [ "$HTTP_STATUS" = "400" ]; then
+                echo "Admin account already exists (HTTP 400). Skipping."
+                exit 0
+              elif [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "201" ]; then
+                echo "Admin account created successfully."
+                exit 0
+              else
+                echo "Failed to create admin account. HTTP $HTTP_STATUS"
+                echo "Response: $BODY"
+                exit 1
+              fi

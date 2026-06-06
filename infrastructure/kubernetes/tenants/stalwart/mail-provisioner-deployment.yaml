@@ -1,0 +1,236 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mail-provisioner-code
+  namespace: stalwart
+data:
+  main.py: |
+    import os
+    import json
+    import random
+    import string
+    import subprocess
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    STALWART_API_KEY = os.environ.get("STALWART_API_KEY")
+
+    def generate_password(length=24):
+        chars = string.ascii_letters + string.digits + "!@#$%^*()_+"
+        return ''.join(random.choice(chars) for _ in range(length))
+
+    class WebhookHandler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            
+            try:
+                event = json.loads(post_data)
+            except Exception:
+                self.send_response(400)
+                self.end_headers()
+                return
+                
+            if event.get("type") != "REGISTER":
+                self.send_response(200)
+                self.end_headers()
+                return
+                
+            details = event.get("details", {})
+            username = details.get("username")
+            
+            if not username:
+                self.send_response(200)
+                self.end_headers()
+                return
+                
+            print(f"Provisioning mail account for user: {username}", flush=True)
+            try:
+                # 1. Fetch smallworlds.network Domain ID
+                query_proc = subprocess.run([
+                    "/usr/local/bin/stalwart-cli",
+                    "--url", "http://stalwart-mail:8080",
+                    "--user", "admin",
+                    "--password", STALWART_API_KEY,
+                    "query", "Domain", "--json"
+                ], capture_output=True, text=True, check=True)
+                
+                domain_id = None
+                for line in query_proc.stdout.strip().split("\n"):
+                    if not line:
+                        continue
+                    try:
+                        dom = json.loads(line)
+                        if dom.get("name") == "smallworlds.network":
+                            domain_id = dom.get("id")
+                            break
+                    except Exception:
+                        pass
+                
+                if not domain_id:
+                    print("Error: Domain smallworlds.network not found in Stalwart!", flush=True)
+                    self.send_response(500)
+                    self.end_headers()
+                    return
+                    
+                print(f"Found Domain ID: {domain_id}", flush=True)
+                
+                # 2. Check if user already exists
+                query_acc = subprocess.run([
+                    "/usr/local/bin/stalwart-cli",
+                    "--url", "http://stalwart-mail:8080",
+                    "--user", "admin",
+                    "--password", STALWART_API_KEY,
+                    "query", "Account", "--json"
+                ], capture_output=True, text=True, check=True)
+                
+                account_id = None
+                for line in query_acc.stdout.strip().split("\n"):
+                    if not line:
+                        continue
+                    try:
+                        acc = json.loads(line)
+                        if acc.get("name") == username and acc.get("domainId") == domain_id:
+                            account_id = acc.get("id")
+                            break
+                    except Exception:
+                        pass
+                        
+                if account_id:
+                    print(f"Account for {username} already exists (ID: {account_id}). Skipping creation.", flush=True)
+                else:
+                    # 3. Create the user account
+                    create_proc = subprocess.run([
+                        "/usr/local/bin/stalwart-cli",
+                        "--url", "http://stalwart-mail:8080",
+                        "--user", "admin",
+                        "--password", STALWART_API_KEY,
+                        "create", "Account/User",
+                        "--field", f"name={username}",
+                        "--field", f"domainId={domain_id}"
+                    ], capture_output=True, text=True, check=True)
+                    
+                    out_lines = create_proc.stdout.strip().split()
+                    if len(out_lines) >= 3 and out_lines[0] == "Created" and out_lines[1] == "Account":
+                        account_id = out_lines[2]
+                    else:
+                        # Parse from query as backup
+                        query_acc2 = subprocess.run([
+                            "/usr/local/bin/stalwart-cli",
+                            "--url", "http://stalwart-mail:8080",
+                            "--user", "admin",
+                            "--password", STALWART_API_KEY,
+                            "query", "Account", "--json"
+                        ], capture_output=True, text=True, check=True)
+                        for line in query_acc2.stdout.strip().split("\n"):
+                            if not line:
+                                continue
+                            try:
+                                acc = json.loads(line)
+                                if acc.get("name") == username and acc.get("domainId") == domain_id:
+                                    account_id = acc.get("id")
+                                    break
+                            except Exception:
+                                pass
+                    
+                    if not account_id:
+                        print(f"Error: Failed to obtain account ID for newly created user {username}", flush=True)
+                        self.send_response(500)
+                        self.end_headers()
+                        return
+                        
+                    print(f"Successfully created Account for {username} with ID: {account_id}", flush=True)
+                    
+                    # 4. Set credentials/password
+                    password = generate_password(24)
+                    subprocess.run([
+                        "/usr/local/bin/stalwart-cli",
+                        "--url", "http://stalwart-mail:8080",
+                        "--user", "admin",
+                        "--password", STALWART_API_KEY,
+                        "update", "Account", account_id,
+                        "--field", f"credentials={{\"0\":{{\"@type\":\"Password\",\"secret\":\"{password}\"}}}}"
+                    ], capture_output=True, text=True, check=True)
+                    
+                    print(f"Successfully set password credentials for {username}", flush=True)
+                    
+            except subprocess.CalledProcessError as e:
+                print(f"CLI Error executing command: {e.cmd}", flush=True)
+                print(f"Stdout: {e.stdout}", flush=True)
+                print(f"Stderr: {e.stderr}", flush=True)
+                self.send_response(500)
+                self.end_headers()
+                return
+            except Exception as e:
+                print(f"General Error during account provisioning: {e}", flush=True)
+                self.send_response(500)
+                self.end_headers()
+                return
+                
+            self.send_response(200)
+            self.end_headers()
+
+    if __name__ == "__main__":
+        port = int(os.environ.get("PORT", 8081))
+        server = HTTPServer(('0.0.0.0', port), WebhookHandler)
+        print(f"Mail Provisioner Service starting on port {port}...", flush=True)
+        server.serve_forever()
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mail-provisioner
+  namespace: stalwart
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mail-provisioner
+  template:
+    metadata:
+      labels:
+        app: mail-provisioner
+    spec:
+      containers:
+        - name: provisioner
+          image: python:3.12-alpine
+          command:
+            - "/bin/sh"
+            - "-c"
+            - |
+              apk add --no-cache curl
+              curl --proto '=https' --tlsv1.2 -LsSf https://github.com/stalwartlabs/cli/releases/latest/download/stalwart-cli-installer.sh | sh
+              cp /root/.cargo/bin/stalwart-cli /usr/local/bin/stalwart-cli
+              python -u /app/main.py
+          ports:
+            - containerPort: 8081
+          env:
+            - name: STALWART_API_URL
+              value: "http://stalwart-mail.stalwart.svc.cluster.local:8080"
+            - name: STALWART_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: stalwart-admin-secret
+                  key: api-key
+          volumeMounts:
+            - name: code-volume
+              mountPath: /app/main.py
+              subPath: main.py
+              readOnly: true
+      volumes:
+        - name: code-volume
+          configMap:
+            name: mail-provisioner-code
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mail-provisioner
+  namespace: stalwart
+spec:
+  selector:
+    app: mail-provisioner
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8081

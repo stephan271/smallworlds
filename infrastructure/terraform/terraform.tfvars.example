@@ -1,0 +1,32 @@
+# ==============================================================================
+# SmallWorlds - Example Terraform Variables
+# ==============================================================================
+# Do NOT commit this file with your actual secrets!
+# Copy this to `terraform.tfvars` if you are deploying manually without the script.
+
+domain_name  = "smallworlds.network"
+admin_email  = "admin@smallworlds.network"
+
+# ------------------------------------------------------------------------------
+# GitOps Repository Configuration
+# ------------------------------------------------------------------------------
+# The private repository containing your custom configurations
+git_url      = "https://github.com/my-community/config.git"
+git_username = "your-github-username"
+git_password = "ghp_your_personal_access_token"
+
+# ------------------------------------------------------------------------------
+# Cloud Provider Configuration
+# ------------------------------------------------------------------------------
+# API Token for Hetzner Cloud (Used for server provisioning and DNS records)
+hcloud_token = "your-hetzner-cloud-api-token"
+
+# ------------------------------------------------------------------------------
+# Application Admin Passwords (Optional)
+# ------------------------------------------------------------------------------
+# If left commented out, Terraform will securely generate random passwords for you.
+# If you provide them, they will remain stable across reinstalls.
+#
+# keycloak_admin_password  = "choose-a-strong-password"
+# nextcloud_admin_password = "choose-a-strong-password"
+# immich_admin_password    = "choose-a-strong-password"

@@ -1,0 +1,63 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: forgejo-garage-init
+  namespace: forgejo
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  template:
+    spec:
+      serviceAccountName: forgejo-setup-sa
+      containers:
+        - name: setup
+          image: bitnami/kubectl:latest
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+
+              echo "Finding Garage pod..."
+              POD=$(kubectl get pods -n garage-system -l app.kubernetes.io/name=garage -o name | head -n 1)
+              if [[ -z "$POD" ]]; then
+                echo "Error: Garage pod not found."
+                exit 1
+              fi
+
+              # --- Forgejo key & bucket ---
+              if kubectl get secret garage-secret -n forgejo > /dev/null 2>&1; then
+                echo "garage-secret already exists in forgejo namespace, skipping key creation."
+              else
+                echo "Deleting existing Garage key if any..."
+                kubectl exec -n garage-system $POD -- /garage key delete forgejo-key || true
+
+                echo "Generating access key for Forgejo..."
+                OUTPUT=$(kubectl exec -n garage-system $POD -- /garage key create forgejo-key)
+                
+                ACCESS_KEY=$(echo "$OUTPUT" | grep "Key ID:" | awk '{print $3}')
+                SECRET_KEY=$(echo "$OUTPUT" | grep "Secret key:" | awk '{print $3}')
+
+                if [[ -z "$ACCESS_KEY" || -z "$SECRET_KEY" ]]; then
+                  echo "Error: Failed to parse Key ID or Secret key."
+                  exit 1
+                fi
+
+                echo "Setting permissions for Forgejo key..."
+                kubectl exec -n garage-system $POD -- /garage key allow forgejo-key --create-bucket || true
+
+                echo "Creating forgejo bucket..."
+                kubectl exec -n garage-system $POD -- /garage bucket create forgejo || true
+                kubectl exec -n garage-system $POD -- /garage bucket allow forgejo --read --write --owner --key forgejo-key || true
+
+                echo "Creating garage-secret in forgejo namespace..."
+                kubectl create secret generic garage-secret -n forgejo \
+                  --from-literal=accessKey="$ACCESS_KEY" \
+                  --from-literal=secretKey="$SECRET_KEY" \
+                  --from-literal=accessKeyId="$ACCESS_KEY" \
+                  --from-literal=secretAccessKey="$SECRET_KEY"
+              fi
+
+              echo "Forgejo Garage bucket initialized successfully!"
+      restartPolicy: OnFailure

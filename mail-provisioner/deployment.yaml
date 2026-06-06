@@ -1,0 +1,135 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mail-provisioner-code
+  namespace: stalwart
+data:
+  main.py: |
+    import os
+    import json
+    import random
+    import string
+    import base64
+    import urllib.request
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    STALWART_API_URL = os.environ.get("STALWART_API_URL", "http://stalwart-mail.stalwart.svc.cluster.local:8080")
+    STALWART_API_KEY = os.environ.get("STALWART_API_KEY")
+
+    def generate_password(length=16):
+        chars = string.ascii_letters + string.digits + "!@#$%^&*"
+        return ''.join(random.choice(chars) for _ in range(length))
+
+    class WebhookHandler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            
+            try:
+                event = json.loads(post_data)
+            except Exception:
+                self.send_response(400)
+                self.end_headers()
+                return
+                
+            if event.get("type") != "REGISTER":
+                self.send_response(200)
+                self.end_headers()
+                return
+                
+            details = event.get("details", {})
+            username = details.get("username")
+            
+            if not username:
+                self.send_response(200)
+                self.end_headers()
+                return
+                
+            account_url = f"{STALWART_API_URL}/_/api/directory/accounts/{username}"
+            password = generate_password()
+            
+            payload = {
+                "name": username,
+                "description": "Auto-provisioned by Keycloak",
+                "secret": password,
+                "quota": 0
+            }
+            
+            # Base64-encode credentials for HTTP Basic Authentication
+            auth_str = f"admin:{STALWART_API_KEY}"
+            auth_b64 = base64.b64encode(auth_str.encode('utf-8')).decode('utf-8')
+
+            req = urllib.request.Request(account_url, method="PUT")
+            req.add_header("Authorization", f"Basic {auth_b64}")
+            req.add_header("Content-Type", "application/json")
+            
+            try:
+                with urllib.request.urlopen(req, data=json.dumps(payload).encode('utf-8')) as response:
+                    if response.status >= 200 and response.status < 300:
+                        print(f"Successfully created Stalwart account for {username}", flush=True)
+                    else:
+                        print(f"Failed to create account. Status code: {response.status}", flush=True)
+            except Exception as e:
+                print(f"Error calling Stalwart API: {e}", flush=True)
+                
+            self.send_response(200)
+            self.end_headers()
+
+    if __name__ == "__main__":
+        port = int(os.environ.get("PORT", 8081))
+        server = HTTPServer(('0.0.0.0', port), WebhookHandler)
+        print(f"Mail Provisioner Service starting on port {port}...", flush=True)
+        server.serve_forever()
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mail-provisioner
+  namespace: stalwart
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mail-provisioner
+  template:
+    metadata:
+      labels:
+        app: mail-provisioner
+    spec:
+      containers:
+        - name: provisioner
+          image: python:3.12-alpine
+          command: ["python", "-u", "/app/main.py"]
+          ports:
+            - containerPort: 8081
+          env:
+            - name: STALWART_API_URL
+              value: "http://stalwart-mail.stalwart.svc.cluster.local:8080"
+            - name: STALWART_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: stalwart-admin-secret
+                  key: api-key
+          volumeMounts:
+            - name: code-volume
+              mountPath: /app/main.py
+              subPath: main.py
+              readOnly: true
+      volumes:
+        - name: code-volume
+          configMap:
+            name: mail-provisioner-code
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mail-provisioner
+  namespace: stalwart
+spec:
+  selector:
+    app: mail-provisioner
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8081

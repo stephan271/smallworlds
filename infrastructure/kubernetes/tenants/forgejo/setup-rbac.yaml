@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: forgejo-setup-sa
+  namespace: forgejo
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: forgejo-setup-role
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "create", "patch", "apply"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "create"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: forgejo-setup-binding
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+subjects:
+  - kind: ServiceAccount
+    name: forgejo-setup-sa
+    namespace: forgejo
+roleRef:
+  kind: ClusterRole
+  name: forgejo-setup-role
+  apiGroup: rbac.authorization.k8s.io

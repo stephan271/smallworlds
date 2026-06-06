@@ -1,0 +1,44 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keycloak-realm-config
+  namespace: keycloak
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  template:
+    metadata:
+      labels:
+        app: keycloak-realm-config
+    spec:
+      containers:
+        - name: kcadm
+          image: quay.io/keycloak/keycloak:24.0.4
+          env:
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-admin-creds
+                  key: admin-password
+            - name: ONBOARDING_MODE
+              value: "invitation"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Waiting for Keycloak to be ready..."
+              until /opt/keycloak/bin/kcadm.sh config credentials --server http://keycloak:8080 --realm master --user admin --password "$KEYCLOAK_ADMIN_PASSWORD" > /dev/null 2>&1; do
+                echo "Keycloak is not ready, waiting..."
+                sleep 3
+              done
+              
+              echo "Setting onboarding mode to $ONBOARDING_MODE..."
+              if [ "$ONBOARDING_MODE" = "self-registration" ]; then
+                /opt/keycloak/bin/kcadm.sh update realms/smallworlds -s registrationAllowed=true -s verifyEmail=true
+              else
+                /opt/keycloak/bin/kcadm.sh update realms/smallworlds -s registrationAllowed=false
+              fi
+              echo "Realm configuration complete."
+      restartPolicy: OnFailure
+  backoffLimit: 10

@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: smallworlds-root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    # REPLACE this with the actual URL of your citizennet git repository
+    repoURL: 'https://github.com/stephan271/smallworlds.git'
+    targetRevision: HEAD
+    path: 00-letsgo/infrastructure/kubernetes/apps
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

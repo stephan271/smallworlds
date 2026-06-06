@@ -1,0 +1,53 @@
+controllers:
+  main:
+    containers:
+      main:
+        image:
+          tag: v2.5.6
+        env:
+          DB_DATABASE_NAME: immich
+          DB_HOSTNAME: immich-db-rw
+          DB_USERNAME: immich
+          REDIS_HOSTNAME: immich-redis
+          DB_PASSWORD:
+            valueFrom:
+              secretKeyRef:
+                name: immich-db-app
+                key: password
+          IMMICH_OAUTH_CLIENT_SECRET:
+            valueFrom:
+              secretKeyRef:
+                name: keycloak-secret
+                key: client-secret
+valkey:
+  enabled: false
+server:
+  enabled: true
+  ingress:
+    main:
+      enabled: true
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+      hosts:
+        - host: photos.smallworlds.network
+          paths:
+            - path: "/"
+      tls:
+        - secretName: immich-tls
+          hosts:
+            - photos.smallworlds.network
+machine-learning:
+  enabled: true
+immich:
+  configuration:
+    oauth:
+      enabled: true
+      issuerUrl: https://auth.smallworlds.network/realms/smallworlds
+      clientId: immich
+      clientSecret: f3b77c1c178b0e0083b1ac737dc89fe09c5584784b4d1a070e5a253ac154ca3e
+      autoRegister: true
+      autoLaunch: true
+      buttonText: Login with SmallWorlds ID
+  persistence:
+    library:
+      existingClaim: immich-library-pvc

@@ -1,0 +1,51 @@
+# Deploy an isolated, highly-available PostgreSQL cluster specifically for Immich using the CloudNativePG Operator
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: immich-db
+  namespace: immich
+spec:
+  instances: 2
+  imageName: ghcr.io/tensorchord/cloudnative-pgvecto.rs:16.4-v0.3.0
+  primaryUpdateStrategy: unsupervised
+  postgresql:
+    shared_preload_libraries:
+      - "vectors.so"
+  storage:
+    size: 20Gi
+  bootstrap:
+    initdb:
+      database: immich
+      owner: immich
+      postInitApplicationSQL:
+        - CREATE EXTENSION IF NOT EXISTS "vectors";
+        - CREATE EXTENSION IF NOT EXISTS "cube" CASCADE;
+        - CREATE EXTENSION IF NOT EXISTS "earthdistance" CASCADE;
+        - ALTER SCHEMA vectors OWNER TO immich;
+  backup:
+    retentionPolicy: "7d"
+    barmanObjectStore:
+      destinationPath: s3://postgres-backups/immich/
+      endpointURL: http://garage.garage-system.svc.cluster.local:3900
+      s3Credentials:
+        accessKeyId:
+          name: garage-secret
+          key: accessKeyId
+        secretAccessKey:
+          name: garage-secret
+          key: secretAccessKey
+      wal:
+        compression: gzip
+---
+# Daily scheduled backup at 02:30 UTC (staggered from Nextcloud)
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: immich-db-backup
+  namespace: immich
+spec:
+  schedule: "30 2 * * *"
+  cluster:
+    name: immich-db
+  immediate: true
+  backupOwnerReference: self

@@ -1,0 +1,43 @@
+# Deploy an isolated, highly-available PostgreSQL cluster specifically for Nextcloud using the CloudNativePG Operator
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: nextcloud-db
+  namespace: nextcloud
+spec:
+  instances: 2
+  imageName: ghcr.io/cloudnative-pg/postgresql:16
+  primaryUpdateStrategy: unsupervised
+  storage:
+    size: 20Gi
+  bootstrap:
+    initdb:
+      database: nextcloud
+      owner: nextcloud
+  backup:
+    retentionPolicy: "7d"
+    barmanObjectStore:
+      destinationPath: s3://postgres-backups/nextcloud/
+      endpointURL: http://garage.garage-system.svc.cluster.local:3900
+      s3Credentials:
+        accessKeyId:
+          name: garage-secret
+          key: accessKeyId
+        secretAccessKey:
+          name: garage-secret
+          key: secretAccessKey
+      wal:
+        compression: gzip
+---
+# Daily scheduled backup at 02:00 UTC
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: nextcloud-db-backup
+  namespace: nextcloud
+spec:
+  schedule: "0 2 * * *"
+  cluster:
+    name: nextcloud-db
+  immediate: true   # trigger one backup immediately on creation
+  backupOwnerReference: self

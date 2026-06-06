@@ -1,0 +1,305 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: stalwart-init
+  namespace: stalwart
+spec:
+  template:
+    metadata:
+      labels:
+        app: stalwart-init
+    spec:
+      containers:
+        - name: init
+          image: alpine:3.18
+          env:
+            - name: HCLOUD_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: stalwart-dns-secrets
+                  key: hcloud-token
+                  optional: true
+            - name: DOMAIN
+              valueFrom:
+                secretKeyRef:
+                  name: stalwart-dns-secrets
+                  key: domain
+                  optional: true
+            - name: STALWART_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: stalwart-admin-secret
+                  key: password
+          command:
+            - "/bin/sh"
+            - "-c"
+            - |
+              set -e
+              
+              DOMAIN_NAME="${DOMAIN:-smallworlds.network}"
+              
+              # 1. Wait for JMAP endpoint to be online
+              until nc -z -w 2 stalwart-mail 8080; do
+                echo "Waiting for Stalwart JMAP endpoint to be online on port 8080..."
+                sleep 2
+              done
+              echo "Stalwart JMAP endpoint is online!"
+              
+              # 2. Install stalwart-cli, jq and python3
+              echo "Installing stalwart-cli, jq and python3..."
+              apk add --no-cache curl jq python3
+              curl --proto '=https' --tlsv1.2 -LsSf https://github.com/stalwartlabs/cli/releases/latest/download/stalwart-cli-installer.sh | sh
+              CLI="/root/.cargo/bin/stalwart-cli"
+              
+              # 3. Short buffer to let Stalwart settle
+              sleep 5
+              
+              # 4. Export connection credentials for stalwart-cli v1.0.8+
+              export STALWART_URL="http://stalwart-mail:8080"
+              export STALWART_USER="admin"
+              # STALWART_PASSWORD is set via environment variable
+              
+              # 5. Declaratively create the domain
+              echo "Initializing $DOMAIN_NAME domain..."
+              $CLI create Domain --field name="$DOMAIN_NAME" || echo "Domain already exists or was already configured."
+              
+              # 6. Output generated DNS Zone records to logs
+              echo "=========================================================================="
+              echo "STALWART GENERATED DNS ZONE RECORDS FOR YOUR DOMAIN:"
+              echo "=========================================================================="
+              DOMAIN_ID=$( $CLI query Domain --json | jq -r --arg domain "$DOMAIN_NAME" 'select(.name == $domain) | .id' )
+              if [ -n "$DOMAIN_ID" ]; then
+                $CLI get Domain "$DOMAIN_ID"
+              else
+                echo "Error: Domain $DOMAIN_NAME was not found!"
+              fi
+              echo "=========================================================================="
+              
+              # 7. Configure Keycloak OIDC Directory
+              echo "Configuring Keycloak OIDC Directory..."
+              $CLI create Directory/oidc --json '{
+                "name": "Keycloak",
+                "issuerUrl": "https://auth.smallworlds.network/realms/smallworlds",
+                "requireAudience": "roundcube",
+                "claimUsername": "preferred_username",
+                "claimName": "name",
+                "claimGroups": "groups"
+              }' || echo "OIDC Directory might already exist or configuration skipped."
+              
+              # 8. Automate Hetzner DNS setup if the API token is provided
+              if [ -n "$HCLOUD_TOKEN" ]; then
+                echo "Hetzner DNS API Token found! Automating DNS records push..."
+                
+                cat << "EOF" | sed 's/^  //' > /tmp/push_dns.py
+                import sys, os, json, urllib.request, urllib.parse, re
+                
+                zone_file = sys.stdin.read()
+                token = os.getenv("HCLOUD_TOKEN")
+                domain = os.getenv("DOMAIN")
+                
+                if not token or not domain:
+                    print("No valid Hetzner DNS API Token found. Skipping DNS automation.")
+                    sys.exit(0)
+                
+                # Fetch Zone ID from Hetzner Cloud API
+                req = urllib.request.Request(
+                    "https://api.hetzner.cloud/v1/zones",
+                    headers={"Authorization": f"Bearer {token}"}
+                )
+                try:
+                    with urllib.request.urlopen(req) as response:
+                        zones = json.loads(response.read().decode())["zones"]
+                except Exception as e:
+                    print(f"Error fetching zones from Hetzner Cloud API: {e}")
+                    sys.exit(1)
+                
+                zone_id = None
+                for z in zones:
+                    if z["name"] == domain:
+                        zone_id = z["id"]
+                        break
+                
+                if not zone_id:
+                    print(f"Zone for {domain} not found in Hetzner Cloud DNS. Creating it now...")
+                    req = urllib.request.Request(
+                        "https://api.hetzner.cloud/v1/zones",
+                        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                        data=json.dumps({"name": domain, "ttl": 3600}).encode(),
+                        method="POST"
+                    )
+                    try:
+                        with urllib.request.urlopen(req) as response:
+                            zone_id = json.loads(response.read().decode())["zone"]["id"]
+                            print(f"Created new zone in Hetzner Cloud DNS with ID: {zone_id}")
+                    except Exception as e:
+                        print(f"Failed to create zone: {e}")
+                        sys.exit(1)
+                
+                print(f"Using Zone ID: {zone_id}")
+                
+                # Character-by-character BIND comment stripper to preserve semicolons inside quotes
+                def strip_comments(text):
+                    result = []
+                    in_quotes = False
+                    escape = False
+                    for char in text:
+                        if escape:
+                            result.append(char)
+                            escape = False
+                            continue
+                        if char == '\\':
+                            result.append(char)
+                            escape = True
+                            continue
+                        if char == '"':
+                            in_quotes = not in_quotes
+                        elif char == ';' and not in_quotes:
+                            break
+                        result.append(char)
+                    return "".join(result).strip()
+                
+                lines = []
+                for line in zone_file.splitlines():
+                    cleaned = strip_comments(line)
+                    if cleaned:
+                        lines.append(cleaned)
+                
+                joined_lines = []
+                in_parentheses = False
+                current_line = ""
+                for line in lines:
+                    if in_parentheses:
+                        if ')' in line:
+                            parts = line.split(')', 1)
+                            current_line += " " + parts[0].strip()
+                            joined_lines.append(current_line.strip())
+                            in_parentheses = False
+                        else:
+                            current_line += " " + line
+                    else:
+                        if '(' in line:
+                            parts = line.split('(', 1)
+                            current_line = parts[0].strip() + " " + parts[1].strip()
+                            in_parentheses = True
+                        else:
+                            joined_lines.append(line)
+                
+                records = []
+                for line in joined_lines:
+                    tokens = line.split()
+                    if "IN" not in tokens:
+                        continue
+                    in_index = tokens.index("IN")
+                    if in_index < 1 or in_index + 2 >= len(tokens):
+                        continue
+                    
+                    name = tokens[0]
+                    if name == domain + "." or name == "@":
+                        name = "@"
+                    elif name.endswith("." + domain + "."):
+                        name = name[:-len(domain + ".") - 1]
+                    
+                    rtype = tokens[in_index + 1]
+                    
+                    # Extract value preserving original spacing
+                    rtype_index = line.find(" " + rtype + " ")
+                    if rtype_index == -1:
+                        rtype_index = line.find("\t" + rtype + "\t")
+                    if rtype_index == -1:
+                        rtype_index = line.find("\t" + rtype + " ")
+                    if rtype_index == -1:
+                        rtype_index = line.find(" " + rtype + "\t")
+                        
+                    if rtype_index != -1:
+                        value = line[rtype_index + len(rtype) + 2:].strip()
+                    else:
+                        value = " ".join(tokens[in_index + 2:])
+                        
+                    # TXT record values are left fully quoted as BIND formatting provides them
+                    records.append({
+                        "name": name,
+                        "type": rtype,
+                        "value": value
+                    })
+                
+                # Group records by (name, type) for RRset management
+                grouped_new = {}
+                for rec in records:
+                    if rec["type"] not in ["MX", "TXT"]:
+                        continue
+                    key = (rec["name"], rec["type"])
+                    if key not in grouped_new:
+                        grouped_new[key] = []
+                    grouped_new[key].append(rec["value"])
+                
+                # Fetch existing RRsets
+                req = urllib.request.Request(
+                    f"https://api.hetzner.cloud/v1/zones/{zone_id}/rrsets",
+                    headers={"Authorization": f"Bearer {token}"}
+                )
+                try:
+                    with urllib.request.urlopen(req) as response:
+                        existing_rrsets = json.loads(response.read().decode())["rrsets"]
+                except Exception as e:
+                    print(f"Error fetching existing RRsets: {e}")
+                    existing_rrsets = []
+                
+                existing_map = {}
+                for r in existing_rrsets:
+                    existing_map[(r["name"], r["type"])] = [rec["value"] for rec in r["records"]]
+                
+                for (name, rtype), new_vals in grouped_new.items():
+                    # Sort for consistent comparison
+                    new_vals.sort()
+                    
+                    if (name, rtype) in existing_map:
+                        ext_vals = existing_map[(name, rtype)]
+                        ext_vals.sort()
+                        if ext_vals == new_vals:
+                            print(f"RRset {name} ({rtype}) is already up to date. Skipping.")
+                            continue
+                        
+                        # Values don't match: delete existing RRset
+                        print(f"Updating RRset {name} ({rtype}): values changed from {ext_vals} to {new_vals}. Re-creating...")
+                        safe_name = urllib.parse.quote(name, safe='')
+                        req = urllib.request.Request(
+                            f"https://api.hetzner.cloud/v1/zones/{zone_id}/rrsets/{safe_name}/{rtype}",
+                            headers={"Authorization": f"Bearer {token}"},
+                            method="DELETE"
+                        )
+                        try:
+                            with urllib.request.urlopen(req) as response:
+                                pass
+                        except Exception as e:
+                            print(f"Error deleting old RRset {name} ({rtype}): {e}")
+                            
+                    # Create the new RRset
+                    print(f"Creating RRset {name} ({rtype}) with values: {new_vals}")
+                    payload = {
+                        "name": name,
+                        "type": rtype,
+                        "ttl": 3600,
+                        "records": [{"value": val} for val in new_vals]
+                    }
+                    req = urllib.request.Request(
+                        f"https://api.hetzner.cloud/v1/zones/{zone_id}/rrsets",
+                        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                        data=json.dumps(payload).encode(),
+                        method="POST"
+                    )
+                    try:
+                        with urllib.request.urlopen(req) as response:
+                            pass
+                    except Exception as e:
+                        print(f"Error creating RRset {name} ({rtype}): {e}")
+                
+                print("DNS Automation sync completed successfully!")
+              EOF
+              $CLI get Domain "$DOMAIN_ID" --json | jq -r '.dnsZoneFile' | python3 /tmp/push_dns.py
+              else
+                echo "No valid Hetzner DNS API Token found (or using default/empty token). Skipping DNS automation."
+              fi
+              
+              echo "Stalwart automated initialization complete!"
+      restartPolicy: OnFailure
+  backoffLimit: 4

@@ -1,0 +1,87 @@
+http:
+  relativePath: "/"
+
+command:
+  - "/opt/keycloak/bin/kc.sh"
+  - "start"
+  - "--import-realm"
+  - "-Dkeycloak.import.strategy=OVERWRITE_EXISTING"
+  - "-Dkeycloak.migration.strategy=OVERWRITE_EXISTING"
+  - "--http-port=8080"
+  - "--http-relative-path=/"
+  - "--hostname=auth.smallworlds.network"
+  - "--spi-events-listener-jboss-logging-success-level=info"
+  - "--spi-events-listener-jboss-logging-error-level=warn"
+  - "--features=recovery-codes"
+
+extraEnv: |
+  - name: JAVA_OPTS_APPEND
+    value: "-Djgroups.dns.query=keycloak-headless -Dkeycloak.migration.action=import -Dkeycloak.migration.provider=singleFile -Dkeycloak.migration.file=/opt/keycloak/data/import/smallworlds-realm.json -Dkeycloak.migration.strategy=OVERWRITE_EXISTING"
+  - name: KC_DB
+    value: postgres
+  - name: KC_DB_URL_HOST
+    value: keycloak-db-rw
+  - name: KC_DB_URL_DATABASE
+    value: keycloak
+  - name: KC_DB_USERNAME
+    value: keycloak
+  - name: KC_DB_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: keycloak-db-app
+        key: password
+  - name: KEYCLOAK_ADMIN
+    value: "admin"
+  - name: KEYCLOAK_ADMIN_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: keycloak-admin-creds
+        key: admin-password
+  - name: KC_SMTP_HOST
+    value: "stalwart-mail.stalwart.svc.cluster.local"
+  - name: KC_SMTP_PORT
+    value: "25"
+  - name: KC_SMTP_FROM
+    value: "auth@smallworlds.network"
+  - name: KC_SMTP_AUTH
+    value: "false"
+  - name: KC_SMTP_USER
+    value: ""
+  - name: KC_SMTP_PASSWORD
+    value: ""
+
+  - name: KC_PROXY
+    value: "edge"
+  - name: KC_PROXY_HEADERS
+    value: "xforwarded"
+  - name: KC_HTTP_ENABLED
+    value: "true"
+  - name: KC_HOSTNAME_STRICT
+    value: "false"
+  - name: KC_HOSTNAME_STRICT_HTTPS
+    value: "false"
+
+ingress:
+  enabled: true
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.middlewares: keycloak-keycloak-redirect@kubernetescrd
+  rules:
+    - host: auth.smallworlds.network
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - auth.smallworlds.network
+      secretName: keycloak-tls
+
+extraVolumes: |
+  - name: realm-config
+    configMap:
+      name: keycloak-realm-config
+extraVolumeMounts: |
+  - name: realm-config
+    mountPath: "/opt/keycloak/data/import/smallworlds-realm.json"
+    subPath: "smallworlds-realm.json"
+    readOnly: true

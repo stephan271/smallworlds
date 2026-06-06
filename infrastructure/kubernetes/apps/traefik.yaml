@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: traefik
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: 'https://helm.traefik.io/traefik'
+    targetRevision: "34.4.1"
+    chart: traefik
+    helm:
+      values: |
+        ports:
+          web:
+            hostPort: 80
+            redirections:
+              entryPoint:
+                to: websecure
+                scheme: https
+          websecure:
+            hostPort: 443
+            tls:
+              enabled: true
+        ingressRoute:
+          dashboard:
+            enabled: false
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: traefik-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,43 @@
+# Deploy an isolated, highly-available PostgreSQL cluster specifically for Keycloak using the CloudNativePG Operator
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: keycloak-db
+  namespace: keycloak
+spec:
+  instances: 2
+  imageName: ghcr.io/tensorchord/cloudnative-pgvecto.rs:16.4-v0.3.0
+  primaryUpdateStrategy: unsupervised
+  storage:
+    size: 20Gi
+  bootstrap:
+    initdb:
+      database: keycloak
+      owner: keycloak
+  backup:
+    retentionPolicy: "7d"
+    barmanObjectStore:
+      destinationPath: s3://postgres-backups/keycloak/
+      endpointURL: http://garage.garage-system.svc.cluster.local:3900
+      s3Credentials:
+        accessKeyId:
+          name: garage-secret
+          key: accessKeyId
+        secretAccessKey:
+          name: garage-secret
+          key: secretAccessKey
+      wal:
+        compression: gzip
+---
+# Daily scheduled backup at 03:00 UTC (staggered from Nextcloud/Immich)
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: keycloak-db-backup
+  namespace: keycloak
+spec:
+  schedule: "0 3 * * *"
+  cluster:
+    name: keycloak-db
+  immediate: true
+  backupOwnerReference: self

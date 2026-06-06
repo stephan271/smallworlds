@@ -1,0 +1,43 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: garage
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: 'https://datahub-local.github.io/garage-helm'
+    targetRevision: 0.2.1
+    chart: garage
+    helm:
+      values: |
+        replicaCount: 1
+        garage:
+          replication_factor: 1
+        persistence:
+          enabled: true
+          size: 120Gi
+          storageClass: hetzner-local
+        service:
+          s3:
+            type: ClusterIP
+            port: 3900
+          api:
+            type: ClusterIP
+            port: 3901
+          web:
+            type: ClusterIP
+            port: 3902
+        ingress:
+          enabled: false
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: garage-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

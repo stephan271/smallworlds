@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: roundcube
+  namespace: roundcube
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: roundcube
+  template:
+    metadata:
+      labels:
+        app: roundcube
+    spec:
+      containers:
+        - name: roundcube
+          image: roundcube/roundcubemail:latest
+          ports:
+            - containerPort: 80
+          env:
+            - name: ROUNDCUBEMAIL_DEFAULT_HOST
+              value: "ssl://mail.smallworlds.network"
+            - name: ROUNDCUBEMAIL_DEFAULT_PORT
+              value: "993"
+            - name: ROUNDCUBEMAIL_SMTP_SERVER
+              value: "tls://mail.smallworlds.network"
+            - name: ROUNDCUBEMAIL_SMTP_PORT
+              value: "587"
+            - name: ROUNDCUBEMAIL_DB_TYPE
+              value: "sqlite"
+            - name: OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: roundcube-oauth-secret
+                  key: OAUTH_CLIENT_SECRET
+          volumeMounts:
+            - name: roundcube-data
+              mountPath: /var/www/html
+            - name: roundcube-data
+              mountPath: /var/roundcube/db
+              subPath: db
+            - name: roundcube-oauth-config
+              mountPath: /var/roundcube/config/oauth.php
+              subPath: oauth-config.inc.php
+      volumes:
+        - name: roundcube-data
+          persistentVolumeClaim:
+            claimName: roundcube-data
+        - name: roundcube-oauth-config
+          configMap:
+            name: roundcube-oauth-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: roundcube
+  namespace: roundcube
+spec:
+  selector:
+    app: roundcube
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80

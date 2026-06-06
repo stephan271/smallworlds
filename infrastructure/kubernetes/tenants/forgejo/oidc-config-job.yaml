@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: forgejo-oidc-config
+  namespace: forgejo
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: forgejo-oidc-config
+  namespace: forgejo
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create", "get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: forgejo-oidc-config
+  namespace: forgejo
+subjects:
+  - kind: ServiceAccount
+    name: forgejo-oidc-config
+    namespace: forgejo
+roleRef:
+  kind: Role
+  name: forgejo-oidc-config
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: forgejo-oidc-config
+  namespace: forgejo
+  annotations:
+    argocd.argoproj.io/hook: Sync
+spec:
+  template:
+    spec:
+      serviceAccountName: forgejo-oidc-config
+      containers:
+        - name: configure-oidc
+          image: bitnami/kubectl:latest
+          env:
+            - name: CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: client-secret
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Waiting for Forgejo pod to be ready..."
+              while ! kubectl get pods -n forgejo -l app.kubernetes.io/name=forgejo -o jsonpath='{.items[0].status.phase}' 2>/dev/null | grep -q 'Running'; do
+                sleep 5
+              done
+              
+              POD_NAME=$(kubectl get pods -n forgejo -l app.kubernetes.io/name=forgejo --field-selector=status.phase=Running -o name | head -n 1 | cut -d/ -f2)
+              
+              echo "Waiting for Forgejo database migrations and port to be active..."
+              sleep 15
+              
+              echo "Configuring Keycloak OIDC provider in Forgejo..."
+              # Forgejo CLI commands can be run directly because the container runs as the 'git' user by default
+              kubectl exec -n forgejo $POD_NAME -c forgejo -- \
+                forgejo admin auth add-oauth \
+                  --name=smallworlds \
+                  --provider=openidConnect \
+                  --key=forgejo \
+                  --secret=$CLIENT_SECRET \
+                  --auto-discover-url=https://auth.smallworlds.network/realms/smallworlds/.well-known/openid-configuration \
+                  --scopes='openid email profile' || true
+              
+              echo "OIDC configuration complete."
+      restartPolicy: OnFailure
