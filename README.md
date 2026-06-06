@@ -20,6 +20,22 @@ It acts as an overlay that stores:
 3. **Custom Apps:** If you want to run third-party apps alongside the Foundation apps (e.g., a Minecraft server or WordPress blog), you put their Kubernetes manifests here.
 4. **Private Integrations:** A safe, private place to store API tokens or secret OAuth keys for external services.
 
+You can automate this step using our helper script, or follow the manual instructions below.
+
+### Option A: Automate with the helper script (Recommended)
+Run the script from the root of this repository:
+```bash
+./prepare-community-repo.sh
+```
+This script will guide you through:
+- Initializing the local directory as a Git repository.
+- Generating the required `kustomization.yaml`, `.gitignore`, and a basic `README.md`.
+- Creating the initial commit.
+- Optionally setting up the Git remote and pushing to your private repository.
+
+---
+
+### Option B: Manual Setup
 1. Create a **new, empty Git repository** on GitLab, GitHub, or your own Forgejo instance (e.g., `my-community-config`). Make sure it is set to **Private**.
 2. Clone your new repository to your local machine.
 3. Inside your new repository, create a file named `kustomization.yaml` and paste the following code:
