@@ -8,7 +8,6 @@ resources:
   # 1. Backend Components (Installed as ArgoCD Apps)
   - apps/cert-manager.yaml
   - apps/cloudnative-pg.yaml
-  - apps/clusterissuer.yaml
   - apps/garage.yaml
   - apps/persistent-storage.yaml
   - apps/traefik.yaml

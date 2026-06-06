@@ -95,6 +95,24 @@ write_files:
         password: "${forgejo_admin_password}"
         email: "${admin_email}"
 
+  - path: /var/lib/rancher/k3s/server/manifests/letsencrypt-prod.yaml
+    permissions: '0644'
+    content: |
+      apiVersion: cert-manager.io/v1
+      kind: ClusterIssuer
+      metadata:
+        name: letsencrypt-prod
+      spec:
+        acme:
+          server: https://acme-v02.api.letsencrypt.org/directory
+          email: "${admin_email}"
+          privateKeySecretRef:
+            name: letsencrypt-prod
+          solvers:
+          - http01:
+              ingress:
+                class: traefik
+
   - path: /var/lib/rancher/k3s/server/manifests/coredns-custom.yaml
     permissions: '0644'
     content: |

@@ -9,7 +9,16 @@ Follow these steps to launch your "Small World".
 ---
 
 ## Step 1: Prepare your Community Configuration Repository
-Before launching the server, you need a private place to store its configuration. This is your **Community Configuration Repository**.
+Before launching the server, you need a private place to store its unique configuration. This is your **Community Configuration Repository**.
+
+**What goes in this repository?**
+The initial installation script (which you'll run in Step 3) handles the "Hard Bootup"—renting the server, configuring DNS, and installing the raw Kubernetes engine. But once the server is alive, it switches to **GitOps Mode**. From that point on, any *application-level* changes or additions must be committed to this private repository!
+
+It acts as an overlay that stores:
+1. **The Remote Pointer:** Tells your server to download the core apps from the public `smallworlds` Foundation repo.
+2. **Configuration Overrides (Patches):** If you want to change a setting (e.g., enable open registration on Keycloak), you store a tiny patch here. Your patch dynamically overrides the Foundation's default setting.
+3. **Custom Apps:** If you want to run third-party apps alongside the Foundation apps (e.g., a Minecraft server or WordPress blog), you put their Kubernetes manifests here.
+4. **Private Integrations:** A safe, private place to store API tokens or secret OAuth keys for external services.
 
 1. Create a **new, empty Git repository** on GitLab, GitHub, or your own Forgejo instance (e.g., `my-community-config`). Make sure it is set to **Private**.
 2. Clone your new repository to your local machine.
@@ -23,16 +32,7 @@ resources:
   - https://github.com/stephan271/smallworlds.git/infrastructure/kubernetes?ref=HEAD
 
 patches:
-  # 1. Update the Let's Encrypt email for your SSL certificates
-  - target:
-      kind: ClusterIssuer
-      name: letsencrypt-prod
-    patch: |-
-      - op: replace
-        path: /spec/acme/email
-        value: "admin@my-community.com"
-
-  # 2. This is where you will add your specific domain overrides later
+  # This is where you will add your specific domain overrides later
   # - target:
   #     kind: Ingress
   #   patch: |- ...
