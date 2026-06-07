@@ -5,6 +5,8 @@ kind: Kustomization
 # It includes the core backend components (via ArgoCD App CRDs) 
 # and the user-facing tenants (via Kustomize bases) so they can be easily patched.
 resources:
+  - namespaces.yaml
+
   # 1. Backend Components (Installed as ArgoCD Apps)
   - apps/cert-manager.yaml
   - apps/cloudnative-pg.yaml

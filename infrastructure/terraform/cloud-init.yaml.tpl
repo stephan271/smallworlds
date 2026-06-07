@@ -10,6 +10,21 @@ write_files:
     content: |
       ---
       apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: keycloak
+      ---
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: nextcloud
+      ---
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: immich
+      ---
+      apiVersion: v1
       kind: Secret
       metadata:
         name: keycloak-admin-creds
@@ -156,6 +171,7 @@ write_files:
             selfHeal: true
           syncOptions:
             - CreateNamespace=true
+            - SkipDryRunOnMissingResource=true
 
 runcmd:
   # 1. Mount persistent volume
