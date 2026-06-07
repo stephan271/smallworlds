@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: 'https://github.com/stephan271/smallworlds.git'
     targetRevision: HEAD
-    path: 00-letsgo/infrastructure/kubernetes/tenants/stalwart
+    path: infrastructure/kubernetes/tenants/stalwart
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: stalwart

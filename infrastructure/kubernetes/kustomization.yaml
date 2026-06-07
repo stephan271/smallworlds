@@ -14,11 +14,11 @@ resources:
   - apps/persistent-storage.yaml
   - apps/traefik.yaml
   
-  # 2. Frontend Tenants (Imported as direct Kustomize bases so domains can be patched)
-  - tenants/dashboard
-  - tenants/forgejo
-  - tenants/immich
-  - tenants/keycloak
-  - tenants/nextcloud
-  - tenants/roundcube
-  - tenants/stalwart
+  # 2. Frontend Tenants (Installed as ArgoCD Apps)
+  - apps/dashboard.yaml
+  - apps/forgejo.yaml
+  - apps/immich.yaml
+  - apps/keycloak.yaml
+  - apps/nextcloud.yaml
+  - apps/roundcube.yaml
+  - apps/stalwart.yaml

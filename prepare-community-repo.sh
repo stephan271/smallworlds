@@ -50,21 +50,68 @@ else
     echo -e "${YELLOW}Note: Git repository already initialized in this directory.${NC}"
 fi
 
-# 3. Create kustomization.yaml
-echo -e "${YELLOW}Creating kustomization.yaml...${NC}"
+# 3. Create subdirectories for each app and their kustomization
+echo -e "${YELLOW}Creating application subdirectories...${NC}"
+APPS=("dashboard" "forgejo" "immich" "keycloak" "nextcloud" "roundcube" "stalwart")
+
+for app in "${APPS[@]}"; do
+    mkdir -p "$app"
+    cat <<EOF > "$app/kustomization.yaml"
+resources:
+  - https://github.com/stephan271/smallworlds.git/infrastructure/kubernetes/tenants/$app?ref=HEAD
+
+# Add your patches for $app here
+# patches:
+#   - target:
+#       kind: Ingress
+#     patch: |- ...
+EOF
+done
+
+# 4. Create root kustomization.yaml
+echo -e "${YELLOW}Creating root kustomization.yaml...${NC}"
 cat <<EOF > kustomization.yaml
 # kustomization.yaml
 resources:
-  # This line connects your server to the public Central Foundation Repository.
-  # When the central repo updates, your foundation apps (Nextcloud, Immich) update too.
+  # This line connects your server to the public Central Foundation Repository root
   - https://github.com/stephan271/smallworlds.git/infrastructure/kubernetes?ref=HEAD
 
 patches:
-  # This is where you will add your specific domain overrides later
-  # - target:
-  #     kind: Ingress
-  #   patch: |- ...
+  # Route all ArgoCD Application definitions to your private repo instead of upstream
 EOF
+
+if [ -n "$REMOTE_URL" ]; then
+    for app in "${APPS[@]}"; do
+        cat <<EOF >> kustomization.yaml
+  - target:
+      group: argoproj.io
+      kind: Application
+      name: $app
+    patch: |-
+      - op: replace
+        path: /spec/source/repoURL
+        value: $REMOTE_URL
+      - op: replace
+        path: /spec/source/path
+        value: $app
+EOF
+    done
+else
+    cat <<EOF >> kustomization.yaml
+  # (Example for routing Nextcloud to your private repo)
+  # - target:
+  #     group: argoproj.io
+  #     kind: Application
+  #     name: nextcloud
+  #   patch: |-
+  #     - op: replace
+  #       path: /spec/source/repoURL
+  #       value: https://github.com/your-username/my-community-config.git
+  #     - op: replace
+  #       path: /spec/source/path
+  #       value: nextcloud
+EOF
+fi
 
 # 4. Create a basic .gitignore
 echo -e "${YELLOW}Creating .gitignore...${NC}"
