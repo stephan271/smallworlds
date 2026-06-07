@@ -57,15 +57,21 @@ echo -e "${YELLOW}Gathering Configuration...${NC}"
 ask_with_default "1. Enter your target domain (e.g. smallworlds.network)" "DOMAIN" "false"
 ask_with_default "2. Enter the admin email address" "ADMIN_EMAIL" "false"
 
+# Ensure ONBOARDING_MODE has a valid default if empty
+if [[ -z "$ONBOARDING_MODE" ]]; then
+    ONBOARDING_MODE="invitation"
+fi
+ask_with_default "3. Select onboarding mode (invitation or self-registration)" "ONBOARDING_MODE" "false"
+
 echo ""
 echo -e "${YELLOW}Hetzner Configuration${NC}"
-ask_with_default "3. Paste your Hetzner Cloud API Token" "HCLOUD_TOKEN" "true"
+ask_with_default "4. Paste your Hetzner Cloud API Token" "HCLOUD_TOKEN" "true"
 
 echo ""
 echo -e "${YELLOW}GitOps Repository Configuration${NC}"
-ask_with_default "4. Enter your Git repository URL (e.g., https://github.com/my-community/config.git)" "GITOPS_REPO_URL" "false"
-ask_with_default "5. Enter your Git username" "GITOPS_REPO_USER" "false"
-ask_with_default "6. Paste your Git Access Token" "GITOPS_REPO_TOKEN" "true"
+ask_with_default "5. Enter your Git repository URL (e.g., https://github.com/my-community/config.git)" "GITOPS_REPO_URL" "false"
+ask_with_default "6. Enter your Git username" "GITOPS_REPO_USER" "false"
+ask_with_default "7. Paste your Git Access Token" "GITOPS_REPO_TOKEN" "true"
 
 # Auto-convert SSH URLs to HTTPS if access token is used
 if [[ -n "$GITOPS_REPO_TOKEN" ]]; then
@@ -82,6 +88,7 @@ fi
 cat <<EOF > "$CACHE_FILE"
 DOMAIN="${DOMAIN}"
 ADMIN_EMAIL="${ADMIN_EMAIL}"
+ONBOARDING_MODE="${ONBOARDING_MODE}"
 HCLOUD_TOKEN="${HCLOUD_TOKEN}"
 GITOPS_REPO_URL="${GITOPS_REPO_URL}"
 GITOPS_REPO_USER="${GITOPS_REPO_USER}"
@@ -92,6 +99,9 @@ chmod 600 "$CACHE_FILE"
 echo ""
 
 echo -e "${CYAN}Generating configuration...${NC}"
+
+# Update ONBOARDING_MODE in the job manifest
+sed -i -E "s/value: \"(invitation|self-registration)\"/value: \"$ONBOARDING_MODE\"/g" infrastructure/kubernetes/tenants/keycloak/realm-config-job.yaml
 
 # Export Hetzner Token as environment variable so Terraform can find it
 export HCLOUD_TOKEN=$HCLOUD_TOKEN
