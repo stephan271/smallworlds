@@ -3,9 +3,6 @@ kind: Job
 metadata:
   name: forgejo-keycloak-init
   namespace: forgejo
-  annotations:
-    argocd.argoproj.io/hook: PreSync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
   template:
     spec:

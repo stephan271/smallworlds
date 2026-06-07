@@ -3,9 +3,6 @@ kind: Job
 metadata:
   name: nextcloud-garage-init
   namespace: nextcloud
-  annotations:
-    argocd.argoproj.io/hook: PreSync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
   template:
     spec:
@@ -19,12 +16,14 @@ spec:
             - |
               set -e
 
+              echo "Waiting for Garage pod to be ready..."
+              until kubectl get pods -n garage-system -l app.kubernetes.io/name=garage -o jsonpath='{.items[0].status.containerStatuses[0].ready}' 2>/dev/null | grep -q 'true'; do
+                echo "Garage is not ready yet, waiting..."
+                sleep 5
+              done
+
               echo "Finding Garage pod..."
               POD=$(kubectl get pods -n garage-system -l app.kubernetes.io/name=garage -o name | head -n 1)
-              if [[ -z "$POD" ]]; then
-                echo "Error: Garage pod not found."
-                exit 1
-              fi
 
               echo "Forming Garage Storage Layout..."
               NODES=$(kubectl exec -n garage-system $POD -- /garage status | grep -E '^[0-9a-f]{16}' | awk '{print $1}')

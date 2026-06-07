@@ -67,6 +67,17 @@ ask_with_default "4. Enter your Git repository URL (e.g., https://github.com/my-
 ask_with_default "5. Enter your Git username" "GITOPS_REPO_USER" "false"
 ask_with_default "6. Paste your Git Access Token" "GITOPS_REPO_TOKEN" "true"
 
+# Auto-convert SSH URLs to HTTPS if access token is used
+if [[ -n "$GITOPS_REPO_TOKEN" ]]; then
+    if [[ "$GITOPS_REPO_URL" =~ ^git@([^:]+):(.+)$ ]]; then
+        echo -e "${YELLOW}Auto-converting SSH Git URL to HTTPS for PAT authentication...${NC}"
+        GITOPS_REPO_URL="https://${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+    elif [[ "$GITOPS_REPO_URL" =~ ^ssh://git@([^/]+)/(.+)$ ]]; then
+        echo -e "${YELLOW}Auto-converting SSH Git URL to HTTPS for PAT authentication...${NC}"
+        GITOPS_REPO_URL="https://${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+    fi
+fi
+
 # Save values to cache for next time
 cat <<EOF > "$CACHE_FILE"
 DOMAIN="${DOMAIN}"

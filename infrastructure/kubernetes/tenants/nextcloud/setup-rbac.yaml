@@ -3,15 +3,11 @@ kind: ServiceAccount
 metadata:
   name: nextcloud-setup-sa
   namespace: nextcloud
-  annotations:
-    argocd.argoproj.io/hook: PreSync
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: nextcloud-setup-role
-  annotations:
-    argocd.argoproj.io/hook: PreSync
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
@@ -30,8 +26,6 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: nextcloud-setup-binding
-  annotations:
-    argocd.argoproj.io/hook: PreSync
 subjects:
   - kind: ServiceAccount
     name: nextcloud-setup-sa
