@@ -35,7 +35,7 @@ echo -e "Target directory: ${GREEN}${ABS_REPO_PATH}${NC}"
 echo ""
 
 # 2. Ask for the remote Git URL
-read -e -p "2. Enter your private Git Remote URL (optional, e.g., git@github.com:user/my-community-config.git): " REMOTE_URL
+read -e -p "2. Enter your private Git Remote HTTPS URL (optional, e.g., https://github.com/user/my-community-config.git): " REMOTE_URL
 
 echo ""
 echo -e "${YELLOW}Initializing repository...${NC}"

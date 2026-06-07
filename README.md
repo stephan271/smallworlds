@@ -83,9 +83,9 @@ Now you are ready to provision your server. You will run the automated script fr
    ```
 
 3. **Important:** When the script asks for your GitOps Repository Configuration:
-   * **URL:** Provide the **HTTPS URL** of your repository (e.g., `https://github.com/your-user/my-community-config.git`). SSH URLs (like `git@github.com:...`) are not supported as the cluster cannot access your local SSH agent.
+   * **URL:** Provide the **HTTPS URL** of your repository (e.g., `https://github.com/your-user/my-community-config.git`). **SSH URLs are not supported.**
    * **Username:** Your Git hosting platform username.
-   * **Access Token (PAT):** For security, use a **Fine-Grained Personal Access Token** scoped strictly to this private repository, with **Read-only** permissions for **Contents** (and metadata). Do not use your primary platform password.
+   * **Access Token (PAT):** You must use a **Personal Access Token (PAT)**. For security, use a Fine-Grained token scoped strictly to this private repository, with **Read-only** permissions for **Contents** (and metadata). Do not use your primary platform password.
 
 The script will now provision your server on Hetzner, install Kubernetes, and configure ArgoCD to listen to your **Community Configuration Repository**.
 
