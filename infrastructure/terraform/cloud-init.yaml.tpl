@@ -196,7 +196,12 @@ runcmd:
       MOUNT_DIR=$(lsblk -rpo 'NAME,MOUNTPOINT' | awk '$2 ~ /^.mnt/ && $2!="/mnt/smallworlds-data" {print $2}' | head -n1)
       if [ -n "$MOUNT_DIR" ]; then ln -sfn $MOUNT_DIR /mnt/smallworlds-data ; fi
     fi
-    mkdir -p /mnt/smallworlds-data/garage /mnt/smallworlds-data/immich-library
+    mkdir -p /mnt/smallworlds-data/garage /mnt/smallworlds-data/immich-library /mnt/smallworlds-data/k3s
+
+  # Relocate K3s data to the persistent volume to survive VM deletion
+  - if [ -d "/var/lib/rancher/k3s" ] && [ ! -L "/var/lib/rancher/k3s" ]; then cp -a /var/lib/rancher/k3s/* /mnt/smallworlds-data/k3s/ ; rm -rf /var/lib/rancher/k3s ; fi
+  - mkdir -p /var/lib/rancher
+  - ln -sfn /mnt/smallworlds-data/k3s /var/lib/rancher/k3s
 
   # 2. Install K3s (This will automatically apply the manifests in /var/lib/rancher/k3s/server/manifests/)
   - echo "ipv4" > ~/.curlrc
