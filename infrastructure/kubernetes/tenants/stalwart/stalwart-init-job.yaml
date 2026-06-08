@@ -63,6 +63,10 @@ spec:
               echo "Initializing $DOMAIN_NAME domain..."
               $CLI create Domain --field name="$DOMAIN_NAME" || echo "Domain already exists or was already configured."
               
+              # 5.5 Allow internal Kubernetes pods to send emails without authentication
+              echo "Configuring internal relay networks..."
+              $CLI server config update server.listener.smtp.relay.networks "[\"10.42.0.0/16\", \"10.43.0.0/16\"]" || echo "Relay networks could not be configured."
+              
               # 6. Output generated DNS Zone records to logs
               echo "=========================================================================="
               echo "STALWART GENERATED DNS ZONE RECORDS FOR YOUR DOMAIN:"

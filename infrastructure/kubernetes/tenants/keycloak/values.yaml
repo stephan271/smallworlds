@@ -37,6 +37,11 @@ extraEnv: |
       secretKeyRef:
         name: keycloak-admin-creds
         key: admin-password
+  - name: STALWART_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: keycloak-stalwart-secret
+        key: password
   - name: KC_SMTP_HOST
     value: "stalwart-mail.stalwart.svc.cluster.local"
   - name: KC_SMTP_PORT

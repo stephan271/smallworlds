@@ -95,6 +95,15 @@ write_files:
         recovery-admin: "admin:${stalwart_admin_password}"
       ---
       apiVersion: v1
+      kind: Secret
+      metadata:
+        name: keycloak-stalwart-secret
+        namespace: keycloak
+      type: Opaque
+      stringData:
+        password: "${stalwart_admin_password}"
+      ---
+      apiVersion: v1
       kind: Namespace
       metadata:
         name: forgejo

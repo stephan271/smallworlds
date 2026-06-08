@@ -1471,9 +1471,11 @@
         "port": "25",
         "from": "auth@smallworlds.network",
         "fromDisplayName": "Citizennet",
-        "auth": "false",
+        "auth": "true",
         "ssl": "false",
-        "starttls": "false"
+        "starttls": "true",
+        "user": "admin",
+        "password": "${env.STALWART_PASSWORD}"
     },
     "loginTheme": "keycloak",
     "eventsEnabled": false,
