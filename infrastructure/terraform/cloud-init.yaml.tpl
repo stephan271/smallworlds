@@ -176,7 +176,7 @@ write_files:
 runcmd:
   # 1. Mount persistent volume
   - |
-    VOLUME_DEVICE=$(lsblk -rpo 'NAME,MOUNTPOINT' | awk '$2=="" && $1 !~ /^\/dev\/sda/ {print $1}' | head -n1)
+    VOLUME_DEVICE=$(lsblk -rpo 'NAME,MOUNTPOINT' | awk '$2=="" && $1 !~ /^\/dev\/(sda|sr)/ {print $1}' | head -n1)
     if [ -n "$VOLUME_DEVICE" ]; then
       echo "Found unmounted volume at: $VOLUME_DEVICE"
       MOUNT_DIR=$(lsblk -rpo 'NAME,MOUNTPOINT' | awk -v dev="$VOLUME_DEVICE" '$1==dev {print $2}' | head -n1)
@@ -190,6 +190,7 @@ runcmd:
     mkdir -p /mnt/smallworlds-data/garage /mnt/smallworlds-data/immich-library
 
   # 2. Install K3s (This will automatically apply the manifests in /var/lib/rancher/k3s/server/manifests/)
+  - echo "ipv4" > ~/.curlrc
   - curl -sfL https://get.k3s.io | sh -s - server --cluster-init --disable traefik --disable servicelb
   - export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
   - until kubectl get nodes | grep -v NotReady | grep -q Ready; do sleep 5; done
