@@ -189,7 +189,7 @@ resource "hcloud_volume" "smallworlds_data" {
   format   = "ext4"
 
   lifecycle {
-    prevent_destroy = false # CRITICAL: never destroy this volume, it holds all user data
+    prevent_destroy = true # CRITICAL: never destroy this volume, it holds all user data
   }
 }
 

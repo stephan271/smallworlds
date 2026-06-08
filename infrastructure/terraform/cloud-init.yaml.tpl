@@ -176,7 +176,7 @@ write_files:
 runcmd:
   # 1. Mount persistent volume
   - |
-    VOLUME_DEVICE=$(lsblk -rpo 'NAME,MOUNTPOINT' | awk '$2=="" && $1!="/dev/sda" && $1!="/dev/sda1" {print $1}' | head -n1)
+    VOLUME_DEVICE=$(lsblk -rpo 'NAME,MOUNTPOINT' | awk '$2=="" && $1 !~ /^\/dev\/sda/ {print $1}' | head -n1)
     if [ -n "$VOLUME_DEVICE" ]; then
       echo "Found unmounted volume at: $VOLUME_DEVICE"
       MOUNT_DIR=$(lsblk -rpo 'NAME,MOUNTPOINT' | awk -v dev="$VOLUME_DEVICE" '$1==dev {print $2}' | head -n1)
