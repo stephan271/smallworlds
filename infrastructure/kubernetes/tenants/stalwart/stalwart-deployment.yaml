@@ -42,14 +42,19 @@ spec:
           image: stalwartlabs/stalwart:latest
           ports:
             - containerPort: 25
+              hostPort: 25
               name: smtp
             - containerPort: 587
+              hostPort: 587
               name: submission
             - containerPort: 143
+              hostPort: 143
               name: imap
             - containerPort: 993
+              hostPort: 993
               name: imaps
             - containerPort: 8080
+              hostPort: 8080
               name: jmap
           env:
             - name: DB_PASSWORD
@@ -79,7 +84,7 @@ metadata:
   name: stalwart-mail
   namespace: stalwart
 spec:
-  type: LoadBalancer # Requests a public IP from Hetzner Cloud Controller
+  type: ClusterIP
   selector:
     app: stalwart-mail
   ports:
