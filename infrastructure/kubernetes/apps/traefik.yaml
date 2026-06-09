@@ -17,13 +17,11 @@ spec:
       values: |
         ports:
           web:
-            hostPort: 80
             redirections:
               entryPoint:
                 to: websecure
                 scheme: https
           websecure:
-            hostPort: 443
             tls:
               enabled: true
         ingressRoute:
@@ -33,10 +31,8 @@ spec:
           kubernetesIngress:
             publishedService:
               enabled: true
-              # Format is namespace/service-name
-              pathOverride: "traefik-system/traefik"
         service:
-          type: ClusterIP
+          type: LoadBalancer
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: traefik-system
