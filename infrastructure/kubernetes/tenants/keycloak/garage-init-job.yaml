@@ -1,0 +1,47 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keycloak-garage-init
+  namespace: keycloak
+spec:
+  template:
+    spec:
+      serviceAccountName: keycloak-setup-sa
+      containers:
+        - name: setup
+          image: bitnami/kubectl:latest
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+
+              echo "Waiting for Garage pod to be ready..."
+              until kubectl get pods -n garage-system -l app.kubernetes.io/name=garage -o jsonpath='{.items[0].status.containerStatuses[0].ready}' 2>/dev/null | grep -q 'true'; do
+                echo "Garage is not ready yet, waiting..."
+                sleep 5
+              done
+
+              echo "Finding Garage pod..."
+              POD=$(kubectl get pods -n garage-system -l app.kubernetes.io/name=garage -o name | head -n 1)
+
+              echo "Setting up postgres-backups-keycloak key for CNPG..."
+              kubectl exec -n garage-system $POD -- /garage key delete keycloak-backup-key || true
+              CNPG_OUTPUT=$(kubectl exec -n garage-system $POD -- /garage key create keycloak-backup-key)
+              CNPG_ACCESS=$(echo "$CNPG_OUTPUT" | grep "Key ID:" | awk '{print $3}')
+              CNPG_SECRET=$(echo "$CNPG_OUTPUT" | grep "Secret key:" | awk '{print $3}')
+
+              kubectl exec -n garage-system $POD -- /garage key allow keycloak-backup-key --create-bucket || true
+
+              echo "Creating postgres-backups-keycloak bucket..."
+              kubectl exec -n garage-system $POD -- /garage bucket create postgres-backups-keycloak || true
+              kubectl exec -n garage-system $POD -- /garage bucket allow postgres-backups-keycloak --read --write --owner --key keycloak-backup-key || true
+
+              echo "Creating garage-secret in keycloak namespace..."
+              kubectl create secret generic garage-secret -n keycloak \
+                --from-literal=accessKeyId="$CNPG_ACCESS" \
+                --from-literal=secretAccessKey="$CNPG_SECRET" \
+                --dry-run=client -o yaml | kubectl apply -f -
+
+              echo "Garage initialized successfully for Keycloak!"
+      restartPolicy: OnFailure

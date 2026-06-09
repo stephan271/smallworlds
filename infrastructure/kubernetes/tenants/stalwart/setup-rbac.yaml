@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: stalwart-setup-sa
+  namespace: stalwart
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: stalwart-setup-role
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "create", "patch", "apply", "update"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "create"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: stalwart-setup-binding
+subjects:
+  - kind: ServiceAccount
+    name: stalwart-setup-sa
+    namespace: stalwart
+roleRef:
+  kind: ClusterRole
+  name: stalwart-setup-role
+  apiGroup: rbac.authorization.k8s.io

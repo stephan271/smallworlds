@@ -25,7 +25,7 @@ spec:
   backup:
     retentionPolicy: "7d"
     barmanObjectStore:
-      destinationPath: s3://postgres-backups/immich/
+      destinationPath: s3://postgres-backups-immich/
       endpointURL: http://garage.garage-system.svc.cluster.local:3900
       s3Credentials:
         accessKeyId:

@@ -6,6 +6,8 @@ resources:
   - cnpg-cluster.yaml
   - keycloak-redirect.yaml
   - realm-config-job.yaml
+  - setup-rbac.yaml
+  - garage-init-job.yaml
 
 configMapGenerator:
   - name: keycloak-realm-config

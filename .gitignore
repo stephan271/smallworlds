@@ -35,6 +35,9 @@ k3s_kubeconfig.yaml
 kubeconfig.yaml
 kubeconfig
 
+# Kustomize Helm Chart Caches
+charts/
+
 # ------------------------------------------------------------------------------
 # Secrets & Environment Variables
 # ------------------------------------------------------------------------------

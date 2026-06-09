@@ -6,4 +6,5 @@ resources:
   - stalwart-init-job.yaml
   - mail-provisioner-deployment.yaml
   - stalwart-ingress.yaml
-
+  - setup-rbac.yaml
+  - garage-init-job.yaml
