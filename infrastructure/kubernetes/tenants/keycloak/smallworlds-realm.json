@@ -1467,8 +1467,8 @@
         "strictTransportSecurity": "max-age=31536000; includeSubDomains"
     },
     "smtpServer": {
-        "host": "mail.smallworlds.network",
-        "port": "587",
+        "host": "stalwart-mail.stalwart.svc.cluster.local",
+        "port": "2525",
         "from": "auth@smallworlds.network",
         "fromDisplayName": "Citizennet",
         "auth": "true",

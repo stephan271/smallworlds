@@ -16,7 +16,7 @@ command:
 
 extraEnv: |
   - name: JAVA_OPTS_APPEND
-    value: "-Djgroups.dns.query=keycloak-headless -Dkeycloak.migration.action=import -Dkeycloak.migration.provider=singleFile -Dkeycloak.migration.file=/opt/keycloak/data/import/smallworlds-realm.json -Dkeycloak.migration.strategy=IGNORE_EXISTING"
+    value: "-Djgroups.dns.query=keycloak-headless -Dkeycloak.migration.action=import -Dkeycloak.migration.provider=singleFile -Dkeycloak.migration.file=/opt/keycloak/data/import/smallworlds-realm.json -Dkeycloak.migration.strategy=IGNORE_EXISTING -Dmail.smtp.ssl.trust=stalwart-mail.stalwart.svc.cluster.local"
   - name: KC_DB
     value: postgres
   - name: KC_DB_URL_HOST
@@ -45,15 +45,18 @@ extraEnv: |
   - name: KC_SMTP_HOST
     value: "stalwart-mail.stalwart.svc.cluster.local"
   - name: KC_SMTP_PORT
-    value: "25"
+    value: "2525"
   - name: KC_SMTP_FROM
     value: "auth@smallworlds.network"
   - name: KC_SMTP_AUTH
-    value: "false"
+    value: "true"
   - name: KC_SMTP_USER
-    value: ""
+    value: "admin"
   - name: KC_SMTP_PASSWORD
-    value: ""
+    valueFrom:
+      secretKeyRef:
+        name: keycloak-stalwart-secret
+        key: password
 
   - name: KC_PROXY
     value: "edge"

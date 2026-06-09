@@ -63,6 +63,14 @@ spec:
                   name: stalwart-admin-secret
                   key: recovery-admin
                   optional: true
+            - name: DOMAIN
+              valueFrom:
+                secretKeyRef:
+                  name: stalwart-dns-secrets
+                  key: domain
+                  optional: true
+            - name: STALWART_SERVER_HOSTNAME
+              value: "mail.$(DOMAIN)"
           volumeMounts:
             - name: config
               mountPath: /etc/stalwart/config.json
