@@ -71,6 +71,8 @@ spec:
                   optional: true
             - name: STALWART_SERVER_HOSTNAME
               value: "mail.$(DOMAIN)"
+            - name: STALWART_MTA_OUTBOUND_STRATEGY_DEFAULT_EHLO
+              value: "mail.$(DOMAIN)"
           volumeMounts:
             - name: config
               mountPath: /etc/stalwart/config.json
