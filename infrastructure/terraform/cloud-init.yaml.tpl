@@ -4,6 +4,10 @@ packages:
   - curl
   - jq
 
+swap:
+  filename: /swap.img
+  size: "8G"
+
 write_files:
   - path: /var/lib/rancher/k3s/server/manifests/smallworlds-secrets.yaml
     permissions: '0600'
