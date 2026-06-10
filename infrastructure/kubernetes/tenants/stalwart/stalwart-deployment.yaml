@@ -20,6 +20,18 @@ data:
       "timeout": 15000,
       "poolMaxConnections": 10
     }
+  relay.json: |
+    {
+      "server": {
+        "listener": {
+          "smtp": {
+            "relay": {
+              "networks": ["127.0.0.1/8", "::1", "10.42.0.0/16", "10.43.0.0/16"]
+            }
+          }
+        }
+      }
+    }
 
 ---
 apiVersion: apps/v1
@@ -74,7 +86,7 @@ spec:
             - name: STALWART_MTA_OUTBOUND_STRATEGY_DEFAULT_EHLO
               value: "mail.$(DOMAIN)"
             - name: STALWART_SERVER_LISTENER_SMTP_RELAY_NETWORKS
-              value: '["10.42.0.0/16", "10.43.0.0/16"]'
+              value: "10.42.0.0/16,10.43.0.0/16"
             - name: STALWART_CERTIFICATE_DEFAULT_CERT
               value: "file:///etc/stalwart/tls/tls.crt"
             - name: STALWART_CERTIFICATE_DEFAULT_PRIVATE_KEY
@@ -89,6 +101,9 @@ spec:
             - name: config
               mountPath: /etc/stalwart/config.json
               subPath: config.json
+            - name: config
+              mountPath: /etc/stalwart/relay.json
+              subPath: relay.json
             - name: tls
               mountPath: /etc/stalwart/tls
               readOnly: true
