@@ -170,7 +170,7 @@ write_files:
         source:
           repoURL: '${git_url}'
           targetRevision: HEAD
-          path: .
+          path: infrastructure/kubernetes/apps
         destination:
           server: 'https://kubernetes.default.svc'
           namespace: argocd
