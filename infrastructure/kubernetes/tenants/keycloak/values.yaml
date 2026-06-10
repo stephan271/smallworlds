@@ -49,9 +49,9 @@ extraEnv: |
   - name: KC_SMTP_FROM
     value: "auth@smallworlds.network"
   - name: KC_SMTP_AUTH
-    value: "true"
+    value: "false"
   - name: KC_SMTP_STARTTLS
-    value: "true"
+    value: "false"
   - name: KC_SMTP_USER
     value: "admin"
   - name: KC_SMTP_PASSWORD

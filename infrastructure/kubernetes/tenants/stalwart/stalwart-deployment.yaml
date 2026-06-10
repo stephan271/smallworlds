@@ -73,6 +73,8 @@ spec:
               value: "mail.$(DOMAIN)"
             - name: STALWART_MTA_OUTBOUND_STRATEGY_DEFAULT_EHLO
               value: "mail.$(DOMAIN)"
+            - name: STALWART_SESSION_RCPT_RELAY
+              value: '["127.0.0.1/8", "::1", "10.42.0.0/16", "10.43.0.0/16"]'
             - name: STALWART_CERTIFICATE_DEFAULT_CERT
               value: "file:///etc/stalwart/tls/tls.crt"
             - name: STALWART_CERTIFICATE_DEFAULT_PRIVATE_KEY
