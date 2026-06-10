@@ -4,7 +4,7 @@ metadata:
   name: stalwart-ingress
   namespace: stalwart
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
+    cert-manager.io/cluster-issuer: letsencrypt-staging
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
   rules:
