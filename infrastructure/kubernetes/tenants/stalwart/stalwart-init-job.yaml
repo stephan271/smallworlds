@@ -59,19 +59,78 @@ spec:
               export STALWART_USER="admin"
               # STALWART_PASSWORD is set via environment variable
               
-              # 5. Declaratively create the domain
+              # 5. Configure System Settings and SenderAuth for Internal Relaying BEFORE domain creation
+              echo "Setting Server Hostname..."
+              $CLI update SystemSettings singleton --field defaultHostname="mail.$DOMAIN_NAME" || true
+              
+              echo "Configuring DKIM signing for internal relays..."
+              $CLI update SenderAuth singleton --json '{
+                "dkimSignDomain": {
+                  "match": {
+                    "0": {
+                      "if": "is_local_domain(sender_domain) && (!is_empty(authenticated_as) || starts_with(remote_ip, \"10.42.\") || starts_with(remote_ip, \"10.43.\"))",
+                      "then": "sender_domain"
+                    }
+                  },
+                  "else": "false"
+                }
+              }' || true
+              
+              echo "Bypassing SPF checks for internal relays..."
+              $CLI update SenderAuth singleton --json '{
+                "spfFromVerify": {
+                  "match": {
+                    "0": {
+                      "if": "local_port == 25 && !(starts_with(remote_ip, \"10.42.\") || starts_with(remote_ip, \"10.43.\"))",
+                      "then": "relaxed"
+                    }
+                  },
+                  "else": "disable"
+                },
+                "spfEhloVerify": {
+                  "match": {
+                    "0": {
+                      "if": "local_port == 25 && !(starts_with(remote_ip, \"10.42.\") || starts_with(remote_ip, \"10.43.\"))",
+                      "then": "relaxed"
+                    }
+                  },
+                  "else": "disable"
+                },
+                "dmarcVerify": {
+                  "match": {
+                    "0": {
+                      "if": "local_port == 25 && !(starts_with(remote_ip, \"10.42.\") || starts_with(remote_ip, \"10.43.\"))",
+                      "then": "relaxed"
+                    }
+                  },
+                  "else": "disable"
+                },
+                "reverseIpVerify": {
+                  "match": {
+                    "0": {
+                      "if": "local_port == 25 && !(starts_with(remote_ip, \"10.42.\") || starts_with(remote_ip, \"10.43.\"))",
+                      "then": "relaxed"
+                    }
+                  },
+                  "else": "disable"
+                }
+              }' || true
+              
+              # 6. Declaratively create the domain
               echo "Initializing $DOMAIN_NAME domain..."
               $CLI create Domain --field name="$DOMAIN_NAME" || echo "Domain already exists or was already configured."
               
-              # 5.5 Allow internal Kubernetes pods to send emails without authentication
-              echo "Configuring internal relay networks..."
-              $CLI server config update server.listener.smtp.relay.networks "[\"10.42.0.0/16\", \"10.43.0.0/16\"]" || echo "Relay networks could not be configured."
+              DOMAIN_ID=$( $CLI query Domain --json | jq -r --arg domain "$DOMAIN_NAME" 'select(.name == $domain) | .id' )
               
-              # 6. Output generated DNS Zone records to logs
+              # If defaultDomainId wasn't set because the domain didn't exist, set it now
+              if [ -n "$DOMAIN_ID" ]; then
+                $CLI update SystemSettings singleton --field defaultDomainId="$DOMAIN_ID" || true
+              fi
+              
+              # 7. Output generated DNS Zone records to logs
               echo "=========================================================================="
               echo "STALWART GENERATED DNS ZONE RECORDS FOR YOUR DOMAIN:"
               echo "=========================================================================="
-              DOMAIN_ID=$( $CLI query Domain --json | jq -r --arg domain "$DOMAIN_NAME" 'select(.name == $domain) | .id' )
               if [ -n "$DOMAIN_ID" ]; then
                 $CLI get Domain "$DOMAIN_ID"
               else
