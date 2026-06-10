@@ -73,7 +73,7 @@ spec:
                   --provider=openidConnect \
                   --key=forgejo \
                   --secret=$CLIENT_SECRET \
-                  --auto-discover-url=https://auth.smallworlds.network/realms/smallworlds/.well-known/openid-configuration \
+                  --auto-discover-url=https://identity.smallworlds.network/realms/smallworlds/.well-known/openid-configuration \
                   --scopes='openid email profile' || true
               
               echo "OIDC configuration complete."

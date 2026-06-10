@@ -42,7 +42,7 @@ immich:
   configuration:
     oauth:
       enabled: true
-      issuerUrl: https://auth.smallworlds.network/realms/smallworlds
+      issuerUrl: https://identity.smallworlds.network/realms/smallworlds
       clientId: immich
       clientSecret: f3b77c1c178b0e0083b1ac737dc89fe09c5584784b4d1a070e5a253ac154ca3e
       autoRegister: true

@@ -83,7 +83,7 @@ spec:
               echo "Configuring Keycloak OIDC Directory..."
               $CLI create Directory/oidc --json '{
                 "name": "Keycloak",
-                "issuerUrl": "https://auth.smallworlds.network/realms/smallworlds",
+                "issuerUrl": "https://identity.smallworlds.network/realms/smallworlds",
                 "requireAudience": "roundcube",
                 "claimUsername": "preferred_username",
                 "claimName": "name",

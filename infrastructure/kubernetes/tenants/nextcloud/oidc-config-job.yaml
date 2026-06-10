@@ -79,7 +79,7 @@ spec:
               kubectl exec -n nextcloud $POD_NAME -- su -s /bin/sh www-data -c "php occ app:install user_oidc" || true
               
               echo "Configuring OIDC provider..."
-              kubectl exec -n nextcloud $POD_NAME -- su -s /bin/sh www-data -c "php occ user_oidc:provider smallworlds --clientid=nextcloud --clientsecret=$CLIENT_SECRET --discoveryuri=https://auth.smallworlds.network/realms/smallworlds/.well-known/openid-configuration"
+              kubectl exec -n nextcloud $POD_NAME -- su -s /bin/sh www-data -c "php occ user_oidc:provider smallworlds --clientid=nextcloud --clientsecret=$CLIENT_SECRET --discoveryuri=https://identity.smallworlds.network/realms/smallworlds/.well-known/openid-configuration"
               
               echo "Disabling multiple backends to enforce OIDC auto-redirect..."
               kubectl exec -n nextcloud $POD_NAME -- su -s /bin/sh www-data -c "php occ config:app:set user_oidc allow_multiple_user_backends --value=0"

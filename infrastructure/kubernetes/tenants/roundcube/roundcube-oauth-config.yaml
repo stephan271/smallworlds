@@ -10,9 +10,9 @@ data:
     $config['oauth_provider_name'] = 'Keycloak';
     $config['oauth_client_id'] = 'roundcube';
     $config['oauth_client_secret'] = getenv('OAUTH_CLIENT_SECRET');
-    $config['oauth_auth_uri'] = 'https://auth.smallworlds.network/realms/smallworlds/protocol/openid-connect/auth';
-    $config['oauth_token_uri'] = 'https://auth.smallworlds.network/realms/smallworlds/protocol/openid-connect/token';
-    $config['oauth_identity_uri'] = 'https://auth.smallworlds.network/realms/smallworlds/protocol/openid-connect/userinfo';
+    $config['oauth_auth_uri'] = 'https://identity.smallworlds.network/realms/smallworlds/protocol/openid-connect/auth';
+    $config['oauth_token_uri'] = 'https://identity.smallworlds.network/realms/smallworlds/protocol/openid-connect/token';
+    $config['oauth_identity_uri'] = 'https://identity.smallworlds.network/realms/smallworlds/protocol/openid-connect/userinfo';
     $config['oauth_scope'] = 'openid email profile';
     $config['oauth_identity_fields'] = ['email'];
     $config['oauth_login_redirect'] = true;

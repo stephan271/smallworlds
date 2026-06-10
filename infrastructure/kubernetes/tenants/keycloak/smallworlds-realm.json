@@ -447,7 +447,7 @@
         "ES256",
         "RS256"
     ],
-    "webAuthnPolicyPasswordlessRpId": "auth.smallworlds.network",
+    "webAuthnPolicyPasswordlessRpId": "identity.smallworlds.network",
     "webAuthnPolicyPasswordlessAttestationConveyancePreference": "none",
     "webAuthnPolicyPasswordlessAuthenticatorAttachment": "not specified",
     "webAuthnPolicyPasswordlessRequireResidentKey": "Yes",

@@ -113,7 +113,7 @@ resource "hcloud_zone" "smallworlds_zone" {
 resource "hcloud_zone_rrset" "app_records" {
   for_each = toset([
     "@",
-    "auth",
+    "identity",
     "files",
     "photos",
     "git",
