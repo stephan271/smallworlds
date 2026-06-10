@@ -45,11 +45,11 @@ extraEnv: |
   - name: KC_SMTP_HOST
     value: "stalwart-mail.stalwart.svc.cluster.local"
   - name: KC_SMTP_PORT
-    value: "2525"
+    value: "25"
   - name: KC_SMTP_FROM
     value: "auth@smallworlds.network"
   - name: KC_SMTP_AUTH
-    value: "true"
+    value: "false"
   - name: KC_SMTP_USER
     value: "admin"
   - name: KC_SMTP_PASSWORD
