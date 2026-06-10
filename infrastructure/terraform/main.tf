@@ -228,6 +228,7 @@ resource "hcloud_server" "smallworlds_pilot_node" {
 
 
   lifecycle {
+    ignore_changes = [user_data]
     prevent_destroy = false # Protects the node from accidental terraform destroy in the future
   }
 }
@@ -244,6 +245,7 @@ resource "hcloud_volume" "smallworlds_data" {
   format   = "ext4"
 
   lifecycle {
+    ignore_changes = [user_data]
     prevent_destroy = true # CRITICAL: never destroy this volume, it holds all user data
   }
 }
