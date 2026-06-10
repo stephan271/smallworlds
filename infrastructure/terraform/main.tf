@@ -69,6 +69,61 @@ resource "hcloud_firewall" "k8s_firewall" {
       "::/0"
     ]
   }
+
+  # Allow Email (SMTP)
+  rule {
+    direction = "in"
+    protocol  = "tcp"
+    port      = "25"
+    source_ips = [
+      "0.0.0.0/0",
+      "::/0"
+    ]
+  }
+
+  # Allow Email Submission
+  rule {
+    direction = "in"
+    protocol  = "tcp"
+    port      = "587"
+    source_ips = [
+      "0.0.0.0/0",
+      "::/0"
+    ]
+  }
+
+  # Allow IMAP
+  rule {
+    direction = "in"
+    protocol  = "tcp"
+    port      = "143"
+    source_ips = [
+      "0.0.0.0/0",
+      "::/0"
+    ]
+  }
+
+  # Allow IMAPS
+  rule {
+    direction = "in"
+    protocol  = "tcp"
+    port      = "993"
+    source_ips = [
+      "0.0.0.0/0",
+      "::/0"
+    ]
+  }
+
+  # Allow JMAP / Webmail
+  rule {
+    direction = "in"
+    protocol  = "tcp"
+    port      = "8080"
+    source_ips = [
+      "0.0.0.0/0",
+      "::/0"
+    ]
+  }
 }
 
 # Create random passwords for applications
