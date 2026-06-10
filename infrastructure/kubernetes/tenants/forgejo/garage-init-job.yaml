@@ -30,7 +30,7 @@ spec:
                 echo "garage-secret already exists in forgejo namespace, skipping key creation."
               else
                 echo "Deleting existing Garage key if any..."
-                kubectl exec -n garage-system $POD -- /garage key delete forgejo-key || true
+                kubectl exec -n garage-system $POD -- /garage key delete --yes forgejo-key || true
 
                 echo "Generating access key for Forgejo..."
                 OUTPUT=$(kubectl exec -n garage-system $POD -- /garage key create forgejo-key)

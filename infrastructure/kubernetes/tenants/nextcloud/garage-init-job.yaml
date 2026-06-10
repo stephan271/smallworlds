@@ -40,7 +40,7 @@ spec:
                 echo "garage-secret already exists in nextcloud namespace, skipping nextcloud key creation."
               else
                 echo "Deleting existing Garage key if any (for idempotent re-runs)..."
-                kubectl exec -n garage-system $POD -- /garage key delete nextcloud-key || true
+                kubectl exec -n garage-system $POD -- /garage key delete --yes nextcloud-key || true
 
                 echo "Generating access key for Nextcloud..."
                 OUTPUT=$(kubectl exec -n garage-system $POD -- /garage key create nextcloud-key)
@@ -70,7 +70,7 @@ spec:
 
               # --- Dedicated CNPG key for nextcloud ---
               echo "Setting up dedicated postgres-backups-nextcloud key for CNPG..."
-              kubectl exec -n garage-system $POD -- /garage key delete nextcloud-cnpg-key || true
+              kubectl exec -n garage-system $POD -- /garage key delete --yes nextcloud-cnpg-key || true
               CNPG_OUTPUT=$(kubectl exec -n garage-system $POD -- /garage key create nextcloud-cnpg-key)
               CNPG_ACCESS=$(echo "$CNPG_OUTPUT" | grep "Key ID:" | awk '{print $3}')
               CNPG_SECRET=$(echo "$CNPG_OUTPUT" | grep "Secret key:" | awk '{print $3}')
