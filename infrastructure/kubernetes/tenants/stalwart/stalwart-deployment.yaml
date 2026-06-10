@@ -73,14 +73,30 @@ spec:
               value: "mail.$(DOMAIN)"
             - name: STALWART_MTA_OUTBOUND_STRATEGY_DEFAULT_EHLO
               value: "mail.$(DOMAIN)"
+            - name: STALWART_CERTIFICATE_DEFAULT_CERT
+              value: "file:///etc/stalwart/tls/tls.crt"
+            - name: STALWART_CERTIFICATE_DEFAULT_PRIVATE_KEY
+              value: "file:///etc/stalwart/tls/tls.key"
+            - name: STALWART_SERVER_LISTENER_SUBMISSION_BIND
+              value: "[::]:587"
+            - name: STALWART_SERVER_LISTENER_SUBMISSION_PROTOCOL
+              value: "smtp"
+            - name: STALWART_SERVER_LISTENER_SUBMISSION_TLS_IMPLICIT
+              value: "false"
           volumeMounts:
             - name: config
               mountPath: /etc/stalwart/config.json
               subPath: config.json
+            - name: tls
+              mountPath: /etc/stalwart/tls
+              readOnly: true
       volumes:
         - name: config
           configMap:
             name: stalwart-config
+        - name: tls
+          secret:
+            secretName: stalwart-tls
 
 ---
 apiVersion: v1
