@@ -77,7 +77,18 @@ data:
                     <p>Forgejo</p>
                 </a>
 
-
+                <!-- Webmail -->
+                <a href="https://webmail.smallworlds.network" class="app-card" data-service-id="webmail" aria-label="Roundcube Webmail">
+                    <span class="status-dot" title="Checking..."></span>
+                    <div class="app-icon roundcube-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                            <polyline points="22,6 12,13 2,6"></polyline>
+                        </svg>
+                    </div>
+                    <h2>Webmail</h2>
+                    <p>Roundcube</p>
+                </a>
 
                 <!-- Keycloak -->
                 <a href="https://identity.smallworlds.network" class="app-card" data-service-id="auth" aria-label="Keycloak Auth">
@@ -440,6 +451,7 @@ data:
     .forgejo-icon { color: var(--accent-orange); }
     .stalwart-icon { color: var(--accent-green); }
     .keycloak-icon { color: var(--accent-purple); }
+    .roundcube-icon { color: var(--accent-blue); }
 
     .app-card h2 {
         font-size: 1.5rem;
