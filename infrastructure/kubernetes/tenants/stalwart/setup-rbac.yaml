@@ -34,3 +34,38 @@ roleRef:
   kind: ClusterRole
   name: stalwart-setup-role
   apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mail-provisioner
+  namespace: stalwart
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: mail-provisioner-keycloak-db-role
+  namespace: keycloak
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["keycloak-db-app"]
+    verbs: ["get"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mail-provisioner-keycloak-db-binding
+  namespace: keycloak
+subjects:
+  - kind: ServiceAccount
+    name: mail-provisioner
+    namespace: stalwart
+roleRef:
+  kind: Role
+  name: mail-provisioner-keycloak-db-role
+  apiGroup: rbac.authorization.k8s.io
+

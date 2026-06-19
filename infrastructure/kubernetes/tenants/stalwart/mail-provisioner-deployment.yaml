@@ -7,173 +7,164 @@ data:
   main.py: |
     import os
     import json
-    import random
-    import string
     import subprocess
-    from http.server import BaseHTTPRequestHandler, HTTPServer
+    import time
+    import re
+    import ssl
+    import urllib.request
+    import base64
+
+    # We will install pg8000 at startup, so we import it inside the main loop or after import
+    try:
+        import pg8000.dbapi
+    except ImportError:
+        import subprocess
+        subprocess.run(["pip", "install", "pg8000"], check=True)
+        import pg8000.dbapi
+
+    KC_DB_HOST = os.environ.get("KC_DB_HOST", "keycloak-db-rw.keycloak.svc.cluster.local")
+    KC_DB_PORT = int(os.environ.get("KC_DB_PORT", "5432"))
+    KC_DB_NAME = os.environ.get("KC_DB_NAME", "keycloak")
+    KC_DB_USER = os.environ.get("KC_DB_USER", "keycloak")
 
     STALWART_API_KEY = os.environ.get("STALWART_API_KEY")
+    STALWART_API_URL = os.environ.get("STALWART_API_URL", "http://stalwart-mail.stalwart.svc.cluster.local:8080")
 
-    def generate_password(length=24):
-        chars = string.ascii_letters + string.digits + "!@#$%^*()_+"
-        return ''.join(random.choice(chars) for _ in range(length))
-
-    class WebhookHandler(BaseHTTPRequestHandler):
-        def do_POST(self):
-            content_length = int(self.headers['Content-Length'])
-            post_data = self.rfile.read(content_length)
+    def get_keycloak_db_password():
+        token_path = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+        ca_path = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+        if not os.path.exists(token_path):
+            return os.environ.get("KC_DB_PASSWORD")
             
+        with open(token_path, "r") as f:
+            token = f.read().strip()
+            
+        ssl_context = ssl.create_default_context(cafile=ca_path)
+        url = "https://kubernetes.default.svc/api/v1/namespaces/keycloak/secrets/keycloak-db-app"
+        req = urllib.request.Request(url)
+        req.add_header("Authorization", f"Bearer {token}")
+        
+        try:
+            with urllib.request.urlopen(req, context=ssl_context) as response:
+                secret_data = json.loads(response.read().decode('utf-8'))
+                encoded_pw = secret_data.get("data", {}).get("password")
+                if encoded_pw:
+                    return base64.b64decode(encoded_pw).decode('utf-8')
+        except Exception as e:
+            print(f"Error fetching Keycloak DB password from Kubernetes API: {e}", flush=True)
+            
+        return os.environ.get("KC_DB_PASSWORD")
+
+    def run_stalwart_cli(args):
+        cmd = [
+            "/usr/local/bin/stalwart-cli",
+            "--url", STALWART_API_URL,
+            "--user", "admin",
+            "--password", STALWART_API_KEY
+        ] + args
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        if res.returncode != 0:
+            print(f"Stalwart CLI Error: {res.stderr.strip()}", flush=True)
+            return None
+        return res.stdout
+
+    def get_stalwart_domain_id(domain_name):
+        out = run_stalwart_cli(["query", "Domain", "--json"])
+        if not out:
+            return None
+        for line in out.strip().split("\n"):
+            if not line:
+                continue
             try:
-                event = json.loads(post_data)
+                dom = json.loads(line)
+                if dom.get("name") == domain_name:
+                    return dom.get("id")
             except Exception:
-                self.send_response(400)
-                self.end_headers()
-                return
-                
-            if event.get("type") != "REGISTER":
-                self.send_response(200)
-                self.end_headers()
-                return
-                
-            details = event.get("details", {})
-            username = details.get("username")
-            
-            if not username:
-                self.send_response(200)
-                self.end_headers()
-                return
-                
-            print(f"Provisioning mail account for user: {username}", flush=True)
+                pass
+        return None
+
+    def get_stalwart_accounts():
+        out = run_stalwart_cli(["query", "Account", "--json"])
+        accounts = set()
+        if not out:
+            return accounts
+        for line in out.strip().split("\n"):
+            if not line:
+                continue
             try:
-                # 1. Fetch smallworlds.network Domain ID
-                query_proc = subprocess.run([
-                    "/usr/local/bin/stalwart-cli",
-                    "--url", "http://stalwart-mail:8080",
-                    "--user", "admin",
-                    "--password", STALWART_API_KEY,
-                    "query", "Domain", "--json"
-                ], capture_output=True, text=True, check=True)
+                acc = json.loads(line)
+                name = acc.get("name")
+                if name:
+                    accounts.add(name.lower())
+            except Exception:
+                pass
+        return accounts
+
+    def clean_username(username):
+        if "@" in username:
+            username = username.split("@")[0]
+        username = username.lower()
+        username = re.sub(r'[^a-z0-9._-]', '', username)
+        return username
+
+    def main():
+        print("Starting Keycloak to Stalwart sync loop...", flush=True)
+        
+        domain_name = "smallworlds.network"
+        domain_id = None
+        while not domain_id:
+            domain_id = get_stalwart_domain_id(domain_name)
+            if not domain_id:
+                print(f"Waiting for domain {domain_name} to be configured in Stalwart...", flush=True)
+                time.sleep(5)
                 
-                domain_id = None
-                for line in query_proc.stdout.strip().split("\n"):
-                    if not line:
+        print(f"Found Stalwart Domain ID for {domain_name}: {domain_id}", flush=True)
+        
+        while True:
+            try:
+                db_password = get_keycloak_db_password()
+                if not db_password:
+                    print("Error: Could not resolve Keycloak database password. Retrying...", flush=True)
+                    time.sleep(10)
+                    continue
+
+                conn = pg8000.dbapi.connect(
+                    host=KC_DB_HOST,
+                    port=KC_DB_PORT,
+                    database=KC_DB_NAME,
+                    user=KC_DB_USER,
+                    password=db_password
+                )
+                cursor = conn.cursor()
+                cursor.execute("SELECT username FROM user_entity WHERE realm_id = 'smallworlds';")
+                kc_users = [row[0] for row in cursor.fetchall()]
+                cursor.close()
+                conn.close()
+                
+                stalwart_accounts = get_stalwart_accounts()
+                
+                for kc_user in kc_users:
+                    cleaned_user = clean_username(kc_user)
+                    if not cleaned_user:
                         continue
-                    try:
-                        dom = json.loads(line)
-                        if dom.get("name") == "smallworlds.network":
-                            domain_id = dom.get("id")
-                            break
-                    except Exception:
-                        pass
-                
-                if not domain_id:
-                    print("Error: Domain smallworlds.network not found in Stalwart!", flush=True)
-                    self.send_response(500)
-                    self.end_headers()
-                    return
-                    
-                print(f"Found Domain ID: {domain_id}", flush=True)
-                
-                # 2. Check if user already exists
-                query_acc = subprocess.run([
-                    "/usr/local/bin/stalwart-cli",
-                    "--url", "http://stalwart-mail:8080",
-                    "--user", "admin",
-                    "--password", STALWART_API_KEY,
-                    "query", "Account", "--json"
-                ], capture_output=True, text=True, check=True)
-                
-                account_id = None
-                for line in query_acc.stdout.strip().split("\n"):
-                    if not line:
-                        continue
-                    try:
-                        acc = json.loads(line)
-                        if acc.get("name") == username and acc.get("domainId") == domain_id:
-                            account_id = acc.get("id")
-                            break
-                    except Exception:
-                        pass
-                        
-                if account_id:
-                    print(f"Account for {username} already exists (ID: {account_id}). Skipping creation.", flush=True)
-                else:
-                    # 3. Create the user account
-                    create_proc = subprocess.run([
-                        "/usr/local/bin/stalwart-cli",
-                        "--url", "http://stalwart-mail:8080",
-                        "--user", "admin",
-                        "--password", STALWART_API_KEY,
-                        "create", "Account/User",
-                        "--field", f"name={username}",
-                        "--field", f"domainId={domain_id}"
-                    ], capture_output=True, text=True, check=True)
-                    
-                    out_lines = create_proc.stdout.strip().split()
-                    if len(out_lines) >= 3 and out_lines[0] == "Created" and out_lines[1] == "Account":
-                        account_id = out_lines[2]
-                    else:
-                        # Parse from query as backup
-                        query_acc2 = subprocess.run([
-                            "/usr/local/bin/stalwart-cli",
-                            "--url", "http://stalwart-mail:8080",
-                            "--user", "admin",
-                            "--password", STALWART_API_KEY,
-                            "query", "Account", "--json"
-                        ], capture_output=True, text=True, check=True)
-                        for line in query_acc2.stdout.strip().split("\n"):
-                            if not line:
-                                continue
-                            try:
-                                acc = json.loads(line)
-                                if acc.get("name") == username and acc.get("domainId") == domain_id:
-                                    account_id = acc.get("id")
-                                    break
-                            except Exception:
-                                pass
-                    
-                    if not account_id:
-                        print(f"Error: Failed to obtain account ID for newly created user {username}", flush=True)
-                        self.send_response(500)
-                        self.end_headers()
-                        return
-                        
-                    print(f"Successfully created Account for {username} with ID: {account_id}", flush=True)
-                    
-                    # 4. Set credentials/password
-                    password = generate_password(24)
-                    subprocess.run([
-                        "/usr/local/bin/stalwart-cli",
-                        "--url", "http://stalwart-mail:8080",
-                        "--user", "admin",
-                        "--password", STALWART_API_KEY,
-                        "update", "Account", account_id,
-                        "--field", f"credentials={{\"0\":{{\"@type\":\"Password\",\"secret\":\"{password}\"}}}}"
-                    ], capture_output=True, text=True, check=True)
-                    
-                    print(f"Successfully set password credentials for {username}", flush=True)
-                    
-            except subprocess.CalledProcessError as e:
-                print(f"CLI Error executing command: {e.cmd}", flush=True)
-                print(f"Stdout: {e.stdout}", flush=True)
-                print(f"Stderr: {e.stderr}", flush=True)
-                self.send_response(500)
-                self.end_headers()
-                return
+                    if cleaned_user not in stalwart_accounts:
+                        print(f"Sync: Keycloak user '{kc_user}' -> Creating Stalwart account '{cleaned_user}'", flush=True)
+                        res = run_stalwart_cli([
+                            "create", "Account/User",
+                            "--field", f"name={cleaned_user}",
+                            "--field", f"domainId={domain_id}"
+                        ])
+                        if res:
+                            print(f"Successfully created Stalwart account '{cleaned_user}'", flush=True)
+                            stalwart_accounts.add(cleaned_user)
+                            
             except Exception as e:
-                print(f"General Error during account provisioning: {e}", flush=True)
-                self.send_response(500)
-                self.end_headers()
-                return
+                print(f"Sync loop error: {e}", flush=True)
                 
-            self.send_response(200)
-            self.end_headers()
+            time.sleep(10)
 
     if __name__ == "__main__":
-        port = int(os.environ.get("PORT", 8081))
-        server = HTTPServer(('0.0.0.0', port), WebhookHandler)
-        print(f"Mail Provisioner Service starting on port {port}...", flush=True)
-        server.serve_forever()
+        main()
 
 ---
 apiVersion: apps/v1
@@ -191,6 +182,7 @@ spec:
       labels:
         app: mail-provisioner
     spec:
+      serviceAccountName: mail-provisioner
       containers:
         - name: provisioner
           image: python:3.12-alpine
@@ -198,9 +190,10 @@ spec:
             - "/bin/sh"
             - "-c"
             - |
-              apk add --no-cache curl
+              apk add --no-cache curl jq
               curl --proto '=https' --tlsv1.2 -LsSf https://github.com/stalwartlabs/cli/releases/latest/download/stalwart-cli-installer.sh | sh
               cp /root/.cargo/bin/stalwart-cli /usr/local/bin/stalwart-cli
+              pip install pg8000
               python -u /app/main.py
           ports:
             - containerPort: 8081
@@ -212,6 +205,12 @@ spec:
                 secretKeyRef:
                   name: stalwart-admin-secret
                   key: api-key
+            - name: KC_DB_HOST
+              value: "keycloak-db-rw.keycloak.svc.cluster.local"
+            - name: KC_DB_NAME
+              value: "keycloak"
+            - name: KC_DB_USER
+              value: "keycloak"
           volumeMounts:
             - name: code-volume
               mountPath: /app/main.py
