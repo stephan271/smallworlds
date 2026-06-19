@@ -36,6 +36,40 @@ The following applications are planned to expand the capabilities of the SmallWo
 
 ---
 
+## Social Media
+
+Fact-checking and ethical alignment should be fundamental components of all social media applications within this ecosystem. Unsolicited advertisements must be entirely avoided; instead, users should have full control, actively opting in for advertisements that align with their interests.
+
+Furthermore, all supported social media applications must deliberately avoid the "race to the bottom"—a phenomenon where platforms compete for user engagement at any cost, often sacrificing ethical standards, user well-being, and content quality. This destructive competition has led to the widespread implementation of manipulative features such as:
+
+- Autoplay to keep users passively consuming content
+- Infinite scrolling to eliminate natural stopping points
+- Emotionally charged content designed to provoke outrage or addiction
+
+To counteract these issues, social media apps in this project must reject these exploitative tactics and prioritize a healthier, more transparent, and user-centric digital experience. The goal is to create platforms that foster meaningful interactions, support informed discourse, and respect users' time and mental well-being.
+
+### Messaging
+- **Recommendation:** **Matrix (Synapse server + Element client)**
+  - *Details:* While Signal is secure, it relies on centralized servers and phone numbers. Matrix is a fully decentralized, federated standard. By hosting a Matrix homeserver, users truly own their data and conversations. It seamlessly integrates into a self-hosted ecosystem and serves as a privacy-respecting alternative to WhatsApp or Telegram.
+
+### News Sharing and Microblogging
+- **Recommendation:** **Mastodon**
+  - *Details:* The gold standard for self-hosted, federated microblogging (ActivityPub protocol). Mastodon strictly enforces chronological feeds with no algorithmic manipulation, no ads, and no addictive dark patterns, making it the perfect decentralized alternative to X/Twitter.
+
+### Image Sharing
+- **Recommendation:** **Pixelfed**
+  - *Details:* A federated image-sharing platform that respects privacy. Like Mastodon, it offers chronological timelines without targeted ads or third-party tracking, acting as a healthy, ethical alternative to Instagram.
+
+### Video Sharing
+- **Recommendation:** **PeerTube**
+  - *Details:* A federated video streaming platform. It uses peer-to-peer networking (WebTorrent) to share the bandwidth load among viewers, meaning a small, self-hosted server can deliver video effectively without massive infrastructure costs. It replaces YouTube while avoiding autoplay and algorithmic rabbit holes.
+
+### Fact Checking
+- **Recommendation:** **OpenFactCheck**
+  - *Details:* An open-source, decentralized framework to verify news, cross-reference claims, and combat AI-generated misinformation. It aligns with the goal of fostering informed, meaningful discourse.
+
+---
+
 ## Infrastructure
 
 The vision for SmallWorlds infrastructure is to move towards a fully autonomous, agent-driven system for lifecycle management. Below are the steps to arrive at this state:
