@@ -155,8 +155,12 @@ spec:
                   }')
                 DIR_ID=$( $CLI create Directory/oidc --json "$OIDC_JSON" | awk '{print $3}' || true )
               fi
-
               
+              if [ -n "$DIR_ID" ]; then
+                echo "Associating OIDC Directory $DIR_ID as the default authentication directory..."
+                $CLI update Authentication singleton --field directoryId="$DIR_ID" || true
+              fi
+
               if [ -n "$DIR_ID" ] && [ -n "$DOMAIN_ID" ]; then
                 echo "Associating domain $DOMAIN_NAME with OIDC Directory $DIR_ID..."
                 $CLI update Domain "$DOMAIN_ID" --field directoryId="$DIR_ID" || true
