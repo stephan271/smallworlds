@@ -848,6 +848,19 @@
                 "backchannel.logout.revoke.offline.tokens": "false"
             },
             "authenticationFlowBindingOverrides": {},
+            "protocolMappers": [
+                {
+                    "name": "roundcube-audience",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-audience-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "included.client.audience": "roundcube",
+                        "id.token.claim": "false",
+                        "access.token.claim": "true"
+                    }
+                }
+            ],
             "fullScopeAllowed": true,
             "nodeReRegistrationTimeout": -1,
             "defaultClientScopes": [
