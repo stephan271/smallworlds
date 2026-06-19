@@ -17,3 +17,22 @@ data:
     $config['oauth_identity_fields'] = ['email'];
     $config['oauth_login_redirect'] = true;
     $config['use_https'] = true;
+
+    // Override mail server configuration to connect internally and bypass TLS validation / loopback issues
+    $config['imap_host'] = 'ssl://stalwart-mail.stalwart.svc.cluster.local:993';
+    $config['smtp_host'] = 'tls://stalwart-mail.stalwart.svc.cluster.local:587';
+    $config['imap_conn_options'] = [
+        'ssl' => [
+            'verify_peer' => false,
+            'verify_peer_name' => false,
+            'allow_self_signed' => true,
+        ],
+    ];
+    $config['smtp_conn_options'] = [
+        'ssl' => [
+            'verify_peer' => false,
+            'verify_peer_name' => false,
+            'allow_self_signed' => true,
+        ],
+    ];
+
