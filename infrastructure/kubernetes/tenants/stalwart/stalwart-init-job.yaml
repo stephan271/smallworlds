@@ -145,18 +145,17 @@ spec:
                 OIDC_JSON=$(jq -n \
                   --arg issuer "https://identity.smallworlds.network/realms/smallworlds" \
                   --arg aud "roundcube" \
-                  --arg domain "$DOMAIN_NAME" \
                   '{
                     description: "Keycloak",
                     issuerUrl: $issuer,
                     requireAudience: $aud,
-                    claimUsername: "preferred_username",
+                    claimUsername: "email",
                     claimName: "name",
-                    claimGroups: "groups",
-                    usernameDomain: $domain
+                    claimGroups: "groups"
                   }')
                 DIR_ID=$( $CLI create Directory/oidc --json "$OIDC_JSON" | awk '{print $3}' || true )
               fi
+
               
               if [ -n "$DIR_ID" ] && [ -n "$DOMAIN_ID" ]; then
                 echo "Associating domain $DOMAIN_NAME with OIDC Directory $DIR_ID..."
