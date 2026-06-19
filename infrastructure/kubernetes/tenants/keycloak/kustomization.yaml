@@ -13,6 +13,9 @@ configMapGenerator:
   - name: keycloak-realm-config
     files:
       - smallworlds-realm.json
+  - name: keycloak-spi-config
+    files:
+      - action-token-generator.jar
 
 generatorOptions:
   disableNameSuffixHash: true

@@ -34,7 +34,7 @@
     "loginWithEmailAllowed": true,
     "duplicateEmailsAllowed": false,
     "resetPasswordAllowed": false,
-    "editUsernameAllowed": false,
+    "editUsernameAllowed": true,
     "bruteForceProtected": true,
     "permanentLockout": false,
     "maxTemporaryLockouts": 0,
@@ -2119,19 +2119,11 @@
             "builtIn": true,
             "authenticationExecutions": [
                 {
-                    "authenticator": "auth-username-password-form",
+                    "authenticator": "webauthn-authenticator-passwordless",
                     "authenticatorFlow": false,
                     "requirement": "REQUIRED",
                     "priority": 10,
                     "autheticatorFlow": false,
-                    "userSetupAllowed": false
-                },
-                {
-                    "authenticatorFlow": true,
-                    "requirement": "CONDITIONAL",
-                    "priority": 20,
-                    "autheticatorFlow": true,
-                    "flowAlias": "forms - webauthn-authenticator-passwordless - Conditional",
                     "userSetupAllowed": false
                 }
             ]

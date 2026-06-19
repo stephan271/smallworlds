@@ -90,8 +90,15 @@ extraVolumes: |
   - name: realm-config
     configMap:
       name: keycloak-realm-config
+  - name: spi-volume
+    configMap:
+      name: keycloak-spi-config
 extraVolumeMounts: |
   - name: realm-config
     mountPath: "/opt/keycloak/data/import/smallworlds-realm.json"
     subPath: "smallworlds-realm.json"
+    readOnly: true
+  - name: spi-volume
+    mountPath: "/opt/keycloak/providers/action-token-generator.jar"
+    subPath: "action-token-generator.jar"
     readOnly: true

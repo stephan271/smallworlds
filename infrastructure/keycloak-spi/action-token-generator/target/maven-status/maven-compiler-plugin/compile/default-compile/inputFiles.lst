@@ -1,0 +1,3 @@
+/usr/src/mymaven/src/main/java/com/smallworlds/keycloak/actiontoken/ActionTokenLinkResource.java
+/usr/src/mymaven/src/main/java/com/smallworlds/keycloak/actiontoken/ActionTokenLinkResourceProvider.java
+/usr/src/mymaven/src/main/java/com/smallworlds/keycloak/actiontoken/ActionTokenLinkResourceProviderFactory.java
