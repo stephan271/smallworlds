@@ -7,8 +7,8 @@ import requests
 import sys
 
 # Default Keycloak settings
-KEYCLOAK_URL = os.getenv("KEYCLOAK_URL", "http://localhost:8080")
-REALM = os.getenv("KEYCLOAK_REALM", "master")
+KEYCLOAK_URL = os.getenv("KEYCLOAK_URL", "https://identity.smallworlds.network")
+REALM = os.getenv("KEYCLOAK_REALM", "smallworlds")
 ADMIN_USER = os.getenv("KEYCLOAK_ADMIN_USER", "admin")
 ADMIN_PASS = os.getenv("KEYCLOAK_ADMIN_PASS", "admin")
 CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID", "admin-cli")
@@ -61,31 +61,20 @@ def create_user(token, email, phone):
         print(f"Failed to create user {email}: {response.text}", file=sys.stderr)
     return None
 
-def generate_action_link(token, user_id):
-    # This calls our custom SPI
-    url = f"{KEYCLOAK_URL}/realms/{REALM}/action-token-link/generate-link"
+def send_action_email(token, user_id):
+    url = f"{KEYCLOAK_URL}/admin/realms/{REALM}/users/{user_id}/execute-actions-email?client_id=account&redirect_uri={KEYCLOAK_URL}/realms/{REALM}/account/"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-    payload = {
-        "userId": user_id,
-        "redirectUri": f"{KEYCLOAK_URL}/realms/{REALM}/account/",
-        "clientId": "account",
-        "actions": ["UPDATE_PROFILE", "webauthn-register-passwordless"]
-    }
     
-    response = requests.post(url, json=payload, headers=headers)
-    if response.status_code == 200:
-        return response.json().get("link")
+    # Required actions: update profile to choose username, then register passkey
+    payload = ["UPDATE_PROFILE", "webauthn-register-passwordless"]
+    
+    response = requests.put(url, json=payload, headers=headers)
+    if response.status_code == 204:
+        print(f"Successfully sent onboarding email to user {user_id}.")
+        return True
     else:
-        print(f"Failed to generate link for user {user_id}: {response.text}", file=sys.stderr)
-    return None
-
-def send_message(email, phone, link):
-    # Placeholder for actual Email / WhatsApp sending logic
-    print("--------------------------------------------------")
-    print(f"TO: {email} (Phone: {phone})")
-    print("SUBJECT: Welcome! Please complete your registration")
-    print(f"BODY:\nHello,\n\nPlease click the link below to choose your username and register your passkey for passwordless login.\n\n{link}")
-    print("--------------------------------------------------")
+        print(f"Failed to send email to user {user_id}: {response.text}", file=sys.stderr)
+        return False
 
 def main():
     parser = argparse.ArgumentParser(description="Bulk Invite Users to Keycloak with Passkey Onboarding")
@@ -107,9 +96,7 @@ def main():
             user_id = create_user(token, email, phone)
             
             if user_id:
-                link = generate_action_link(token, user_id)
-                if link:
-                    send_message(email, phone, link)
+                send_action_email(token, user_id)
 
 if __name__ == "__main__":
     main()
