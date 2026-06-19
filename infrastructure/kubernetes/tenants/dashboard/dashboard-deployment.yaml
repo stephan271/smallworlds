@@ -23,6 +23,8 @@ spec:
         volumeMounts:
         - name: html-volume
           mountPath: /usr/share/nginx/html
+        - name: status-volume
+          mountPath: /usr/share/nginx/html/api
         resources:
           requests:
             cpu: 10m
@@ -34,3 +36,6 @@ spec:
       - name: html-volume
         configMap:
           name: dashboard-content
+      - name: status-volume
+        configMap:
+          name: status-data
