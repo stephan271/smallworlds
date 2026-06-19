@@ -140,14 +140,31 @@ spec:
               
               # 7. Configure Keycloak OIDC Directory
               echo "Configuring Keycloak OIDC Directory..."
-              $CLI create Directory/oidc --json '{
-                "name": "Keycloak",
-                "issuerUrl": "https://identity.smallworlds.network/realms/smallworlds",
-                "requireAudience": "roundcube",
-                "claimUsername": "preferred_username",
-                "claimName": "name",
-                "claimGroups": "groups"
-              }' || echo "OIDC Directory might already exist or configuration skipped."
+              DIR_ID=$( $CLI query Directory --json | jq -r 'select(.description == "Keycloak") | .id' || true )
+              if [ -z "$DIR_ID" ]; then
+                OIDC_JSON=$(jq -n \
+                  --arg issuer "https://identity.smallworlds.network/realms/smallworlds" \
+                  --arg aud "roundcube" \
+                  --arg domain "$DOMAIN_NAME" \
+                  '{
+                    description: "Keycloak",
+                    issuerUrl: $issuer,
+                    requireAudience: $aud,
+                    claimUsername: "preferred_username",
+                    claimName: "name",
+                    claimGroups: "groups",
+                    usernameDomain: $domain
+                  }')
+                DIR_ID=$( $CLI create Directory/oidc --json "$OIDC_JSON" | awk '{print $3}' || true )
+              fi
+              
+              if [ -n "$DIR_ID" ] && [ -n "$DOMAIN_ID" ]; then
+                echo "Associating domain $DOMAIN_NAME with OIDC Directory $DIR_ID..."
+                $CLI update Domain "$DOMAIN_ID" --field directoryId="$DIR_ID" || true
+              else
+                echo "Error: Directory ID or Domain ID not resolved, skipping association."
+              fi
+
               
               # 8. Automate Hetzner DNS setup if the API token is provided
               if [ -n "$HCLOUD_TOKEN" ]; then
