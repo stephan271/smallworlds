@@ -55,6 +55,8 @@ spec:
           ports:
             - containerPort: 25
               name: smtp
+            - containerPort: 465
+              name: submissions
             - containerPort: 587
               name: submission
             - containerPort: 143
@@ -129,6 +131,9 @@ spec:
     - name: smtp
       port: 25
       targetPort: 25
+    - name: submissions
+      port: 465
+      targetPort: 465
     - name: submission
       port: 587
       targetPort: 587
