@@ -93,12 +93,18 @@ data:
                 continue
             try:
                 acc = json.loads(line)
-                name = acc.get("name")
-                if name:
+                email = acc.get("emailAddress")
+                if email and "@" in email:
+                    name = email.split("@")[0]
                     accounts.add(name.lower())
+                else:
+                    name = acc.get("name")
+                    if name:
+                        accounts.add(name.lower())
             except Exception:
                 pass
         return accounts
+
 
     def clean_username(username):
         if "@" in username:
