@@ -60,8 +60,8 @@ with open("/tmp/certs-backup.yaml", "w") as f:
 echo "3. Transferring backup to the server's persistent volume..."
 scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null /tmp/certs-backup.yaml root@$SERVER_IP:/mnt/smallworlds-data/certs-backup.yaml
 
-echo "4. Stopping K3s to release file locks..."
-ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@$SERVER_IP "systemctl stop k3s || true"
+echo "4. Stopping K3s and unmounting volumes to release file locks..."
+ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@$SERVER_IP "/usr/local/bin/k3s-killall.sh || true"
 
 echo "5. Wiping all application data (Immich, Nextcloud, Garage, and K3s state)..."
 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@$SERVER_IP "cd /mnt/smallworlds-data && find . -mindepth 1 -maxdepth 1 ! -name 'certs-backup.yaml' -exec rm -rf {} +"
