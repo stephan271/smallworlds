@@ -1363,12 +1363,12 @@
   },
   "smtpServer": {
     "host": "stalwart-mail.stalwart.svc.cluster.local",
-    "port": "25",
+    "port": "587",
     "from": "auth@smallworlds.network",
     "fromDisplayName": "Citizennet",
-    "auth": "false",
+    "auth": "true",
     "ssl": "false",
-    "starttls": "false",
+    "starttls": "true",
     "user": "admin",
     "password": "${env.STALWART_PASSWORD}"
   },
