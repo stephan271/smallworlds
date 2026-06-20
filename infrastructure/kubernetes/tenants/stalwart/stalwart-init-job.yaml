@@ -4,6 +4,7 @@ metadata:
   name: stalwart-init
   namespace: stalwart
 spec:
+  ttlSecondsAfterFinished: 60
   template:
     metadata:
       labels:
