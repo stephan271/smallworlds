@@ -30,9 +30,9 @@ extraEnv: |
       secretKeyRef:
         name: keycloak-db-app
         key: password
-  - name: KC_BOOTSTRAP_ADMIN_USERNAME
+  - name: KEYCLOAK_ADMIN
     value: "admin"
-  - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+  - name: KEYCLOAK_ADMIN_PASSWORD
     valueFrom:
       secretKeyRef:
         name: keycloak-admin-creds
