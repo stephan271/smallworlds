@@ -16,10 +16,7 @@ spec:
             - -c
             - |
               set -e
-              if kubectl get secret roundcube-oauth-secret -n roundcube >/dev/null 2>&1; then
-                echo "roundcube-oauth-secret already exists, skipping."
-                exit 0
-              fi
+              echo "Starting Keycloak initialization..."
 
               echo "Finding Keycloak pod..."
               POD=keycloak-keycloakx-0
@@ -55,9 +52,10 @@ spec:
                 exit 1
               fi
 
-              echo "Creating roundcube-oauth-secret in roundcube namespace..."
+              echo "Applying roundcube-oauth-secret in roundcube namespace..."
               kubectl create secret generic roundcube-oauth-secret -n roundcube \
-                --from-literal=OAUTH_CLIENT_SECRET="$SECRET"
+                --from-literal=OAUTH_CLIENT_SECRET="$SECRET" \
+                --dry-run=client -o yaml | kubectl apply -f -
 
               echo "Keycloak Client initialized successfully!"
       restartPolicy: OnFailure

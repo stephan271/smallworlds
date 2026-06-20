@@ -16,10 +16,7 @@ spec:
             - -c
             - |
               set -e
-              if kubectl get secret keycloak-secret -n immich >/dev/null 2>&1; then
-                echo "keycloak-secret already exists, skipping."
-                exit 0
-              fi
+              echo "Starting Keycloak initialization..."
 
               echo "Finding Keycloak pod..."
               POD=keycloak-keycloakx-0
@@ -55,9 +52,10 @@ spec:
                 exit 1
               fi
 
-              echo "Creating keycloak-secret in immich namespace..."
+              echo "Applying keycloak-secret in immich namespace..."
               kubectl create secret generic keycloak-secret -n immich \
-                --from-literal=client-secret="$SECRET"
+                --from-literal=client-secret="$SECRET" \
+                --dry-run=client -o yaml | kubectl apply -f -
 
               echo "Keycloak Client initialized successfully!"
       restartPolicy: OnFailure
