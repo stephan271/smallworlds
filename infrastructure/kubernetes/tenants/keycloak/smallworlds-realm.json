@@ -1366,7 +1366,7 @@
     "port": "25",
     "from": "auth@smallworlds.network",
     "fromDisplayName": "Citizennet",
-    "auth": "false",
+    "auth": "true",
     "ssl": "false",
     "starttls": "false",
     "user": "admin",

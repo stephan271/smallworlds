@@ -79,7 +79,7 @@ spec:
                 }
               }' || true
               
-              echo "Configuring relaying for internal networks..."
+              echo "Configuring RCPT stage rules..."
               $CLI update MtaStageRcpt singleton --json '{
                 "allowRelaying": {
                   "match": {
@@ -88,6 +88,27 @@ spec:
                       "then": "true"
                     }
                   },
+                  "else": "false"
+                }
+              }' || true
+
+              echo "Configuring AUTH stage rules to allow plain auth internally..."
+              $CLI update MtaStageAuth singleton --json '{
+                "saslMechanisms": {
+                  "match": {
+                    "0": {
+                      "if": "is_tls",
+                      "then": "[plain, login, oauthbearer, xoauth2]"
+                    },
+                    "1": {
+                      "if": "contains(remote_ip, \"10.42.\") || contains(remote_ip, \"10.43.\") || contains(remote_ip, \"127.\")",
+                      "then": "[plain, login, oauthbearer, xoauth2]"
+                    }
+                  },
+                  "else": "[oauthbearer, xoauth2]"
+                },
+                "require": {
+                  "match": {},
                   "else": "false"
                 }
               }' || true
