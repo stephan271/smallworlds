@@ -18,7 +18,7 @@ fi
 echo ""
 echo "1. Backing up Let's Encrypt certificates from Kubernetes..."
 kubectl get secret letsencrypt-prod -n cert-manager -o json > /tmp/letsencrypt-prod.json || echo "Warning: letsencrypt-prod secret not found."
-kubectl get secret -A --field-selector type=kubernetes.io/tls -o json > /tmp/tls-certs.json
+kubectl get secret -A --field-selector type=kubernetes.io/tls -o json > /tmp/tls-certs.json || echo "Warning: TLS secrets could not be fetched."
 
 echo "2. Cleaning up backup payload..."
 python3 -c '
