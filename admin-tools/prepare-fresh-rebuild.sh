@@ -17,13 +17,45 @@ fi
 
 echo ""
 echo "1. Backing up Let's Encrypt certificates from Kubernetes..."
-kubectl get secret letsencrypt-prod -n cert-manager -o yaml > /tmp/letsencrypt-prod.yaml || echo "Warning: letsencrypt-prod secret not found."
-kubectl get secret -A --field-selector type=kubernetes.io/tls -o yaml > /tmp/tls-certs.yaml
-
-cat /tmp/letsencrypt-prod.yaml /tmp/tls-certs.yaml > /tmp/certs-backup.yaml
+kubectl get secret letsencrypt-prod -n cert-manager -o json > /tmp/letsencrypt-prod.json || echo "Warning: letsencrypt-prod secret not found."
+kubectl get secret -A --field-selector type=kubernetes.io/tls -o json > /tmp/tls-certs.json
 
 echo "2. Cleaning up backup payload..."
-yq eval 'del(.items[].metadata.creationTimestamp, .items[].metadata.resourceVersion, .items[].metadata.uid, .items[].metadata.ownerReferences, .items[].metadata.generation, .items[].status)' -i /tmp/certs-backup.yaml
+python3 -c '
+import sys, json
+
+try:
+    with open("/tmp/letsencrypt-prod.json", "r") as f:
+        le_data = json.load(f)
+except Exception:
+    le_data = {"items": []}
+
+try:
+    with open("/tmp/tls-certs.json", "r") as f:
+        tls_data = json.load(f)
+except Exception:
+    tls_data = {"items": []}
+
+items = []
+if "items" in le_data:
+    items.extend(le_data["items"])
+elif "metadata" in le_data:
+    items.append(le_data)
+
+if "items" in tls_data:
+    items.extend(tls_data["items"])
+elif "metadata" in tls_data:
+    items.append(tls_data)
+
+for item in items:
+    for key in ["creationTimestamp", "resourceVersion", "uid", "ownerReferences", "generation"]:
+        item.get("metadata", {}).pop(key, None)
+    item.pop("status", None)
+
+merged = {"apiVersion": "v1", "kind": "List", "items": items}
+with open("/tmp/certs-backup.yaml", "w") as f:
+    json.dump(merged, f, indent=2)
+'
 
 echo "3. Transferring backup to the server's persistent volume..."
 scp /tmp/certs-backup.yaml root@$SERVER_IP:/mnt/smallworlds-data/certs-backup.yaml
