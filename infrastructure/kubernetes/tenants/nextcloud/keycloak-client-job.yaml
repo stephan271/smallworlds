@@ -4,6 +4,7 @@ metadata:
   name: nextcloud-keycloak-init
   namespace: nextcloud
 spec:
+  ttlSecondsAfterFinished: 60
   template:
     spec:
       serviceAccountName: nextcloud-setup-sa

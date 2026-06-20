@@ -44,7 +44,6 @@ immich:
       enabled: true
       issuerUrl: https://identity.smallworlds.network/realms/smallworlds
       clientId: immich
-      clientSecret: f3b77c1c178b0e0083b1ac737dc89fe09c5584784b4d1a070e5a253ac154ca3e
       autoRegister: true
       autoLaunch: true
       buttonText: Login with SmallWorlds ID

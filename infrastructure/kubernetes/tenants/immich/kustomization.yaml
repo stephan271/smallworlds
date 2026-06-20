@@ -8,7 +8,7 @@ resources:
   - redis.yaml
   - setup-rbac.yaml
   - garage-init-job.yaml
-  - keycloak-secret.yaml
+  - keycloak-client-job.yaml
   - admin-init-job.yaml
 
 helmCharts:

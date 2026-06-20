@@ -3,7 +3,8 @@ kind: Kustomization
 
 resources:
   - roundcube-pvc.yaml
-  - roundcube-secret.yaml
+  - setup-rbac.yaml
+  - keycloak-client-job.yaml
   - roundcube-oauth-config.yaml
   - roundcube-deployment.yaml
   - roundcube-ingress.yaml

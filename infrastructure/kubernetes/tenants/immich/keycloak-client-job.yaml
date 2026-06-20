@@ -1,13 +1,13 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: forgejo-keycloak-init
-  namespace: forgejo
+  name: immich-keycloak-init
+  namespace: immich
 spec:
   ttlSecondsAfterFinished: 60
   template:
     spec:
-      serviceAccountName: forgejo-setup-sa
+      serviceAccountName: immich-setup-sa
       containers:
         - name: setup
           image: bitnami/kubectl:latest
@@ -16,7 +16,7 @@ spec:
             - -c
             - |
               set -e
-              if kubectl get secret keycloak-secret -n forgejo >/dev/null 2>&1; then
+              if kubectl get secret keycloak-secret -n immich >/dev/null 2>&1; then
                 echo "keycloak-secret already exists, skipping."
                 exit 0
               fi
@@ -37,26 +37,26 @@ spec:
               echo "Authenticating into Keycloak..."
               kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh config credentials --server http://localhost:8080 --realm master --user admin --password "$PASSWORD"
 
-              echo "Checking if forgejo client exists..."
-              EXISTS=$(kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh get clients -r smallworlds -q clientId=forgejo)
+              echo "Checking if immich client exists..."
+              EXISTS=$(kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh get clients -r smallworlds -q clientId=immich)
               
               if [[ "$EXISTS" == "[]" || "$EXISTS" == "[ ]" || -z "$EXISTS" ]]; then
-                echo "Creating forgejo client..."
-                kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh create clients -r smallworlds -s clientId=forgejo -s enabled=true -s publicClient=false -s standardFlowEnabled=true -s 'redirectUris=["https://git.smallworlds.network/*"]' -s 'webOrigins=["+"]'
+                echo "Creating immich client..."
+                kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh create clients -r smallworlds -s clientId=immich -s enabled=true -s publicClient=false -s standardFlowEnabled=true -s 'redirectUris=["app.immich:///*","https://photos.smallworlds.network/auth/login","https://photos.smallworlds.network/user-settings","https://photos.smallworlds.network/*"]' -s 'webOrigins=["+"]'
               else
-                echo "Forgejo client already exists."
+                echo "Immich client already exists."
               fi
 
               echo "Extracting Client Secret..."
-              SECRET=$(kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh get clients -r smallworlds -q clientId=forgejo --fields secret | grep "secret" | cut -d'"' -f4)
+              SECRET=$(kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh get clients -r smallworlds -q clientId=immich --fields secret | grep "secret" | cut -d'"' -f4)
 
               if [[ -z "$SECRET" ]]; then
                 echo "Error: Failed to retrieve OIDC Client Secret."
                 exit 1
               fi
 
-              echo "Creating keycloak-secret in forgejo namespace..."
-              kubectl create secret generic keycloak-secret -n forgejo \
+              echo "Creating keycloak-secret in immich namespace..."
+              kubectl create secret generic keycloak-secret -n immich \
                 --from-literal=client-secret="$SECRET"
 
               echo "Keycloak Client initialized successfully!"

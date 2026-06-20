@@ -1,13 +1,13 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: forgejo-keycloak-init
-  namespace: forgejo
+  name: roundcube-keycloak-init
+  namespace: roundcube
 spec:
   ttlSecondsAfterFinished: 60
   template:
     spec:
-      serviceAccountName: forgejo-setup-sa
+      serviceAccountName: roundcube-setup-sa
       containers:
         - name: setup
           image: bitnami/kubectl:latest
@@ -16,8 +16,8 @@ spec:
             - -c
             - |
               set -e
-              if kubectl get secret keycloak-secret -n forgejo >/dev/null 2>&1; then
-                echo "keycloak-secret already exists, skipping."
+              if kubectl get secret roundcube-oauth-secret -n roundcube >/dev/null 2>&1; then
+                echo "roundcube-oauth-secret already exists, skipping."
                 exit 0
               fi
 
@@ -37,27 +37,27 @@ spec:
               echo "Authenticating into Keycloak..."
               kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh config credentials --server http://localhost:8080 --realm master --user admin --password "$PASSWORD"
 
-              echo "Checking if forgejo client exists..."
-              EXISTS=$(kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh get clients -r smallworlds -q clientId=forgejo)
+              echo "Checking if roundcube client exists..."
+              EXISTS=$(kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh get clients -r smallworlds -q clientId=roundcube)
               
               if [[ "$EXISTS" == "[]" || "$EXISTS" == "[ ]" || -z "$EXISTS" ]]; then
-                echo "Creating forgejo client..."
-                kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh create clients -r smallworlds -s clientId=forgejo -s enabled=true -s publicClient=false -s standardFlowEnabled=true -s 'redirectUris=["https://git.smallworlds.network/*"]' -s 'webOrigins=["+"]'
+                echo "Creating roundcube client..."
+                kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh create clients -r smallworlds -s clientId=roundcube -s enabled=true -s publicClient=false -s standardFlowEnabled=true -s 'redirectUris=["https://webmail.smallworlds.network/index.php/login/oauth"]' -s 'webOrigins=["https://webmail.smallworlds.network"]'
               else
-                echo "Forgejo client already exists."
+                echo "Roundcube client already exists."
               fi
 
               echo "Extracting Client Secret..."
-              SECRET=$(kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh get clients -r smallworlds -q clientId=forgejo --fields secret | grep "secret" | cut -d'"' -f4)
+              SECRET=$(kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh get clients -r smallworlds -q clientId=roundcube --fields secret | grep "secret" | cut -d'"' -f4)
 
               if [[ -z "$SECRET" ]]; then
                 echo "Error: Failed to retrieve OIDC Client Secret."
                 exit 1
               fi
 
-              echo "Creating keycloak-secret in forgejo namespace..."
-              kubectl create secret generic keycloak-secret -n forgejo \
-                --from-literal=client-secret="$SECRET"
+              echo "Creating roundcube-oauth-secret in roundcube namespace..."
+              kubectl create secret generic roundcube-oauth-secret -n roundcube \
+                --from-literal=OAUTH_CLIENT_SECRET="$SECRET"
 
               echo "Keycloak Client initialized successfully!"
       restartPolicy: OnFailure
