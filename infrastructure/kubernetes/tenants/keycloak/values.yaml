@@ -4,9 +4,9 @@ http:
 command:
   - "/opt/keycloak/bin/kc.sh"
   - "start"
-  - "--import-realm"
-  - "-Dkeycloak.import.strategy=IGNORE_EXISTING"
-  - "-Dkeycloak.migration.strategy=IGNORE_EXISTING"
+  
+  
+  
   - "--http-port=8080"
   - "--http-relative-path=/"
   - "--hostname=identity.smallworlds.network"
@@ -16,7 +16,7 @@ command:
 
 extraEnv: |
   - name: JAVA_OPTS_APPEND
-    value: "-Djgroups.dns.query=keycloak-headless -Dkeycloak.migration.action=import -Dkeycloak.migration.provider=singleFile -Dkeycloak.migration.file=/opt/keycloak/data/import/smallworlds-realm.json -Dkeycloak.migration.strategy=OVERWRITE_EXISTING -Dmail.smtp.ssl.trust=stalwart-mail.stalwart.svc.cluster.local"
+    value: "-Djgroups.dns.query=keycloak-headless -Dmail.smtp.ssl.trust=stalwart-mail.stalwart.svc.cluster.local"
   - name: KC_DB
     value: postgres
   - name: KC_DB_URL_HOST

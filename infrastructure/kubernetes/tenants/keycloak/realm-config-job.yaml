@@ -33,6 +33,9 @@ spec:
                 sleep 3
               done
               
+              echo "Importing smallworlds realm..."
+              /opt/keycloak/bin/kcadm.sh create realms -f /opt/keycloak/data/import/smallworlds-realm.json || echo "Realm may already exist."
+
               echo "Setting onboarding mode to $ONBOARDING_MODE..."
               if [ "$ONBOARDING_MODE" = "self-registration" ]; then
                 /opt/keycloak/bin/kcadm.sh update realms/smallworlds -s registrationAllowed=true -s verifyEmail=true
@@ -40,5 +43,14 @@ spec:
                 /opt/keycloak/bin/kcadm.sh update realms/smallworlds -s registrationAllowed=false
               fi
               echo "Realm configuration complete."
+          volumeMounts:
+            - name: realm-config
+              mountPath: "/opt/keycloak/data/import/smallworlds-realm.json"
+              subPath: "smallworlds-realm.json"
+              readOnly: true
       restartPolicy: OnFailure
+      volumes:
+        - name: realm-config
+          configMap:
+            name: keycloak-realm-config
   backoffLimit: 10
