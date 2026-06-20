@@ -301,7 +301,6 @@
       ],
       "security-admin-console": [],
       "admin-cli": [],
-      "immich": [],
       "account-console": [],
       "broker": [
         {
