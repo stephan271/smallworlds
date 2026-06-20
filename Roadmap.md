@@ -74,6 +74,10 @@ To counteract these issues, social media apps in this project must reject these 
 
 The vision for SmallWorlds infrastructure is to move towards a fully autonomous, agent-driven system for lifecycle management. Below are the steps to arrive at this state:
 
+### Step 0: Backup functions
+- ensure each application has a scheduled backup based on the garage S3 service
+- keep second backup instance on local server at customers home address
+
 ### Step 1: GitOps Foundation
 - **Goal:** Ensure all infrastructure components and app configurations are 100% declaratively managed.
 - **Action:** Solidify ArgoCD/Flux deployments. Every app (including the new ones listed above) must be deployed via Kustomize or Helm charts driven completely by Git commits. Manual `kubectl` actions should be read-only or strictly temporary.
