@@ -4,9 +4,6 @@ http:
 command:
   - "/opt/keycloak/bin/kc.sh"
   - "start"
-  
-  
-  
   - "--http-port=8080"
   - "--http-relative-path=/"
   - "--hostname=identity.smallworlds.network"
