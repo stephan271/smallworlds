@@ -60,7 +60,6 @@ spec:
               export STALWART_USER="admin"
               # STALWART_PASSWORD is set via environment variable
               
-              $CLI update Domain $DOMAIN_NAME --field allowRelaying=true || true
               
               # 5. Configure System Settings and SenderAuth for Internal Relaying BEFORE domain creation
               echo "Setting Server Hostname..."
@@ -162,6 +161,7 @@ spec:
               # If defaultDomainId wasn't set because the domain didn't exist, set it now
               if [ -n "$DOMAIN_ID" ]; then
                 $CLI update SystemSettings singleton --field defaultDomainId="$DOMAIN_ID" || true
+                $CLI update Domain "$DOMAIN_ID" --field allowRelaying=true || true
               fi
               
               # 7. Output generated DNS Zone records to logs
