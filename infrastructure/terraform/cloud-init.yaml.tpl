@@ -213,6 +213,9 @@ runcmd:
   - export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
   - until kubectl get nodes | grep -v NotReady | grep -q Ready; do sleep 5; done
 
+  # Automatically restore Let's Encrypt certificates if a backup exists
+  - if [ -f "/mnt/smallworlds-data/certs-backup.yaml" ]; then kubectl apply -f /mnt/smallworlds-data/certs-backup.yaml; fi
+
   # 3. Install ArgoCD
   - kubectl create namespace argocd || true
   - kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml --server-side --force-conflicts
