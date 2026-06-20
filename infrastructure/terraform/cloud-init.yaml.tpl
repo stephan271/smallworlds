@@ -209,7 +209,7 @@ runcmd:
 
   # 2. Install K3s (This will automatically apply the manifests in /var/lib/rancher/k3s/server/manifests/)
   - echo "ipv4" > ~/.curlrc
-  - curl -sfL https://get.k3s.io | sh -s - server --cluster-init --disable traefik
+  - curl -sfL https://get.k3s.io | sh -s - server --cluster-init --disable traefik --kubelet-arg=registry-qps=50 --kubelet-arg=registry-burst=100
   - export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
   - until kubectl get nodes | grep -v NotReady | grep -q Ready; do sleep 5; done
 
