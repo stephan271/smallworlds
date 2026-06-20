@@ -87,7 +87,7 @@ spec:
               value: "mail.$(DOMAIN)"
             - name: STALWART_MTA_OUTBOUND_STRATEGY_DEFAULT_EHLO
               value: "mail.$(DOMAIN)"
-            - name: STALWART_MTA_STAGE_RCPT_ALLOW_RELAYING
+            - name: STALWART_SESSION_RCPT_ALLOW_RELAYING
               value: "!is_empty(authenticated_as) || starts_with(remote_ip, '10.42.') || starts_with(remote_ip, '10.43.')"
             - name: STALWART_CERTIFICATE_DEFAULT_CERT
               value: "file:///etc/stalwart/tls/tls.crt"
