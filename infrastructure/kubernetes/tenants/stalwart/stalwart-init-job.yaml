@@ -60,6 +60,8 @@ spec:
               export STALWART_USER="admin"
               # STALWART_PASSWORD is set via environment variable
               
+              $CLI update Domain $DOMAIN_NAME --field allowRelaying=true || true
+              
               # 5. Configure System Settings and SenderAuth for Internal Relaying BEFORE domain creation
               echo "Setting Server Hostname..."
               $CLI update SystemSettings singleton --field defaultHostname="mail.$DOMAIN_NAME" || true
@@ -69,7 +71,7 @@ spec:
                 "dkimSignDomain": {
                   "match": {
                     "0": {
-                      "if": "is_local_domain(sender_domain) && (!is_empty(authenticated_as) || starts_with(remote_ip, \"10.42.\") || starts_with(remote_ip, \"10.43.\"))",
+                      "if": "is_local_domain(sender_domain) && (!is_empty(authenticated_as) || contains(remote_ip, \"10.42.\") || contains(remote_ip, \"10.43.\"))",
                       "then": "sender_domain"
                     }
                   },
@@ -82,7 +84,7 @@ spec:
                 "allowRelaying": {
                   "match": {
                     "0": {
-                      "if": "!is_empty(authenticated_as) || starts_with(remote_ip, \"10.42.\") || starts_with(remote_ip, \"10.43.\") || starts_with(remote_ip, \"127.\")",
+                      "if": "!is_empty(authenticated_as) || contains(remote_ip, \"10.42.\") || contains(remote_ip, \"10.43.\") || contains(remote_ip, \"127.\")",
                       "then": "true"
                     }
                   },
