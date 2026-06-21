@@ -17,7 +17,7 @@ data:
     $config['oauth_identity_fields'] = ['preferred_username'];
     $config['oauth_login_redirect'] = true;
     $config['use_https'] = true;
-    // $config['username_domain'] = 'smallworlds.network';
+    $config['mail_domain'] = 'smallworlds.network';
 
     // Debugging configuration
     $config['log_driver'] = 'file';
