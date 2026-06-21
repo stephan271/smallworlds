@@ -43,9 +43,13 @@ elif "metadata" in le_data:
     items.append(le_data)
 
 if "items" in tls_data:
-    items.extend(tls_data["items"])
+    for item in tls_data["items"]:
+        if item.get("metadata", {}).get("namespace") == "kube-system":
+            continue
+        items.append(item)
 elif "metadata" in tls_data:
-    items.append(tls_data)
+    if tls_data.get("metadata", {}).get("namespace") != "kube-system":
+        items.append(tls_data)
 
 for item in items:
     for key in ["creationTimestamp", "resourceVersion", "uid", "ownerReferences", "generation"]:
