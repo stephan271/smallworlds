@@ -92,7 +92,7 @@ extraVolumes: |
       name: keycloak-spi-config
 extraVolumeMounts: |
   - name: realm-config
-    mountPath: "/opt/keycloak/data/import/smallworlds-realm.json"
+    mountPath: "/opt/keycloak/data/realm-config/smallworlds-realm.json"
     subPath: "smallworlds-realm.json"
     readOnly: true
   - name: spi-volume

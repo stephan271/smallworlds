@@ -3,6 +3,9 @@ kind: Job
 metadata:
   name: stalwart-init
   namespace: stalwart
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
 spec:
   ttlSecondsAfterFinished: 60
   template:

@@ -3,6 +3,9 @@ kind: Job
 metadata:
   name: roundcube-keycloak-init
   namespace: roundcube
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
 spec:
   ttlSecondsAfterFinished: 60
   template:
