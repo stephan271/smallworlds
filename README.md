@@ -127,6 +127,45 @@ Welcome to your sovereign cloud!
 
 ---
 
+## Rebuilding Your Server
+
+There may come a time when you need to recreate your SmallWorlds server from scratch (for example, if you want to upgrade the underlying VM size or start with a completely fresh Kubernetes state).
+
+SmallWorlds supports two options for rebuilding:
+
+### Option 1: Restart, but KEEP your data
+This option destroys the underlying Virtual Machine but **keeps your persistent volume** intact. When the new VM boots, it reconnects to the persistent volume, and your entire cluster (including Kubernetes state and application data) wakes up exactly as it was.
+
+1. Destroy just the server instance:
+   ```bash
+   cd infrastructure/terraform
+   terraform destroy -target=hcloud_server.smallworlds_pilot_node
+   ```
+2. Re-apply the Terraform configuration to spin up a new server:
+   ```bash
+   terraform apply
+   ```
+
+### Option 2: True Nuke (Wipe Data, Keep Certificates)
+This option will completely wipe the Kubernetes database and all application data, giving you a 100% clean slate. However, it automatically backs up your Let's Encrypt certificates so you do not hit rate limits when you restart.
+
+1. Run the fresh rebuild script to backup your certificates and wipe the data from the volume:
+   ```bash
+   ./admin-tools/prepare-fresh-rebuild.sh
+   ```
+2. Destroy the server instance:
+   ```bash
+   cd infrastructure/terraform
+   terraform destroy -target=hcloud_server.smallworlds_pilot_node
+   ```
+3. Re-apply the Terraform configuration:
+   ```bash
+   terraform apply
+   ```
+The new server will boot, automatically inject the saved certificates, and spin up an entirely fresh set of applications.
+
+---
+
 ## Keeping Your Cloud Up to Date
 Because your server relies on the **Central Foundation Repository** as a base, you will occasionally want to pull in updates (e.g., when a new version of Nextcloud is released, or when a security patch is applied to the central infrastructure).
 
