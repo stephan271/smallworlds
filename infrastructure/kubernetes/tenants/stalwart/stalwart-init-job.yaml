@@ -192,14 +192,14 @@ spec:
               echo "Creating fresh OIDC Directory..."
               OIDC_JSON=$(jq -n \
                 --arg issuer "https://identity.smallworlds.network/realms/smallworlds" \
-                --arg domain "$DOMAIN_NAME" \
+                --arg aud "roundcube" \
                 '{
                   description: "Keycloak",
                   issuerUrl: $issuer,
-                  claimUsername: "preferred_username",
+                  requireAudience: $aud,
+                  claimUsername: "email",
                   claimName: "name",
-                  claimGroups: "groups",
-                  usernameDomain: $domain
+                  claimGroups: "groups"
                 }')
               DIR_ID=$( $CLI create Directory/oidc --json "$OIDC_JSON" | awk '{print $3}' || true )
 

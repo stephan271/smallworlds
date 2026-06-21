@@ -14,11 +14,9 @@ data:
     $config['oauth_token_uri'] = 'https://identity.smallworlds.network/realms/smallworlds/protocol/openid-connect/token';
     $config['oauth_identity_uri'] = 'https://identity.smallworlds.network/realms/smallworlds/protocol/openid-connect/userinfo';
     $config['oauth_scope'] = 'openid email profile';
-    $config['oauth_identity_fields'] = ['preferred_username'];
+    $config['oauth_identity_fields'] = ['email'];
     $config['oauth_login_redirect'] = true;
     $config['use_https'] = true;
-    $config['username_domain'] = 'smallworlds.network';
-    $config['username_domain_forced'] = true;
 
     // Debugging configuration
     $config['log_driver'] = 'file';
@@ -30,7 +28,6 @@ data:
 
 
     // Override mail server configuration to connect internally and bypass TLS validation / loopback issues
-    $config['mail_domain'] = 'smallworlds.network';
     $config['imap_host'] = 'ssl://stalwart-mail.stalwart.svc.cluster.local:993';
     $config['smtp_host'] = 'ssl://stalwart-mail.stalwart.svc.cluster.local:465';
     $config['imap_conn_options'] = [
