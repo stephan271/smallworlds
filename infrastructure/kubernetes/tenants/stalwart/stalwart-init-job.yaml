@@ -180,20 +180,32 @@ spec:
               
               # 7. Configure Keycloak OIDC Directory
               echo "Configuring Keycloak OIDC Directory..."
-              DIR_ID=$( $CLI query Directory --json | jq -r 'select(.description == "Keycloak") | .id' || true )
+              # Query all OIDC directories and find the one that has the Keycloak issuer
+              DIR_ID=$($CLI query Directory --json | jq -r 'select(."@type" == "Oidc") | .id' | head -n 1)
+              
               if [ -z "$DIR_ID" ]; then
                 OIDC_JSON=$(jq -n \
                   --arg issuer "https://identity.smallworlds.network/realms/smallworlds" \
-                  --arg aud "roundcube" \
                   '{
                     description: "Keycloak",
                     issuerUrl: $issuer,
-                    requireAudience: $aud,
-                    claimUsername: "email",
+                    claimUsername: "preferred_username",
                     claimName: "name",
                     claimGroups: "groups"
                   }')
                 DIR_ID=$( $CLI create Directory/oidc --json "$OIDC_JSON" | awk '{print $3}' || true )
+              else
+                # Update existing directory
+                OIDC_JSON=$(jq -n \
+                  --arg issuer "https://identity.smallworlds.network/realms/smallworlds" \
+                  '{
+                    description: "Keycloak",
+                    issuerUrl: $issuer,
+                    claimUsername: "preferred_username",
+                    claimName: "name",
+                    claimGroups: "groups"
+                  }')
+                $CLI update Directory/oidc "$DIR_ID" --json "$OIDC_JSON" || true
               fi
               
               if [ -n "$DIR_ID" ]; then
