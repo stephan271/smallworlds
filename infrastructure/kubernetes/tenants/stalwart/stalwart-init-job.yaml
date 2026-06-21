@@ -180,27 +180,29 @@ spec:
               
               # 7. Configure Keycloak OIDC Directory
               echo "Configuring Keycloak OIDC Directory..."
-              # Query all OIDC directories and find the one that has the Keycloak issuer
-              DIR_ID=$($CLI query Directory --json | jq -r 'select(."@type" == "Oidc") | .id' | head -n 1)
               
-              if [ -z "$DIR_ID" ]; then
-                OIDC_JSON=$(jq -n \
-                  --arg issuer "https://identity.smallworlds.network/realms/smallworlds" \
-                  --arg domain "$DOMAIN_NAME" \
-                  '{
-                    description: "Keycloak",
-                    issuerUrl: $issuer,
-                    claimUsername: "preferred_username",
-                    usernameDomain: $domain,
-                    claimName: "name",
-                    claimGroups: "groups"
-                  }')
-                DIR_ID=$( $CLI create Directory/oidc --json "$OIDC_JSON" | awk '{print $3}' || true )
-              else
-                # Update existing directory
-                $CLI update Directory "$DIR_ID" --field issuerUrl="https://identity.smallworlds.network/realms/smallworlds" --field claimUsername="preferred_username" --field usernameDomain="$DOMAIN_NAME" --field requireAudience=null --field claimName="name" --field claimGroups="groups" || true
-              fi
-              
+              echo "Cleaning up old Keycloak OIDC directories..."
+              $CLI query Directory --json > /tmp/dirs.json || true
+              grep -i '"@type":"Oidc"' /tmp/dirs.json | jq -r .id > /tmp/oidc_ids.txt || true
+              for ID in $(cat /tmp/oidc_ids.txt); do
+                echo "Deleting OIDC Directory Directory/oidc/$ID..."
+                $CLI delete Directory/oidc/$ID || $CLI delete Directory/$ID || true
+              done
+
+              echo "Creating fresh OIDC Directory..."
+              OIDC_JSON=$(jq -n \
+                --arg issuer "https://identity.smallworlds.network/realms/smallworlds" \
+                --arg domain "$DOMAIN_NAME" \
+                '{
+                  description: "Keycloak",
+                  issuerUrl: $issuer,
+                  claimUsername: "preferred_username",
+                  claimName: "name",
+                  claimGroups: "groups",
+                  usernameDomain: $domain
+                }')
+              DIR_ID=$( $CLI create Directory/oidc --json "$OIDC_JSON" | awk '{print $3}' || true )
+
               if [ -n "$DIR_ID" ]; then
                 echo "Associating OIDC Directory $DIR_ID as the default authentication directory..."
                 $CLI update Authentication singleton --field directoryId="$DIR_ID" || true
