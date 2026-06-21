@@ -39,14 +39,6 @@ server:
 machine-learning:
   enabled: true
 immich:
-  configuration:
-    oauth:
-      enabled: true
-      issuerUrl: https://identity.smallworlds.network/realms/smallworlds
-      clientId: immich
-      autoRegister: true
-      autoLaunch: true
-      buttonText: Login with SmallWorlds ID
   persistence:
     library:
       existingClaim: immich-library-pvc

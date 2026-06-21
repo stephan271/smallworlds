@@ -4,7 +4,6 @@ metadata:
   name: immich-admin-init
   namespace: immich
   annotations:
-    # Run alongside ArgoCD sync, the job itself waits for the server pod.
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
@@ -30,6 +29,11 @@ spec:
                 secretKeyRef:
                   name: immich-admin-creds
                   key: name
+            - name: OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: client-secret
           command:
             - /bin/sh
             - -c
@@ -56,13 +60,41 @@ spec:
               BODY=$(echo "$RESPONSE" | sed -e 's/HTTP_STATUS:.*//')
 
               if [ "$HTTP_STATUS" = "400" ]; then
-                echo "Admin account already exists (HTTP 400). Skipping."
-                exit 0
+                echo "Admin account already exists (HTTP 400). Proceeding to config."
               elif [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "201" ]; then
-                echo "Admin account created successfully."
-                exit 0
+                echo "Admin account created successfully. Proceeding to config."
               else
                 echo "Failed to create admin account. HTTP $HTTP_STATUS"
                 echo "Response: $BODY"
                 exit 1
               fi
+
+              echo "Logging in as admin to configure OIDC..."
+              TOKEN=$(curl -s -X POST "$IMMICH_URL/api/auth/login" \
+                -H "Content-Type: application/json" \
+                -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}" | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
+
+              if [ -z "$TOKEN" ]; then
+                echo "Failed to get admin access token!"
+                exit 1
+              fi
+
+              echo "Configuring OIDC via API..."
+              curl -s -H "Authorization: Bearer $TOKEN" "$IMMICH_URL/api/system-config" > /tmp/cfg.json
+              sed "s/\"clientSecret\":\"\"/\"clientSecret\":\"$OAUTH_CLIENT_SECRET\"/" /tmp/cfg.json | \
+              sed "s/\"clientId\":\"\"/\"clientId\":\"immich\"/" | \
+              sed "s|\"issuerUrl\":\"\"|\"issuerUrl\":\"https://identity.smallworlds.network/realms/smallworlds\"|" | \
+              sed "s/\"enabled\":false/\"enabled\":true/" | \
+              sed "s/\"autoRegister\":false/\"autoRegister\":true/" | \
+              sed "s/\"autoLaunch\":false/\"autoLaunch\":true/" > /tmp/new_cfg.json
+              
+              # Also ensure buttonText is set correctly
+              sed -i "s/\"buttonText\":\"[^\"]*\"/\"buttonText\":\"Login with SmallWorlds ID\"/" /tmp/new_cfg.json
+
+              curl -s -X PUT "$IMMICH_URL/api/system-config" \
+                -H "Authorization: Bearer $TOKEN" \
+                -H "Content-Type: application/json" \
+                -d @/tmp/new_cfg.json
+              
+              echo "OIDC configured successfully!"
+              exit 0
