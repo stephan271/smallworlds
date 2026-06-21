@@ -195,7 +195,7 @@ spec:
                 '{
                   description: "Keycloak",
                   issuerUrl: $issuer,
-                  claimUsername: "email",
+                  claimUsername: "preferred_username",
                   claimName: "name",
                   claimGroups: "groups"
                 }')
