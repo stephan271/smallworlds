@@ -189,6 +189,7 @@ spec:
                   '{
                     description: "Keycloak",
                     issuerUrl: $issuer,
+                    requireAudience: "account",
                     claimUsername: "preferred_username",
                     claimName: "name",
                     claimGroups: "groups"
@@ -196,16 +197,7 @@ spec:
                 DIR_ID=$( $CLI create Directory/oidc --json "$OIDC_JSON" | awk '{print $3}' || true )
               else
                 # Update existing directory
-                OIDC_JSON=$(jq -n \
-                  --arg issuer "https://identity.smallworlds.network/realms/smallworlds" \
-                  '{
-                    description: "Keycloak",
-                    issuerUrl: $issuer,
-                    claimUsername: "preferred_username",
-                    claimName: "name",
-                    claimGroups: "groups"
-                  }')
-                $CLI update Directory/oidc "$DIR_ID" --json "$OIDC_JSON" || true
+                $CLI update Directory "$DIR_ID" --field issuerUrl="https://identity.smallworlds.network/realms/smallworlds" --field claimUsername="preferred_username" --field requireAudience="account" --field claimName="name" --field claimGroups="groups" || true
               fi
               
               if [ -n "$DIR_ID" ]; then
