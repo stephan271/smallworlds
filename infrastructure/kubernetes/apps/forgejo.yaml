@@ -18,11 +18,11 @@ spec:
     namespace: forgejo
   syncPolicy:
     retry:
-      limit: 5
+      limit: 15
       backoff:
         duration: 15s
         factor: 2
-        maxDuration: 3m
+        maxDuration: 5m
     automated:
       prune: true
       selfHeal: true
