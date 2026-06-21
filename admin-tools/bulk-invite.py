@@ -11,15 +11,19 @@ KEYCLOAK_URL = os.getenv("KEYCLOAK_URL", "https://identity.smallworlds.network")
 REALM = os.getenv("KEYCLOAK_REALM", "smallworlds")
 ADMIN_USER = os.getenv("KEYCLOAK_ADMIN_USER", "admin")
 ADMIN_PASS = os.getenv("KEYCLOAK_ADMIN_PASS", "admin")
-CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID", "admin-cli")
+CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID", "bulk-invite")
+CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET")
 
 def get_admin_token():
-    url = f"{KEYCLOAK_URL}/realms/master/protocol/openid-connect/token"
+    url = f"{KEYCLOAK_URL}/realms/{REALM}/protocol/openid-connect/token"
+    if not CLIENT_SECRET:
+        print("KEYCLOAK_CLIENT_SECRET environment variable is required.", file=sys.stderr)
+        sys.exit(1)
+
     payload = {
         "client_id": CLIENT_ID,
-        "username": ADMIN_USER,
-        "password": ADMIN_PASS,
-        "grant_type": "password"
+        "client_secret": CLIENT_SECRET,
+        "grant_type": "client_credentials"
     }
     response = requests.post(url, data=payload)
     if response.status_code != 200:

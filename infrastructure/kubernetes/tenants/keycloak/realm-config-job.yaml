@@ -21,6 +21,11 @@ spec:
                 secretKeyRef:
                   name: keycloak-admin-creds
                   key: admin-password
+            - name: BULK_INVITE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-admin-creds
+                  key: bulk-invite-secret
             - name: ONBOARDING_MODE
               value: "invitation"
           command:
@@ -42,6 +47,13 @@ spec:
               else
                 /opt/keycloak/bin/kcadm.sh update realms/smallworlds -s registrationAllowed=false
               fi
+
+              echo "Creating bulk-invite service account client..."
+              /opt/keycloak/bin/kcadm.sh create clients -r smallworlds -s clientId=bulk-invite -s serviceAccountsEnabled=true -s publicClient=false -s secret="$BULK_INVITE_SECRET" || echo "Client may already exist."
+              
+              echo "Assigning realm-admin role to bulk-invite..."
+              /opt/keycloak/bin/kcadm.sh add-roles -r smallworlds --uusername service-account-bulk-invite --cclientid realm-management --rolename realm-admin || echo "Role may already be assigned."
+
               echo "Realm configuration complete."
           volumeMounts:
             - name: realm-config

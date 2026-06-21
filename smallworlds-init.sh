@@ -135,6 +135,7 @@ NC_PASS=$(terraform output -raw nextcloud_admin_password)
 IM_PASS=$(terraform output -raw immich_admin_password)
 MAIL_PASS=$(terraform output -raw stalwart_admin_password)
 GIT_PASS=$(terraform output -raw forgejo_admin_password)
+INVITE_SECRET=$(terraform output -raw bulk_invite_secret)
 
 # 5. Retrieve Kubeconfig
 echo -e "${CYAN}Waiting for SSH to be available on $SERVER_IP...${NC}"
@@ -177,6 +178,7 @@ echo -e "Immich Admin (${ADMIN_EMAIL}):     ${CYAN}${IM_PASS}${NC}"
 echo -e "Stalwart Mail Admin (admin): ${CYAN}${MAIL_PASS}${NC}"
 echo -e "Forgejo Git Admin (gitadmin):   ${CYAN}${GIT_PASS}${NC}"
 echo -e "ArgoCD Admin (admin):        ${CYAN}${ARGOCD_PASS}${NC}"
+echo -e "Bulk Invite Secret:          ${CYAN}${INVITE_SECRET}${NC}"
 echo ""
 echo -e "ArgoCD Dashboard:            ${CYAN}https://localhost:8080${NC} (requires port-forward)"
 echo -e "  To port-forward:           ${YELLOW}kubectl port-forward svc/argocd-server -n argocd 8080:443${NC}"

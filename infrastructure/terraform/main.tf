@@ -142,6 +142,11 @@ resource "random_password" "immich_admin" {
   special = false
 }
 
+resource "random_password" "bulk_invite_secret" {
+  length  = 32
+  special = false
+}
+
 resource "random_password" "stalwart_admin" {
   length  = 32
   special = false
@@ -215,6 +220,7 @@ resource "hcloud_server" "smallworlds_pilot_node" {
     keycloak_admin_password  = var.keycloak_admin_password != "" ? var.keycloak_admin_password : random_password.keycloak_admin.result
     nextcloud_admin_password = var.nextcloud_admin_password != "" ? var.nextcloud_admin_password : random_password.nextcloud_admin.result
     immich_admin_password    = var.immich_admin_password != "" ? var.immich_admin_password : random_password.immich_admin.result
+    bulk_invite_secret       = random_password.bulk_invite_secret.result
     stalwart_admin_password  = random_password.stalwart_admin.result
     forgejo_admin_password   = random_password.forgejo_admin.result
     server_ip                = data.hcloud_primary_ip.main_ip.ip_address
@@ -296,3 +302,10 @@ output "forgejo_admin_password" {
   description = "The admin password for Forgejo Git. Use with username 'admin'."
   sensitive   = true
 }
+
+output "bulk_invite_secret" {
+  value       = random_password.bulk_invite_secret.result
+  description = "The secret for the bulk-invite service account in Keycloak."
+  sensitive   = true
+}
+

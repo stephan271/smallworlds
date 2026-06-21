@@ -36,6 +36,7 @@ write_files:
       type: Opaque
       stringData:
         admin-password: "${keycloak_admin_password}"
+        bulk-invite-secret: "${bulk_invite_secret}"
       ---
       apiVersion: v1
       kind: Secret
