@@ -35,9 +35,10 @@ def create_user(token, email, phone):
     url = f"{KEYCLOAK_URL}/admin/realms/{REALM}/users"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     
-    # We use email as temporary username
+    # We use the part of the email before @ as temporary username, because Forgejo strictly prohibits @ in usernames
+    username = email.split('@')[0]
     payload = {
-        "username": email,
+        "username": username,
         "email": email,
         "enabled": True,
         "emailVerified": True, # Assume verified if we invite them
