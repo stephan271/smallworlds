@@ -57,8 +57,8 @@ def create_user(token, email, phone):
             return search_response.json()[0]["id"]
     elif response.status_code == 409:
         print(f"User {email} already exists.", file=sys.stderr)
-        # Fetch existing user ID
-        search_url = f"{KEYCLOAK_URL}/admin/realms/{REALM}/users?username={email}"
+        username = email.split('@')[0]
+        search_url = f"{KEYCLOAK_URL}/admin/realms/{REALM}/users?username={username}"
         search_response = requests.get(search_url, headers=headers)
         if search_response.status_code == 200 and len(search_response.json()) > 0:
             return search_response.json()[0]["id"]
