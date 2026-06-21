@@ -1363,7 +1363,7 @@
   },
   "smtpServer": {
     "host": "10.42.0.37",
-    "port": "1025",
+    "port": "1026",
     "from": "auth@smallworlds.network",
     "fromDisplayName": "Citizennet",
     "auth": "false",
