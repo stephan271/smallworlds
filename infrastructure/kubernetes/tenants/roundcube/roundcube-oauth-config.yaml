@@ -18,6 +18,7 @@ data:
     $config['oauth_login_redirect'] = true;
     $config['use_https'] = true;
     $config['username_domain'] = 'smallworlds.network';
+    $config['username_domain_forced'] = true;
 
     // Debugging configuration
     $config['log_driver'] = 'file';
