@@ -343,6 +343,9 @@ spec:
                     else:
                         value = " ".join(tokens[in_index + 2:])
                         
+                    if rtype == "TXT" and name == "_dmarc":
+                        value = value.replace("p=reject", "p=quarantine")
+
                     # TXT record values are left fully quoted as BIND formatting provides them
                     records.append({
                         "name": name,
