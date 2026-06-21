@@ -11,7 +11,7 @@ spec:
     # REPLACE this with the actual URL of your citizennet git repository
     repoURL: 'https://github.com/stephan271/smallworlds.git'
     targetRevision: HEAD
-    path: 00-letsgo/infrastructure/kubernetes/apps
+    path: infrastructure/kubernetes
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: argocd
