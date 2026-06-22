@@ -214,6 +214,13 @@ runcmd:
   - export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
   - until kubectl get nodes | grep -v NotReady | grep -q Ready; do sleep 5; done
 
+  # Automatically rotate CloudNativePG certificates to prevent TLS mismatch on VM recreation
+  - kubectl delete secret forgejo-db-server forgejo-db-replication -n forgejo --ignore-not-found || true
+  - kubectl delete secret immich-db-server immich-db-replication -n immich --ignore-not-found || true
+  - kubectl delete secret keycloak-db-server keycloak-db-replication -n keycloak --ignore-not-found || true
+  - kubectl delete secret nextcloud-db-server nextcloud-db-replication -n nextcloud --ignore-not-found || true
+  - kubectl delete secret stalwart-db-server stalwart-db-replication -n stalwart --ignore-not-found || true
+
   # Automatically restore Let's Encrypt certificates if a backup exists
   - if [ -f "/mnt/smallworlds-data/certs-backup.yaml" ]; then kubectl apply -f /mnt/smallworlds-data/certs-backup.yaml; fi
 
@@ -224,6 +231,28 @@ runcmd:
     cat << 'EOF' > /tmp/argocd-cm-patch.yaml
     data:
       kustomize.buildOptions: "--enable-helm"
+      resource.customizations.health.postgresql.cnpg.io_Cluster: |
+        hs = {}
+        if obj.status ~= nil then
+          if obj.status.phase == "Cluster in healthy state" then
+            hs.status = "Healthy"
+            hs.message = obj.status.phase
+            return hs
+          end
+          if obj.status.phase == "Creating a new cluster" or obj.status.phase == "Upgrading cluster" or obj.status.phase == "Waiting for the instances to become active" then
+            hs.status = "Progressing"
+            hs.message = obj.status.phase
+            return hs
+          end
+        end
+        hs.status = "Degraded"
+        hs.message = "Cluster is not healthy"
+        return hs
+      resource.customizations.health.postgresql.cnpg.io_ScheduledBackup: |
+        hs = {}
+        hs.status = "Healthy"
+        hs.message = "ScheduledBackup doesn't have a status"
+        return hs
       resource.customizations.health.argoproj.io_Application: |
         hs = {}
         hs.status = "Progressing"
