@@ -35,7 +35,14 @@ echo -e "Target directory: ${GREEN}${ABS_REPO_PATH}${NC}"
 echo ""
 
 # 2. Ask for the remote Git URL
-read -e -p "2. Enter your private Git Remote HTTPS URL (optional, e.g., https://github.com/user/my-community-config.git): " REMOTE_URL
+while true; do
+    read -e -p "2. Enter your private Git Remote HTTPS URL (required, e.g., https://github.com/user/my-community-config.git): " REMOTE_URL
+    if [ -n "$REMOTE_URL" ]; then
+        break
+    else
+        echo -e "${RED}Error: Git Remote URL is required to properly configure ArgoCD patches.${NC}"
+    fi
+done
 
 echo ""
 echo -e "${YELLOW}Initializing repository...${NC}"
@@ -80,9 +87,8 @@ patches:
   # Route all ArgoCD Application definitions to your private repo instead of upstream
 EOF
 
-if [ -n "$REMOTE_URL" ]; then
-    for app in "${APPS[@]}"; do
-        cat <<EOF >> kustomization.yaml
+for app in "${APPS[@]}"; do
+    cat <<EOF >> kustomization.yaml
   - target:
       group: argoproj.io
       kind: Application
@@ -95,23 +101,7 @@ if [ -n "$REMOTE_URL" ]; then
         path: /spec/source/path
         value: $app
 EOF
-    done
-else
-    cat <<EOF >> kustomization.yaml
-  # (Example for routing Nextcloud to your private repo)
-  # - target:
-  #     group: argoproj.io
-  #     kind: Application
-  #     name: nextcloud
-  #   patch: |-
-  #     - op: replace
-  #       path: /spec/source/repoURL
-  #       value: https://github.com/your-username/my-community-config.git
-  #     - op: replace
-  #       path: /spec/source/path
-  #       value: nextcloud
-EOF
-fi
+done
 
 # 4. Create a basic .gitignore
 echo -e "${YELLOW}Creating .gitignore...${NC}"
@@ -147,29 +137,27 @@ git add kustomization.yaml .gitignore README.md
 git commit -m "Initial commit: Set up SmallWorlds kustomization base"
 
 # 7. Configure remote and optionally push
-if [ -n "$REMOTE_URL" ]; then
-    echo ""
-    echo -e "${YELLOW}Configuring remote URL...${NC}"
-    # Check if origin already exists
-    if git remote | grep -q "^origin$"; then
-        git remote set-url origin "$REMOTE_URL"
+echo ""
+echo -e "${YELLOW}Configuring remote URL...${NC}"
+# Check if origin already exists
+if git remote | grep -q "^origin$"; then
+    git remote set-url origin "$REMOTE_URL"
+else
+    git remote add origin "$REMOTE_URL"
+fi
+
+echo -e "Remote 'origin' set to: ${GREEN}${REMOTE_URL}${NC}"
+
+read -e -i "y" -p "Would you like to attempt pushing to origin main now? (y/n): " PUSH_CHOICE
+
+if [[ "$PUSH_CHOICE" =~ ^[Yy]$ ]]; then
+    echo -e "${YELLOW}Pushing to remote repository...${NC}"
+    if git push -u origin main; then
+        echo -e "${GREEN}Successfully pushed to remote!${NC}"
     else
-        git remote add origin "$REMOTE_URL"
-    fi
-    
-    echo -e "Remote 'origin' set to: ${GREEN}${REMOTE_URL}${NC}"
-    
-    read -e -i "y" -p "Would you like to attempt pushing to origin main now? (y/n): " PUSH_CHOICE
-    
-    if [[ "$PUSH_CHOICE" =~ ^[Yy]$ ]]; then
-        echo -e "${YELLOW}Pushing to remote repository...${NC}"
-        if git push -u origin main; then
-            echo -e "${GREEN}Successfully pushed to remote!${NC}"
-        else
-            echo -e "${RED}Warning: Failed to push to remote repository.${NC}"
-            echo -e "Please ensure your repository exists on the host and your SSH keys / access credentials are set up correctly."
-            echo -e "You can try pushing manually later using: ${CYAN}git push -u origin main${NC}"
-        fi
+        echo -e "${RED}Warning: Failed to push to remote repository.${NC}"
+        echo -e "Please ensure your repository exists on the host and your SSH keys / access credentials are set up correctly."
+        echo -e "You can try pushing manually later using: ${CYAN}git push -u origin main${NC}"
     fi
 fi
 
