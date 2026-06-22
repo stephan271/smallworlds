@@ -15,9 +15,14 @@ spec:
     chart: garage
     helm:
       values: |
-        replicaCount: 1
+        deployment:
+          replicaCount: 1
         garage:
-          replication_factor: 1
+          replicationFactor: "1"
+          secret:
+            create: true
+            rpcSecret: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+            adminToken: "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
         persistence:
           enabled: true
           size: 120Gi
