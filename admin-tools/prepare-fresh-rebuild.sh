@@ -42,13 +42,17 @@ if "items" in le_data:
 elif "metadata" in le_data:
     items.append(le_data)
 
+def is_letsencrypt_prod(item):
+    ann = item.get("metadata", {}).get("annotations", {})
+    issuer = ann.get("cert-manager.io/cluster-issuer-name") or ann.get("cert-manager.io/issuer-name")
+    return issuer == "letsencrypt-prod"
+
 if "items" in tls_data:
     for item in tls_data["items"]:
-        if item.get("metadata", {}).get("namespace") == "kube-system":
-            continue
-        items.append(item)
+        if is_letsencrypt_prod(item):
+            items.append(item)
 elif "metadata" in tls_data:
-    if tls_data.get("metadata", {}).get("namespace") != "kube-system":
+    if is_letsencrypt_prod(tls_data):
         items.append(tls_data)
 
 for item in items:
@@ -65,7 +69,12 @@ echo "3. Transferring backup to the server's persistent volume..."
 scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null /tmp/certs-backup.yaml root@$SERVER_IP:/mnt/smallworlds-data/certs-backup.yaml
 
 echo "4. Stopping K3s and unmounting volumes to release file locks..."
-ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@$SERVER_IP "/usr/local/bin/k3s-killall.sh || true"
+ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@$SERVER_IP << 'EOF'
+/usr/local/bin/k3s-killall.sh || true
+for mount in $(awk '{print $2}' /proc/mounts | grep '^/mnt/smallworlds-data/k3s' | sort -r); do
+    umount -l "$mount" || true
+done
+EOF
 
 echo "5. Wiping all application data (Immich, Nextcloud, Garage, and K3s state)..."
 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@$SERVER_IP "cd /mnt/smallworlds-data && find . -mindepth 1 -maxdepth 1 ! -name 'certs-backup.yaml' -exec rm -rf {} +"
