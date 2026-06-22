@@ -18,6 +18,8 @@ data:
     $config['oauth_login_redirect'] = true;
     $config['use_https'] = true;
     $config['mail_domain'] = 'smallworlds.network';
+    $config['imap_auth_type'] = 'XOAUTH2';
+    $config['smtp_auth_type'] = 'XOAUTH2';
 
     // Debugging configuration
     $config['log_driver'] = 'file';
