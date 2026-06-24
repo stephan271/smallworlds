@@ -12,6 +12,7 @@ bases:
 resources:
   - admin-init-job.yaml
   - immich-secret-init-job.yaml
+  - library-pvc.yaml
 
 patches:
   - target:
