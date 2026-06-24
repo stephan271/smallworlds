@@ -3,6 +3,10 @@ kind: Job
 metadata:
   name: stalwart-garage-init
   namespace: stalwart
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+    argocd.argoproj.io/sync-wave: "-2"
 spec:
   template:
     spec:
