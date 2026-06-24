@@ -1,26 +1,24 @@
-controllers:
-  main:
-    containers:
-      main:
-        image:
-          tag: v2.5.6
-        env:
-          DB_DATABASE_NAME: app
-          DB_HOSTNAME: database-rw
-          DB_USERNAME: app
-          REDIS_HOSTNAME: redis
-          DB_PASSWORD:
-            valueFrom:
-              secretKeyRef:
-                name: database-app
-                key: password
-          IMMICH_OAUTH_CLIENT_SECRET:
-            valueFrom:
-              secretKeyRef:
-                name: keycloak-secret
-                key: client-secret
-valkey:
+env:
+  DB_DATABASE_NAME: app
+  DB_HOSTNAME: database-rw
+  DB_USERNAME: app
+  REDIS_HOSTNAME: redis
+  DB_PASSWORD:
+    valueFrom:
+      secretKeyRef:
+        name: database-app
+        key: password
+  IMMICH_OAUTH_CLIENT_SECRET:
+    valueFrom:
+      secretKeyRef:
+        name: keycloak-secret
+        key: client-secret
+
+postgresql:
   enabled: false
+redis:
+  enabled: false
+
 server:
   enabled: true
   ingress:
@@ -41,8 +39,10 @@ server:
         - secretName: immich-tls
           hosts:
             - photos.smallworlds.network
+
 machine-learning:
   enabled: true
+
 immich:
   persistence:
     library:
