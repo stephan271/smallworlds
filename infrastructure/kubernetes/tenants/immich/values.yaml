@@ -3,6 +3,7 @@ env:
   DB_HOSTNAME: database-rw
   DB_USERNAME: app
   REDIS_HOSTNAME: redis
+  REDIS_PORT: "6379"
   DB_PASSWORD:
     valueFrom:
       secretKeyRef:
