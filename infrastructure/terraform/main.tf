@@ -59,6 +59,17 @@ resource "hcloud_firewall" "k8s_firewall" {
     ]
   }
 
+  # Allow Kubernetes API (für externen kubectl Zugriff)
+  rule {
+    direction = "in"
+    protocol  = "tcp"
+    port      = "6443"
+    source_ips = [
+      "0.0.0.0/0",
+      "::/0"
+    ]
+  }
+
 
   # Allow Email (SMTP)
   rule {
