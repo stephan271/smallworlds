@@ -1,0 +1,8 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: ClusterImageCatalog
+metadata:
+  name: immich-catalog
+spec:
+  images:
+    - image: "tensorchord/pgvecto-rs:pg16-v0.2.0"
+      major: 16

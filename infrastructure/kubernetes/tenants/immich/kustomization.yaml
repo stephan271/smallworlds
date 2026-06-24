@@ -13,6 +13,7 @@ resources:
   - admin-init-job.yaml
   - immich-secret-init-job.yaml
   - library-pvc.yaml
+  - immich-catalog.yaml
 
 patches:
   - target:
@@ -38,6 +39,12 @@ patches:
       - op: replace
         path: /spec/imageName
         value: "tensorchord/pgvecto-rs:pg16-v0.2.0"
+      - op: add
+        path: /spec/imageCatalogRef
+        value:
+          apiGroup: postgresql.cnpg.io
+          kind: ClusterImageCatalog
+          name: immich-catalog
 
 helmCharts:
   - name: immich
