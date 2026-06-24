@@ -263,5 +263,15 @@ echo -e "ArgoCD Dashboard:            ${CYAN}https://localhost:8080${NC} (requir
 echo -e "  To port-forward:           ${YELLOW}kubectl port-forward svc/argocd-server -n argocd 8080:443${NC}"
 echo -e "${GREEN}======================================================${NC}"
 
+# Open the dashboard
+DASHBOARD_URL="https://dashboard.${DOMAIN}"
+echo ""
+echo -e "${YELLOW}Please note: The infrastructure is currently being provisioned in the background.${NC}"
+echo -e "${YELLOW}It may take 5-10 minutes for all services to come online and for SSL certificates to be issued.${NC}"
+echo -e "${YELLOW}If you see a 'Bad Gateway' or SSL warning, simply wait a few minutes and refresh.${NC}"
+echo ""
+echo -e "${CYAN}Opening your dashboard: ${DASHBOARD_URL}${NC}"
+python3 -c "import webbrowser; webbrowser.open('${DASHBOARD_URL}')" 2>/dev/null || echo -e "Please manually navigate to: ${DASHBOARD_URL}"
+
 # Cleanup
 rm "$TFVARS_FILE"

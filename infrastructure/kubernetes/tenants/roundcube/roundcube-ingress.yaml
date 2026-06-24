@@ -6,6 +6,11 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Webmail"
+    gethomepage.dev/description: "Roundcube"
+    gethomepage.dev/group: "Applications"
+    gethomepage.dev/icon: "roundcube.png"
 spec:
   rules:
     - host: webmail.smallworlds.network

@@ -28,6 +28,11 @@ server:
       enabled: true
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-prod
+        gethomepage.dev/enabled: "true"
+        gethomepage.dev/name: "Photos"
+        gethomepage.dev/description: "Immich"
+        gethomepage.dev/group: "Applications"
+        gethomepage.dev/icon: "immich.png"
       hosts:
         - host: photos.smallworlds.network
           paths:

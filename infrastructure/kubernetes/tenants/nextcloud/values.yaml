@@ -72,6 +72,11 @@ ingress:
   enabled: true
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Files"
+    gethomepage.dev/description: "Nextcloud"
+    gethomepage.dev/group: "Applications"
+    gethomepage.dev/icon: "nextcloud.png"
   hosts:
     - host: files.smallworlds.network
       paths:

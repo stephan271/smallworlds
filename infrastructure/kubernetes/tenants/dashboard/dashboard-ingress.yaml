@@ -9,10 +9,10 @@ spec:
   ingressClassName: traefik
   tls:
     - hosts:
-        - smallworlds.network
+        - dashboard.smallworlds.network
       secretName: dashboard-tls
   rules:
-    - host: smallworlds.network
+    - host: dashboard.smallworlds.network
       http:
         paths:
           - path: /

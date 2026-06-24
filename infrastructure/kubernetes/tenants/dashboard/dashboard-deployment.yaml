@@ -15,27 +15,23 @@ spec:
       labels:
         app: dashboard
     spec:
+      serviceAccountName: homepage-sa
       containers:
-      - name: nginx
-        image: nginx:alpine
+      - name: homepage
+        image: ghcr.io/gethomepage/homepage:latest
         ports:
-        - containerPort: 80
+        - containerPort: 3000
         volumeMounts:
-        - name: html-volume
-          mountPath: /usr/share/nginx/html
-        - name: status-volume
-          mountPath: /usr/share/nginx/html/api
+        - name: config-volume
+          mountPath: /app/config
         resources:
           requests:
             cpu: 10m
-            memory: 32Mi
-          limits:
-            cpu: 100m
             memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
       volumes:
-      - name: html-volume
+      - name: config-volume
         configMap:
-          name: dashboard-content
-      - name: status-volume
-        configMap:
-          name: status-data
+          name: dashboard-config

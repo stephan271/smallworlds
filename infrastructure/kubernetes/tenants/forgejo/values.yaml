@@ -114,6 +114,11 @@ ingress:
   enabled: true
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Git"
+    gethomepage.dev/description: "Forgejo"
+    gethomepage.dev/group: "Applications"
+    gethomepage.dev/icon: "forgejo.png"
   hosts:
     - host: git.smallworlds.network
       paths:

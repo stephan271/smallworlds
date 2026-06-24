@@ -75,6 +75,11 @@ ingress:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     traefik.ingress.kubernetes.io/router.middlewares: keycloak-keycloak-redirect@kubernetescrd
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Auth"
+    gethomepage.dev/description: "Keycloak"
+    gethomepage.dev/group: "Infrastructure"
+    gethomepage.dev/icon: "keycloak.png"
   rules:
     - host: identity.smallworlds.network
       paths:
