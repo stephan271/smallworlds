@@ -36,15 +36,15 @@ patches:
       kind: Cluster
       name: database
     patch: |-
-      - op: replace
+      - op: remove
         path: /spec/imageName
-        value: "tensorchord/pgvecto-rs:pg16-v0.2.0"
       - op: add
         path: /spec/imageCatalogRef
         value:
           apiGroup: postgresql.cnpg.io
           kind: ClusterImageCatalog
           name: immich-catalog
+          major: 16
 
 helmCharts:
   - name: immich
