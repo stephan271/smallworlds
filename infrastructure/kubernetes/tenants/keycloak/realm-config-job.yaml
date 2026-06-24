@@ -32,6 +32,7 @@ spec:
                 secretKeyRef:
                   name: keycloak-stalwart-secret
                   key: password
+                  optional: true
             - name: ONBOARDING_MODE
               value: "invitation"
           command:
