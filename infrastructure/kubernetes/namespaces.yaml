@@ -39,7 +39,7 @@ metadata:
   name: tenant-setup-role
 rules:
   - apiGroups: [""]
-    resources: ["secrets"]
+    resources: ["secrets", "configmaps"]
     verbs: ["get", "list", "create", "patch", "apply", "delete"]
   - apiGroups: [""]
     resources: ["namespaces"]
