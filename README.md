@@ -4,7 +4,21 @@ Welcome! This guide explains how to spin up your very own decentralized SmallWor
 
 SmallWorlds uses a **GitOps architecture**. This means your server is controlled entirely by a Git repository that **you** own. This guarantees your data sovereignty and gives you the freedom to customize your infrastructure, while still seamlessly receiving upstream updates from the central SmallWorlds project.
 
+> [!TIP]
+> **Curious how it all fits together?** Check out the interactive [SmallWorlds Architecture Diagram](smallworlds_architecture.html) to visualize the data flows and system components.
+
 Follow these steps to launch your "Small World".
+
+---
+
+## Available Applications
+SmallWorlds includes a curated suite of powerful, privacy-respecting applications. You can choose exactly which apps to install during the initial setup:
+- **Nextcloud (Files)**: A secure file hosting, collaboration, and synchronization platform.
+- **Immich (Photos)**: A high-performance, self-hosted photo and video backup solution.
+- **Forgejo (Git)**: A lightweight software forge for version control and collaborative software development.
+- **Roundcube & Stalwart (Webmail)**: A modern IMAP webmail client powered by an all-in-one, secure mail server.
+- **Keycloak (Auth)**: The central identity provider that manages your community's single sign-on (SSO) and passkeys.
+- **Homepage (Dashboard)**: A beautiful, dynamic landing page hosted at `dashboard.your-domain` that automatically discovers and displays only the applications you have chosen to install.
 
 ---
 
@@ -28,8 +42,9 @@ Run the script from the root of this repository:
 ./prepare-community-repo.sh
 ```
 This script will guide you through:
+- Interactively selecting exactly which optional apps you want to install.
 - Initializing the local directory as a Git repository.
-- Generating the required `kustomization.yaml`, `.gitignore`, and a basic `README.md`.
+- Generating a customized `kustomization.yaml` tailored to your app choices, along with a `.gitignore` and `README.md`.
 - Creating the initial commit.
 - Optionally setting up the Git remote and pushing to your private repository.
 
