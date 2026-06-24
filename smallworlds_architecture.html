@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmallWorlds Architecture & Setup Guide</title>
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+      mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+    </script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --surface-color: rgba(30, 41, 59, 0.7);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-primary: #38bdf8;
+            --accent-secondary: #818cf8;
+            --code-bg: #1e293b;
+            --glass-bg: rgba(15, 23, 42, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.08);
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(129, 140, 248, 0.15) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: var(--text-primary);
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 60px;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        h2 {
+            font-size: 2rem;
+            color: var(--accent-primary);
+            margin-top: 50px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        h3 {
+            font-size: 1.5rem;
+            color: #e2e8f0;
+            margin-top: 30px;
+        }
+
+        .card {
+            background: var(--surface-color);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            animation: fadeInUp 0.8s ease-out both;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        code {
+            background-color: var(--code-bg);
+            color: #fb7185;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9em;
+        }
+
+        pre {
+            background-color: var(--code-bg);
+            padding: 20px;
+            border-radius: 12px;
+            overflow-x: auto;
+            border: 1px solid var(--border-color);
+        }
+
+        pre code {
+            background-color: transparent;
+            color: #e2e8f0;
+            padding: 0;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-right: 8px;
+            margin-bottom: 8px;
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--accent-primary);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+        }
+
+        .tag.critical {
+            background: rgba(244, 63, 94, 0.1);
+            color: #f43f5e;
+            border-color: rgba(244, 63, 94, 0.2);
+        }
+
+        .diagram-container {
+            background: var(--code-bg);
+            padding: 20px;
+            border-radius: 12px;
+            margin: 30px 0;
+            border: 1px solid var(--border-color);
+            display: flex;
+            justify-content: center;
+            overflow-x: auto;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .stagger-1 { animation-delay: 0.1s; }
+        .stagger-2 { animation-delay: 0.2s; }
+        .stagger-3 { animation-delay: 0.3s; }
+        .stagger-4 { animation-delay: 0.4s; }
+
+        .file-path {
+            display: flex;
+            align-items: center;
+            color: var(--accent-secondary);
+            font-family: monospace;
+            font-size: 0.95rem;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .file-path svg {
+            width: 18px;
+            height: 18px;
+            margin-right: 8px;
+            fill: currentColor;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>SmallWorlds Architecture</h1>
+            <p style="color: var(--text-secondary); font-size: 1.2rem; max-width: 600px; margin: 0 auto;">
+                A deep dive into the GitOps workflow, ArgoCD setup, and the seamless collaboration between infrastructure components.
+            </p>
+        </header>
+
+        <div class="card stagger-1">
+            <h2>1. The GitOps Bootstrap (ArgoCD Setup)</h2>
+            <p>The entire SmallWorlds cluster is managed declaratively using ArgoCD. The initialization sequence ensures that as soon as the Kubernetes (K3s) cluster boots, it immediately pulls its desired state from your Git repository.</p>
+            
+            <div class="file-path">
+                <svg viewBox="0 0 24 24"><path d="M13 9h5.5L13 3.5V9M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4c0-1.11.89-2 2-2m5 2H6v16h12V11h-7V4Z"/></svg>
+                infrastructure/terraform/cloud-init.yaml.tpl
+            </div>
+            <p>When the VM boots, Cloud-init installs K3s and immediately applies the ArgoCD installation manifest. Once ArgoCD is running, it applies the <code>argocd-root-app.yaml</code>. K3s automatically processes any manifest dropped into <code>/var/lib/rancher/k3s/server/manifests/</code>, making this the perfect hook for our root application.</p>
+
+            <div class="file-path">
+                <svg viewBox="0 0 24 24"><path d="M13 9h5.5L13 3.5V9M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4c0-1.11.89-2 2-2m5 2H6v16h12V11h-7V4Z"/></svg>
+                /tmp/argocd-root-app.yaml (Generated via cloud-init)
+            </div>
+            <p>This root Application defines the <strong>App of Apps</strong> pattern. It points ArgoCD to the repository defined by <code>git_url</code> and watches the root directory. This tells ArgoCD to synchronize all the application definitions found in <code>infrastructure/kubernetes/apps/</code>.</p>
+        </div>
+
+        <div class="card stagger-2">
+            <h2>2. The App of Apps Architecture</h2>
+            <p>The <code>infrastructure/kubernetes/apps/</code> directory contains individual ArgoCD <code>Application</code> manifests for every component in the cluster. Each of these manifests points to a specific tenant directory (e.g., <code>infrastructure/kubernetes/tenants/keycloak/</code>) where the actual Kustomize or Helm definitions live.</p>
+
+            <div class="diagram-container">
+                <div class="mermaid">
+                    graph TD
+                    GitRepo[Git Repository] -->|Pulled by| ArgoRoot[ArgoCD Root App]
+                    ArgoRoot -->|Synchronizes| AppsDir[apps/*.yaml]
+                    AppsDir -->|Deploys| K[Keycloak App]
+                    AppsDir -->|Deploys| CNPG[CloudNativePG App]
+                    AppsDir -->|Deploys| G[Garage S3 App]
+                    AppsDir -->|Deploys| Apps[Nextcloud, Immich, etc.]
+                    
+                    K -->|Applies| TenantK[tenants/keycloak/*]
+                    CNPG -->|Applies| TenantCNPG[tenants/cloudnative-pg/*]
+                </div>
+            </div>
+        </div>
+
+        <div class="card stagger-3">
+            <h2>3. Core Infrastructure Components Integration</h2>
+            <p>The foundation of the cluster relies on three main pillars working together: Storage, Routing, and Databases.</p>
+
+            <div class="grid-container">
+                <div>
+                    <span class="tag">Persistent Storage</span>
+                    <h3>Hetzner Local Storage</h3>
+                    <p><code>persistent-storage.yaml</code> creates a <code>StorageClass</code> named <code>hetzner-local</code>. This maps Kubernetes PVCs directly to the physical Hetzner volume mounted at <code>/mnt/smallworlds-data</code>, ensuring data survives VM recreation.</p>
+                </div>
+                <div>
+                    <span class="tag critical">Networking</span>
+                    <h3>Traefik & Cert-Manager</h3>
+                    <p><code>traefik.yaml</code> and <code>cert-manager.yaml</code> manage routing and TLS. Cert-manager watches for Ingress resources and automatically negotiates Let's Encrypt certificates. Traefik serves as the unified entry point for all subdomains (identity, files, photos, etc.).</p>
+                </div>
+            </div>
+
+            <div class="grid-container">
+                <div>
+                    <span class="tag">Databases</span>
+                    <h3>CloudNativePG (CNPG)</h3>
+                    <p>Instead of deploying disparate database instances, the cluster uses CNPG. For example, Keycloak's tenant directory contains <code>cnpg-cluster.yaml</code> which tells the operator to spin up a highly available Postgres cluster exclusively for Keycloak. Nextcloud, Immich, and Forgejo follow this identical pattern.</p>
+                </div>
+                <div>
+                    <span class="tag">Object Storage</span>
+                    <h3>Garage S3</h3>
+                    <p><code>garage.yaml</code> deploys an S3-compatible object store. Crucially, Keycloak executes a <code>garage-init-job.yaml</code> during its sync phase. This job uses the Garage CLI to dynamically create the <code>nextcloud</code> and <code>immich</code> buckets and generates S3 access keys, storing them securely in K8s secrets for those apps to consume.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card stagger-4">
+            <h2>4. Identity Provider (Keycloak) Configuration</h2>
+            <p>Keycloak is the heart of the SmallWorlds authentication architecture. Every application delegates its login flow to Keycloak via OpenID Connect (OIDC).</p>
+
+            <div class="file-path">
+                <svg viewBox="0 0 24 24"><path d="M13 9h5.5L13 3.5V9M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4c0-1.11.89-2 2-2m5 2H6v16h12V11h-7V4Z"/></svg>
+                infrastructure/kubernetes/tenants/keycloak/smallworlds-realm.json
+            </div>
+            <p>This massive JSON file defines the entire state of the identity provider. Key integrations include:</p>
+            <ul>
+                <li><strong>OIDC Clients:</strong> Pre-registers clients for <code>nextcloud</code>, <code>immich</code>, <code>forgejo</code>, and <code>dashboard</code>. It defines their redirect URIs and client secrets.</li>
+                <li><strong>Passkey (WebAuthn) Flow:</strong> Overrides the default browser flow to enforce Passwordless WebAuthn authentication.</li>
+                <li><strong>SMTP Integration:</strong> Configured to use the internal DNS name of Stalwart (<code>stalwart-mail.stalwart.svc.cluster.local:25</code>) to send invitation emails. The SMTP password is injected dynamically via Kubernetes secrets using <code>jq</code> during the <code>realm-config-job</code>.</li>
+            </ul>
+
+            <div class="file-path">
+                <svg viewBox="0 0 24 24"><path d="M13 9h5.5L13 3.5V9M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4c0-1.11.89-2 2-2m5 2H6v16h12V11h-7V4Z"/></svg>
+                infrastructure/kubernetes/tenants/keycloak/realm-config-job.yaml
+            </div>
+            <p>Because the Realm JSON is static in Git, this post-sync job executes the Keycloak Admin CLI (<code>kcadm.sh</code>) to import the JSON and dynamically patch in sensitive secrets (like the Stalwart SMTP password and Bulk Invite secrets) without exposing them in the repository.</p>
+        </div>
+
+        <div class="card stagger-4">
+            <h2>5. Application Collaboration & Integration</h2>
+            <p>Here is how the applications wire themselves into the core infrastructure defined above:</p>
+
+            <h3>Nextcloud</h3>
+            <p>Configured entirely via its Helm <code>values.yaml</code>. It references the CNPG Postgres cluster via environment variables. For OIDC, it uses the <code>social_login</code> plugin, hardcoding the Keycloak endpoints and reading the client secret from the <code>nextcloud-admin-creds</code> Kubernetes secret. It maps its primary storage to the S3 bucket created by the Garage Init Job.</p>
+
+            <h3>Immich</h3>
+            <p>Immich lacks declarative configuration for OIDC in its Helm chart. Therefore, an <strong>ArgoCD Post-Sync Hook</strong> (<code>admin-init-job.yaml</code>) runs a bash script that hits the Immich REST API. It creates the initial admin user, logs in to get a JWT, and then submits a JSON payload to the <code>/api/system-config</code> endpoint to enable OIDC and bind it to Keycloak.</p>
+
+            <h3>Roundcube & Stalwart Mail</h3>
+            <p>Stalwart mail is configured via TOML to use Keycloak as its LDAP/OIDC provider. Roundcube (the webmail UI) uses a custom <code>runtime-config.sh</code> script. Because Roundcube is PHP-based, this script dynamically generates the <code>config.inc.php</code> at startup, injecting the IMAP/SMTP endpoints of Stalwart and setting up the <code>oauth2</code> plugin to authenticate users silently against Keycloak.</p>
+        </div>
+
+        <div class="card stagger-4" style="border-color: var(--accent-primary);">
+            <h2>System Topology Map</h2>
+            <div class="diagram-container">
+                <div class="mermaid">
+                    flowchart LR
+                    subgraph Edge
+                        T[Traefik Ingress]
+                    end
+                    
+                    subgraph Identity
+                        KC[Keycloak]
+                    end
+                    
+                    subgraph Data Layer
+                        CNPG[(CloudNativePG)]
+                        S3[(Garage S3)]
+                    end
+                    
+                    subgraph Apps
+                        NC[Nextcloud]
+                        IM[Immich]
+                        GIT[Forgejo]
+                        MAIL[Stalwart]
+                        RC[Roundcube]
+                    end
+
+                    T -->|HTTPS| KC
+                    T -->|HTTPS| NC
+                    T -->|HTTPS| IM
+                    T -->|HTTPS| GIT
+                    T -->|HTTPS| RC
+                    
+                    NC -->|OIDC Auth| KC
+                    IM -->|OIDC Auth| KC
+                    GIT -->|OIDC Auth| KC
+                    RC -->|OIDC Auth| KC
+                    MAIL -->|LDAP/OIDC| KC
+                    
+                    KC -->|JDBC| CNPG
+                    NC -->|JDBC| CNPG
+                    IM -->|JDBC| CNPG
+                    GIT -->|JDBC| CNPG
+                    
+                    NC -->|S3 API| S3
+                    IM -->|S3 API| S3
+                    
+                    RC -->|IMAP/SMTP| MAIL
+                    KC -->|SMTP| MAIL
+                </div>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>
