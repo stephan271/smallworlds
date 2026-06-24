@@ -55,8 +55,8 @@ patches:
       - op: add
         path: /spec/postgresql
         value:
-          parameters:
-            shared_preload_libraries: "vectors.so"
+          shared_preload_libraries:
+            - "vectors.so"
 
 helmCharts:
   - name: immich
