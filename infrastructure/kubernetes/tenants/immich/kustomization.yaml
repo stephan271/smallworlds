@@ -61,14 +61,14 @@ patches:
       kind: Deployment
       name: immich-server
     patch: |-
-      - op: replace
+      - op: add
         path: /spec/template/spec/enableServiceLinks
         value: false
   - target:
       kind: Deployment
       name: immich-machine-learning
     patch: |-
-      - op: replace
+      - op: add
         path: /spec/template/spec/enableServiceLinks
         value: false
 
