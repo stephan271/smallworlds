@@ -69,7 +69,7 @@ spec:
               echo "Creating keycloak-secret in $TENANT_NAMESPACE namespace..."
               kubectl create secret generic keycloak-secret -n $TENANT_NAMESPACE \
                 --from-literal=clientId=$TENANT_NAMESPACE \
-                --from-literal=clientSecret="$SECRET"
+                --from-literal=client-secret="$SECRET"
 
               echo "Keycloak integration setup complete for $TENANT_NAMESPACE!"
       restartPolicy: OnFailure
