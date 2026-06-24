@@ -5,14 +5,22 @@ This document outlines the deployment process for a SmallWorlds GitOps cluster. 
 > [!TIP]
 > Refer to the [SmallWorlds Architecture Diagram](smallworlds_architecture.html) for system topology and data flows.
 
-## Core Applications
-The following applications can be selectively installed during initialization:
+## System Components
+
+### Infrastructure (Automatically Provisioned)
+These core backend services are installed by default to support the cluster operations:
+- **CloudNativePG**: High-availability PostgreSQL database clustering.
+- **Garage**: S3-compatible object storage backend.
+- **Homepage**: Application dashboard automatically configured and accessible at `dashboard.<domain>`.
+- **Keycloak**: Identity Provider (IdP) for Single Sign-On (SSO) and WebAuthn/Passkey management.
+- **Traefik & Cert-Manager**: Ingress routing and automated TLS certificate provisioning.
+
+### User Applications
+The following applications can be selectively installed during the community repository initialization:
+- **Forgejo**: Git repository management and software collaboration.
+- **Immich**: High performance photo and video backup.
 - **Nextcloud**: File synchronization and collaboration.
-- **Immich**: Photo and video backup.
-- **Forgejo**: Git repository management.
-- **Roundcube & Stalwart**: IMAP webmail client and mail server.
-- **Keycloak**: Identity Provider (IdP) for SSO and WebAuthn/Passkey management.
-- **Homepage**: Application dashboard accessible at `dashboard.<domain>`.
+- **Roundcube & Stalwart**: IMAP webmail client and self-hosted mail server.
 
 ---
 
