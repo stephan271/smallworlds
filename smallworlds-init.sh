@@ -168,7 +168,7 @@ metadata:
   namespace: keycloak
 type: Opaque
 stringData:
-  password: "${KC_PASS}"
+  admin-password: "${KC_PASS}"
 ---
 apiVersion: v1
 kind: Namespace
