@@ -7,10 +7,10 @@ data:
   config.json: |
     {
       "@type": "PostgreSql",
-      "host": "stalwart-db-rw.stalwart.svc.cluster.local",
-      "database": "stalwart",
+      "host": "database-rw.stalwart.svc.cluster.local",
+      "database": "app",
       "port": 5432,
-      "authUsername": "stalwart",
+      "authUsername": "app",
       "authSecret": {
         "@type": "EnvironmentVariable",
         "variableName": "DB_PASSWORD"
@@ -69,7 +69,7 @@ spec:
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: stalwart-db-app
+                  name: database-app
                   key: password
             - name: STALWART_RECOVERY_ADMIN
               valueFrom:

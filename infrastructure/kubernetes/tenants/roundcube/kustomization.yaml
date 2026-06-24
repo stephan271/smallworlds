@@ -1,10 +1,24 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+namespace: roundcube
+
+bases:
+  - ../../bases/setup-rbac
+  - ../../bases/keycloak-client-job
 
 resources:
   - roundcube-pvc.yaml
-  - setup-rbac.yaml
-  - keycloak-client-job.yaml
   - roundcube-oauth-config.yaml
   - roundcube-deployment.yaml
   - roundcube-ingress.yaml
+
+patches:
+  - target:
+      kind: Job
+      name: keycloak-client-init
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env
+        value:
+          - name: REDIRECT_URIS
+            value: '["https://webmail.smallworlds.network/index.php/login/oauth"]'

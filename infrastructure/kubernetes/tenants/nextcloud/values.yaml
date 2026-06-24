@@ -3,17 +3,17 @@ internalDatabase:
 externalDatabase:
   enabled: true
   type: postgresql
-  host: nextcloud-db-rw
-  database: nextcloud
+  host: database-rw
+  database: app
   existingSecret:
     enabled: true
-    secretName: nextcloud-db-app
+    secretName: database-app
     usernameKey: username
     passwordKey: password
 
 externalRedis:
   enabled: true
-  host: nextcloud-redis
+  host: redis
   
 postgresql:
   enabled: false

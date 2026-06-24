@@ -1,8 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: nextcloud-keycloak-init
-  namespace: nextcloud
+  name: keycloak-client-init
   annotations:
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
@@ -11,7 +10,7 @@ spec:
   ttlSecondsAfterFinished: 60
   template:
     spec:
-      serviceAccountName: nextcloud-setup-sa
+      serviceAccountName: setup-sa
       containers:
         - name: setup
           image: bitnami/kubectl:latest
@@ -20,9 +19,17 @@ spec:
             - -c
             - |
               set -e
-              if kubectl get secret keycloak-secret -n nextcloud >/dev/null 2>&1; then
+
+              TENANT_NAMESPACE=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+
+              if kubectl get secret keycloak-secret -n $TENANT_NAMESPACE >/dev/null 2>&1; then
                 echo "keycloak-secret already exists, skipping."
                 exit 0
+              fi
+
+              if [[ -z "$REDIRECT_URIS" ]]; then
+                echo "Error: REDIRECT_URIS environment variable is required."
+                exit 1
               fi
 
               echo "Finding Keycloak pod..."
@@ -41,27 +48,28 @@ spec:
               echo "Authenticating into Keycloak..."
               kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh config credentials --server http://localhost:8080 --realm master --user admin --password "$PASSWORD"
 
-              echo "Checking if nextcloud client exists..."
-              EXISTS=$(kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh get clients -r smallworlds -q clientId=nextcloud)
+              echo "Checking if client exists..."
+              EXISTS=$(kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh get clients -r smallworlds -q clientId=$TENANT_NAMESPACE)
               
               if [[ "$EXISTS" == "[]" || "$EXISTS" == "[ ]" || -z "$EXISTS" ]]; then
-                echo "Creating nextcloud client..."
-                kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh create clients -r smallworlds -s clientId=nextcloud -s enabled=true -s publicClient=false -s standardFlowEnabled=true -s 'redirectUris=["https://files.smallworlds.network/*"]' -s 'webOrigins=["+"]'
+                echo "Creating $TENANT_NAMESPACE client with redirect URIs: $REDIRECT_URIS"
+                kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh create clients -r smallworlds -s clientId=$TENANT_NAMESPACE -s enabled=true -s publicClient=false -s standardFlowEnabled=true -s "redirectUris=$REDIRECT_URIS" -s 'webOrigins=["+"]'
               else
-                echo "Nextcloud client already exists."
+                echo "Client already exists."
               fi
 
               echo "Extracting Client Secret..."
-              SECRET=$(kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh get clients -r smallworlds -q clientId=nextcloud --fields secret | grep "secret" | cut -d'"' -f4)
+              SECRET=$(kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh get clients -r smallworlds -q clientId=$TENANT_NAMESPACE --fields secret | grep "secret" | cut -d'"' -f4)
 
               if [[ -z "$SECRET" ]]; then
                 echo "Error: Failed to retrieve OIDC Client Secret."
                 exit 1
               fi
 
-              echo "Creating keycloak-secret in Nextcloud namespace..."
-              kubectl create secret generic keycloak-secret -n nextcloud \
-                --from-literal=client-secret="$SECRET"
+              echo "Creating keycloak-secret in $TENANT_NAMESPACE namespace..."
+              kubectl create secret generic keycloak-secret -n $TENANT_NAMESPACE \
+                --from-literal=clientId=$TENANT_NAMESPACE \
+                --from-literal=clientSecret="$SECRET"
 
-              echo "Keycloak Client initialized successfully!"
+              echo "Keycloak integration setup complete for $TENANT_NAMESPACE!"
       restartPolicy: OnFailure

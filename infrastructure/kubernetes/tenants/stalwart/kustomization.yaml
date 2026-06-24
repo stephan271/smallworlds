@@ -1,11 +1,15 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+namespace: stalwart
+
+bases:
+  - ../../bases/setup-rbac
+  - ../../bases/cnpg-cluster
+  - ../../bases/garage-init-job
+
 resources:
-  - cnpg-cluster.yaml
   - stalwart-deployment.yaml
   - stalwart-init-job.yaml
   - mail-provisioner-deployment.yaml
   - stalwart-ingress.yaml
-  - setup-rbac.yaml
-  - garage-init-job.yaml
   - stalwart-secret-init-job.yaml

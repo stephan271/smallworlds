@@ -44,19 +44,19 @@ gitea:
     database:
       # Connect to CloudNativePG PostgreSQL database
       DB_TYPE: postgres
-      HOST: forgejo-db-rw:5432
-      NAME: forgejo
-      USER: forgejo
+      HOST: database-rw:5432
+      NAME: app
+      USER: app
 
     session:
       # Configure high-performance session state storing in Redis
       PROVIDER: redis
-      PROVIDER_CONFIG: redis://forgejo-redis:6379/0?pool_size=100
+      PROVIDER_CONFIG: redis://redis:6379/0?pool_size=100
 
     cache:
       # Enable high-speed query and metadata caching in Redis
       ADAPTER: redis
-      HOST: redis://forgejo-redis:6379/0?pool_size=100
+      HOST: redis://redis:6379/0?pool_size=100
 
     storage:
       # Re-route all media, attachments, avatars, and Git LFS objects to Garage S3
@@ -79,12 +79,12 @@ gitea:
     - name: FORGEJO__DATABASE__PASSWD
       valueFrom:
         secretKeyRef:
-          name: forgejo-db-app
+          name: database-app
           key: password
     - name: GITEA__DATABASE__PASSWD
       valueFrom:
         secretKeyRef:
-          name: forgejo-db-app
+          name: database-app
           key: password
 
     # --- Garage S3/MinIO Credentials ---

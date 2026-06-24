@@ -2,19 +2,38 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: immich
 
+bases:
+  - ../../bases/setup-rbac
+  - ../../bases/redis
+  - ../../bases/cnpg-cluster
+  - ../../bases/garage-init-job
+  - ../../bases/keycloak-client-job
+
 resources:
-  - cnpg-cluster.yaml
-  - library-pvc.yaml
-  - redis.yaml
-  - setup-rbac.yaml
-  - garage-init-job.yaml
-  - keycloak-client-job.yaml
   - admin-init-job.yaml
   - immich-secret-init-job.yaml
 
+patches:
+  - target:
+      kind: Job
+      name: keycloak-client-init
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env
+        value:
+          - name: REDIRECT_URIS
+            value: '["https://photos.smallworlds.network/auth/login", "https://photos.smallworlds.network/user-settings", "app.immich:///"]'
+  - target:
+      kind: Cluster
+      name: database
+    patch: |-
+      - op: replace
+        path: /spec/imageName
+        value: "tensorchord/pgvecto-rs:pg16-v0.2.0"
+
 helmCharts:
   - name: immich
-    repo: https://immich-app.github.io/immich-charts
+    repo: https://immich.github.io/immich-charts
     releaseName: immich
-    version: 0.10.3
+    version: 0.8.0
     valuesFile: values.yaml

@@ -1,9 +1,7 @@
-# Deploy an isolated, highly-available PostgreSQL cluster specifically for Forgejo using the CloudNativePG Operator
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
-  name: forgejo-db
-  namespace: forgejo
+  name: database
 spec:
   instances: 2
   imageName: ghcr.io/cloudnative-pg/postgresql:16
@@ -12,12 +10,12 @@ spec:
     size: 20Gi
   bootstrap:
     initdb:
-      database: forgejo
-      owner: forgejo
+      database: app
+      owner: app
   backup:
     retentionPolicy: "7d"
     barmanObjectStore:
-      destinationPath: s3://postgres-backups-forgejo/
+      destinationPath: s3://postgres-backups/
       endpointURL: http://garage.garage-system.svc.cluster.local:3900
       s3Credentials:
         accessKeyId:
@@ -29,15 +27,13 @@ spec:
       wal:
         compression: gzip
 ---
-# Daily scheduled backup at 02:00 UTC
 apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup
 metadata:
-  name: forgejo-db-backup
-  namespace: forgejo
+  name: database-backup
 spec:
   schedule: "0 2 * * *"
   cluster:
-    name: forgejo-db
-  immediate: true   # trigger one backup immediately on creation
+    name: database
+  immediate: true
   backupOwnerReference: self

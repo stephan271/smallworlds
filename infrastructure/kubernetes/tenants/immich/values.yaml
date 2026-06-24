@@ -5,14 +5,14 @@ controllers:
         image:
           tag: v2.5.6
         env:
-          DB_DATABASE_NAME: immich
-          DB_HOSTNAME: immich-db-rw
-          DB_USERNAME: immich
-          REDIS_HOSTNAME: immich-redis
+          DB_DATABASE_NAME: app
+          DB_HOSTNAME: database-rw
+          DB_USERNAME: app
+          REDIS_HOSTNAME: redis
           DB_PASSWORD:
             valueFrom:
               secretKeyRef:
-                name: immich-db-app
+                name: database-app
                 key: password
           IMMICH_OAUTH_CLIENT_SECRET:
             valueFrom:

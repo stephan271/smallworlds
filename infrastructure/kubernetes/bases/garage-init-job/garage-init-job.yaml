@@ -1,8 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: nextcloud-garage-init
-  namespace: nextcloud
+  name: garage-init
   annotations:
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
@@ -10,7 +9,7 @@ metadata:
 spec:
   template:
     spec:
-      serviceAccountName: nextcloud-setup-sa
+      serviceAccountName: setup-sa
       containers:
         - name: setup
           image: bitnami/kubectl:latest
@@ -19,6 +18,8 @@ spec:
             - -c
             - |
               set -e
+              
+              TENANT_NAMESPACE=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
 
               echo "Waiting for Garage pod to be ready..."
               until kubectl get pods -n garage-system -l app.kubernetes.io/name=garage -o jsonpath='{.items[0].status.containerStatuses[0].ready}' 2>/dev/null | grep -q 'true'; do
@@ -39,15 +40,15 @@ spec:
               echo "Applying layout revision..."
               kubectl exec -n garage-system $POD -- /garage layout apply --version 1 || true
 
-              # --- Nextcloud key & bucket ---
-              if kubectl get secret garage-secret -n nextcloud > /dev/null 2>&1; then
-                echo "garage-secret already exists in nextcloud namespace, skipping nextcloud key creation."
+              # --- Tenant key & bucket ---
+              if kubectl get secret garage-secret -n $TENANT_NAMESPACE > /dev/null 2>&1; then
+                echo "garage-secret already exists in $TENANT_NAMESPACE namespace, skipping key creation."
               else
                 echo "Deleting existing Garage key if any (for idempotent re-runs)..."
-                kubectl exec -n garage-system $POD -- /garage key delete --yes nextcloud-key || true
+                kubectl exec -n garage-system $POD -- /garage key delete --yes ${TENANT_NAMESPACE}-key || true
 
-                echo "Generating access key for Nextcloud..."
-                OUTPUT=$(kubectl exec -n garage-system $POD -- /garage key create nextcloud-key)
+                echo "Generating access key for $TENANT_NAMESPACE..."
+                OUTPUT=$(kubectl exec -n garage-system $POD -- /garage key create ${TENANT_NAMESPACE}-key)
                 
                 ACCESS_KEY=$(echo "$OUTPUT" | grep "Key ID:" | awk '{print $3}')
                 SECRET_KEY=$(echo "$OUTPUT" | grep "Secret key:" | awk '{print $3}')
@@ -57,39 +58,39 @@ spec:
                   exit 1
                 fi
 
-                echo "Setting permissions for Nextcloud key..."
-                kubectl exec -n garage-system $POD -- /garage key allow nextcloud-key --create-bucket || true
+                echo "Setting permissions for $TENANT_NAMESPACE key..."
+                kubectl exec -n garage-system $POD -- /garage key allow ${TENANT_NAMESPACE}-key --create-bucket || true
 
-                echo "Creating nextcloud bucket..."
-                kubectl exec -n garage-system $POD -- /garage bucket create nextcloud || true
-                kubectl exec -n garage-system $POD -- /garage bucket allow nextcloud --read --write --owner --key nextcloud-key || true
+                echo "Creating $TENANT_NAMESPACE bucket..."
+                kubectl exec -n garage-system $POD -- /garage bucket create $TENANT_NAMESPACE || true
+                kubectl exec -n garage-system $POD -- /garage bucket allow $TENANT_NAMESPACE --read --write --owner --key ${TENANT_NAMESPACE}-key || true
 
-                echo "Creating garage-secret in nextcloud namespace..."
-                kubectl create secret generic garage-secret -n nextcloud \
+                echo "Creating garage-secret in $TENANT_NAMESPACE namespace..."
+                kubectl create secret generic garage-secret -n $TENANT_NAMESPACE \
                   --from-literal=accessKey="$ACCESS_KEY" \
                   --from-literal=secretKey="$SECRET_KEY" \
                   --from-literal=accessKeyId="$ACCESS_KEY" \
                   --from-literal=secretAccessKey="$SECRET_KEY"
               fi
 
-              # --- Dedicated CNPG key for nextcloud ---
-              echo "Setting up dedicated postgres-backups-nextcloud key for CNPG..."
-              kubectl exec -n garage-system $POD -- /garage key delete --yes nextcloud-cnpg-key || true
-              CNPG_OUTPUT=$(kubectl exec -n garage-system $POD -- /garage key create nextcloud-cnpg-key)
+              # --- Dedicated CNPG key ---
+              echo "Setting up dedicated postgres-backups key for CNPG..."
+              kubectl exec -n garage-system $POD -- /garage key delete --yes ${TENANT_NAMESPACE}-cnpg-key || true
+              CNPG_OUTPUT=$(kubectl exec -n garage-system $POD -- /garage key create ${TENANT_NAMESPACE}-cnpg-key)
               CNPG_ACCESS=$(echo "$CNPG_OUTPUT" | grep "Key ID:" | awk '{print $3}')
               CNPG_SECRET=$(echo "$CNPG_OUTPUT" | grep "Secret key:" | awk '{print $3}')
 
-              kubectl exec -n garage-system $POD -- /garage key allow nextcloud-cnpg-key --create-bucket || true
+              kubectl exec -n garage-system $POD -- /garage key allow ${TENANT_NAMESPACE}-cnpg-key --create-bucket || true
 
-              echo "Creating postgres-backups-nextcloud bucket..."
-              kubectl exec -n garage-system $POD -- /garage bucket create postgres-backups-nextcloud || true
-              kubectl exec -n garage-system $POD -- /garage bucket allow postgres-backups-nextcloud --read --write --owner --key nextcloud-cnpg-key || true
+              echo "Creating global postgres-backups bucket..."
+              kubectl exec -n garage-system $POD -- /garage bucket create postgres-backups || true
+              kubectl exec -n garage-system $POD -- /garage bucket allow postgres-backups --read --write --owner --key ${TENANT_NAMESPACE}-cnpg-key || true
 
-              echo "Creating garage-secret-cnpg in nextcloud namespace..."
-              kubectl create secret generic garage-secret-cnpg -n nextcloud \
+              echo "Creating garage-secret-cnpg in $TENANT_NAMESPACE namespace..."
+              kubectl create secret generic garage-secret-cnpg -n $TENANT_NAMESPACE \
                 --from-literal=accessKeyId="$CNPG_ACCESS" \
                 --from-literal=secretAccessKey="$CNPG_SECRET" \
                 --dry-run=client -o yaml | kubectl apply -f -
 
-              echo "Garage initialized successfully for Nextcloud!"
+              echo "Garage initialized successfully for $TENANT_NAMESPACE!"
       restartPolicy: OnFailure

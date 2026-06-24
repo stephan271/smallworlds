@@ -2,18 +2,31 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: forgejo
 
+bases:
+  - ../../bases/setup-rbac
+  - ../../bases/redis
+  - ../../bases/cnpg-cluster
+  - ../../bases/garage-init-job
+  - ../../bases/keycloak-client-job
+
 resources:
-  - cnpg-cluster.yaml
-  - redis.yaml
   - oidc-config-job.yaml
-  - garage-init-job.yaml
   - forgejo-secret-init-job.yaml
-  - setup-rbac.yaml
-  - keycloak-client-job.yaml
+
+patches:
+  - target:
+      kind: Job
+      name: keycloak-client-init
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env
+        value:
+          - name: REDIRECT_URIS
+            value: '["https://git.smallworlds.network/user/oauth2/Keycloak/callback"]'
 
 helmCharts:
   - name: forgejo
-    repo: oci://code.forgejo.org/forgejo-helm
+    repo: https://forgejo.codeberg.page/charts
     releaseName: forgejo
-    version: 10.1.0
+    version: 1.2.0
     valuesFile: values.yaml
