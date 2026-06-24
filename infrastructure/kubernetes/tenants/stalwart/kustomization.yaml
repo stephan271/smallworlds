@@ -13,3 +13,12 @@ resources:
   - mail-provisioner-deployment.yaml
   - stalwart-ingress.yaml
   - stalwart-secret-init-job.yaml
+
+patches:
+  - target:
+      kind: ClusterRoleBinding
+      name: setup-binding
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: setup-binding-stalwart

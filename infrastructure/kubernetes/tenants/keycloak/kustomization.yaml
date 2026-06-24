@@ -20,6 +20,15 @@ configMapGenerator:
 generatorOptions:
   disableNameSuffixHash: true
 
+patches:
+  - target:
+      kind: ClusterRoleBinding
+      name: setup-binding
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: setup-binding-keycloak
+
 helmCharts:
   - name: keycloakx
     repo: https://codecentric.github.io/helm-charts
