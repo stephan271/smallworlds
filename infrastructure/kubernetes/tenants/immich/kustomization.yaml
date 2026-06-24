@@ -64,3 +64,12 @@ helmCharts:
     releaseName: immich
     version: 0.8.0
     valuesFile: values.yaml
+  - target:
+      kind: Deployment
+      name: immich-server
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: REDIS_PORT
+          value: "6379"
