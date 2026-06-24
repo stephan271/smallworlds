@@ -111,10 +111,10 @@ TF_GIT_USER="${GITOPS_REPO_USER}"
 TF_GIT_TOKEN="${GITOPS_REPO_TOKEN}"
 
 # Generate passwords
-KC_PASS=$(pwgen -s 32 1)
-INVITE_SECRET=$(pwgen -s 32 1)
-GARAGE_RPC_SECRET=$(pwgen -s 64 1 | tr -d '\n')
-GARAGE_ADMIN_TOKEN=$(pwgen -s 64 1 | tr -d '\n')
+KC_PASS=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32)
+INVITE_SECRET=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32)
+GARAGE_RPC_SECRET=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 64)
+GARAGE_ADMIN_TOKEN=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 64)
 
 # 2. Generate temporary tfvars file
 TFVARS_FILE="/tmp/smallworlds-${DOMAIN}.tfvars"
