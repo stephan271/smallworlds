@@ -8,3 +8,4 @@ resources:
   - stalwart-ingress.yaml
   - setup-rbac.yaml
   - garage-init-job.yaml
+  - stalwart-secret-init-job.yaml

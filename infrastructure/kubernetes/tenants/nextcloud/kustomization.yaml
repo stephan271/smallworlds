@@ -5,9 +5,10 @@ resources:
   - cnpg-cluster.yaml
   - redis.yaml
   - oidc-config-job.yaml
-  - setup-rbac.yaml
   - garage-init-job.yaml
+  - nextcloud-secret-init-job.yaml
   - keycloak-client-job.yaml
+  - setup-rbac.yaml
 
 helmCharts:
   - name: nextcloud

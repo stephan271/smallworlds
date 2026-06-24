@@ -57,9 +57,20 @@ else
     echo -e "${YELLOW}Note: Git repository already initialized in this directory.${NC}"
 fi
 
-# 3. Create subdirectories for each app and their kustomization
+# 3. Ask which apps to install
+echo -e "${YELLOW}Selecting Optional Applications...${NC}"
+OPTIONAL_APPS=("forgejo" "immich" "nextcloud" "roundcube" "stalwart")
+SELECTED_APPS=()
+
+for app in "${OPTIONAL_APPS[@]}"; do
+    read -e -i "y" -p "Do you want to install $app? (y/n): " choice
+    if [[ "$choice" =~ ^[Yy]$ ]]; then
+        SELECTED_APPS+=("$app")
+    fi
+done
+
 echo -e "${YELLOW}Creating application subdirectories...${NC}"
-APPS=("dashboard" "forgejo" "immich" "keycloak" "nextcloud" "roundcube" "stalwart")
+APPS=("dashboard" "keycloak" "${SELECTED_APPS[@]}")
 
 for app in "${APPS[@]}"; do
     mkdir -p "$app"
@@ -82,6 +93,16 @@ cat <<EOF > kustomization.yaml
 resources:
   # This line connects your server to the public Central Foundation Repository root
   - https://github.com/stephan271/smallworlds.git/infrastructure/kubernetes?ref=HEAD
+EOF
+
+for app in "${SELECTED_APPS[@]}"; do
+    cat <<EOF >> kustomization.yaml
+  # Include the ArgoCD Application manifest for $app
+  - https://raw.githubusercontent.com/stephan271/smallworlds/main/infrastructure/kubernetes/apps/$app.yaml
+EOF
+done
+
+cat <<EOF >> kustomization.yaml
 
 patches:
   # Route all ArgoCD Application definitions to your private repo instead of upstream

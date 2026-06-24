@@ -112,10 +112,6 @@ TF_GIT_TOKEN="${GITOPS_REPO_TOKEN}"
 
 # Generate passwords
 KC_PASS=$(pwgen -s 32 1)
-NC_PASS=$(pwgen -s 32 1)
-IM_PASS=$(pwgen -s 32 1)
-MAIL_PASS=$(pwgen -s 32 1)
-GIT_PASS=$(pwgen -s 32 1)
 INVITE_SECRET=$(pwgen -s 32 1)
 GARAGE_RPC_SECRET=$(pwgen -s 64 1 | tr -d '\n')
 GARAGE_ADMIN_TOKEN=$(pwgen -s 64 1 | tr -d '\n')
@@ -152,6 +148,15 @@ SECRETS_FILE="/tmp/smallworlds-${DOMAIN}-secrets.yaml"
 cat <<EOF > "$SECRETS_FILE"
 ---
 apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: smallworlds-global-config
+  namespace: default
+data:
+  ADMIN_EMAIL: "${ADMIN_EMAIL}"
+  DOMAIN: "${DOMAIN}"
+---
+apiVersion: v1
 kind: Namespace
 metadata:
   name: keycloak
@@ -166,58 +171,9 @@ stringData:
   password: "${KC_PASS}"
 ---
 apiVersion: v1
-kind: Secret
-metadata:
-  name: keycloak-stalwart-secret
-  namespace: keycloak
-type: Opaque
-stringData:
-  password: "${MAIL_PASS}"
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: nextcloud
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: nextcloud-admin-creds
-  namespace: nextcloud
-type: Opaque
-stringData:
-  email: "${ADMIN_EMAIL}"
-  password: "${NC_PASS}"
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: immich
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: immich-admin-creds
-  namespace: immich
-type: Opaque
-stringData:
-  email: "${ADMIN_EMAIL}"
-  password: "${IM_PASS}"
-  name: "SmallWorlds Admin"
----
-apiVersion: v1
 kind: Namespace
 metadata:
   name: stalwart
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: stalwart-admin-secret
-  namespace: stalwart
-type: Opaque
-stringData:
-  password: "${MAIL_PASS}"
 ---
 apiVersion: v1
 kind: Secret
@@ -228,20 +184,6 @@ type: Opaque
 stringData:
   HCLOUD_TOKEN: "${HCLOUD_TOKEN}"
   DOMAIN: "${DOMAIN}"
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: forgejo
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: forgejo-admin-creds
-  namespace: forgejo
-type: Opaque
-stringData:
-  password: "${GIT_PASS}"
 ---
 apiVersion: v1
 kind: Namespace
@@ -311,12 +253,11 @@ echo -e "                             (or link it: ln -sf \$PWD/k3s_kubeconfig.y
 echo ""
 echo -e "Here are your auto-generated admin credentials. Save them somewhere safe!"
 echo -e "Keycloak Admin (admin):      ${CYAN}${KC_PASS}${NC}"
-echo -e "Nextcloud Admin (admin):     ${CYAN}${NC_PASS}${NC}"
-echo -e "Immich Admin (${ADMIN_EMAIL}):     ${CYAN}${IM_PASS}${NC}"
-echo -e "Stalwart Mail Admin (admin): ${CYAN}${MAIL_PASS}${NC}"
-echo -e "Forgejo Git Admin (gitadmin):   ${CYAN}${GIT_PASS}${NC}"
 echo -e "ArgoCD Admin (admin):        ${CYAN}${ARGOCD_PASS}${NC}"
 echo -e "Bulk Invite Secret:          ${CYAN}${INVITE_SECRET}${NC}"
+echo ""
+echo -e "Note: Passwords for optional apps (Nextcloud, Immich, Forgejo, Stalwart) are automatically"
+echo -e "generated securely upon installation. You can retrieve them via kubectl later."
 echo ""
 echo -e "ArgoCD Dashboard:            ${CYAN}https://localhost:8080${NC} (requires port-forward)"
 echo -e "  To port-forward:           ${YELLOW}kubectl port-forward svc/argocd-server -n argocd 8080:443${NC}"

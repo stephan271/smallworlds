@@ -6,8 +6,9 @@ resources:
   - cnpg-cluster.yaml
   - redis.yaml
   - oidc-config-job.yaml
-  - setup-rbac.yaml
   - garage-init-job.yaml
+  - forgejo-secret-init-job.yaml
+  - setup-rbac.yaml
   - keycloak-client-job.yaml
 
 helmCharts:

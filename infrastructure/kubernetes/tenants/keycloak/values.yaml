@@ -39,6 +39,7 @@ extraEnv: |
       secretKeyRef:
         name: keycloak-stalwart-secret
         key: password
+        optional: true
   - name: KC_SMTP_HOST
     value: "stalwart-mail.stalwart.svc.cluster.local"
   - name: KC_SMTP_PORT
@@ -56,6 +57,7 @@ extraEnv: |
       secretKeyRef:
         name: keycloak-stalwart-secret
         key: password
+        optional: true
 
   - name: KC_PROXY
     value: "edge"

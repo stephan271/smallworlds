@@ -14,11 +14,9 @@ resources:
   - apps/persistent-storage.yaml
   - apps/traefik.yaml
   
-  # 2. Frontend Tenants (Installed as ArgoCD Apps)
+  # 2. Core Frontend Services
   - apps/dashboard.yaml
-  - apps/forgejo.yaml
-  - apps/immich.yaml
   - apps/keycloak.yaml
-  - apps/nextcloud.yaml
-  - apps/roundcube.yaml
-  - apps/stalwart.yaml
+  
+  # Note: Optional apps (forgejo, immich, nextcloud, roundcube, stalwart) 
+  # are dynamically added to your private kustomization.yaml by prepare-community-repo.sh
