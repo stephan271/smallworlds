@@ -58,3 +58,8 @@ helmCharts:
     releaseName: immich
     version: 0.8.0
     valuesFile: values.yaml
+      - op: add
+        path: /spec/postgresql
+        value:
+          parameters:
+            shared_preload_libraries: "vectors.so"
