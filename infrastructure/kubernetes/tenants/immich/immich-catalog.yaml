@@ -4,5 +4,5 @@ metadata:
   name: immich-catalog
 spec:
   images:
-    - image: "tensorchord/pgvecto-rs:pg16-v0.2.0"
+    - image: "ghcr.io/tensorchord/cloudnative-pgvecto.rs:16-v0.2.0"
       major: 16
