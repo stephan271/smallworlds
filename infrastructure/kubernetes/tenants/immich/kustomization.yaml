@@ -57,6 +57,20 @@ patches:
         value:
           shared_preload_libraries:
             - "vectors.so"
+  - target:
+      kind: Deployment
+      name: immich-server
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/enableServiceLinks
+        value: false
+  - target:
+      kind: Deployment
+      name: immich-machine-learning
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/enableServiceLinks
+        value: false
 
 helmCharts:
   - name: immich
@@ -64,12 +78,3 @@ helmCharts:
     releaseName: immich
     version: 0.8.0
     valuesFile: values.yaml
-  - target:
-      kind: Deployment
-      name: immich-server
-    patch: |-
-      - op: add
-        path: /spec/template/spec/containers/0/env/-
-        value:
-          name: REDIS_PORT
-          value: "6379"
