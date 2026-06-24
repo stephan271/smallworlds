@@ -33,7 +33,7 @@ patches:
 
 helmCharts:
   - name: immich
-    repo: https://immich.github.io/immich-charts
+    repo: https://immich-app.github.io/immich-charts
     releaseName: immich
     version: 0.8.0
     valuesFile: values.yaml

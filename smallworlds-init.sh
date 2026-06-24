@@ -169,6 +169,7 @@ metadata:
 type: Opaque
 stringData:
   admin-password: "${KC_PASS}"
+  bulk-invite-secret: "${INVITE_SECRET}"
 ---
 apiVersion: v1
 kind: Namespace
