@@ -58,17 +58,7 @@ resource "hcloud_firewall" "k8s_firewall" {
       "::/0"
     ]
   }
-  
-  # Allow Kubernetes API (K3s default)
-  rule {
-    direction = "in"
-    protocol  = "tcp"
-    port      = "6443"
-    source_ips = [
-      "0.0.0.0/0",
-      "::/0"
-    ]
-  }
+
 
   # Allow Email (SMTP)
   rule {
@@ -92,16 +82,6 @@ resource "hcloud_firewall" "k8s_firewall" {
     ]
   }
 
-  # Allow IMAP
-  rule {
-    direction = "in"
-    protocol  = "tcp"
-    port      = "143"
-    source_ips = [
-      "0.0.0.0/0",
-      "::/0"
-    ]
-  }
 
   # Allow IMAPS
   rule {
@@ -114,48 +94,10 @@ resource "hcloud_firewall" "k8s_firewall" {
     ]
   }
 
-  # Allow JMAP / Webmail
-  rule {
-    direction = "in"
-    protocol  = "tcp"
-    port      = "8080"
-    source_ips = [
-      "0.0.0.0/0",
-      "::/0"
-    ]
-  }
+
 }
 
-# Create random passwords for applications
-resource "random_password" "keycloak_admin" {
-  length  = 32
-  special = false
-}
 
-resource "random_password" "nextcloud_admin" {
-  length  = 32
-  special = false
-}
-
-resource "random_password" "immich_admin" {
-  length  = 32
-  special = false
-}
-
-resource "random_password" "bulk_invite_secret" {
-  length  = 32
-  special = false
-}
-
-resource "random_password" "stalwart_admin" {
-  length  = 32
-  special = false
-}
-
-resource "random_password" "forgejo_admin" {
-  length  = 32
-  special = false
-}
 
 # Fetch the static Primary IP created in the Hetzner Cloud Console
 data "hcloud_primary_ip" "main_ip" {
@@ -217,12 +159,7 @@ resource "hcloud_server" "smallworlds_pilot_node" {
     git_password          = var.git_password
 
     admin_email              = var.admin_email
-    keycloak_admin_password  = var.keycloak_admin_password != "" ? var.keycloak_admin_password : random_password.keycloak_admin.result
-    nextcloud_admin_password = var.nextcloud_admin_password != "" ? var.nextcloud_admin_password : random_password.nextcloud_admin.result
-    immich_admin_password    = var.immich_admin_password != "" ? var.immich_admin_password : random_password.immich_admin.result
-    bulk_invite_secret       = random_password.bulk_invite_secret.result
-    stalwart_admin_password  = random_password.stalwart_admin.result
-    forgejo_admin_password   = random_password.forgejo_admin.result
+
     server_ip                = data.hcloud_primary_ip.main_ip.ip_address
     hcloud_token        = var.hcloud_token
   })
@@ -273,39 +210,5 @@ output "data_volume_linux_device" {
   description = "The Linux device name for the persistent data volume (e.g., /dev/sdb). Used for mount configuration."
 }
 
-output "keycloak_admin_password" {
-  value       = random_password.keycloak_admin.result
-  description = "The admin password for Keycloak. Use with username 'admin'."
-  sensitive   = true
-}
 
-output "nextcloud_admin_password" {
-  value       = random_password.nextcloud_admin.result
-  description = "The admin password for Nextcloud. Use with username 'admin'."
-  sensitive   = true
-}
-
-output "immich_admin_password" {
-  value       = random_password.immich_admin.result
-  description = "The admin password for Immich. Use with the configured admin_email."
-  sensitive   = true
-}
-
-output "stalwart_admin_password" {
-  value       = random_password.stalwart_admin.result
-  description = "The admin password for Stalwart Mail. Use with username 'admin'."
-  sensitive   = true
-}
-
-output "forgejo_admin_password" {
-  value       = random_password.forgejo_admin.result
-  description = "The admin password for Forgejo Git. Use with username 'admin'."
-  sensitive   = true
-}
-
-output "bulk_invite_secret" {
-  value       = random_password.bulk_invite_secret.result
-  description = "The secret for the bulk-invite service account in Keycloak."
-  sensitive   = true
-}
 

@@ -20,9 +20,8 @@ spec:
         garage:
           replicationFactor: "1"
           secret:
-            create: true
-            rpcSecret: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
-            adminToken: "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+            create: false
+            name: "garage-auth-secret"
         persistence:
           enabled: true
           size: 120Gi

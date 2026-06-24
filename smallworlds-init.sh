@@ -38,9 +38,9 @@ ask_with_default() {
         fi
         
         if [[ -z "$input_val" ]]; then
-            eval "$var_name=\"$current_val\""
+            declare -g "$var_name"="$current_val"
         else
-            eval "$var_name=\"$input_val\""
+            declare -g "$var_name"="$input_val"
         fi
     else
         if [[ "$is_secret" == "true" ]]; then
@@ -49,7 +49,7 @@ ask_with_default() {
         else
             read -p "$prompt_text: " input_val
         fi
-        eval "$var_name=\"$input_val\""
+        declare -g "$var_name"="$input_val"
     fi
 }
 
@@ -110,6 +110,16 @@ export HCLOUD_TOKEN=$HCLOUD_TOKEN
 TF_GIT_USER="${GITOPS_REPO_USER}"
 TF_GIT_TOKEN="${GITOPS_REPO_TOKEN}"
 
+# Generate passwords
+KC_PASS=$(pwgen -s 32 1)
+NC_PASS=$(pwgen -s 32 1)
+IM_PASS=$(pwgen -s 32 1)
+MAIL_PASS=$(pwgen -s 32 1)
+GIT_PASS=$(pwgen -s 32 1)
+INVITE_SECRET=$(pwgen -s 32 1)
+GARAGE_RPC_SECRET=$(pwgen -s 64 1 | tr -d '\n')
+GARAGE_ADMIN_TOKEN=$(pwgen -s 64 1 | tr -d '\n')
+
 # 2. Generate temporary tfvars file
 TFVARS_FILE="/tmp/smallworlds-${DOMAIN}.tfvars"
 cat <<EOF > "$TFVARS_FILE"
@@ -130,18 +140,146 @@ terraform apply -var-file="$TFVARS_FILE" -auto-approve
 
 # 4. Capture Outputs
 SERVER_IP=$(terraform output -raw server_ipv4)
-KC_PASS=$(terraform output -raw keycloak_admin_password)
-NC_PASS=$(terraform output -raw nextcloud_admin_password)
-IM_PASS=$(terraform output -raw immich_admin_password)
-MAIL_PASS=$(terraform output -raw stalwart_admin_password)
-GIT_PASS=$(terraform output -raw forgejo_admin_password)
-INVITE_SECRET=$(terraform output -raw bulk_invite_secret)
 
 # 5. Retrieve Kubeconfig
 echo -e "${CYAN}Waiting for SSH to be available on $SERVER_IP...${NC}"
 while ! timeout 2 bash -c "</dev/tcp/$SERVER_IP/22" 2>/dev/null; do
     sleep 2
 done
+
+echo -e "${CYAN}Deploying secrets to the server securely...${NC}"
+SECRETS_FILE="/tmp/smallworlds-${DOMAIN}-secrets.yaml"
+cat <<EOF > "$SECRETS_FILE"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: keycloak
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keycloak-admin-creds
+  namespace: keycloak
+type: Opaque
+stringData:
+  password: "${KC_PASS}"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keycloak-stalwart-secret
+  namespace: keycloak
+type: Opaque
+stringData:
+  password: "${MAIL_PASS}"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nextcloud
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nextcloud-admin-creds
+  namespace: nextcloud
+type: Opaque
+stringData:
+  email: "${ADMIN_EMAIL}"
+  password: "${NC_PASS}"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: immich
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: immich-admin-creds
+  namespace: immich
+type: Opaque
+stringData:
+  email: "${ADMIN_EMAIL}"
+  password: "${IM_PASS}"
+  name: "SmallWorlds Admin"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: stalwart
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: stalwart-admin-secret
+  namespace: stalwart
+type: Opaque
+stringData:
+  password: "${MAIL_PASS}"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: stalwart-dns-secrets
+  namespace: stalwart
+type: Opaque
+stringData:
+  HCLOUD_TOKEN: "${HCLOUD_TOKEN}"
+  DOMAIN: "${DOMAIN}"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: forgejo
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: forgejo-admin-creds
+  namespace: forgejo
+type: Opaque
+stringData:
+  password: "${GIT_PASS}"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: repo-git-creds
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  url: "${GITOPS_REPO_URL}"
+  username: "${TF_GIT_USER}"
+  password: "${TF_GIT_TOKEN}"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: garage-system
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: garage-auth-secret
+  namespace: garage-system
+type: Opaque
+stringData:
+  rpcSecret: "${GARAGE_RPC_SECRET}"
+  adminToken: "${GARAGE_ADMIN_TOKEN}"
+EOF
+
+ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$SERVER_IP" "mkdir -p /var/lib/rancher/k3s/server/manifests" 2>/dev/null
+scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$SECRETS_FILE" root@"$SERVER_IP":/var/lib/rancher/k3s/server/manifests/smallworlds-secrets.yaml >/dev/null 2>&1
+rm -f "$SECRETS_FILE"
+
 
 echo -e "${CYAN}Waiting for K3s to generate kubeconfig on the remote node...${NC}"
 until ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 root@"$SERVER_IP" "[ -f /etc/rancher/k3s/k3s.yaml ]" 2>/dev/null; do
