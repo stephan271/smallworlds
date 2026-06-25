@@ -17,6 +17,8 @@ resources:
   # 2. Core Frontend Services
   - apps/dashboard.yaml
   - apps/keycloak.yaml
+  - apps/stalwart.yaml
   
-  # Note: Optional apps (forgejo, immich, nextcloud, roundcube, stalwart) 
+  # Note: Optional apps (forgejo, immich, nextcloud, roundcube) 
   # are dynamically added to your private kustomization.yaml by prepare-community-repo.sh
+

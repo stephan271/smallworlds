@@ -65,8 +65,6 @@ spec:
               
               
               # 5. Configure System Settings and SenderAuth for Internal Relaying BEFORE domain creation
-              echo "Setting Server Hostname..."
-              $CLI update SystemSettings singleton --field defaultHostname="mail.$DOMAIN_NAME" || true
               
               echo "Configuring DKIM signing for internal relays..."
               $CLI update SenderAuth singleton --json '{
@@ -163,7 +161,8 @@ spec:
               
               # If defaultDomainId wasn't set because the domain didn't exist, set it now
               if [ -n "$DOMAIN_ID" ]; then
-                $CLI update SystemSettings singleton --field defaultDomainId="$DOMAIN_ID" || true
+                echo "Configuring System Settings (defaultDomainId and defaultHostname)..."
+                $CLI update SystemSettings singleton --field defaultDomainId="$DOMAIN_ID" --field defaultHostname="mail.$DOMAIN_NAME" || true
                 $CLI update Domain "$DOMAIN_ID" --field allowRelaying=true || true
               fi
               

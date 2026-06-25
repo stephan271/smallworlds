@@ -13,6 +13,7 @@ These core backend services are installed by default to support the cluster oper
 - **Garage**: S3-compatible object storage backend.
 - **Homepage**: Application dashboard automatically configured and accessible at `dashboard.<domain>`.
 - **Keycloak**: Identity Provider (IdP) for Single Sign-On (SSO) and WebAuthn/Passkey management.
+- **Stalwart**: Self-hosted mail server with OIDC directory integration.
 - **Traefik & Cert-Manager**: Ingress routing and automated TLS certificate provisioning.
 
 ### User Applications
@@ -20,7 +21,7 @@ The following applications can be selectively installed during the community rep
 - **Forgejo**: Git repository management and software collaboration.
 - **Immich**: High performance photo and video backup.
 - **Nextcloud**: File synchronization and collaboration.
-- **Roundcube & Stalwart**: IMAP webmail client and self-hosted mail server.
+- **Roundcube**: IMAP webmail client connected to Stalwart.
 
 ---
 

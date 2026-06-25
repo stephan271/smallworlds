@@ -59,7 +59,7 @@ fi
 
 # 3. Ask which apps to install
 echo -e "${YELLOW}Selecting Optional Applications...${NC}"
-OPTIONAL_APPS=("forgejo" "immich" "nextcloud" "roundcube" "stalwart")
+OPTIONAL_APPS=("forgejo" "immich" "nextcloud" "roundcube")
 SELECTED_APPS=()
 
 for app in "${OPTIONAL_APPS[@]}"; do
@@ -70,7 +70,7 @@ for app in "${OPTIONAL_APPS[@]}"; do
 done
 
 echo -e "${YELLOW}Creating application subdirectories...${NC}"
-APPS=("dashboard" "keycloak" "${SELECTED_APPS[@]}")
+APPS=("dashboard" "keycloak" "stalwart" "${SELECTED_APPS[@]}")
 
 for app in "${APPS[@]}"; do
     mkdir -p "$app"
