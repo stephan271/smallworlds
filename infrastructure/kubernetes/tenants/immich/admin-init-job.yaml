@@ -39,10 +39,10 @@ spec:
             - /bin/sh
             - -c
             - |
-              IMMICH_URL="http://immich-server.immich.svc.cluster.local:2283"
+              IMMICH_URL="http://immich-server.immich.svc.cluster.local:3001"
 
               echo "Waiting for Immich server to be ready..."
-              until curl -sf "$IMMICH_URL/api/server/ping" > /dev/null 2>&1; do
+              until curl -sf "$IMMICH_URL/api/server-info/ping" > /dev/null 2>&1; do
                 echo "  not ready yet, retrying in 10s..."
                 sleep 10
               done
