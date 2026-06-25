@@ -26,9 +26,14 @@ spec:
           value: "*"
         volumeMounts:
         - name: config-volume
-          mountPath: /app/config
-        - name: logs-volume
-          mountPath: /app/config/logs
+          mountPath: /app/config/settings.yaml
+          subPath: settings.yaml
+        - name: config-volume
+          mountPath: /app/config/services.yaml
+          subPath: services.yaml
+        - name: config-volume
+          mountPath: /app/config/kubernetes.yaml
+          subPath: kubernetes.yaml
         resources:
           requests:
             cpu: 10m
@@ -40,5 +45,3 @@ spec:
       - name: config-volume
         configMap:
           name: dashboard-config
-      - name: logs-volume
-        emptyDir: {}
