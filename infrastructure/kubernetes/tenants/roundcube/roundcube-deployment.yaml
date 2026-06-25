@@ -32,8 +32,8 @@ spec:
             - name: OAUTH_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: roundcube-oauth-secret
-                  key: OAUTH_CLIENT_SECRET
+                  name: keycloak-secret
+                  key: client-secret
           volumeMounts:
             - name: roundcube-data
               mountPath: /var/www/html
