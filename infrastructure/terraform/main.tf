@@ -127,6 +127,7 @@ resource "hcloud_zone_rrset" "app_records" {
   for_each = toset([
     "@",
     "identity",
+    "dashboard",
     "files",
     "photos",
     "git",
