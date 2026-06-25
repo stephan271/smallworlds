@@ -16,3 +16,5 @@ data:
     mode: cluster
   services.yaml: |
     - Applications: []
+  bookmarks.yaml: |
+    []

@@ -34,6 +34,9 @@ spec:
         - name: config-volume
           mountPath: /app/config/kubernetes.yaml
           subPath: kubernetes.yaml
+        - name: config-volume
+          mountPath: /app/config/bookmarks.yaml
+          subPath: bookmarks.yaml
         resources:
           requests:
             cpu: 10m
