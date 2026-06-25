@@ -210,7 +210,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: stalwart-admin-secret
-                  key: api-key
+                  key: password
             - name: KC_DB_HOST
               value: "keycloak-db-rw.keycloak.svc.cluster.local"
             - name: KC_DB_NAME
