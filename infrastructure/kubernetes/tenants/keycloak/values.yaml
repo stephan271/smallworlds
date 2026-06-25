@@ -80,6 +80,7 @@ ingress:
     gethomepage.dev/description: "Keycloak"
     gethomepage.dev/group: "Infrastructure"
     gethomepage.dev/icon: "keycloak.png"
+    gethomepage.dev/pod-selector: "app.kubernetes.io/name=keycloakx"
   rules:
     - host: identity.smallworlds.network
       paths:

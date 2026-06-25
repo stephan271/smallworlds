@@ -32,6 +32,7 @@ server:
         gethomepage.dev/description: "Immich"
         gethomepage.dev/group: "Applications"
         gethomepage.dev/icon: "immich.png"
+        gethomepage.dev/pod-selector: "app.kubernetes.io/name=server"
       hosts:
         - host: photos.smallworlds.network
           paths:
