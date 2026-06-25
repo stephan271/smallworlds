@@ -21,9 +21,14 @@ spec:
         image: ghcr.io/gethomepage/homepage:latest
         ports:
         - containerPort: 3000
+        env:
+        - name: HOMEPAGE_ALLOWED_HOSTS
+          value: "*"
         volumeMounts:
         - name: config-volume
           mountPath: /app/config
+        - name: logs-volume
+          mountPath: /app/config/logs
         resources:
           requests:
             cpu: 10m
@@ -35,3 +40,5 @@ spec:
       - name: config-volume
         configMap:
           name: dashboard-config
+      - name: logs-volume
+        emptyDir: {}
