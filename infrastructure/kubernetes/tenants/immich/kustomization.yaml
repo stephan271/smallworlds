@@ -64,6 +64,15 @@ patches:
       - op: add
         path: /spec/template/spec/enableServiceLinks
         value: false
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbe/httpGet/path
+        value: /api/server-info/ping
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe/httpGet/path
+        value: /api/server-info/ping
+      - op: replace
+        path: /spec/template/spec/containers/0/startupProbe/httpGet/path
+        value: /api/server-info/ping
   - target:
       kind: Deployment
       name: immich-machine-learning
