@@ -46,13 +46,7 @@ spec:
               done
               
               echo "Importing smallworlds realm..."
-              if command -v jq >/dev/null 2>&1; then
-                jq ".smtpServer.password = env.STALWART_PASSWORD" /opt/keycloak/data/realm-config/smallworlds-realm.json > /tmp/realm-configured.json
-              else
-                # Fallback to downloading jq if missing in UBI minimal
-                curl -sL https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 -o /tmp/jq && chmod +x /tmp/jq
-                /tmp/jq ".smtpServer.password = env.STALWART_PASSWORD" /opt/keycloak/data/realm-config/smallworlds-realm.json > /tmp/realm-configured.json
-              fi
+              sed "s/\${env.STALWART_PASSWORD}/$STALWART_PASSWORD/g" /opt/keycloak/data/realm-config/smallworlds-realm.json > /tmp/realm-configured.json
               /opt/keycloak/bin/kcadm.sh create realms -f /tmp/realm-configured.json || echo "Realm may already exist."
 
               echo "Setting onboarding mode to $ONBOARDING_MODE..."
