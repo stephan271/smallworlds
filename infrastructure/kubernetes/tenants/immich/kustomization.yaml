@@ -52,7 +52,7 @@ patches:
           - CREATE EXTENSION IF NOT EXISTS cube;
           - CREATE EXTENSION IF NOT EXISTS earthdistance;
           - ALTER ROLE app SET search_path TO "$user", public, vectors;
-          - GRANT USAGE, SELECT ON ALL TABLES IN SCHEMA vectors TO app;
+          - GRANT SELECT ON ALL TABLES IN SCHEMA vectors TO app;
 
       - op: add
         path: /spec/postgresql
