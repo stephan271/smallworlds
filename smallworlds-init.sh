@@ -115,6 +115,7 @@ KC_PASS=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32)
 INVITE_SECRET=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32)
 GARAGE_RPC_SECRET=$(openssl rand -hex 32)
 GARAGE_ADMIN_TOKEN=$(openssl rand -hex 32)
+GRAFANA_PASS=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32)
 
 # 2. Generate temporary tfvars file
 TFVARS_FILE="/tmp/smallworlds-${DOMAIN}.tfvars"
@@ -206,6 +207,21 @@ stringData:
 apiVersion: v1
 kind: Namespace
 metadata:
+  name: monitoring
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: grafana-admin-creds
+  namespace: monitoring
+type: Opaque
+stringData:
+  admin-user: "admin"
+  admin-password: "${GRAFANA_PASS}"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
   name: garage-system
 ---
 apiVersion: v1
@@ -255,6 +271,7 @@ echo ""
 echo -e "Here are your auto-generated admin credentials. Save them somewhere safe!"
 echo -e "Keycloak Admin (admin):      ${CYAN}${KC_PASS}${NC}"
 echo -e "ArgoCD Admin (admin):        ${CYAN}${ARGOCD_PASS}${NC}"
+echo -e "Grafana Admin (admin):       ${CYAN}${GRAFANA_PASS}${NC}"
 echo -e "Bulk Invite Secret:          ${CYAN}${INVITE_SECRET}${NC}"
 echo ""
 echo -e "Note: Passwords for optional apps (Nextcloud, Immich, Forgejo) and Stalwart are automatically"

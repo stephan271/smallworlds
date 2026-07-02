@@ -27,7 +27,10 @@ spec:
               - secretName: grafana-tls
                 hosts:
                   - monitoring.smallworlds.network
-          adminPassword: admin
+          admin:
+            existingSecret: "grafana-admin-creds"
+            userKey: admin-user
+            passwordKey: admin-password
         prometheus:
           prometheusSpec:
             storageSpec:
