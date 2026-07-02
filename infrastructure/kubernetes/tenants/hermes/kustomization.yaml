@@ -13,3 +13,7 @@ configMapGenerator:
     namespace: hermes
     files:
       - system-prompt.txt
+  - name: hermes-runbooks
+    namespace: hermes
+    files:
+      - runbooks/secret-rotation.yaml
