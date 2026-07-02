@@ -35,8 +35,22 @@ echo -e "Target directory: ${GREEN}${ABS_REPO_PATH}${NC}"
 echo ""
 
 # 2. Ask for the remote Git URL
+DEFAULT_URL=""
+if [ -d "$ABS_REPO_PATH/.git" ]; then
+    pushd "$ABS_REPO_PATH" > /dev/null
+    if git remote | grep -q "^origin$"; then
+        DEFAULT_URL=$(git remote get-url origin)
+    fi
+    popd > /dev/null
+fi
+
 while true; do
-    read -e -p "2. Enter your private Git Remote HTTPS URL (required, e.g., https://github.com/user/my-community-config.git): " REMOTE_URL
+    if [ -n "$DEFAULT_URL" ]; then
+        read -e -i "$DEFAULT_URL" -p "2. Enter your private Git Remote HTTPS URL: " REMOTE_URL
+    else
+        read -e -p "2. Enter your private Git Remote HTTPS URL (required, e.g., https://github.com/user/my-community-config.git): " REMOTE_URL
+    fi
+    
     if [ -n "$REMOTE_URL" ]; then
         break
     else
@@ -73,8 +87,9 @@ echo -e "${YELLOW}Creating application subdirectories...${NC}"
 APPS=("dashboard" "keycloak" "stalwart" "${SELECTED_APPS[@]}")
 
 for app in "${APPS[@]}"; do
-    mkdir -p "$app"
-    cat <<EOF > "$app/kustomization.yaml"
+    if [ ! -d "$app" ]; then
+        mkdir -p "$app"
+        cat <<EOF > "$app/kustomization.yaml"
 resources:
   - https://github.com/stephan271/smallworlds.git/infrastructure/kubernetes/tenants/$app?ref=HEAD
 
@@ -84,32 +99,28 @@ resources:
 #       kind: Ingress
 #     patch: |- ...
 EOF
+    fi
 done
 
-# 4. Create root kustomization.yaml
-echo -e "${YELLOW}Creating root kustomization.yaml...${NC}"
-cat <<EOF > kustomization.yaml
-# kustomization.yaml
-resources:
-  # This line connects your server to the public Central Foundation Repository root
-  - https://github.com/stephan271/smallworlds.git/infrastructure/kubernetes?ref=HEAD
-EOF
-
-for app in "${SELECTED_APPS[@]}"; do
-    cat <<EOF >> kustomization.yaml
-  # Include the ArgoCD Application manifest for $app
-  - https://raw.githubusercontent.com/stephan271/smallworlds/main/infrastructure/kubernetes/apps/$app.yaml
-EOF
-done
-
-cat <<EOF >> kustomization.yaml
-
-patches:
-  # Route all ArgoCD Application definitions to your private repo instead of upstream
-EOF
-
-for app in "${APPS[@]}"; do
-    cat <<EOF >> kustomization.yaml
+# 4. Create or Update root kustomization.yaml
+if [ -f "kustomization.yaml" ]; then
+    echo -e "${YELLOW}Existing kustomization.yaml found. Upgrading in place...${NC}"
+    for app in "${SELECTED_APPS[@]}"; do
+        if ! grep -q "apps/$app.yaml" kustomization.yaml; then
+            echo -e "Adding $app to kustomization.yaml..."
+            # Insert resource before 'patches:' or at the end
+            if grep -q "^patches:" kustomization.yaml; then
+                awk '/^patches:/{print "  - https://raw.githubusercontent.com/stephan271/smallworlds/main/infrastructure/kubernetes/apps/'"$app"'.yaml"}1' kustomization.yaml > kustomization.yaml.tmp && mv kustomization.yaml.tmp kustomization.yaml
+            else
+                echo "  - https://raw.githubusercontent.com/stephan271/smallworlds/main/infrastructure/kubernetes/apps/$app.yaml" >> kustomization.yaml
+            fi
+            
+            # Append the patch at the end
+            if ! grep -q "^patches:" kustomization.yaml; then
+                echo "" >> kustomization.yaml
+                echo "patches:" >> kustomization.yaml
+            fi
+            cat <<EOF >> kustomization.yaml
   - target:
       group: argoproj.io
       kind: Application
@@ -122,11 +133,51 @@ for app in "${APPS[@]}"; do
         path: /spec/source/path
         value: $app
 EOF
-done
+        fi
+    done
+else
+    echo -e "${YELLOW}Creating root kustomization.yaml...${NC}"
+    cat <<EOF > kustomization.yaml
+# kustomization.yaml
+resources:
+  # This line connects your server to the public Central Foundation Repository root
+  - https://github.com/stephan271/smallworlds.git/infrastructure/kubernetes?ref=HEAD
+EOF
 
-# 4. Create a basic .gitignore
-echo -e "${YELLOW}Creating .gitignore...${NC}"
-cat <<EOF > .gitignore
+    for app in "${SELECTED_APPS[@]}"; do
+        cat <<EOF >> kustomization.yaml
+  # Include the ArgoCD Application manifest for $app
+  - https://raw.githubusercontent.com/stephan271/smallworlds/main/infrastructure/kubernetes/apps/$app.yaml
+EOF
+    done
+
+    cat <<EOF >> kustomization.yaml
+
+patches:
+  # Route all ArgoCD Application definitions to your private repo instead of upstream
+EOF
+
+    for app in "${APPS[@]}"; do
+        cat <<EOF >> kustomization.yaml
+  - target:
+      group: argoproj.io
+      kind: Application
+      name: $app
+    patch: |-
+      - op: replace
+        path: /spec/source/repoURL
+        value: $REMOTE_URL
+      - op: replace
+        path: /spec/source/path
+        value: $app
+EOF
+    done
+fi
+
+# 5. Create a basic .gitignore if missing
+if [ ! -f ".gitignore" ]; then
+    echo -e "${YELLOW}Creating .gitignore...${NC}"
+    cat <<EOF > .gitignore
 # Ignore system/IDE specific files
 .DS_Store
 .idea/
@@ -137,10 +188,12 @@ cat <<EOF > .gitignore
 *.env
 kubeconfig*
 EOF
+fi
 
-# 5. Create a basic README.md for the new repository
-echo -e "${YELLOW}Creating README.md...${NC}"
-cat <<EOF > README.md
+# 6. Create a basic README.md if missing
+if [ ! -f "README.md" ]; then
+    echo -e "${YELLOW}Creating README.md...${NC}"
+    cat <<EOF > README.md
 # My SmallWorlds Community Configuration
 
 This is the private GitOps overlay repository for my SmallWorlds sovereign cloud.
@@ -151,13 +204,18 @@ This is the private GitOps overlay repository for my SmallWorlds sovereign cloud
 ## Running Updates
 To pull the latest infrastructure and application definitions from upstream, make sure the reference in \`kustomization.yaml\` is pointing to the version you want (e.g. \`ref=HEAD\` or \`ref=v1.3.0\`). ArgoCD will automatically sync the changes into your cluster.
 EOF
+fi
 
-# 6. Commit the files
-echo -e "${YELLOW}Committing initial files...${NC}"
-git add kustomization.yaml .gitignore README.md
-git commit -m "Initial commit: Set up SmallWorlds kustomization base"
+# 7. Commit the files
+echo -e "${YELLOW}Committing updates...${NC}"
+git add .
+if ! git diff-index --quiet HEAD; then
+    git commit -m "Automated update: Synchronized SmallWorlds applications"
+else
+    echo -e "${GREEN}No changes to commit.${NC}"
+fi
 
-# 7. Configure remote and optionally push
+# 8. Configure remote and optionally push
 echo ""
 echo -e "${YELLOW}Configuring remote URL...${NC}"
 # Check if origin already exists
