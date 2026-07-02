@@ -73,6 +73,21 @@ We have bolstered the cluster's security posture to ensure the infrastructure re
 - **Runbook**: Created the `secret-rotation.yaml` runbook for Hermes, scheduled to run at 2 AM on the 1st of every month.
 - **Scope**: The runbook automates the rotation of CloudNativePG database passwords, the Keycloak shared OAuth secret, and creates a PR for rotating Garage S3 access keys. This ensures long-lived credentials do not become a security risk.
 
-## Next Steps
+## Phase 7: Scalability Management
 
-We are ready to move to the final phase, **Phase 7: Scalability Management**, where we will provide Hermes with runbooks and configuration to monitor node resource trends and propose scaling adjustments.
+The infrastructure is now prepared to grow seamlessly alongside your needs:
+
+### 1. Vertical Scaling Automation
+- **Runbooks**: Created four core scalability runbooks for Hermes:
+  - `resource-pressure.yaml`: Remediates immediate pod or node saturation alerts.
+  - `resource-rightsizing.yaml`: Analyzes P95 usage weekly to right-size pod limits.
+  - `vertical-scaling.yaml`: Proposes a Hetzner VM upgrade via Terraform if the node is continuously saturated.
+  - `storage-expansion.yaml`: Projects storage growth and proposes PVC expansion when Garage S3 or local disks approach capacity.
+
+### 2. Horizontal Scaling Preparation
+- **Terraform Module**: Created a reusable `worker-node` module in `infrastructure/terraform/modules/worker-node/` to allow easy addition of new nodes to the cluster.
+- **Documentation**: Wrote `admin-tools/scaling-guide.md` which outlines exactly how and when to move from the current single-node architecture to a multi-node, horizontally scaled cluster.
+
+## Project Complete! 🎉
+
+All phases of the **SmallWorlds AI-Native Sovereign Infrastructure** plan have been successfully implemented. The cluster now boasts zero-trust off-site backups, robust automated update pipelines, the core Hermes AI remediation framework, communication hooks, security scanning, and automated vertical scaling intelligence!

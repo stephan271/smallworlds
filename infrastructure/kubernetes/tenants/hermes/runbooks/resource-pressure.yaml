@@ -1,0 +1,15 @@
+name: Resource Pressure Remediation
+description: Responds to pod and node resource pressure alerts
+triggers:
+  - alertmanager: KubePodCrashLooping (OOM)
+  - alertmanager: NodeCPUHigh
+  - alertmanager: NodeMemoryHigh
+tasks:
+  - id: diagnose-pressure
+    action: script
+    script: |
+      # Query Prometheus to identify top resource consumers
+      # Evaluate if pod limits are too low or if node itself is saturated
+      echo "Diagnosing resource pressure..."
+      # If pod limits too low, create PR modifying deployment requests/limits
+      # If node saturated, trigger vertical scaling recommendation

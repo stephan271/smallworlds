@@ -17,3 +17,7 @@ configMapGenerator:
     namespace: hermes
     files:
       - runbooks/secret-rotation.yaml
+      - runbooks/resource-pressure.yaml
+      - runbooks/resource-rightsizing.yaml
+      - runbooks/vertical-scaling.yaml
+      - runbooks/storage-expansion.yaml

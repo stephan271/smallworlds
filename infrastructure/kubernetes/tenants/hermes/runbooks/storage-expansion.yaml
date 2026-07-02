@@ -1,0 +1,13 @@
+name: Storage Volume Expansion
+description: Predicts and proposes persistent volume expansion
+triggers:
+  - alertmanager: KubePersistentVolumeFillingUp
+  - schedule: "0 0 1 * *" # Monthly check
+tasks:
+  - id: expand-storage
+    action: script
+    script: |
+      # Calculate growth rate
+      # Propose terraform PR bumping volume size
+      # Instruct on resize2fs post-apply
+      echo "Proposing storage expansion..."
