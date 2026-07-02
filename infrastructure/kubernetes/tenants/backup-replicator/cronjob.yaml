@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-replicator
+  namespace: backup-replicator
+spec:
+  schedule: "0 4 * * *" # Run at 4 AM daily
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: rclone
+              image: rclone/rclone:1.64
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  echo "Starting full Garage S3 replication..."
+                  # This will sync all buckets if we configure the rclone remotes properly
+                  rclone sync source: dest: -v
+                  if [ $? -ne 0 ]; then
+                    echo "Replication failed!"
+                    exit 1
+                  fi
+                  echo "Replication completed successfully."
+              volumeMounts:
+                - name: rclone-config
+                  mountPath: /config/rclone
+                  readOnly: true
+          volumes:
+            - name: rclone-config
+              secret:
+                secretName: replicator-config-secret
+                optional: true

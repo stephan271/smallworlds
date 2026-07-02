@@ -1,0 +1,40 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: rclone-backup
+spec:
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: rclone
+              image: rclone/rclone:1.64
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  echo "Starting backup for bucket: ${S3_BUCKET}"
+                  # Assuming rclone.conf is mounted or env vars are set for source (Garage) and destination (Home Garage)
+                  rclone sync "source:${S3_BUCKET}" "dest:${S3_BUCKET}" -v
+                  if [ $? -ne 0 ]; then
+                    echo "Backup failed!"
+                    # Write failure to status.json could be added here
+                    exit 1
+                  fi
+                  echo "Backup completed successfully."
+              env:
+                - name: S3_BUCKET
+                  value: "REPLACE_ME_IN_PATCH"
+              volumeMounts:
+                - name: rclone-config
+                  mountPath: /config/rclone
+                  readOnly: true
+          volumes:
+            - name: rclone-config
+              secret:
+                secretName: rclone-config-secret
