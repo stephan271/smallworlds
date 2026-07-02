@@ -132,7 +132,8 @@ resource "hcloud_zone_rrset" "app_records" {
     "photos",
     "git",
     "mail",
-    "webmail"
+    "webmail",
+    "monitoring"
   ])
 
   zone = hcloud_zone.smallworlds_zone.id

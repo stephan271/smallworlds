@@ -13,6 +13,9 @@ resources:
   - apps/garage.yaml
   - apps/persistent-storage.yaml
   - apps/traefik.yaml
+  - apps/kube-prometheus-stack.yaml
+  - apps/loki-stack.yaml
+  - apps/hermes.yaml
   
   # 2. Core Frontend Services
   - apps/dashboard.yaml
