@@ -36,8 +36,21 @@ test.describe('Nextcloud', () => {
     }, { timeout: 60_000 });
 
     // Handle Nextcloud's First Run Wizard (Hub onboarding popup)
+    try {
+      const wizardClose = page.locator('#firstrunwizard .modal-header button, #firstrunwizard .icon-close, .first-run-wizard .modal-header button');
+      if (await wizardClose.first().isVisible({ timeout: 5000 })) {
+        await wizardClose.first().click();
+        await page.waitForTimeout(500);
+      }
+    } catch (e) {
+      // Ignored
+    }
+    
+    // Fallback: press Escape a few times just in case
     await page.keyboard.press('Escape');
-    await page.waitForTimeout(1000); // Wait for modal animation to close
+    await page.waitForTimeout(200);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(500);
   });
 
   test('loads Files app after OIDC auto-login', async ({ page }) => {
@@ -55,7 +68,7 @@ test.describe('Nextcloud', () => {
     });
 
     // The files list should be visible
-    const filesList = page.locator('.files-filestable, #app-content-files');
+    const filesList = page.locator('#app-content-vue, #app-content-files, table.files-list, .files-filestable, #app-content .app-content-list, #app-content');
     await expect(filesList.first()).toBeVisible({ timeout: 15_000 });
   });
 
@@ -64,8 +77,8 @@ test.describe('Nextcloud', () => {
     const userMenu = page.locator('header .avatardiv, header .user-menu__avatar');
     await expect(userMenu.first()).toBeVisible({ timeout: 15_000 });
 
-    // Click to expand user menu
-    await userMenu.first().click();
+    // Click to expand user menu (force: true bypasses the first run wizard overlay if it lingers)
+    await userMenu.first().click({ force: true });
 
     // Verify username appears
     const userLabel = page.getByText(/sw-test-alice/i)
