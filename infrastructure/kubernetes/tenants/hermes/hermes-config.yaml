@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hermes-config
+  namespace: hermes
+data:
+  config.yaml: |
+    agent:
+      learning_mode: true
+      monthly_budget_soft_cap: 50
+      scaledown_observation_days: 30
+      alertmanager_webhook_port: 8080
+      model: "hermes-2-pro-llama-3-8b"
+    policies:
+      minor_updates_require_approval: true
+      major_updates_require_approval: true

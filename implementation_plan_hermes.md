@@ -293,11 +293,25 @@ A Kustomize base that spins up a temporary namespace with the updated version:
 
 ---
 
-### Phase 4: The Hermes Agent
+### Phase 4: Hybrid Auto-Remediation System (Deterministic + Hermes AI)
 
-This is the core intelligence. Hermes is deployed as a Kubernetes Deployment. It uses an **AI LLM** (e.g., NousResearch Hermes) to process alerts and determine actions.
+To maximize reliability and minimize cost, we will implement a **Two-Tiered Hybrid Architecture**. Tier 1 handles predictable, standard issues deterministically with zero AI cost. Tier 2 (the Hermes AI Agent) acts as an escalation path for complex edge cases.
 
-#### 4A: Agent Architecture
+#### 4A: Tier 1 — Deterministic Auto-Remediation
+Before waking up the AI, the cluster will attempt to fix itself using standard, zero-cost Kubernetes operators.
+
+#### [NEW] `infrastructure/kubernetes/apps/auto-remediator.yaml`
+Deploy lightweight controllers (e.g., standard Kubernetes HPA, or a tool like Robusta / Keptn) configured with static runbooks for "standard cases":
+1. **OOM (Out of Memory) Kills**: Automatically bump memory limits by 20% and restart the pod.
+2. **Disk Pressure**: Run a cleanup script to delete `/tmp` caches on the affected node.
+3. **Database Replication Lag**: Automatically trigger a CNPG failover if the primary node goes down.
+4. **Patch Updates**: Renovate Bot (configured in Phase 3) automatically merges non-breaking patch updates if the staging smoke test passes.
+
+If a Tier 1 remediation fails (e.g., the pod OOM-kills *again* after the memory bump), or if an alert has no predefined runbook, it escalates to Tier 2.
+
+#### 4B: Tier 2 — The Hermes AI Agent (Escalation Path)
+
+This is the core intelligence. Hermes is deployed as a Kubernetes Deployment, remaining asleep until an Alertmanager webhook triggers an escalation.
 
 #### [NEW] `infrastructure/kubernetes/tenants/hermes/`
 A new tenant namespace containing:
@@ -328,7 +342,7 @@ A new tenant namespace containing:
 
 **`hermes-sa-secret.yaml`** — ServiceAccount with GitHub API token for creating/merging PRs.
 
-#### 4B: Agent Tools and Prompting
+#### 4C: Agent Tools and Prompting
 
 Instead of static YAML runbooks, the AI is provided with a system prompt and a set of specific tools it can invoke.
 
@@ -346,7 +360,7 @@ Defines the agent's persona and constraints:
 - `update_status_page(incident_summary, severity)`
 - `send_email_notification(subject, body)`
 
-When an issue occurs (like an OOMKill), the AI uses `query_logs` to see what happened, realizes the memory limit is too low, modifies the deployment manifest, and uses `create_github_pr` to propose the fix. You review the AI's reasoning in the PR description before merging.
+When an escalated issue occurs, the AI uses `query_logs` to see what happened, realizes the standard remediation failed, modifies the deployment manifest with a complex fix, and uses `create_github_pr` to propose the fix. You review the AI's reasoning in the PR description before merging.
 
 ---
 

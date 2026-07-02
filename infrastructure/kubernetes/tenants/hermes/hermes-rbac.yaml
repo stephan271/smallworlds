@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: hermes-agent
+  namespace: hermes
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: hermes-agent-role
+rules:
+  # Read access to cluster state to diagnose issues
+  - apiGroups: ["", "apps", "batch", "extensions", "networking.k8s.io"]
+    resources: ["pods", "deployments", "services", "events", "nodes", "configmaps", "secrets", "ingresses", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+  # Write access to update status page
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["status-data"]
+    verbs: ["patch", "update"]
+  # Access to logs
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: hermes-agent-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: hermes-agent-role
+subjects:
+  - kind: ServiceAccount
+    name: hermes-agent
+    namespace: hermes

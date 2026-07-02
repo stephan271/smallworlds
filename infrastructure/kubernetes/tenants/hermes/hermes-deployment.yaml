@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hermes-agent
+  namespace: hermes
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hermes-agent
+  template:
+    metadata:
+      labels:
+        app: hermes-agent
+    spec:
+      serviceAccountName: hermes-agent
+      containers:
+        - name: agent
+          # Placeholder image: in reality, this would be a Python agent running an LLM loop
+          image: python:3.11-slim
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Hermes AI Agent starting up..."
+              echo "Loading configuration from /etc/hermes..."
+              echo "Awaiting webhooks on port 8080."
+              # Simulate the agent loop keeping the container alive
+              tail -f /dev/null
+          ports:
+            - containerPort: 8080
+              name: webhook
+          env:
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-github-secret
+                  key: token
+          volumeMounts:
+            - name: config
+              mountPath: /etc/hermes/config.yaml
+              subPath: config.yaml
+            - name: prompt
+              mountPath: /etc/hermes/system-prompt.txt
+              subPath: system-prompt.txt
+      volumes:
+        - name: config
+          configMap:
+            name: hermes-config
+        - name: prompt
+          configMap:
+            name: hermes-system-prompt
