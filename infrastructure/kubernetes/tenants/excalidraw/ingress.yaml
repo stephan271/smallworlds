@@ -5,6 +5,12 @@ metadata:
   namespace: excalidraw
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Whiteboard"
+    gethomepage.dev/description: "Excalidraw"
+    gethomepage.dev/group: "Applications"
+    gethomepage.dev/icon: "excalidraw.png"
+    gethomepage.dev/pod-selector: "app.kubernetes.io/name=excalidraw"
 spec:
   ingressClassName: traefik
   tls:
