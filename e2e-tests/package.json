@@ -1,0 +1,18 @@
+{
+  "name": "smallworlds-e2e-tests",
+  "version": "1.0.0",
+  "description": "Browser-based E2E smoke tests for SmallWorlds community infrastructure",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "report": "playwright show-report reports/html",
+    "provision-users": "npx tsx setup/provision-test-users.ts",
+    "setup": "npm install && npx playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "tsx": "^4.19.0"
+  }
+}

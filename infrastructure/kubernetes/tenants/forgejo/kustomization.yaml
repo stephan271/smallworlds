@@ -29,7 +29,7 @@ patches:
         path: /spec/template/spec/containers/0/env
         value:
           - name: REDIRECT_URIS
-            value: '["https://git.smallworlds.network/user/oauth2/Keycloak/callback"]'
+            value: '["https://git.smallworlds.network/user/oauth2/smallworlds/callback"]'
 
 helmCharts:
   - name: forgejo

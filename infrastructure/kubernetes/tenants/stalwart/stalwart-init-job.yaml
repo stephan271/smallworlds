@@ -191,10 +191,12 @@ spec:
               echo "Creating fresh OIDC Directory..."
               OIDC_JSON=$(jq -n \
                 --arg issuer "https://identity.smallworlds.network/realms/smallworlds" \
+                --arg domain "$DOMAIN_NAME" \
                 '{
                   description: "Keycloak",
                   issuerUrl: $issuer,
-                  claimUsername: "preferred_username",
+                  claimUsername: "email",
+                  usernameDomain: null,
                   claimName: "name",
                   claimGroups: "groups"
                 }')
