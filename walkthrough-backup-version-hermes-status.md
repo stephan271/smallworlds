@@ -49,6 +49,19 @@ We implemented a robust, cost-effective two-tiered system for infrastructure man
 - **Security Posture**: Provisioned a scoped ServiceAccount (`hermes-rbac.yaml`) granting the agent read-only access to cluster state (to debug issues) and write access only to the dashboard's `status.json` ConfigMap.
 - **Integration**: Plumbed the required secrets (`hermes-sa-secret.yaml`) and config structure (`hermes-config.yaml`) so the Python agent loop can securely talk to GitHub to propose complex fixes that Tier 1 cannot resolve.
 
+## Phase 5: Status Page and User Communication
+
+To ensure Hermes is completely transparent with the community, we've set up its communication framework:
+
+### 1. Dashboard Status ConfigMap
+- **JSON Datastore**: Created `infrastructure/kubernetes/tenants/dashboard/status-data.yaml`, which provisions the raw `status.json` structure (`system_status`, `incidents`, `maintenance`).
+- **Integration**: The front-end dashboard natively reads this JSON structure, and the Hermes agent has RBAC permissions to dynamically patch it in real-time when an incident occurs or is resolved.
+
+### 2. Notification Channels and Templates
+- **Channel Configuration**: Created `infrastructure/kubernetes/tenants/hermes/notification-channels.yaml` to define how Hermes routes messages.
+- **Email Gateway**: Plumbed the configuration so Hermes can securely send emails through the existing Stalwart SMTP server.
+- **Message Templates**: Pre-configured standard templates for `incident-opened`, `incident-resolved`, `maintenance-scheduled`, and `approval-required`, ensuring clear, professional communication from the AI to the human administrators.
+
 ## Next Steps
 
-With the Hermes agent framework installed, we are ready to proceed to **Phase 5: Status Page and User Communication**, where we'll hook up the email and status page notification channels so Hermes can actually tell you what it's doing!
+With the Hermes agent now possessing "a voice", we are ready to proceed to **Phase 6: Security Hardening**, where we'll set up automated CVE scanning and certificate lifecycle management!

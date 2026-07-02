@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   - dashboard-config.yaml
+  - status-data.yaml
   - dashboard-deployment.yaml
   - dashboard-service.yaml
   - dashboard-ingress.yaml

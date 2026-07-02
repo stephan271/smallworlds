@@ -6,6 +6,7 @@ resources:
   - hermes-config.yaml
   - hermes-sa-secret.yaml
   - hermes-deployment.yaml
+  - notification-channels.yaml
 
 configMapGenerator:
   - name: hermes-system-prompt
