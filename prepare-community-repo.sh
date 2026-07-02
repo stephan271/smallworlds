@@ -59,7 +59,7 @@ fi
 
 # 3. Ask which apps to install
 echo -e "${YELLOW}Selecting Optional Applications...${NC}"
-OPTIONAL_APPS=("forgejo" "immich" "nextcloud" "roundcube")
+OPTIONAL_APPS=("forgejo" "immich" "nextcloud" "roundcube" "excalidraw")
 SELECTED_APPS=()
 
 for app in "${OPTIONAL_APPS[@]}"; do
