@@ -15,10 +15,10 @@ spec:
   ingressClassName: traefik
   tls:
     - hosts:
-        - excalidraw.smallworlds.network
+        - whiteboard.smallworlds.network
       secretName: excalidraw-tls
   rules:
-    - host: excalidraw.smallworlds.network
+    - host: whiteboard.smallworlds.network
       http:
         paths:
           - path: /
