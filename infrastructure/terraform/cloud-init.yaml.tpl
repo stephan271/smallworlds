@@ -10,6 +10,12 @@ swap:
 
 write_files:
 
+  - path: /etc/sysctl.d/99-kubernetes-cri.conf
+    permissions: '0644'
+    content: |
+      fs.inotify.max_user_instances=8192
+      fs.inotify.max_user_watches=524288
+
   - path: /var/lib/rancher/k3s/server/manifests/letsencrypt-prod.yaml
     permissions: '0644'
     content: |
@@ -95,6 +101,7 @@ runcmd:
   - ln -sfn /mnt/smallworlds-data/k3s /var/lib/rancher/k3s
 
   # 2. Install K3s (This will automatically apply the manifests in /var/lib/rancher/k3s/server/manifests/)
+  - sysctl --system
   - echo "ipv4" > ~/.curlrc
   - curl -sfL https://get.k3s.io | sh -s - server --cluster-init --node-ip=${server_ip} --disable traefik --kubelet-arg=registry-qps=50 --kubelet-arg=registry-burst=100
   - export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
