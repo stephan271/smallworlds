@@ -1,0 +1,21 @@
+publicURL: "https://meet.smallworlds.network"
+
+web:
+  ingress:
+    enabled: true
+    hosts:
+      - host: meet.smallworlds.network
+        paths:
+          - "/"
+    tls:
+      - hosts:
+          - meet.smallworlds.network
+        secretName: jitsi-tls
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      gethomepage.dev/enabled: "true"
+      gethomepage.dev/name: "Meet"
+      gethomepage.dev/description: "Jitsi Meet"
+      gethomepage.dev/group: "Applications"
+      gethomepage.dev/icon: "jitsi.png"
+      gethomepage.dev/pod-selector: "app.kubernetes.io/name=web"

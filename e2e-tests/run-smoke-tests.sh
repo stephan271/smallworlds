@@ -118,6 +118,7 @@ check_service "Nextcloud" "https://files.${DOMAIN}/"    || SERVICES_OK=false
 check_service "Roundcube" "https://webmail.${DOMAIN}/"   || SERVICES_OK=false
 check_service "Immich"    "https://photos.${DOMAIN}/"    || SERVICES_OK=false
 check_service "Forgejo"   "https://git.${DOMAIN}/"       || SERVICES_OK=false
+check_service "Jitsi"     "https://meet.${DOMAIN}/"      || SERVICES_OK=false
 
 if [[ "$SERVICES_OK" != "true" ]]; then
   echo -e "\n${RED}⚠ Some services are not available. Tests may fail.${NC}"

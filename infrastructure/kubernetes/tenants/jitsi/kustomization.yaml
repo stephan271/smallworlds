@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: jitsi
+
+helmCharts:
+  - name: jitsi-meet
+    repo: https://jitsi-contrib.github.io/jitsi-helm/
+    releaseName: jitsi
+    version: 1.4.0
+    valuesFile: values.yaml
