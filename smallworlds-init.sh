@@ -84,6 +84,13 @@ if [[ -n "$GITOPS_REPO_TOKEN" ]]; then
     fi
 fi
 
+# Generate passwords if not cached
+if [[ -z "$KC_PASS" ]]; then KC_PASS=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32); fi
+if [[ -z "$INVITE_SECRET" ]]; then INVITE_SECRET=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32); fi
+if [[ -z "$GARAGE_RPC_SECRET" ]]; then GARAGE_RPC_SECRET=$(openssl rand -hex 32); fi
+if [[ -z "$GARAGE_ADMIN_TOKEN" ]]; then GARAGE_ADMIN_TOKEN=$(openssl rand -hex 32); fi
+if [[ -z "$GRAFANA_PASS" ]]; then GRAFANA_PASS=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32); fi
+
 # Save values to cache for next time
 cat <<EOF > "$CACHE_FILE"
 DOMAIN="${DOMAIN}"
@@ -93,6 +100,11 @@ HCLOUD_TOKEN="${HCLOUD_TOKEN}"
 GITOPS_REPO_URL="${GITOPS_REPO_URL}"
 GITOPS_REPO_USER="${GITOPS_REPO_USER}"
 GITOPS_REPO_TOKEN="${GITOPS_REPO_TOKEN}"
+KC_PASS="${KC_PASS}"
+INVITE_SECRET="${INVITE_SECRET}"
+GARAGE_RPC_SECRET="${GARAGE_RPC_SECRET}"
+GARAGE_ADMIN_TOKEN="${GARAGE_ADMIN_TOKEN}"
+GRAFANA_PASS="${GRAFANA_PASS}"
 EOF
 chmod 600 "$CACHE_FILE"
 
@@ -109,13 +121,6 @@ export HCLOUD_TOKEN=$HCLOUD_TOKEN
 # Set Terraform Git variables
 TF_GIT_USER="${GITOPS_REPO_USER}"
 TF_GIT_TOKEN="${GITOPS_REPO_TOKEN}"
-
-# Generate passwords
-KC_PASS=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32)
-INVITE_SECRET=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32)
-GARAGE_RPC_SECRET=$(openssl rand -hex 32)
-GARAGE_ADMIN_TOKEN=$(openssl rand -hex 32)
-GRAFANA_PASS=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32)
 
 # 2. Generate temporary tfvars file
 TFVARS_FILE="/tmp/smallworlds-${DOMAIN}.tfvars"
