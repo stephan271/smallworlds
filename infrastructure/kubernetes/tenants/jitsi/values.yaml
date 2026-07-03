@@ -19,3 +19,7 @@ web:
       gethomepage.dev/group: "Applications"
       gethomepage.dev/icon: "jitsi.png"
       gethomepage.dev/pod-selector: "app.kubernetes.io/name=web"
+
+jvb:
+  service:
+    type: LoadBalancer
