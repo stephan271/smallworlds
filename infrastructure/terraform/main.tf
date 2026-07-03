@@ -105,6 +105,16 @@ resource "hcloud_firewall" "k8s_firewall" {
     ]
   }
 
+  # Allow Jitsi Videobridge (UDP)
+  rule {
+    direction = "in"
+    protocol  = "udp"
+    port      = "10000"
+    source_ips = [
+      "0.0.0.0/0",
+      "::/0"
+    ]
+  }
 
 }
 
