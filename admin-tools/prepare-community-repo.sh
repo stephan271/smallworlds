@@ -23,8 +23,19 @@ echo ""
 # Get the directory of the current script to ensure relative paths work
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+CONFIG_FILE="$HOME/.config/smallworlds/community-setup.conf"
+mkdir -p "$(dirname "$CONFIG_FILE")"
+if [ -f "$CONFIG_FILE" ]; then
+    source "$CONFIG_FILE"
+fi
+
 # 1. Ask for local repository path
-DEFAULT_PATH="${SCRIPT_DIR}/../my-community-config"
+if [ -n "$STORED_REPO_PATH" ]; then
+    DEFAULT_PATH="$STORED_REPO_PATH"
+else
+    # Script is in admin-tools, so community repo is normally parallel to smallworlds
+    DEFAULT_PATH="$(cd "$SCRIPT_DIR/.." && pwd)/../my-community-config"
+fi
 read -e -i "$DEFAULT_PATH" -p "1. Enter the path where you want to create the repository: " REPO_PATH
 
 # Resolve to absolute path
@@ -36,7 +47,9 @@ echo ""
 
 # 2. Ask for the remote Git URL
 DEFAULT_URL=""
-if [ -d "$ABS_REPO_PATH/.git" ]; then
+if [ -n "$STORED_REMOTE_URL" ]; then
+    DEFAULT_URL="$STORED_REMOTE_URL"
+elif [ -d "$ABS_REPO_PATH/.git" ]; then
     pushd "$ABS_REPO_PATH" > /dev/null
     if git remote | grep -q "^origin$"; then
         DEFAULT_URL=$(git remote get-url origin)
@@ -77,9 +90,17 @@ OPTIONAL_APPS=("forgejo" "immich" "nextcloud" "roundcube" "excalidraw")
 SELECTED_APPS=()
 
 for app in "${OPTIONAL_APPS[@]}"; do
-    read -e -i "y" -p "Do you want to install $app? (y/n): " choice
+    # Check stored preference
+    var_name="STORED_APP_${app}"
+    stored_val="${!var_name}"
+    default_choice="${stored_val:-y}"
+    
+    read -e -i "$default_choice" -p "Do you want to install $app? (y/n): " choice
     if [[ "$choice" =~ ^[Yy]$ ]]; then
         SELECTED_APPS+=("$app")
+        eval "STORED_APP_${app}='y'"
+    else
+        eval "STORED_APP_${app}='n'"
     fi
 done
 
@@ -173,6 +194,16 @@ EOF
 EOF
     done
 fi
+
+# Save settings
+cat <<EOF > "$CONFIG_FILE"
+STORED_REPO_PATH="$ABS_REPO_PATH"
+STORED_REMOTE_URL="$REMOTE_URL"
+EOF
+for app in "${OPTIONAL_APPS[@]}"; do
+    var_name="STORED_APP_${app}"
+    echo "${var_name}=${!var_name}" >> "$CONFIG_FILE"
+done
 
 # 5. Create a basic .gitignore if missing
 if [ ! -f ".gitignore" ]; then

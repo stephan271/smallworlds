@@ -28,18 +28,20 @@ The following applications can be selectively installed during the community rep
 ## Deployment Instructions
 
 ### 1. Configuration Repository Initialization
-A private Git repository is required to store application state, secrets, and configuration overrides.
+A private Git repository is required to store application state and configuration overrides.
 
-Execute the initialization script from the root of this repository:
+First create a completely empty private repo, e.g. at https://github.com/your-username/my-community-config . Make sure to create a Personal Access Token as a password to be able to push to this repo later.
+
+Then Execute the initialization script from the root of this repository:
 ```bash
-./prepare-community-repo.sh
+./admin-tools/prepare-community-repo.sh
 ```
 This script handles:
 - Interactive selection of optional applications.
 - Generation of the corresponding `kustomization.yaml` overlay.
 - Initialization of the local Git repository and initial commit.
 
-Alternatively, manually create a private Git repository containing a `kustomization.yaml` file that targets `https://github.com/stephan271/smallworlds.git/infrastructure/kubernetes?ref=HEAD`.
+Make sure to push the state to the remote repo (the script will ask you to do so)
 
 ### 2. Infrastructure Provider Setup
 SmallWorlds utilizes Hetzner Cloud.
