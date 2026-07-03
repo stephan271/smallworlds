@@ -46,7 +46,7 @@ write_files:
         smallworlds.server: |
           ${domain_name}:53 {
             hosts {
-              ${server_ip} identity.${domain_name} files.${domain_name} photos.${domain_name} git.${domain_name} mail.${domain_name}
+              ${server_ip} identity.${domain_name} files.${domain_name} photos.${domain_name} git.${domain_name} mail.${domain_name} meet.${domain_name}
               fallthrough
             }
             forward . /etc/resolv.conf
