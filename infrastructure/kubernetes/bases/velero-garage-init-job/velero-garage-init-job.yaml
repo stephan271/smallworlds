@@ -1,0 +1,60 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: velero-garage-init
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  template:
+    spec:
+      serviceAccountName: setup-sa
+      containers:
+        - name: setup
+          image: bitnami/kubectl:latest
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+
+              echo "Waiting for Garage pod to be ready..."
+              until kubectl get pods -n garage-system -l app.kubernetes.io/name=garage -o jsonpath='{.items[0].status.containerStatuses[0].ready}' 2>/dev/null | grep -q 'true'; do
+                echo "Garage is not ready yet, waiting..."
+                sleep 5
+              done
+
+              echo "Finding Garage pod..."
+              POD=$(kubectl get pods -n garage-system -l app.kubernetes.io/name=garage -o name | head -n 1)
+
+              echo "Setting up velero-key..."
+              kubectl exec -n garage-system $POD -- /garage key delete --yes velero-key || true
+              
+              OUTPUT=$(kubectl exec -n garage-system $POD -- /garage key create velero-key)
+              ACCESS_KEY=$(echo "$OUTPUT" | grep "Key ID:" | awk '{print $3}')
+              SECRET_KEY=$(echo "$OUTPUT" | grep "Secret key:" | awk '{print $3}')
+
+              if [[ -z "$ACCESS_KEY" || -z "$SECRET_KEY" ]]; then
+                echo "Error: Failed to parse Key ID or Secret key from output."
+                exit 1
+              fi
+
+              kubectl exec -n garage-system $POD -- /garage key allow velero-key --create-bucket || true
+
+              echo "Creating velero-backups bucket..."
+              kubectl exec -n garage-system $POD -- /garage bucket create velero-backups || true
+              kubectl exec -n garage-system $POD -- /garage bucket allow velero-backups --read --write --owner --key velero-key || true
+
+              echo "Creating velero-s3-creds secret..."
+              cat <<CREDS > /tmp/cloud-credentials
+              [default]
+              aws_access_key_id=$ACCESS_KEY
+              aws_secret_access_key=$SECRET_KEY
+              CREDS
+
+              kubectl delete secret velero-s3-creds -n velero || true
+              kubectl create secret generic velero-s3-creds -n velero --from-file=cloud=/tmp/cloud-credentials
+
+              echo "Velero Garage credentials initialized successfully!"
+      restartPolicy: OnFailure

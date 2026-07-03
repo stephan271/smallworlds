@@ -1,0 +1,52 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: velero
+
+helmCharts:
+  - name: velero
+    repo: https://vmware-tanzu.github.io/helm-charts
+    version: 7.1.0
+    releaseName: velero
+    namespace: velero
+    valuesInline:
+      initContainers:
+        - name: velero-plugin-for-aws
+          image: velero/velero-plugin-for-aws:v1.10.0
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - mountPath: /target
+              name: plugins
+      upgradeCRDs: false
+      configuration:
+        backupStorageLocation:
+          - name: default
+            provider: aws
+            bucket: velero-backups
+            config:
+              region: us-east-1
+              s3ForcePathStyle: true
+              s3Url: http://garage.garage-system.svc.cluster.local:3900
+        volumeSnapshotLocation: []
+      credentials:
+        existingSecret: velero-s3-creds
+      schedules:
+        daily-cluster-state:
+          schedule: "0 2 * * *"
+          template:
+            excludedNamespaces:
+              - kube-system
+            ttl: 720h
+      deployNodeAgent: false
+
+resources:
+  - ../../bases/setup-rbac
+  - ../../bases/velero-garage-init-job
+
+patches:
+  - target:
+      kind: ClusterRoleBinding
+      name: setup-binding
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: setup-binding-velero
