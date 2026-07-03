@@ -48,6 +48,16 @@ kind: Namespace
 metadata:
   name: velero
 ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: excalidraw
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jitsi
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
