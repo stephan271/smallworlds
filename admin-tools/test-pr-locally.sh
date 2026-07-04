@@ -107,6 +107,8 @@ export TF_VAR_github_pr_branch="$TARGET_BRANCH"
 
 # Setup Cleanup Trap
 cleanup() {
+    local EXIT_CODE=$?
+    
     echo -e "\n${CYAN}==========================================${NC}"
     echo -e "${CYAN}          Starting Cleanup Phase          ${NC}"
     echo -e "${CYAN}==========================================${NC}"
@@ -131,7 +133,17 @@ cleanup() {
     git checkout -- infrastructure/kubernetes/apps/
     git checkout "$ORIGINAL_BRANCH"
 
-    echo -e "${GREEN}Cleanup complete!${NC}"
+    echo -e "\n=========================================="
+    if [ $EXIT_CODE -eq 0 ]; then
+        echo -e "${GREEN}✅ SUCCESS: All tests passed and cleanup is complete!${NC}"
+    else
+        echo -e "${RED}❌ FAILED: The PR tests failed with exit code $EXIT_CODE!${NC}"
+        echo -e "${YELLOW}To see exactly what went wrong, you can view the test report:${NC}"
+        echo -e "  cd e2e-tests && npx playwright show-report reports/html"
+    fi
+    echo -e "==========================================\n"
+    
+    exit $EXIT_CODE
 }
 trap cleanup EXIT
 
