@@ -22,6 +22,8 @@ spec:
           vulnerabilityScannerEnabled: true
           rbacAssessmentScannerEnabled: true
           configAuditScannerEnabled: true
+        serviceMonitor:
+          enabled: true
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: trivy-system
