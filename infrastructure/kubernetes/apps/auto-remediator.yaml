@@ -11,7 +11,7 @@ spec:
   project: default
   source:
     repoURL: 'https://robusta-charts.storage.googleapis.com'
-    targetRevision: "0.10.35"
+    targetRevision: "0.43.0"
     chart: robusta
     helm:
       values: |
