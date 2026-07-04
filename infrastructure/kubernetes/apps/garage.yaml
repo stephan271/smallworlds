@@ -11,7 +11,7 @@ spec:
   project: default
   source:
     repoURL: 'https://datahub-local.github.io/garage-helm'
-    targetRevision: 0.2.1
+    targetRevision: 0.7.0
     chart: garage
     helm:
       values: |
