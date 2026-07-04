@@ -1,0 +1,136 @@
+name: E2E Tests (Hetzner Staging)
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    if: github.actor == 'renovate[bot]' || github.actor == 'stephan271'
+
+    env:
+      TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Generate Ephemeral SSH Key
+        run: |
+          ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ""
+          echo "TF_VAR_ssh_public_key_path=~/.ssh/id_ed25519.pub" >> $GITHUB_ENV
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Apply (Provision Hetzner VM)
+        run: |
+          cd infrastructure/terraform-staging
+          export TF_VAR_github_pr_branch=${{ github.head_ref }}
+          terraform init
+          terraform apply -auto-approve
+          
+          # Export IP for future steps
+          SERVER_IP=$(terraform output -raw server_ipv4)
+          echo "SERVER_IP=$SERVER_IP" >> $GITHUB_ENV
+
+      - name: Fetch Kubeconfig
+        run: |
+          echo "Waiting for VM and K3s to initialize..."
+          
+          # Wait until SSH is available and K3s has created the kubeconfig
+          timeout 300 bash -c "until ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 root@$SERVER_IP 'test -f /root/k3s.yaml'; do sleep 10; done"
+          
+          # Download Kubeconfig
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 root@$SERVER_IP:/root/k3s.yaml ./kubeconfig.yaml
+          export KUBECONFIG=$(pwd)/kubeconfig.yaml
+          
+          # Verify connection
+          kubectl get nodes
+
+      - name: Deploy PR Code to Staging Cluster
+        run: |
+          export KUBECONFIG=$(pwd)/kubeconfig.yaml
+          
+          git fetch origin main
+          CHANGED_FILES=$(git diff --name-only origin/main...HEAD)
+          
+          # Detect if core infrastructure changed
+          CORE_CHANGED=false
+          if echo "$CHANGED_FILES" | grep -qE '^infrastructure/kubernetes/(apps|bases)/' || echo "$CHANGED_FILES" | grep -qE '^infrastructure/terraform/'; then
+            CORE_CHANGED=true
+          fi
+          
+          # Detect which tenants changed
+          MODIFIED_TENANTS=$(echo "$CHANGED_FILES" | grep '^infrastructure/kubernetes/tenants/' | awk -F'/' '{print $4}' | sort -u || true)
+          
+          # We ALWAYS deploy the core components needed to run any app
+          echo "apiVersion: kustomize.config.k8s.io/v1beta1" > infrastructure/kubernetes/kustomization.yaml
+          echo "kind: Kustomization" >> infrastructure/kubernetes/kustomization.yaml
+          echo "resources:" >> infrastructure/kubernetes/kustomization.yaml
+          echo "  - namespaces.yaml" >> infrastructure/kubernetes/kustomization.yaml
+          echo "  - apps/cert-manager.yaml" >> infrastructure/kubernetes/kustomization.yaml
+          echo "  - apps/cloudnative-pg.yaml" >> infrastructure/kubernetes/kustomization.yaml
+          echo "  - apps/garage.yaml" >> infrastructure/kubernetes/kustomization.yaml
+          echo "  - apps/persistent-storage.yaml" >> infrastructure/kubernetes/kustomization.yaml
+          echo "  - apps/traefik.yaml" >> infrastructure/kubernetes/kustomization.yaml
+          echo "  - apps/keycloak.yaml" >> infrastructure/kubernetes/kustomization.yaml
+          
+          TEST_FILTER=""
+          if [ "$CORE_CHANGED" = true ]; then
+             echo "Core infrastructure changed. Deploying ALL applications."
+             for app in infrastructure/kubernetes/apps/*.yaml; do
+                basename=$(basename "$app")
+                if ! grep -q "apps/$basename" infrastructure/kubernetes/kustomization.yaml; then
+                   echo "  - apps/$basename" >> infrastructure/kubernetes/kustomization.yaml
+                fi
+             done
+          else
+             echo "Only specific tenants changed. Selectively deploying..."
+             for tenant in $MODIFIED_TENANTS; do
+                if [ -f "infrastructure/kubernetes/apps/${tenant}.yaml" ]; then
+                  echo "Adding tenant: $tenant"
+                  echo "  - apps/${tenant}.yaml" >> infrastructure/kubernetes/kustomization.yaml
+                  TEST_FILTER="$TEST_FILTER $tenant"
+                fi
+             done
+          fi
+          
+          echo "TEST_FILTER=$TEST_FILTER" >> $GITHUB_ENV
+          
+          # Point all ArgoCD Applications to the PR branch locally before applying
+          find infrastructure/kubernetes/apps -name '*.yaml' -type f -exec sed -i "s/targetRevision: HEAD/targetRevision: ${{ github.head_ref }}/g" {} +
+          find infrastructure/kubernetes/apps -name '*.yaml' -type f -exec sed -i "s/targetRevision: main/targetRevision: ${{ github.head_ref }}/g" {} +
+          
+          # Deploy the dynamic stack
+          kubectl apply -k infrastructure/kubernetes
+          
+          echo "Waiting for ArgoCD to sync Applications..."
+          sleep 15
+          kubectl wait --for=condition=Ready pod --all -n default --timeout=600s || true
+          kubectl wait --for=condition=Ready pod --all -n keycloak --timeout=600s || true
+
+      - name: Setup DNS mapping
+        run: |
+          # Point local runner DNS to the Hetzner VM for Playwright
+          echo "$SERVER_IP identity.smallworlds.network files.smallworlds.network webmail.smallworlds.network photos.smallworlds.network git.smallworlds.network meet.smallworlds.network" | sudo tee -a /etc/hosts
+
+      - name: Run E2E Smoke Tests
+        env:
+          DOMAIN: smallworlds.network
+          KC_ADMIN_PASS: e2e-dummy-pass
+          SKIP_PROVISION: 1
+        run: |
+          cd e2e-tests
+          npm ci
+          npx playwright install chromium
+          ./run-smoke-tests.sh smallworlds.network e2e-dummy-pass "$TEST_FILTER"
+
+      - name: Terraform Destroy (Cleanup)
+        if: always()
+        run: |
+          cd infrastructure/terraform-staging
+          terraform destroy -auto-approve

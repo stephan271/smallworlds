@@ -2,9 +2,9 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:best-practices",
-    ":prHourlyLimitNone",
-    ":prConcurrentLimitNone"
+    ":prHourlyLimitNone"
   ],
+  "prConcurrentLimit": 1,
   "argocd": {
     "fileMatch": ["infrastructure/kubernetes/apps/.*\\.yaml$"]
   },
@@ -18,7 +18,8 @@
     {
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "Weekly Updates",
-      "schedule": ["before 4am on monday"]
+      "schedule": ["before 4am on monday"],
+      "automerge": true
     },
     {
       "matchDatasources": ["helm"],

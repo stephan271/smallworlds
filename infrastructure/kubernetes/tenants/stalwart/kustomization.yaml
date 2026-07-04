@@ -4,10 +4,10 @@ namespace: stalwart
 
 bases:
   - ../../bases/setup-rbac
-  - ../../bases/cnpg-cluster
   - ../../bases/garage-init-job
 
 resources:
+  - cnpg-cluster.yaml
   - stalwart-deployment.yaml
   - stalwart-init-job.yaml
   - mail-provisioner-deployment.yaml

@@ -4,12 +4,12 @@ namespace: immich
 
 bases:
   - ../../bases/setup-rbac
-  - ../../bases/redis
-  - ../../bases/cnpg-cluster
   - ../../bases/garage-init-job
   - ../../bases/keycloak-client-job
 
 resources:
+  - redis.yaml
+  - cnpg-cluster.yaml
   - admin-init-job.yaml
   - immich-secret-init-job.yaml
   - library-pvc.yaml

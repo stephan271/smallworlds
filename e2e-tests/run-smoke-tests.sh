@@ -37,9 +37,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # --- Parse arguments ---
 export DOMAIN="${DOMAIN:-${1:-}}"
 export KC_ADMIN_PASS="${KC_ADMIN_PASS:-${2:-}}"
+export APP_FILTER="${APP_FILTER:-${3:-}}"
 
 if [[ -z "$DOMAIN" ]]; then
-  echo -e "${RED}Usage: $0 <domain> [keycloak-admin-password]${NC}"
+  echo -e "${RED}Usage: $0 <domain> [keycloak-admin-password] [app-filter]${NC}"
   echo -e "  e.g.: $0 smallworlds.network"
   exit 1
 fi
@@ -114,11 +115,22 @@ check_service() {
 
 SERVICES_OK=true
 check_service "Keycloak"  "https://identity.${DOMAIN}/" || SERVICES_OK=false
-check_service "Nextcloud" "https://files.${DOMAIN}/"    || SERVICES_OK=false
-check_service "Roundcube" "https://webmail.${DOMAIN}/"   || SERVICES_OK=false
-check_service "Immich"    "https://photos.${DOMAIN}/"    || SERVICES_OK=false
-check_service "Forgejo"   "https://git.${DOMAIN}/"       || SERVICES_OK=false
-check_service "Jitsi"     "https://meet.${DOMAIN}/"      || SERVICES_OK=false
+
+if [[ -z "$APP_FILTER" || "$APP_FILTER" == *"nextcloud"* ]]; then
+  check_service "Nextcloud" "https://files.${DOMAIN}/"    || SERVICES_OK=false
+fi
+if [[ -z "$APP_FILTER" || "$APP_FILTER" == *"roundcube"* ]]; then
+  check_service "Roundcube" "https://webmail.${DOMAIN}/"   || SERVICES_OK=false
+fi
+if [[ -z "$APP_FILTER" || "$APP_FILTER" == *"immich"* ]]; then
+  check_service "Immich"    "https://photos.${DOMAIN}/"    || SERVICES_OK=false
+fi
+if [[ -z "$APP_FILTER" || "$APP_FILTER" == *"forgejo"* ]]; then
+  check_service "Forgejo"   "https://git.${DOMAIN}/"       || SERVICES_OK=false
+fi
+if [[ -z "$APP_FILTER" || "$APP_FILTER" == *"jitsi"* ]]; then
+  check_service "Jitsi"     "https://meet.${DOMAIN}/"      || SERVICES_OK=false
+fi
 
 if [[ "$SERVICES_OK" != "true" ]]; then
   echo -e "\n${RED}⚠ Some services are not available. Tests may fail.${NC}"
@@ -142,6 +154,10 @@ echo ""
 PLAYWRIGHT_ARGS=""
 if [[ "${HEADED:-}" == "1" ]]; then
   PLAYWRIGHT_ARGS="--headed"
+fi
+
+if [[ -n "$APP_FILTER" ]]; then
+  PLAYWRIGHT_ARGS="$PLAYWRIGHT_ARGS $APP_FILTER"
 fi
 
 # Run Playwright tests

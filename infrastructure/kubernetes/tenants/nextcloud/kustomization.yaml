@@ -4,12 +4,12 @@ namespace: nextcloud
 
 bases:
   - ../../bases/setup-rbac
-  - ../../bases/redis
-  - ../../bases/cnpg-cluster
   - ../../bases/garage-init-job
   - ../../bases/keycloak-client-job
 
 resources:
+  - redis.yaml
+  - cnpg-cluster.yaml
   - oidc-config-job.yaml
   - nextcloud-secret-init-job.yaml
 
