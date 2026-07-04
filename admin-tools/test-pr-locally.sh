@@ -38,8 +38,8 @@ git fetch origin main || true
 # Save current branch so we can restore it later
 ORIGINAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-echo -e "${CYAN}Checking out $TARGET_BRANCH...${NC}"
-git checkout "$TARGET_BRANCH"
+echo -e "${CYAN}Checking out origin/$TARGET_BRANCH...${NC}"
+git checkout -B "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
 
 # 1. Analyze Diff
 echo -e "${CYAN}Analyzing differences from main...${NC}"
@@ -107,9 +107,13 @@ cleanup() {
     echo -e "${YELLOW}Cleaning up /etc/hosts... (May prompt for sudo)${NC}"
     sudo sed -i '/smallworlds\.network/d' /etc/hosts
 
-    echo -e "${YELLOW}Destroying Hetzner VM...${NC}"
-    cd "$REPO_ROOT/infrastructure/terraform-staging"
-    terraform destroy -auto-approve || true
+    if [ -d "$REPO_ROOT/infrastructure/terraform-staging" ]; then
+        echo -e "${YELLOW}Destroying Hetzner VM...${NC}"
+        cd "$REPO_ROOT/infrastructure/terraform-staging"
+        terraform destroy -auto-approve || true
+    else
+        echo -e "${YELLOW}Skipping Terraform destroy (directory missing on this branch)...${NC}"
+    fi
     
     echo -e "${YELLOW}Cleaning up SSH keys and temporary files...${NC}"
     rm -f "$TEMP_SSH_KEY" "${TEMP_SSH_KEY}.pub"
