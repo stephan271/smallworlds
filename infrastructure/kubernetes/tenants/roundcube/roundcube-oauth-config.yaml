@@ -8,7 +8,7 @@ data:
     <?php
     $config['oauth_provider'] = 'generic';
     $config['oauth_provider_name'] = 'Keycloak';
-    $config['oauth_client_id'] = 'roundcube';
+    $config['oauth_client_id'] = getenv('OAUTH_CLIENT_ID');
     $config['oauth_client_secret'] = getenv('OAUTH_CLIENT_SECRET');
     $config['oauth_auth_uri'] = 'https://identity.smallworlds.network/realms/smallworlds/protocol/openid-connect/auth';
     $config['oauth_token_uri'] = 'https://identity.smallworlds.network/realms/smallworlds/protocol/openid-connect/token';

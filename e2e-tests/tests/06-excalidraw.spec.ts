@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 const DOMAIN = process.env.DOMAIN!;
-const EXCALIDRAW_URL = `https://excalidraw.${DOMAIN}`;
+const EXCALIDRAW_URL = `https://whiteboard.${DOMAIN}`;
 
 test.describe('Excalidraw', () => {
   test('loads the main canvas', async ({ page }) => {
