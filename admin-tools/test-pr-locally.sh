@@ -27,6 +27,12 @@ echo -e "${CYAN}║     SmallWorlds Local Ephemeral Staging Runner       ║${NC
 echo -e "${CYAN}╚══════════════════════════════════════════════════════╝${NC}"
 echo -e "Target Branch: ${YELLOW}$TARGET_BRANCH${NC}"
 
+# Ask for sudo upfront to avoid timeout during trap
+echo -e "\n${YELLOW}We need sudo access to modify /etc/hosts for the tests. Please authenticate now:${NC}"
+sudo -v
+# Keep-alive: update existing sudo time stamp until script has finished
+while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
+
 # Go to repo root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
