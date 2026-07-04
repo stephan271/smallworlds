@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: init
-          image: alpine:3.18
+          image: alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
           env:
             - name: HCLOUD_TOKEN
               valueFrom:
