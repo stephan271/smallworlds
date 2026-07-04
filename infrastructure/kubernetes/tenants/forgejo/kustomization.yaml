@@ -35,5 +35,5 @@ helmCharts:
   - name: forgejo
     repo: oci://codeberg.org/forgejo-contrib
     releaseName: forgejo
-    version: 1.1.7
+    version: 17.1.1
     valuesFile: values.yaml
