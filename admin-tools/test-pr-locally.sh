@@ -20,6 +20,7 @@ if [ -z "$HCLOUD_TOKEN" ]; then
     echo -e "Please set it before running this script: export HCLOUD_TOKEN=your_token"
     exit 1
 fi
+export TF_VAR_hcloud_token="$HCLOUD_TOKEN"
 
 echo -e "${CYAN}╔══════════════════════════════════════════════════════╗${NC}"
 echo -e "${CYAN}║     SmallWorlds Local Ephemeral Staging Runner       ║${NC}"
