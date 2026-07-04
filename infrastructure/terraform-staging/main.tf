@@ -11,9 +11,22 @@ provider "hcloud" {
   token = var.hcloud_token
 }
 
+# Add the ephemeral SSH key
+resource "hcloud_ssh_key" "staging_key" {
+  name       = "staging-ephemeral-key"
+  public_key = file(var.ssh_public_key_path)
+}
+
 # Create a secure firewall for the ephemeral node
 resource "hcloud_firewall" "k8s_firewall_staging" {
   name = "smallworlds-firewall-staging"
+  
+  rule {
+    direction = "in"
+    protocol  = "tcp"
+    port      = "22"
+    source_ips = ["0.0.0.0/0", "::/0"]
+  }
   
   rule {
     direction = "in"
@@ -42,6 +55,7 @@ resource "hcloud_server" "smallworlds_staging_node" {
   server_type = "cpx32"
   location    = "fsn1"
   firewall_ids = [hcloud_firewall.k8s_firewall_staging.id]
+  ssh_keys    = [hcloud_ssh_key.staging_key.id]
   
   public_net {
     ipv4_enabled = true

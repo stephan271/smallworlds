@@ -41,3 +41,8 @@ variable "github_pr_branch" {
   type        = string
   default     = "main"
 }
+
+variable "ssh_public_key_path" {
+  description = "Path to the public SSH key to inject into the staging VM"
+  type        = string
+}
