@@ -58,6 +58,19 @@ spec:
                 echo "Client already exists."
               fi
 
+              if [[ -n "$OIDC_AUDIENCE_MAPPER" ]]; then
+                echo "Ensuring Audience Protocol Mapper exists for: $OIDC_AUDIENCE_MAPPER"
+                CLIENT_ID=$(kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh get clients -r smallworlds -q clientId=$TENANT_NAMESPACE --fields id | grep '"id"' | cut -d'"' -f4)
+                kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh create clients/$CLIENT_ID/protocol-mappers/models -r smallworlds \
+                  -s name="aud-$OIDC_AUDIENCE_MAPPER" \
+                  -s protocol="openid-connect" \
+                  -s protocolMapper="oidc-audience-mapper" \
+                  -s consentRequired=false \
+                  -s 'config."included.custom.audience"="'$OIDC_AUDIENCE_MAPPER'"' \
+                  -s 'config."id.token.claim"="false"' \
+                  -s 'config."access.token.claim"="true"' || echo "Audience mapper already exists or failed to create."
+              fi
+
               echo "Extracting Client Secret..."
               SECRET=$(kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh get clients -r smallworlds -q clientId=$TENANT_NAMESPACE --fields secret | grep "secret" | cut -d'"' -f4)
 

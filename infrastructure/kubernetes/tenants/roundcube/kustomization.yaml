@@ -29,3 +29,5 @@ patches:
         value:
           - name: REDIRECT_URIS
             value: '["https://webmail.smallworlds.network/index.php/login/oauth"]'
+          - name: OIDC_AUDIENCE_MAPPER
+            value: "stalwart"

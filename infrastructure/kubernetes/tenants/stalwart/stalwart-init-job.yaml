@@ -195,7 +195,7 @@ spec:
                 '{
                   description: "Keycloak",
                   issuerUrl: $issuer,
-                  requireAudience: null,
+                  requireAudience: "stalwart",
                   claimUsername: "email",
                   usernameDomain: null,
                   claimName: "name",
