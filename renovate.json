@@ -16,6 +16,11 @@
   },
   "packageRules": [
     {
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "Weekly Updates",
+      "schedule": ["before 4am on monday"]
+    },
+    {
       "matchDatasources": ["helm"],
       "commitMessageTopic": "Helm chart {{depName}}"
     },

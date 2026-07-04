@@ -1,0 +1,30 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: renovate
+  namespace: argocd
+spec:
+  schedule: "0 * * * *" # Runs every hour
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: renovate
+              image: renovate/renovate:37
+              env:
+                - name: LOG_LEVEL
+                  value: debug
+                - name: RENOVATE_PLATFORM
+                  value: github
+                - name: RENOVATE_AUTODISCOVER
+                  value: "false"
+                - name: RENOVATE_REPOSITORIES
+                  value: "stephan271/smallworlds"
+                - name: RENOVATE_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: repo-git-creds
+                      key: password
+          restartPolicy: Never

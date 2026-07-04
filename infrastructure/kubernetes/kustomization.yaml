@@ -20,7 +20,8 @@ resources:
   - apps/backup-replicator.yaml
   - apps/auto-remediator.yaml
   - apps/trivy-operator.yaml
-  
+  - apps/trivy-dashboard.yaml
+  - apps/renovate-cronjob.yaml
   # 2. Core Frontend Services
   - apps/dashboard.yaml
   - apps/keycloak.yaml
