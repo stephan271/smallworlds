@@ -89,8 +89,8 @@ fi
 
 # Override Target Revisions locally
 echo -e "${CYAN}Overriding targetRevision to $TARGET_BRANCH locally...${NC}"
-find infrastructure/kubernetes/apps -name '*.yaml' -type f -exec sed -i "s/targetRevision: HEAD/targetRevision: $TARGET_BRANCH/g" {} +
-find infrastructure/kubernetes/apps -name '*.yaml' -type f -exec sed -i "s/targetRevision: main/targetRevision: $TARGET_BRANCH/g" {} +
+find infrastructure/kubernetes/apps -name '*.yaml' -type f -exec sed -i "s@targetRevision: HEAD@targetRevision: $TARGET_BRANCH@g" {} +
+find infrastructure/kubernetes/apps -name '*.yaml' -type f -exec sed -i "s@targetRevision: main@targetRevision: $TARGET_BRANCH@g" {} +
 
 # Generate ephemeral SSH key
 TEMP_SSH_KEY=$(mktemp)

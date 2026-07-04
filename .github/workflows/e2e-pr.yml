@@ -102,8 +102,8 @@ jobs:
           echo "TEST_FILTER=$TEST_FILTER" >> $GITHUB_ENV
           
           # Point all ArgoCD Applications to the PR branch locally before applying
-          find infrastructure/kubernetes/apps -name '*.yaml' -type f -exec sed -i "s/targetRevision: HEAD/targetRevision: ${{ github.head_ref }}/g" {} +
-          find infrastructure/kubernetes/apps -name '*.yaml' -type f -exec sed -i "s/targetRevision: main/targetRevision: ${{ github.head_ref }}/g" {} +
+          find infrastructure/kubernetes/apps -name '*.yaml' -type f -exec sed -i "s@targetRevision: HEAD@targetRevision: ${{ github.head_ref }}@g" {} +
+          find infrastructure/kubernetes/apps -name '*.yaml' -type f -exec sed -i "s@targetRevision: main@targetRevision: ${{ github.head_ref }}@g" {} +
           
           # Deploy the dynamic stack
           kubectl apply -k infrastructure/kubernetes
