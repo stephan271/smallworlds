@@ -89,5 +89,10 @@ spec:
               echo "Setting admin email..."
               kubectl exec -n nextcloud $POD_NAME -- su -s /bin/sh www-data -c "php occ user:setting admin settings email '$ADMIN_EMAIL'" || true
               
-              echo "OIDC configuration complete."
+              echo "Disabling announcement and update notification apps..."
+              kubectl exec -n nextcloud $POD_NAME -- su -s /bin/sh www-data -c "php occ app:disable firstrunwizard" || true
+              kubectl exec -n nextcloud $POD_NAME -- su -s /bin/sh www-data -c "php occ app:disable updatenotification" || true
+              kubectl exec -n nextcloud $POD_NAME -- su -s /bin/sh www-data -c "php occ app:disable nextcloud_announcements" || true
+
+              echo "Configuration complete."
       restartPolicy: OnFailure

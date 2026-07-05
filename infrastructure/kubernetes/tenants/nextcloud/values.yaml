@@ -57,6 +57,13 @@ nextcloud:
         'overwriteprotocol' => 'https',
         'trusted_proxies' => array('10.42.0.0/16', '10.43.0.0/16'),
       );
+    disable_updates.config.php: |-
+      <?php
+      $CONFIG = array (
+        'updatechecker' => false,
+        'upgrade.disable-web' => true,
+        'knowledgebaseenabled' => false,
+      );
   # Object Storage (S3) configuration
   objectStore:
     s3:
