@@ -197,7 +197,7 @@ spec:
             - "-c"
             - |
               apk add --no-cache curl jq
-              curl --proto '=https' --tlsv1.2 -LsSf https://github.com/stalwartlabs/cli/releases/latest/download/stalwart-cli-installer.sh | sh
+              curl --proto '=https' --tlsv1.2 -LsSf https://github.com/stalwartlabs/cli/releases/download/v1.0.10/stalwart-cli-installer.sh | sh
               cp /root/.cargo/bin/stalwart-cli /usr/local/bin/stalwart-cli
               pip install pg8000
               python -u /app/main.py

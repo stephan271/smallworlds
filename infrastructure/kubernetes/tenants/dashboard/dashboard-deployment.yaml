@@ -18,7 +18,7 @@ spec:
       serviceAccountName: homepage-sa
       containers:
       - name: homepage
-        image: ghcr.io/gethomepage/homepage:latest
+        image: ghcr.io/gethomepage/homepage:v0.9.1@sha256:840da91bbec48e009524c0e66616c5dbbfce4497d3c387687c668a956975d6dd
         ports:
         - containerPort: 3000
         env:

@@ -9,7 +9,7 @@ spec:
       serviceAccountName: keycloak-setup-sa
       containers:
         - name: setup
-          image: bitnami/kubectl:latest
+          image: bitnami/kubectl:1.30.2
           command:
             - /bin/bash
             - -c
