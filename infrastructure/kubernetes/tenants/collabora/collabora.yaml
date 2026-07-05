@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: collabora
+  namespace: nextcloud
+  labels:
+    app.kubernetes.io/name: collabora
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: collabora
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: collabora
+    spec:
+      containers:
+        - name: collabora
+          image: collabora/code:24.04.9.1.1
+          ports:
+            - containerPort: 9980
+          env:
+            - name: domain
+              value: "files\\.smallworlds\\.network"
+            - name: server_name
+              value: "office.smallworlds.network"
+            - name: extra_params
+              value: "--o:ssl.enable=false --o:ssl.termination=true"
+            - name: dictionaries
+              value: "en_US"
+          securityContext:
+            capabilities:
+              add: ["MKNOD"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: collabora
+  namespace: nextcloud
+spec:
+  selector:
+    app.kubernetes.io/name: collabora
+  ports:
+    - protocol: TCP
+      port: 9980
+      targetPort: 9980
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: collabora
+  namespace: nextcloud
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Nextcloud Office"
+    gethomepage.dev/description: "Collabora Online Document Server"
+    gethomepage.dev/group: "Applications"
+    gethomepage.dev/icon: "collabora.png"
+spec:
+  rules:
+    - host: office.smallworlds.network
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: collabora
+                port:
+                  number: 9980
+  tls:
+    - hosts:
+        - office.smallworlds.network
+      secretName: collabora-tls

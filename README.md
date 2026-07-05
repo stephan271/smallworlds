@@ -30,6 +30,7 @@ This project is built upon several foundational open-source technologies, core i
 
 | Name | Source URL | Role in this Project |
 | :--- | :--- | :--- |
+| **Collabora Online** | [collaboraonline.com](https://collaboraonline.com/) | Powerful online office suite for collaborative document editing. Integrated into Nextcloud. |
 | **Excalidraw** | [excalidraw.com](https://excalidraw.com/) | Virtual collaborative whiteboard tool. |
 | **Forgejo** | [forgejo.org](https://forgejo.org/) | Git repository management and software collaboration. |
 | **Immich** | [immich.app](https://immich.app/) | High performance photo and video backup. |

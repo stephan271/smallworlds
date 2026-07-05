@@ -17,3 +17,9 @@ Nextcloud doesn't provide a fully declarative way to configure OIDC through envi
 
 ### 3. Proxy Configuration (`values.yaml`)
 - **Trusted Proxies**: In the `configs` section, a custom PHP configuration snippet adds `10.42.0.0/16` and `10.43.0.0/16` (the Kubernetes internal pod/service subnets) to the `trusted_proxies` list. Without this, Nextcloud would reject logins and fail to generate correct redirect URLs behind the Traefik ingress controller.
+
+### 4. Collabora Online Integration (`collabora.yaml`)
+Nextcloud is integrated with a standalone Collabora Online Development Edition (CODE) server to provide collaborative document editing capabilities.
+- **Standalone Microservice**: Instead of using the resource-heavy built-in CODE server, Collabora is deployed as its own independent Kubernetes Deployment (`collabora.yaml`). This separates document rendering workloads from file storage workloads.
+- **WOPI Protocol**: Nextcloud acts as a WOPI host. Users access documents via the Nextcloud frontend (`files.smallworlds.network`), which opens an iframe where the user's browser connects directly to the Collabora server (`office.smallworlds.network`) via WebSockets to stream the editing session.
+- **Configuration**: The `oidc-config-job.yaml` automates the installation of the `richdocuments` app and sets the `wopi_url` so the integration is seamless out of the box.

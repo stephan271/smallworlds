@@ -94,5 +94,9 @@ spec:
               kubectl exec -n nextcloud $POD_NAME -- su -s /bin/sh www-data -c "php occ app:disable updatenotification" || true
               kubectl exec -n nextcloud $POD_NAME -- su -s /bin/sh www-data -c "php occ app:disable nextcloud_announcements" || true
 
+              echo "Installing Nextcloud Office (richdocuments) and configuring Collabora server..."
+              kubectl exec -n nextcloud $POD_NAME -- su -s /bin/sh www-data -c "php occ app:install richdocuments" || true
+              kubectl exec -n nextcloud $POD_NAME -- su -s /bin/sh www-data -c "php occ config:app:set richdocuments wopi_url --value='https://office.smallworlds.network'" || true
+
               echo "Configuration complete."
       restartPolicy: OnFailure

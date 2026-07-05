@@ -42,7 +42,7 @@ This task list breaks down the SmallWorlds implementation into actionable, itera
 
 - [ ] **3.1 Collaboration Tools**
   - [ ] Deploy Nextcloud (Files, Calendar, Contacts) connected to Keycloak SSO and S3 storage.
-  - [ ] Deploy Collabora Online for document editing.
+  - [x] Deploy Collabora Online for document editing.
 - [ ] **3.2 Communications**
   - [ ] Deploy Mailcow (or an equivalent K8s native mail architecture).
   - [ ] Deploy Matrix (Synapse/Dendrite) for secure, federated messaging (WhatsApp alternative).

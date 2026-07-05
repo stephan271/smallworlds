@@ -85,4 +85,27 @@ test.describe('Nextcloud', () => {
       .or(page.getByText(/alice/i));
     await expect(userLabel.first()).toBeVisible({ timeout: 10_000 });
   });
+
+  test('Collabora (richdocuments) is integrated', async ({ page }) => {
+    await page.goto(`${NEXTCLOUD_URL}/apps/files/`);
+
+    // Wait for files view to load
+    await page.waitForURL(url => url.toString().includes('/apps/files'), {
+      timeout: 60_000,
+    });
+
+    // Look for the "New" button (plus icon)
+    const newBtn = page.getByRole('button', { name: /new/i })
+      .or(page.locator('.button.new, .new-button, .button-vue.new, #new-document-menu'));
+    await expect(newBtn.first()).toBeVisible({ timeout: 15_000 });
+    
+    // Click the New button
+    await newBtn.first().click({ force: true });
+    
+    // Wait for the dropdown menu and look for Document / Spreadsheet
+    const newDocMenu = page.getByText(/New document|New spreadsheet|New presentation/i)
+      .or(page.locator('.menuitem').filter({ hasText: /document|spreadsheet/i }))
+      .or(page.locator('.new-document-item, a[data-templatename="New document"]'));
+    await expect(newDocMenu.first()).toBeVisible({ timeout: 10_000 });
+  });
 });
