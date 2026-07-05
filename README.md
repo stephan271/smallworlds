@@ -121,3 +121,18 @@ terraform apply
 ### Upstream Updates
 By default, the `kustomization.yaml` targets `ref=HEAD`, pulling continuous updates from the foundation repository. 
 To control update timing, pin the reference to a specific version tag (e.g., `ref=v1.2.0`). For automated dependency management, integrate RenovateBot or Dependabot into your configuration repository.
+
+---
+
+## Developer Guide: Adding a New Application
+
+When adding a new application (tenant) to the SmallWorlds cluster, please ensure you complete all the items on this integration checklist:
+
+- **Pin Specific Versions**: Always use a specific, stable container image tag (e.g., `v2.4.1` or `24.04`) rather than `latest` in your Kubernetes manifests to ensure reproducible deployments.
+- **Add E2E Tests**: Write end-to-end smoke tests (using Playwright) in the `e2e-tests/tests` directory to verify the application's core functionality and SSO integration.
+- **Integrate with Dashboard**: Add Homepage annotations (e.g., `gethomepage.dev/enabled: "true"`) to the application's Ingress resource so it automatically appears in the user dashboard.
+- **Make it Selectable**: Add the application's identifier to the `OPTIONAL_APPS` array in the `admin-tools/prepare-community-repo.sh` script so users can easily toggle its installation.
+- **Update the README Table**: Add the application to the "End User Applications" table in this README file, including a description and its source URL.
+- **Document the Implementation**: Add a descriptive markdown file (or update an existing one) in the `doc/` directory detailing the application's YAML manifests, configurations, and architecture.
+- **Configure DNS Records**: Add the application's generic subdomain (e.g., `whiteboard`, `meet`, `office`) to the DNS records array in `infrastructure/terraform/main.tf` so Terraform provisions the A-record.
+- **Provision Web Certificates**: Ensure the Ingress resource specifies the correct `cert-manager.io/cluster-issuer: letsencrypt-prod` annotation and the `tls` hosts block to automate Let's Encrypt SSL certificate generation.
