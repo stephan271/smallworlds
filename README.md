@@ -9,21 +9,33 @@ This document outlines the deployment process for a SmallWorlds GitOps cluster. 
 
 This project is built upon several foundational open-source technologies, core infrastructure services (installed by default), and optional user applications (selectively installed during initialization):
 
+### Infrastructure and Cluster Management
+
 | Name | Source URL | Role in this Project |
 | :--- | :--- | :--- |
+| **Terraform** | [terraform.io](https://www.terraform.io/) | Infrastructure as Code tool used to provision the underlying cloud resources and bootstrap the cluster. |
 | **Kubernetes** | [kubernetes.io](https://kubernetes.io/) | Core container orchestration system that serves as the foundation for the cluster. |
 | **Argo CD** | [argoproj.github.io/cd](https://argoproj.github.io/cd/) | GitOps continuous delivery tool that synchronizes cluster state with the configuration repository. |
-| **CloudNativePG** | [cloudnative-pg.io](https://cloudnative-pg.io/) | **Infrastructure:** High-availability PostgreSQL database clustering. |
-| **Garage** | [garagehq.deuxfleurs.fr](https://garagehq.deuxfleurs.fr/) | **Infrastructure:** S3-compatible object storage backend. |
-| **Homepage** | [gethomepage.dev](https://gethomepage.dev/) | **Infrastructure:** Application dashboard automatically configured and accessible at `dashboard.<domain>`. |
-| **Keycloak** | [keycloak.org](https://www.keycloak.org/) | **Infrastructure:** Identity Provider (IdP) for Single Sign-On (SSO) and WebAuthn/Passkey management. |
-| **Stalwart** | [stalw.art](https://stalw.art/) | **Infrastructure:** Self-hosted mail server with OIDC directory integration. |
-| **Traefik** | [traefik.io](https://traefik.io/) | **Infrastructure:** Ingress routing and reverse proxy for handling incoming requests. |
-| **Cert-Manager** | [cert-manager.io](https://cert-manager.io/) | **Infrastructure:** Automated TLS certificate provisioning and management. |
-| **Forgejo** | [forgejo.org](https://forgejo.org/) | **Application:** Git repository management and software collaboration. |
-| **Immich** | [immich.app](https://immich.app/) | **Application:** High performance photo and video backup. |
-| **Nextcloud** | [nextcloud.com](https://nextcloud.com/) | **Application:** File synchronization and collaboration. |
-| **Roundcube** | [roundcube.net](https://roundcube.net/) | **Application:** IMAP webmail client connected to Stalwart. |
+| **Velero** | [velero.io](https://velero.io/) | Cluster backup and disaster recovery solution. |
+| **Grafana** | [grafana.com](https://grafana.com/) | Operational dashboard for cluster monitoring and observability. |
+| **CloudNativePG** | [cloudnative-pg.io](https://cloudnative-pg.io/) | High-availability PostgreSQL database clustering. |
+| **Garage** | [garagehq.deuxfleurs.fr](https://garagehq.deuxfleurs.fr/) | S3-compatible object storage backend. |
+| **Homepage** | [gethomepage.dev](https://gethomepage.dev/) | Application dashboard automatically configured and accessible at `dashboard.<domain>`. |
+| **Keycloak** | [keycloak.org](https://www.keycloak.org/) | Identity Provider (IdP) for Single Sign-On (SSO) and WebAuthn/Passkey management. |
+| **Stalwart** | [stalw.art](https://stalw.art/) | Self-hosted mail server with OIDC directory integration. |
+| **Traefik** | [traefik.io](https://traefik.io/) | Ingress routing and reverse proxy for handling incoming requests. |
+| **Cert-Manager** | [cert-manager.io](https://cert-manager.io/) | Automated TLS certificate provisioning and management. |
+
+### End User Applications
+
+| Name | Source URL | Role in this Project |
+| :--- | :--- | :--- |
+| **Excalidraw** | [excalidraw.com](https://excalidraw.com/) | Virtual collaborative whiteboard tool. |
+| **Forgejo** | [forgejo.org](https://forgejo.org/) | Git repository management and software collaboration. |
+| **Immich** | [immich.app](https://immich.app/) | High performance photo and video backup. |
+| **Jitsi Meet** | [jitsi.org](https://jitsi.org/) | Secure video conferencing and communication platform. |
+| **Nextcloud** | [nextcloud.com](https://nextcloud.com/) | File synchronization and collaboration. |
+| **Roundcube** | [roundcube.net](https://roundcube.net/) | IMAP webmail client connected to Stalwart. |
 
 ---
 
