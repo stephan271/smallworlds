@@ -16,7 +16,7 @@ helmCharts:
           volumeMounts:
             - mountPath: /target
               name: plugins
-      upgradeCRDs: false
+      upgradeCRDs: true
       configuration:
         backupStorageLocation:
           - name: default
