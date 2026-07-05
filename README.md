@@ -7,21 +7,23 @@ This document outlines the deployment process for a SmallWorlds GitOps cluster. 
 
 ## System Components
 
-### Infrastructure (Automatically Provisioned)
-These core backend services are installed by default to support the cluster operations:
-- **CloudNativePG**: High-availability PostgreSQL database clustering.
-- **Garage**: S3-compatible object storage backend.
-- **Homepage**: Application dashboard automatically configured and accessible at `dashboard.<domain>`.
-- **Keycloak**: Identity Provider (IdP) for Single Sign-On (SSO) and WebAuthn/Passkey management.
-- **Stalwart**: Self-hosted mail server with OIDC directory integration.
-- **Traefik & Cert-Manager**: Ingress routing and automated TLS certificate provisioning.
+This project is built upon several foundational open-source technologies, core infrastructure services (installed by default), and optional user applications (selectively installed during initialization):
 
-### User Applications
-The following applications can be selectively installed during the community repository initialization:
-- **Forgejo**: Git repository management and software collaboration.
-- **Immich**: High performance photo and video backup.
-- **Nextcloud**: File synchronization and collaboration.
-- **Roundcube**: IMAP webmail client connected to Stalwart.
+| Name | Source URL | Role in this Project |
+| :--- | :--- | :--- |
+| **Kubernetes** | [kubernetes.io](https://kubernetes.io/) | Core container orchestration system that serves as the foundation for the cluster. |
+| **Argo CD** | [argoproj.github.io/cd](https://argoproj.github.io/cd/) | GitOps continuous delivery tool that synchronizes cluster state with the configuration repository. |
+| **CloudNativePG** | [cloudnative-pg.io](https://cloudnative-pg.io/) | **Infrastructure:** High-availability PostgreSQL database clustering. |
+| **Garage** | [garagehq.deuxfleurs.fr](https://garagehq.deuxfleurs.fr/) | **Infrastructure:** S3-compatible object storage backend. |
+| **Homepage** | [gethomepage.dev](https://gethomepage.dev/) | **Infrastructure:** Application dashboard automatically configured and accessible at `dashboard.<domain>`. |
+| **Keycloak** | [keycloak.org](https://www.keycloak.org/) | **Infrastructure:** Identity Provider (IdP) for Single Sign-On (SSO) and WebAuthn/Passkey management. |
+| **Stalwart** | [stalw.art](https://stalw.art/) | **Infrastructure:** Self-hosted mail server with OIDC directory integration. |
+| **Traefik** | [traefik.io](https://traefik.io/) | **Infrastructure:** Ingress routing and reverse proxy for handling incoming requests. |
+| **Cert-Manager** | [cert-manager.io](https://cert-manager.io/) | **Infrastructure:** Automated TLS certificate provisioning and management. |
+| **Forgejo** | [forgejo.org](https://forgejo.org/) | **Application:** Git repository management and software collaboration. |
+| **Immich** | [immich.app](https://immich.app/) | **Application:** High performance photo and video backup. |
+| **Nextcloud** | [nextcloud.com](https://nextcloud.com/) | **Application:** File synchronization and collaboration. |
+| **Roundcube** | [roundcube.net](https://roundcube.net/) | **Application:** IMAP webmail client connected to Stalwart. |
 
 ---
 
