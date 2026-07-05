@@ -15,23 +15,28 @@ spec:
       labels:
         app.kubernetes.io/name: collabora
     spec:
+      securityContext:
+        seccompProfile:
+          type: Unconfined
+        appArmorProfile:
+          type: Unconfined
       containers:
         - name: collabora
           image: collabora/code:24.04.9.1.1
           ports:
             - containerPort: 9980
           env:
-            - name: domain
-              value: "files\\.smallworlds\\.network"
+            - name: aliasgroup1
+              value: "https://files.smallworlds.network:443"
             - name: server_name
               value: "office.smallworlds.network"
             - name: extra_params
-              value: "--o:ssl.enable=false --o:ssl.termination=true"
+              value: "--disable-cool-user-checking --o:ssl.enable=false --o:ssl.termination=true"
             - name: dictionaries
               value: "en_US"
           securityContext:
             capabilities:
-              add: ["MKNOD"]
+              add: ["MKNOD", "SYS_ADMIN", "SYS_CHROOT", "FOWNER", "CHOWN"]
 ---
 apiVersion: v1
 kind: Service

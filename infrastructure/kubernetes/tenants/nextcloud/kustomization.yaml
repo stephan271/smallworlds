@@ -22,7 +22,7 @@ patches:
         path: /spec/template/spec/containers/0/env
         value:
           - name: REDIRECT_URIS
-            value: '["https://files.smallworlds.network/apps/user_oidc/code"]'
+            value: '["https://files.smallworlds.network/apps/user_oidc/code", "https://files.smallworlds.network/*"]'
 
 helmCharts:
   - name: nextcloud

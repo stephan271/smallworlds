@@ -53,7 +53,7 @@ spec:
               
               if [[ "$EXISTS" == "[]" || "$EXISTS" == "[ ]" || -z "$EXISTS" ]]; then
                 echo "Creating $TENANT_NAMESPACE client with redirect URIs: $REDIRECT_URIS"
-                kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh create clients -r smallworlds -s clientId=$TENANT_NAMESPACE -s enabled=true -s publicClient=false -s standardFlowEnabled=true -s "redirectUris=$REDIRECT_URIS" -s 'webOrigins=["+"]'
+                kubectl exec -n keycloak -i $POD -- /opt/keycloak/bin/kcadm.sh create clients -r smallworlds -s clientId=$TENANT_NAMESPACE -s enabled=true -s publicClient=false -s standardFlowEnabled=true -s "redirectUris=$REDIRECT_URIS" -s 'webOrigins=["+"]' -s 'postLogoutRedirectUris=["+"]'
               else
                 echo "Client already exists."
               fi
