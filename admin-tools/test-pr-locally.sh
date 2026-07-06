@@ -99,6 +99,10 @@ echo -e "${CYAN}Overriding targetRevision to $TARGET_BRANCH locally...${NC}"
 find infrastructure/kubernetes/apps -name '*.yaml' -type f -exec sed -i "s@targetRevision: HEAD@targetRevision: $TARGET_BRANCH@g" {} +
 find infrastructure/kubernetes/apps -name '*.yaml' -type f -exec sed -i "s@targetRevision: main@targetRevision: $TARGET_BRANCH@g" {} +
 
+# Fix node affinity for local storage in the staging cluster
+echo -e "${CYAN}Overriding nodeAffinity for staging node...${NC}"
+sed -i "s/cc-pilot-node-01/cc-staging-node-01/g" infrastructure/kubernetes/apps/persistent-storage.yaml
+
 # Generate ephemeral SSH key
 TEMP_SSH_KEY=$(mktemp)
 ssh-keygen -t ed25519 -f "$TEMP_SSH_KEY" -N "" -q

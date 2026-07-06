@@ -8,3 +8,23 @@ helmCharts:
     releaseName: jitsi
     version: 2.20.0
     valuesFile: values.yaml
+
+bases:
+  - ../../bases/keycloak-client-job
+
+patches:
+  - target:
+      kind: Job
+      name: keycloak-client-init
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env
+        value:
+          - name: REDIRECT_URIS
+            value: '["https://meet.smallworlds.network/*"]'
+
+secretGenerator:
+  - name: jitsi-jwt
+    literals:
+      - JWT_APP_SECRET=a8b3c9d2e4f1g5h6i7j8k9l0m1n2o3p4
+

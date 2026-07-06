@@ -1,5 +1,8 @@
 publicURL: "https://meet.smallworlds.network"
 
+enableAuth: true
+enableGuests: true
+
 web:
   ingress:
     enabled: true
@@ -20,6 +23,50 @@ web:
       gethomepage.dev/icon: "jitsi.png"
       gethomepage.dev/pod-selector: "app.kubernetes.io/component=web"
 
+  extraContainers:
+    - name: jitsi-oidc-adapter
+      image: ghcr.io/jitsi-contrib/jitsi-oidc-adapter:latest
+      imagePullPolicy: IfNotPresent
+      ports:
+        - name: http
+          containerPort: 9000
+      env:
+        - name: APP_ID
+          value: jitsi
+        - name: APP_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: jitsi-jwt
+              key: JWT_APP_SECRET
+        - name: OIDC_ISSUER
+          value: "https://identity.smallworlds.network/realms/smallworlds"
+        - name: OIDC_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: keycloak-secret
+              key: clientId
+        - name: OIDC_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: keycloak-secret
+              key: client-secret
+        - name: URL_BASE
+          value: "https://meet.smallworlds.network"
+
+  extraFiles:
+    - path: /config/nginx-custom/oidc.conf
+      content: |
+        location ~ ^/oidc/ {
+            proxy_pass http://127.0.0.1:9000;
+            proxy_http_version 1.1;
+            proxy_set_header X-Forwarded-For $remote_addr;
+            proxy_set_header Host $http_host;
+        }
+
 jvb:
   service:
     type: LoadBalancer
+
+prosody:
+  jwt:
+    existingSecretName: jitsi-jwt
