@@ -171,6 +171,90 @@ echo -e "${GREEN}K3s is ready!${NC}"
 # 5. Deploy Apps
 cd "$REPO_ROOT"
 echo -e "\n${CYAN}[3/3] Deploying Applications via ArgoCD...${NC}"
+
+# Inject required initial secrets for the staging environment (similar to smallworlds-init.sh)
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: garage-system
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: garage-auth-secret
+  namespace: garage-system
+stringData:
+  rpcSecret: "staging-rpc-secret"
+  adminToken: "staging-admin-token"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: keycloak
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keycloak-admin-creds
+  namespace: keycloak
+stringData:
+  admin-password: "e2e-dummy-pass"
+  bulk-invite-secret: "staging-invite-secret"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: stalwart
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: stalwart-dns-secrets
+  namespace: stalwart
+stringData:
+  HCLOUD_TOKEN: "dummy"
+  DOMAIN: "smallworlds.network"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: grafana-admin-creds
+  namespace: monitoring
+stringData:
+  admin-user: "admin"
+  admin-password: "e2e-dummy-pass"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: repo-git-creds
+  namespace: argocd
+stringData:
+  url: "https://github.com/stephan271/smallworlds.git"
+  username: "dummy"
+  password: "dummy"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: smallworlds-global-config
+  namespace: default
+data:
+  ADMIN_EMAIL: "admin@smallworlds.network"
+  DOMAIN: "smallworlds.network"
+EOF
+
 kubectl apply -k infrastructure/kubernetes
 
 echo -e "${YELLOW}Waiting for ArgoCD to sync and deploy pods (this may take up to 15 minutes)...${NC}"
