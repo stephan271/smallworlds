@@ -5,6 +5,7 @@
     ":prHourlyLimitNone"
   ],
   "prConcurrentLimit": 1,
+  "timezone": "Europe/Berlin",
   "argocd": {
     "fileMatch": ["infrastructure/kubernetes/apps/.*\\.yaml$"]
   },
@@ -18,7 +19,8 @@
     {
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "Weekly Updates",
-      "schedule": ["before 4am on monday"],
+      "schedule": ["before 12pm on monday"],
+      "prConcurrentLimit": 0,
       "automerge": true
     },
     {
