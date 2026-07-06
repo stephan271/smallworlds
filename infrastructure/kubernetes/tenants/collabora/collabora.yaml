@@ -27,7 +27,7 @@ spec:
             - containerPort: 9980
           env:
             - name: aliasgroup1
-              value: "https://files.smallworlds.network:443"
+              value: "https://files.smallworlds.network,https://files.smallworlds.network:443"
             - name: server_name
               value: "office.smallworlds.network"
             - name: extra_params
