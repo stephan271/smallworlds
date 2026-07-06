@@ -19,7 +19,7 @@
     {
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "Weekly Updates",
-      "schedule": ["before 12pm on monday"],
+      "schedule": ["before 4am on monday"],
       "prConcurrentLimit": 0,
       "automerge": true
     },
