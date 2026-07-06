@@ -169,9 +169,23 @@ cd "$REPO_ROOT"
 echo -e "\n${CYAN}[3/3] Deploying Applications via ArgoCD...${NC}"
 kubectl apply -k infrastructure/kubernetes
 
-echo -e "${YELLOW}Waiting for pods to be Ready (this may take up to 10 minutes)...${NC}"
+echo -e "${YELLOW}Waiting for ArgoCD to sync and deploy pods (this may take up to 15 minutes)...${NC}"
 sleep 30
-kubectl wait --for=condition=Ready pod --all --all-namespaces --timeout=600s || true
+
+# Find all destination namespaces for our ArgoCD applications and wait for their pods
+for ns in $(kubectl get application -A -o jsonpath='{range .items[*]}{.spec.destination.namespace}{"\n"}{end}' | sort -u); do
+    if [ -n "$ns" ]; then
+        echo -e "${CYAN}Waiting for pods to appear in namespace: $ns...${NC}"
+        # Wait up to 120 seconds for ArgoCD to create at least one pod
+        for i in {1..24}; do
+            if kubectl get pods -n "$ns" 2>/dev/null | grep -q "^[a-z]"; then
+                break
+            fi
+            sleep 5
+        done
+        kubectl wait --for=condition=Ready pod --all -n "$ns" --timeout=600s || true
+    fi
+done
 
 # 6. Setup Local DNS
 echo -e "\n${CYAN}Setting up local DNS routing... (May prompt for sudo)${NC}"
