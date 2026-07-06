@@ -31,12 +31,15 @@ spec:
             - name: server_name
               value: "office.smallworlds.network"
             - name: extra_params
-              value: "--disable-cool-user-checking --o:ssl.enable=false --o:ssl.termination=true"
+              value: "--disable-cool-user-checking --o:ssl.enable=false --o:ssl.termination=true --o:security.capabilities=false"
             - name: dictionaries
               value: "en_US"
           securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
             capabilities:
-              add: ["MKNOD", "SYS_ADMIN", "SYS_CHROOT", "FOWNER", "CHOWN"]
+              drop:
+                - ALL
 ---
 apiVersion: v1
 kind: Service
