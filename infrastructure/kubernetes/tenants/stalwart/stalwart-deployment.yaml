@@ -51,7 +51,7 @@ spec:
     spec:
       containers:
         - name: stalwart
-          image: stalwartlabs/stalwart:v0.16.11@sha256:d928787a9089575245c7f1c8811e49ac301b0c2a6d86fdd3e84835b45794f7ef
+          image: stalwartlabs/stalwart:v0.16.12@sha256:b7ee9deb6344b1365b00b38bf6aaa18c2922f2c3321f8cfecc57fdb07dd5f464
           ports:
             - containerPort: 25
               name: smtp
