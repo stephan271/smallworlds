@@ -170,9 +170,8 @@ echo -e "\n${CYAN}[3/3] Deploying Applications via ArgoCD...${NC}"
 kubectl apply -k infrastructure/kubernetes
 
 echo -e "${YELLOW}Waiting for pods to be Ready (this may take up to 10 minutes)...${NC}"
-sleep 15
-kubectl wait --for=condition=Ready pod --all -n default --timeout=600s || true
-kubectl wait --for=condition=Ready pod --all -n keycloak --timeout=600s || true
+sleep 30
+kubectl wait --for=condition=Ready pod --all --all-namespaces --timeout=600s || true
 
 # 6. Setup Local DNS
 echo -e "\n${CYAN}Setting up local DNS routing... (May prompt for sudo)${NC}"
