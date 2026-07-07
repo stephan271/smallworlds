@@ -23,6 +23,15 @@ if [ -z "$HCLOUD_TOKEN" ]; then
 fi
 export TF_VAR_hcloud_token="$HCLOUD_TOKEN"
 
+# Boot from the golden image (preloaded k3s + container images) if one exists
+GOLDEN_COUNT=$(curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" \
+    "https://api.hetzner.cloud/v1/images?type=snapshot&label_selector=smallworlds-golden%3Dtrue" \
+    | grep -c '"id"' || true)
+if [ "$GOLDEN_COUNT" -gt 0 ]; then
+    echo -e "${GREEN}Golden image found — fast staging boot enabled.${NC}"
+    export TF_VAR_use_golden_image=true
+fi
+
 echo -e "${CYAN}╔══════════════════════════════════════════════════════╗${NC}"
 echo -e "${CYAN}║     SmallWorlds Local Ephemeral Staging Runner       ║${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════════════════════╝${NC}"

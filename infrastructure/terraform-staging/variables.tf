@@ -46,3 +46,9 @@ variable "ssh_public_key_path" {
   description = "Path to the public SSH key to inject into the staging VM"
   type        = string
 }
+
+variable "use_golden_image" {
+  description = "Boot from the most recent snapshot labeled smallworlds-golden=true instead of plain ubuntu-24.04"
+  type        = bool
+  default     = false
+}

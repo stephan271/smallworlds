@@ -118,6 +118,17 @@ sed -i -E "s/value: \"(invitation|self-registration)\"/value: \"$ONBOARDING_MODE
 # Export Hetzner Token as environment variable so Terraform can find it
 export HCLOUD_TOKEN=$HCLOUD_TOKEN
 
+# Boot from the golden image (preloaded k3s + container images) if one exists
+GOLDEN_COUNT=$(curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" \
+    "https://api.hetzner.cloud/v1/images?type=snapshot&label_selector=smallworlds-golden%3Dtrue" \
+    | grep -c '"id"' || true)
+if [ "$GOLDEN_COUNT" -gt 0 ]; then
+    echo -e "${GREEN}Golden image found — fast boot enabled (skips updates, k3s download and image pulls).${NC}"
+    export TF_VAR_use_golden_image=true
+else
+    echo -e "${YELLOW}No golden image found — booting plain Ubuntu (build one with admin-tools/build-golden-image.sh).${NC}"
+fi
+
 # Set Terraform Git variables
 TF_GIT_USER="${GITOPS_REPO_USER}"
 TF_GIT_TOKEN="${GITOPS_REPO_TOKEN}"

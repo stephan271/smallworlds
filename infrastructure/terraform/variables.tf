@@ -64,3 +64,9 @@ variable "location" {
   type        = string
   default     = "nbg1"
 }
+
+variable "use_golden_image" {
+  description = "Boot from the most recent snapshot labeled smallworlds-golden=true (built by admin-tools/build-golden-image.sh) instead of plain ubuntu-24.04. Skips apt upgrades, the k3s download and ~7GB of image pulls."
+  type        = bool
+  default     = false
+}

@@ -48,10 +48,18 @@ resource "hcloud_firewall" "k8s_firewall_staging" {
   }
 }
 
+# Most recent golden image built by admin-tools/build-golden-image.sh
+data "hcloud_image" "golden" {
+  count             = var.use_golden_image ? 1 : 0
+  with_selector     = "smallworlds-golden=true"
+  with_architecture = "x86"
+  most_recent       = true
+}
+
 # Provision the staging VM
 resource "hcloud_server" "smallworlds_staging_node" {
   name        = "cc-staging-node-01"
-  image       = "ubuntu-24.04"
+  image       = var.use_golden_image ? tostring(data.hcloud_image.golden[0].id) : "ubuntu-24.04"
   # 16 GB minimum: 8GB nodes saturate when the full app suite deploys — probe
   # timeouts cascade into CNPG failovers and OOM crashloops
   server_type = "cx43"
@@ -70,6 +78,7 @@ resource "hcloud_server" "smallworlds_staging_node" {
     github_pr_branch = var.github_pr_branch
     admin_email      = var.admin_email
     server_ip        = "0.0.0.0" # Passed down, but dynamic IP is used via local scripts instead
+    golden_image     = var.use_golden_image
   })
 }
 

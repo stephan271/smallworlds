@@ -170,10 +170,18 @@ resource "hcloud_rdns" "main_ip_ptr" {
   dns_ptr       = "mail.${var.domain_name}"
 }
 
+# Most recent golden image built by admin-tools/build-golden-image.sh
+data "hcloud_image" "golden" {
+  count             = var.use_golden_image ? 1 : 0
+  with_selector     = "smallworlds-golden=true"
+  with_architecture = "x86"
+  most_recent       = true
+}
+
 # Provision the actual VM
 resource "hcloud_server" "smallworlds_pilot_node" {
   name        = "cc-pilot-node-01"
-  image       = "ubuntu-24.04"
+  image       = var.use_golden_image ? tostring(data.hcloud_image.golden[0].id) : "ubuntu-24.04"
   server_type = "cx43" # 8 shared vCPU (AMD), 16 GB RAM. Recommended x86 architecture for K3s and ML.
   location    = var.location
 
@@ -190,6 +198,7 @@ resource "hcloud_server" "smallworlds_pilot_node" {
 
     server_ip                = data.hcloud_primary_ip.main_ip.ip_address
     hcloud_token        = var.hcloud_token
+    golden_image        = var.use_golden_image
   })
 
   public_net {
