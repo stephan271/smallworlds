@@ -34,6 +34,10 @@ runcmd:
   # Create local directories (no persistent volume for staging)
   - mkdir -p /mnt/smallworlds-data/garage /mnt/smallworlds-data/immich-library /mnt/smallworlds-data/k3s
   
+  # Purge any cluster state a snapshot image may carry (datastore, TLS, node
+  # identity) — a fresh node must never inherit the image builder's cluster
+  - rm -rf /var/lib/rancher/k3s/server /etc/rancher/k3s /etc/rancher/node
+
   - mkdir -p /var/lib/rancher
   - ln -sfn /mnt/smallworlds-data/k3s /var/lib/rancher/k3s
 
@@ -41,6 +45,29 @@ runcmd:
   - DYNAMIC_IP=$(hostname -I | awk '{print $1}')
   - sysctl --system
   - echo "ipv4" > ~/.curlrc
+
+  # In-cluster DNS override: without it pods resolve the app domains via
+  # public DNS — which points at the PRODUCTION server — and OIDC token
+  # exchanges silently talk to the wrong Keycloak. Must be generated at
+  # runtime because the staging IP is dynamic.
+  - |
+    mkdir -p /var/lib/rancher/k3s/server/manifests
+    cat > /var/lib/rancher/k3s/server/manifests/coredns-custom.yaml <<COREDNS
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: coredns-custom
+      namespace: kube-system
+    data:
+      smallworlds.server: |
+        ${domain_name}:53 {
+          hosts {
+            $DYNAMIC_IP identity.${domain_name} files.${domain_name} photos.${domain_name} git.${domain_name} mail.${domain_name} meet.${domain_name} webmail.${domain_name} whiteboard.${domain_name} office.${domain_name} dashboard.${domain_name} monitoring.${domain_name}
+            fallthrough
+          }
+          forward . /etc/resolv.conf
+        }
+    COREDNS
   # Explicit --node-name: at first boot from a snapshot the transient hostname
   # can still be the image builder's when k3s starts, registering a ghost node
 %{ if golden_image ~}

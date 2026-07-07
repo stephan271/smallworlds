@@ -282,7 +282,13 @@ sleep 30
 # Freshly created Applications briefly have NO health status at all, which a
 # plain !="Healthy" jsonpath filter treats as healthy — so require the full
 # expected app count AND a populated Healthy status on every one of them.
-EXPECTED_APPS=$(grep -c '^  - apps/' infrastructure/kubernetes/kustomization.yaml)
+# Count only manifests that define an ArgoCD Application — the kustomization
+# also lists plain manifests (cronjobs, configmaps, PVs) that never appear in
+# 'kubectl get application'
+EXPECTED_APPS=0
+while IFS= read -r f; do
+    grep -q 'kind: Application' "infrastructure/kubernetes/$f" && EXPECTED_APPS=$((EXPECTED_APPS + 1))
+done < <(grep -oE 'apps/[a-z0-9-]+\.yaml' infrastructure/kubernetes/kustomization.yaml)
 echo -e "${CYAN}Waiting for all $EXPECTED_APPS ArgoCD applications to reach Healthy state (this may take up to 30 minutes)...${NC}"
 for i in {1..180}; do
     TOTAL=$(kubectl get application -n argocd --no-headers 2>/dev/null | wc -l)
