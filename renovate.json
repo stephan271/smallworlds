@@ -7,13 +7,19 @@
   "prConcurrentLimit": 1,
   "timezone": "Europe/Berlin",
   "argocd": {
-    "fileMatch": ["infrastructure/kubernetes/apps/.*\\.yaml$"]
+    "managerFilePatterns": [
+      "/infrastructure/kubernetes/apps/.*\\.yaml$/"
+    ]
   },
   "terraform": {
-    "fileMatch": ["infrastructure/terraform/.*\\.tf$"]
+    "managerFilePatterns": [
+      "/infrastructure/terraform/.*\\.tf$/"
+    ]
   },
   "kubernetes": {
-    "fileMatch": ["infrastructure/kubernetes/.*\\.yaml$"]
+    "managerFilePatterns": [
+      "/infrastructure/kubernetes/.*\\.yaml$/"
+    ]
   },
   "packageRules": [
     {
