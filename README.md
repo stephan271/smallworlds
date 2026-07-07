@@ -136,3 +136,7 @@ When adding a new application (tenant) to the SmallWorlds cluster, please ensure
 - **Document the Implementation**: Add a descriptive markdown file (or update an existing one) in the `doc/` directory detailing the application's YAML manifests, configurations, and architecture.
 - **Configure DNS Records**: Add the application's generic subdomain (e.g., `whiteboard`, `meet`, `office`) to the DNS records array in `infrastructure/terraform/main.tf` so Terraform provisions the A-record.
 - **Provision Web Certificates**: Ensure the Ingress resource specifies the correct `cert-manager.io/cluster-issuer: letsencrypt-prod` annotation and the `tls` hosts block to automate Let's Encrypt SSL certificate generation.
+
+# Talks
+
+See https://raw.githack.com/stephan271/smallworlds/refs/heads/main/lightning_talk.html
