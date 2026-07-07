@@ -23,6 +23,9 @@ set -euo pipefail
 #   HEADED          - Set to "1" for headed browser mode
 #   SLOWMO          - Slow down operations (ms), e.g. "500"
 #   SKIP_PROVISION  - Set to "1" to skip user provisioning
+#   FULL_OIDC       - Set to "1" to run full OIDC login roundtrips (requires
+#                     certificates the APPS trust, i.e. production; staging
+#                     runs shallow OIDC wiring checks instead)
 #   KUBECONFIG      - Path to kubeconfig file
 # ============================================================================
 

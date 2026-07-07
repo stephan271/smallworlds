@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { FULL_OIDC, SKIP_REASON, expectOauthEnabled } from './oidc-mode';
 
 /**
  * Immich Photos — smoke test via OIDC SSO
@@ -9,7 +10,13 @@ import { test, expect } from '@playwright/test';
 const DOMAIN = process.env.DOMAIN!;
 const IMMICH_URL = `https://photos.${DOMAIN}`;
 
+test('Immich Photos: OIDC wiring is enabled in server config', async () => {
+  await expectOauthEnabled(IMMICH_URL);
+});
+
 test.describe('Immich Photos', () => {
+  test.skip(!FULL_OIDC, SKIP_REASON);
+
   test.beforeEach(async ({ page }) => {
     // Navigate to Immich
     await page.goto(IMMICH_URL);

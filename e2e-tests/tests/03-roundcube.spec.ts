@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { FULL_OIDC, SKIP_REASON, expectRedirectIntoKeycloak } from './oidc-mode';
 
 /**
  * Roundcube Webmail — smoke test via OIDC SSO
@@ -9,7 +10,13 @@ import { test, expect } from '@playwright/test';
 const DOMAIN = process.env.DOMAIN!;
 const ROUNDCUBE_URL = `https://webmail.${DOMAIN}`;
 
+test('Roundcube Webmail: OIDC wiring redirects into Keycloak', async ({ browser }) => {
+  await expectRedirectIntoKeycloak(browser, ROUNDCUBE_URL);
+});
+
 test.describe('Roundcube Webmail', () => {
+  test.skip(!FULL_OIDC, SKIP_REASON);
+
   test.beforeEach(async ({ page }) => {
     // Navigate to Roundcube
     await page.goto(ROUNDCUBE_URL);

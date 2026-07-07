@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { FULL_OIDC, SKIP_REASON, expectRedirectIntoKeycloak } from './oidc-mode';
 
 /**
  * Forgejo — smoke test via OIDC SSO
@@ -9,7 +10,13 @@ import { test, expect } from '@playwright/test';
 const DOMAIN = process.env.DOMAIN!;
 const FORGEJO_URL = `https://git.${DOMAIN}`;
 
+test('Forgejo: OIDC wiring redirects into Keycloak', async ({ browser }) => {
+  await expectRedirectIntoKeycloak(browser, `${FORGEJO_URL}/user/oauth2/smallworlds`);
+});
+
 test.describe('Forgejo', () => {
+  test.skip(!FULL_OIDC, SKIP_REASON);
+
   test.beforeEach(async ({ page }) => {
     // Navigate to Forgejo
     await page.goto(FORGEJO_URL);

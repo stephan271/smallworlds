@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { FULL_OIDC, SKIP_REASON, expectNextcloudOidcProvider } from './oidc-mode';
 
 /**
  * Nextcloud — smoke test via OIDC SSO
@@ -10,7 +11,13 @@ import { test, expect } from '@playwright/test';
 const DOMAIN = process.env.DOMAIN!;
 const NEXTCLOUD_URL = `https://files.${DOMAIN}`;
 
+test('Nextcloud: OIDC provider is registered on the login page', async ({ browser }) => {
+  await expectNextcloudOidcProvider(browser, NEXTCLOUD_URL);
+});
+
 test.describe('Nextcloud', () => {
+  test.skip(!FULL_OIDC, SKIP_REASON);
+
   test.beforeEach(async ({ page }) => {
     // Navigate to Nextcloud
     await page.goto(NEXTCLOUD_URL);
