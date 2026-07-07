@@ -2003,8 +2003,16 @@
         {
           "authenticator": "webauthn-authenticator-passwordless",
           "authenticatorFlow": false,
-          "requirement": "REQUIRED",
+          "requirement": "ALTERNATIVE",
           "priority": 10,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "auth-username-password-form",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 20,
           "autheticatorFlow": false,
           "userSetupAllowed": false
         }

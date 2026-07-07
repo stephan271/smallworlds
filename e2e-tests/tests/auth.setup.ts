@@ -36,6 +36,20 @@ async function keycloakLogin(
   // Navigate to Keycloak account console — this triggers the login flow
   await page.goto(`${KEYCLOAK_URL}/realms/smallworlds/account/`);
 
+  // The realm is passkey-first: the initial screen offers "Sign in with
+  // Passkey". Test users authenticate with passwords, so switch to the
+  // password form via Keycloak's "Try another way" link.
+  const tryAnotherWay = page.locator('#try-another-way, a:has-text("Try another way")');
+  if (await tryAnotherWay.isVisible({ timeout: 10_000 }).catch(() => false)) {
+    await tryAnotherWay.click();
+    // The authenticator selection screen lists the alternatives
+    await page
+      .locator('.select-auth-box-paragraph, .select-auth-box-headline')
+      .filter({ hasText: /password/i })
+      .first()
+      .click();
+  }
+
   // Wait for the login form to appear
   await page.waitForSelector('#username, input[name="username"]', { timeout: 30_000 });
 

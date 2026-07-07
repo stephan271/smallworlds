@@ -313,13 +313,17 @@ if command -v kubectl >/dev/null 2>&1; then
         done
 
         TOTAL=$(kubectl get application -n argocd --no-headers 2>/dev/null | wc -l)
-        NOT_READY=$(kubectl get application -n argocd -o jsonpath='{range .items[?(@.status.health.status!="Healthy")]}{.metadata.name}{" "}{end}' 2>/dev/null)
-        if [ "$TOTAL" -gt 1 ] && [ -z "$NOT_READY" ]; then
+        # Count apps with a POPULATED Healthy status — freshly created apps have
+        # none at all and must not count as healthy
+        HEALTHY=$(kubectl get application -n argocd -o jsonpath='{range .items[?(@.status.health.status=="Healthy")]}{.metadata.name}{"\n"}{end}' 2>/dev/null | grep -c . || true)
+        # The root app being Synced+Healthy guarantees all child apps exist
+        ROOT_STATE=$(kubectl get application smallworlds-root -n argocd -o jsonpath='{.status.sync.status}/{.status.health.status}' 2>/dev/null)
+        if [ "$TOTAL" -gt 1 ] && [ "$HEALTHY" -eq "$TOTAL" ] && [ "$ROOT_STATE" = "Synced/Healthy" ]; then
             echo -e "${GREEN}All $TOTAL applications are Healthy!${NC}"
             CONVERGED=true
             break
         fi
-        echo -e "  [$i/120] $TOTAL apps, waiting on: ${YELLOW}${NOT_READY:-root app to create children}${NC}"
+        echo -e "  [$i/120] $HEALTHY/$TOTAL apps healthy (root: ${ROOT_STATE:-pending})"
         sleep 20
     done
     if [ "$CONVERGED" = false ]; then

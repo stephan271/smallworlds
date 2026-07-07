@@ -278,18 +278,23 @@ kubectl apply -k infrastructure/kubernetes
 echo -e "${YELLOW}Waiting for ArgoCD to sync and deploy pods (this may take up to 15 minutes)...${NC}"
 sleep 30
 
-# Wait for all ArgoCD applications to become Healthy
-echo -e "${CYAN}Waiting for all ArgoCD applications to reach Healthy state (this may take up to 30 minutes)...${NC}"
+# Wait for all ArgoCD applications to become Healthy.
+# Freshly created Applications briefly have NO health status at all, which a
+# plain !="Healthy" jsonpath filter treats as healthy — so require the full
+# expected app count AND a populated Healthy status on every one of them.
+EXPECTED_APPS=$(grep -c '^  - apps/' infrastructure/kubernetes/kustomization.yaml)
+echo -e "${CYAN}Waiting for all $EXPECTED_APPS ArgoCD applications to reach Healthy state (this may take up to 30 minutes)...${NC}"
 for i in {1..180}; do
-    # Fetch apps that are not Healthy
-    UNHEALTHY=$(kubectl get application -n argocd -o jsonpath='{range .items[?(@.status.health.status!="Healthy")]}{.metadata.name}{" "}{end}' 2>/dev/null)
-    
-    if [ -z "$UNHEALTHY" ]; then
-        echo -e "${GREEN}All ArgoCD applications are Healthy and Synced!${NC}"
+    TOTAL=$(kubectl get application -n argocd --no-headers 2>/dev/null | wc -l)
+    UNHEALTHY=$(kubectl get application -n argocd -o json 2>/dev/null \
+        | jq -r '[.items[] | select((.status.health.status // "Pending") != "Healthy") | .metadata.name] | join(" ")')
+
+    if [ "$TOTAL" -ge "$EXPECTED_APPS" ] && [ -z "$UNHEALTHY" ]; then
+        echo -e "${GREEN}All $TOTAL ArgoCD applications are Healthy!${NC}"
         break
     fi
-    
-    echo -e "Still waiting for apps to become Healthy: ${YELLOW}${UNHEALTHY}${NC}"
+
+    echo -e "[$i/180] $TOTAL/$EXPECTED_APPS apps, waiting for: ${YELLOW}${UNHEALTHY:-app creation}${NC}"
     sleep 10
 done
 
