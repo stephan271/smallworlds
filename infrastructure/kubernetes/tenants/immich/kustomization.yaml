@@ -45,8 +45,10 @@ patches:
           kind: ClusterImageCatalog
           name: immich-catalog
           major: 16
+      # postInitApplicationSQL, not postInitSQL: the extensions must exist in
+      # the app database Immich connects to, not the postgres maintenance DB
       - op: add
-        path: /spec/bootstrap/initdb/postInitSQL
+        path: /spec/bootstrap/initdb/postInitApplicationSQL
         value:
           - CREATE EXTENSION IF NOT EXISTS vchord CASCADE;
           - CREATE EXTENSION IF NOT EXISTS cube;
