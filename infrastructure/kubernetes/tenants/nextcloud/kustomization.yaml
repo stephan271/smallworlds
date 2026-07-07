@@ -15,6 +15,13 @@ resources:
 
 patches:
   - target:
+      kind: ClusterRoleBinding
+      name: setup-binding
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: setup-binding-nextcloud
+  - target:
       kind: Job
       name: keycloak-client-init
     patch: |-

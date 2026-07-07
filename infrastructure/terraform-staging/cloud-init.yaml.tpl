@@ -9,6 +9,16 @@ swap:
   size: "8G"
 
 write_files:
+  - path: /var/lib/rancher/k3s/server/manifests/letsencrypt-prod.yaml
+    permissions: '0644'
+    content: |
+      apiVersion: cert-manager.io/v1
+      kind: ClusterIssuer
+      metadata:
+        name: letsencrypt-prod
+      spec:
+        selfSigned: {}
+
   - path: /etc/sysctl.d/99-kubernetes-cri.conf
     permissions: '0644'
     content: |
