@@ -1,24 +1,39 @@
-env:
-  DB_DATABASE_NAME: app
-  DB_HOSTNAME: database-rw
-  DB_USERNAME: app
-  REDIS_HOSTNAME: redis
-  REDIS_PORT: "6379"
-  DB_PASSWORD:
-    valueFrom:
-      secretKeyRef:
-        name: database-app
-        key: password
-  IMMICH_OAUTH_CLIENT_SECRET:
-    valueFrom:
-      secretKeyRef:
-        name: keycloak-secret
-        key: client-secret
+# Shared by all Immich components (chart >= 0.13 uses the bjw-s common-library
+# 5.x schema: component -> controllers -> containers)
+controllers:
+  main:
+    containers:
+      main:
+        env:
+          DB_DATABASE_NAME: app
+          DB_HOSTNAME: database-rw
+          DB_USERNAME: app
+          REDIS_HOSTNAME: redis
+          REDIS_PORT: "6379"
+          DB_PASSWORD:
+            valueFrom:
+              secretKeyRef:
+                name: database-app
+                key: password
+          IMMICH_OAUTH_CLIENT_SECRET:
+            valueFrom:
+              secretKeyRef:
+                name: keycloak-secret
+                key: client-secret
 
-postgresql:
+# Service links would inject REDIS_PORT=tcp://... from the redis Service,
+# clobbering the env var above
+defaultPodOptions:
+  enableServiceLinks: false
+
+# We run our own redis Deployment (redis.yaml) instead of the valkey subchart
+valkey:
   enabled: false
-redis:
-  enabled: false
+
+immich:
+  persistence:
+    library:
+      existingClaim: immich-library-pvc
 
 server:
   enabled: true
@@ -37,6 +52,8 @@ server:
         - host: photos.smallworlds.network
           paths:
             - path: "/"
+              service:
+                identifier: main
       tls:
         - secretName: immich-tls
           hosts:
@@ -44,8 +61,3 @@ server:
 
 machine-learning:
   enabled: true
-
-immich:
-  persistence:
-    library:
-      existingClaim: immich-library-pvc

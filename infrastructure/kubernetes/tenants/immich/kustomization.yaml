@@ -48,45 +48,19 @@ patches:
       - op: add
         path: /spec/bootstrap/initdb/postInitSQL
         value:
-          - CREATE EXTENSION IF NOT EXISTS vectors;
+          - CREATE EXTENSION IF NOT EXISTS vchord CASCADE;
           - CREATE EXTENSION IF NOT EXISTS cube;
           - CREATE EXTENSION IF NOT EXISTS earthdistance;
-          - ALTER ROLE app SET search_path TO "$user", public, vectors;
-          - GRANT USAGE ON SCHEMA vectors TO app;
-          - GRANT SELECT ON ALL TABLES IN SCHEMA vectors TO app;
-
       - op: add
         path: /spec/postgresql
         value:
           shared_preload_libraries:
-            - "vectors.so"
-  - target:
-      kind: Deployment
-      name: immich-server
-    patch: |-
-      - op: add
-        path: /spec/template/spec/enableServiceLinks
-        value: false
-      - op: replace
-        path: /spec/template/spec/containers/0/livenessProbe/httpGet/path
-        value: /api/server-info/ping
-      - op: replace
-        path: /spec/template/spec/containers/0/readinessProbe/httpGet/path
-        value: /api/server-info/ping
-      - op: replace
-        path: /spec/template/spec/containers/0/startupProbe/httpGet/path
-        value: /api/server-info/ping
-  - target:
-      kind: Deployment
-      name: immich-machine-learning
-    patch: |-
-      - op: add
-        path: /spec/template/spec/enableServiceLinks
-        value: false
+            - "vchord.so"
 
 helmCharts:
   - name: immich
-    repo: https://immich-app.github.io/immich-charts
+    # The HTTP helm repo was removed with chart 0.13; OCI only
+    repo: oci://ghcr.io/immich-app/immich-charts
     releaseName: immich
-    version: 0.8.0
+    version: 0.13.1
     valuesFile: values.yaml

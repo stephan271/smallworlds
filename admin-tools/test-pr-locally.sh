@@ -10,6 +10,7 @@ NC='\033[0m'
 if [ -z "$1" ]; then
     echo -e "${RED}Usage: $0 <branch-name>${NC}"
     echo -e "Example: $0 renovate/nextcloud-9.x"
+    echo -e "Set KEEP_VM=1 to skip destroying the staging VM on exit (for debugging)."
     exit 1
 fi
 
@@ -117,19 +118,27 @@ cleanup() {
     echo -e "${CYAN}          Starting Cleanup Phase          ${NC}"
     echo -e "${CYAN}==========================================${NC}"
     
-    echo -e "${YELLOW}Cleaning up /etc/hosts... (May prompt for sudo)${NC}"
-    sudo sed -i '/smallworlds\.network/d' /etc/hosts
-
-    if [ -d "$REPO_ROOT/infrastructure/terraform-staging" ]; then
-        echo -e "${YELLOW}Destroying Hetzner VM...${NC}"
-        cd "$REPO_ROOT/infrastructure/terraform-staging"
-        terraform destroy -auto-approve || true
+    if [ "${KEEP_VM:-0}" = "1" ]; then
+        echo -e "${YELLOW}KEEP_VM=1 set: skipping VM destruction so you can debug.${NC}"
+        echo -e "  kubectl:      export KUBECONFIG=$REPO_ROOT/kubeconfig-staging.yaml"
+        echo -e "  ssh:          ssh -i $TEMP_SSH_KEY root@\$(cd $REPO_ROOT/infrastructure/terraform-staging && terraform output -raw server_ipv4)"
+        echo -e "  destroy VM:   cd $REPO_ROOT/infrastructure/terraform-staging && terraform destroy -auto-approve"
+        echo -e "  clean hosts:  sudo sed -i '/smallworlds\\.network/d' /etc/hosts"
     else
-        echo -e "${YELLOW}Skipping Terraform destroy (directory missing on this branch)...${NC}"
+        echo -e "${YELLOW}Cleaning up /etc/hosts... (May prompt for sudo)${NC}"
+        sudo sed -i '/smallworlds\.network/d' /etc/hosts
+
+        if [ -d "$REPO_ROOT/infrastructure/terraform-staging" ]; then
+            echo -e "${YELLOW}Destroying Hetzner VM...${NC}"
+            cd "$REPO_ROOT/infrastructure/terraform-staging"
+            terraform destroy -auto-approve || true
+        else
+            echo -e "${YELLOW}Skipping Terraform destroy (directory missing on this branch)...${NC}"
+        fi
+
+        echo -e "${YELLOW}Cleaning up SSH keys and temporary files...${NC}"
+        rm -f "$TEMP_SSH_KEY" "${TEMP_SSH_KEY}.pub"
     fi
-    
-    echo -e "${YELLOW}Cleaning up SSH keys and temporary files...${NC}"
-    rm -f "$TEMP_SSH_KEY" "${TEMP_SSH_KEY}.pub"
     
     echo -e "${YELLOW}Restoring original git state...${NC}"
     cd "$REPO_ROOT"
@@ -185,8 +194,8 @@ metadata:
   name: garage-auth-secret
   namespace: garage-system
 stringData:
-  rpcSecret: "staging-rpc-secret"
-  adminToken: "staging-admin-token"
+  rpcSecret: "$(openssl rand -hex 32)"
+  adminToken: "$(openssl rand -hex 32)"
 ---
 apiVersion: v1
 kind: Namespace
@@ -260,31 +269,60 @@ kubectl apply -k infrastructure/kubernetes
 echo -e "${YELLOW}Waiting for ArgoCD to sync and deploy pods (this may take up to 15 minutes)...${NC}"
 sleep 30
 
-# Find all destination namespaces for our ArgoCD applications and wait for their pods
-for ns in $(kubectl get application -A -o jsonpath='{range .items[*]}{.spec.destination.namespace}{"\n"}{end}' | sort -u); do
+# Wait for all ArgoCD applications to become Healthy
+echo -e "${CYAN}Waiting for all ArgoCD applications to reach Healthy state (this may take up to 30 minutes)...${NC}"
+for i in {1..180}; do
+    # Fetch apps that are not Healthy
+    UNHEALTHY=$(kubectl get application -n argocd -o jsonpath='{range .items[?(@.status.health.status!="Healthy")]}{.metadata.name}{" "}{end}' 2>/dev/null)
+    
+    if [ -z "$UNHEALTHY" ]; then
+        echo -e "${GREEN}All ArgoCD applications are Healthy and Synced!${NC}"
+        break
+    fi
+    
+    echo -e "Still waiting for apps to become Healthy: ${YELLOW}${UNHEALTHY}${NC}"
+    sleep 10
+done
+
+if [ -n "$UNHEALTHY" ]; then
+    echo -e "${RED}Timeout reached! The following apps never became healthy: ${UNHEALTHY}${NC}"
+    echo -e "${YELLOW}Gathering debug information for unhealthy namespaces...${NC}"
+    for app in $UNHEALTHY; do
+        ns=$(kubectl get application $app -n argocd -o jsonpath='{.spec.destination.namespace}')
+        if [ -n "$ns" ]; then
+            echo -e "
+--- POD STATUS IN $ns ---"
+            kubectl get pods -n "$ns"
+            echo -e "
+--- EVENTS IN $ns ---"
+            kubectl get events -n "$ns" --sort-by='.lastTimestamp' | tail -n 15
+        fi
+    done
+fi
+
+# As a final safety check, ensure deployments and statefulsets are available
+for ns in $(kubectl get application -n argocd -o jsonpath='{range .items[*]}{.spec.destination.namespace}{" "}{end}' | sort -u); do
     if [ -n "$ns" ]; then
-        echo -e "${CYAN}Waiting for pods to appear in namespace: $ns...${NC}"
-        # Wait up to 120 seconds for ArgoCD to create at least one pod
-        for i in {1..24}; do
-            if kubectl get pods -n "$ns" 2>/dev/null | grep -q "^[a-z]"; then
-                break
-            fi
-            sleep 5
-        done
-        kubectl wait --for=condition=Ready pod --all -n "$ns" --timeout=600s || true
+        kubectl wait --for=condition=Available deployment --all -n "$ns" --timeout=60s 2>/dev/null || true
+        kubectl wait --for=condition=Ready statefulset --all -n "$ns" --timeout=60s 2>/dev/null || true
     fi
 done
 
 # 6. Setup Local DNS
 echo -e "\n${CYAN}Setting up local DNS routing... (May prompt for sudo)${NC}"
 sudo sed -i '/smallworlds\.network/d' /etc/hosts
-echo "$SERVER_IP identity.smallworlds.network files.smallworlds.network webmail.smallworlds.network photos.smallworlds.network git.smallworlds.network meet.smallworlds.network" | sudo tee -a /etc/hosts >/dev/null
+# Keep this list in sync with the subdomains used in e2e-tests/tests/*.spec.ts
+echo "$SERVER_IP identity.smallworlds.network files.smallworlds.network webmail.smallworlds.network photos.smallworlds.network git.smallworlds.network meet.smallworlds.network whiteboard.smallworlds.network" | sudo tee -a /etc/hosts >/dev/null
 
 # 7. Run E2E Tests
 echo -e "\n${CYAN}Starting E2E Smoke Tests...${NC}"
 cd e2e-tests
 npm ci
 npx playwright install chromium
+
+# Staging uses a self-signed ClusterIssuer; Node's fetch (used by the user
+# provisioning setup) rejects those certs, unlike Playwright itself.
+export NODE_TLS_REJECT_UNAUTHORIZED=0
 ./run-smoke-tests.sh smallworlds.network "e2e-dummy-pass" "$TEST_FILTER"
 
 echo -e "\n${GREEN}Success! Tests completed.${NC}"

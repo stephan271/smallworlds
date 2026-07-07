@@ -120,7 +120,9 @@ resource "hcloud_firewall" "k8s_firewall" {
 
 
 
-# Fetch the static Primary IP created in the Hetzner Cloud Console
+# Fetch the static Primary IP created in the Hetzner Cloud Console.
+# NOTE: Primary IPs are datacenter-bound — create it in the same location
+# as var.location (e.g. Nuremberg/nbg1), or the server cannot attach it.
 data "hcloud_primary_ip" "main_ip" {
   name = "Meine-Small-World-Cluster-IP"
 }
@@ -172,8 +174,8 @@ resource "hcloud_rdns" "main_ip_ptr" {
 resource "hcloud_server" "smallworlds_pilot_node" {
   name        = "cc-pilot-node-01"
   image       = "ubuntu-24.04"
-  server_type = "cpx32" # 4 vCPU (AMD), 8 GB RAM. Recommended x86 architecture for K3s and ML.
-  location    = "fsn1" # Falkenstein, Germany. Or nbg1 (Nuremberg), hel1 (Helsinki).
+  server_type = "cx43" # 8 shared vCPU (AMD), 16 GB RAM. Recommended x86 architecture for K3s and ML.
+  location    = var.location
 
   ssh_keys = [hcloud_ssh_key.smallworlds_admin.id]
   firewall_ids = [hcloud_firewall.k8s_firewall.id]
@@ -210,7 +212,7 @@ resource "hcloud_server" "smallworlds_pilot_node" {
 resource "hcloud_volume" "smallworlds_data" {
   name     = "smallworlds-data"
   size     = 200 # GB — covers Garage (100 GB) + Immich library (50 GB) + room to grow
-  location = "fsn1"
+  location = var.location # Volumes are location-bound and must match the server
   format   = "ext4"
 
   lifecycle {

@@ -34,6 +34,7 @@ terraform.rc
 k3s_kubeconfig.yaml
 kubeconfig.yaml
 kubeconfig
+kubeconfig-staging.yaml
 
 # Kustomize Helm Chart Caches
 charts/

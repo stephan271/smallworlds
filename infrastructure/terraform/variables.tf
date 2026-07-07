@@ -58,3 +58,9 @@ variable "immich_admin_password" {
 }
 
 
+
+variable "location" {
+  description = "Hetzner location for the server and data volume. The Primary IP must be created in the same location. e.g. nbg1 (Nuremberg), fsn1 (Falkenstein), hel1 (Helsinki)."
+  type        = string
+  default     = "nbg1"
+}

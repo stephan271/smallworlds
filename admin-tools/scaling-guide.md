@@ -24,7 +24,7 @@ module "worker_1" {
   source       = "./modules/worker-node"
   hcloud_token = var.hcloud_token
   cluster_name = "smallworlds"
-  server_type  = "cpx32"
+  server_type  = "cx43"
   ssh_keys     = [hcloud_ssh_key.default.id]
   k3s_url      = "https://${hcloud_server.control_plane.ipv4_address}:6443"
   k3s_token    = "YOUR_K3S_TOKEN" # Retrieve from control plane: cat /var/lib/rancher/k3s/server/node-token

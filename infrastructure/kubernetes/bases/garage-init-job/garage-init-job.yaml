@@ -12,7 +12,7 @@ spec:
       serviceAccountName: setup-sa
       containers:
         - name: setup
-          image: bitnami/kubectl:1.30.2
+          image: bitnami/kubectl:latest
           command:
             - /bin/bash
             - -c
