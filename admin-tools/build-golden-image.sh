@@ -75,8 +75,13 @@ echo -e "${CYAN}Waiting for SSH...${NC}"
 until timeout 3 bash -c "</dev/tcp/$SERVER_IP/22" 2>/dev/null; do sleep 3; done
 sleep 5
 
-echo -e "${CYAN}[2/4] Provisioning: updates, k3s $K3S_VERSION, sysctl...${NC}"
-ssh $SSH_OPTS root@"$SERVER_IP" "bash -s" <<EOF
+# Write the provision script to a file and scp it — NEVER pipe scripts over
+# ssh stdin: any command that reads stdin swallows the rest of the script and
+# bash exits 0 without running the tail (this silently skipped the cleanup
+# once, leaking the bake's cluster state into the snapshot).
+PROVISION_SCRIPT=$(mktemp)
+cat > "$PROVISION_SCRIPT" <<EOF
+#!/usr/bin/env bash
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -q
@@ -92,36 +97,49 @@ SYSCTL
 # (INSTALL_K3S_SKIP_DOWNLOAD=true regenerates the systemd unit without network)
 curl -sfL https://get.k3s.io -o /usr/local/lib/k3s-install.sh
 chmod +x /usr/local/lib/k3s-install.sh
-INSTALL_K3S_VERSION="$K3S_VERSION" INSTALL_K3S_SKIP_ENABLE=true /usr/local/lib/k3s-install.sh server
-EOF
+# Disable every addon: this k3s only exists to warm the containerd image
+# store, nothing it deploys may leak into the snapshot
+INSTALL_K3S_VERSION="$K3S_VERSION" INSTALL_K3S_SKIP_ENABLE=true \\
+  /usr/local/lib/k3s-install.sh server \\
+  --disable traefik --disable servicelb --disable local-storage --disable metrics-server
 
-echo -e "${CYAN}[3/4] Preloading $(wc -l < "$IMAGE_LIST") container images...${NC}"
-scp $SSH_OPTS "$IMAGE_LIST" root@"$SERVER_IP":/tmp/images.txt >/dev/null
-ssh $SSH_OPTS root@"$SERVER_IP" "bash -s" <<'EOF'
-set -euo pipefail
 systemctl start k3s
 until k3s kubectl get node >/dev/null 2>&1; do sleep 3; done
 
 FAILED=""
 while IFS= read -r IMG; do
-    [ -z "$IMG" ] && continue
-    echo "  pulling $IMG"
-    k3s ctr images pull "$IMG" >/dev/null 2>&1 || FAILED="$FAILED $IMG"
+    [ -z "\$IMG" ] && continue
+    echo "  pulling \$IMG"
+    k3s ctr images pull "\$IMG" >/dev/null 2>&1 </dev/null || FAILED="\$FAILED \$IMG"
 done < /tmp/images.txt
-[ -n "$FAILED" ] && echo "WARNING: failed to pull:$FAILED (will be pulled at runtime instead)"
+if [ -n "\$FAILED" ]; then
+    echo "WARNING: failed to pull:\$FAILED (will be pulled at runtime instead)"
+fi
 
-# Strip cluster identity but keep the containerd image store: the snapshot
-# must boot as a brand-new cluster with a warm image cache
-systemctl stop k3s
+# Strip ALL cluster identity but keep the containerd image store: the
+# snapshot must boot as a brand-new cluster with a warm image cache
+systemctl stop k3s || true
 /usr/local/bin/k3s-killall.sh >/dev/null 2>&1 || true
 rm -rf /var/lib/rancher/k3s/server
-rm -f /etc/rancher/k3s/k3s.yaml
+rm -rf /etc/rancher/k3s /etc/rancher/node
 
 # Make the machine snapshot-clean
 cloud-init clean --logs
 truncate -s 0 /etc/machine-id
-rm -f /tmp/images.txt
+rm -f /tmp/images.txt /tmp/provision.sh
 EOF
+
+echo -e "${CYAN}[2/4] Provisioning: updates, k3s $K3S_VERSION, image preload...${NC}"
+scp $SSH_OPTS "$IMAGE_LIST" root@"$SERVER_IP":/tmp/images.txt >/dev/null
+scp $SSH_OPTS "$PROVISION_SCRIPT" root@"$SERVER_IP":/tmp/provision.sh >/dev/null
+rm -f "$PROVISION_SCRIPT"
+ssh $SSH_OPTS root@"$SERVER_IP" "bash /tmp/provision.sh"
+
+echo -e "${CYAN}[3/4] Verifying the snapshot carries no cluster state...${NC}"
+ssh $SSH_OPTS root@"$SERVER_IP" \
+    "test ! -e /var/lib/rancher/k3s/server && test ! -e /etc/rancher/k3s && test ! -e /etc/rancher/node && test -d /var/lib/rancher/k3s/agent" \
+    || { echo -e "${RED}Cleanup verification FAILED — refusing to snapshot a dirty builder.${NC}"; exit 1; }
+echo -e "  Clean: no datastore, no node identity, image store present."
 
 echo -e "${CYAN}[4/4] Powering off and creating snapshot...${NC}"
 hcloud server poweroff "$SERVER_NAME" >/dev/null
