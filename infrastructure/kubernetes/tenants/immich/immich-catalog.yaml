@@ -4,5 +4,6 @@ metadata:
   name: immich-catalog
 spec:
   images:
-    - image: "ghcr.io/tensorchord/cloudnative-pgvecto.rs:16-v0.2.0"
+    # Immich v3 requires the VectorChord extension (pgvecto.rs is deprecated)
+    - image: "ghcr.io/tensorchord/cloudnative-vectorchord:16.13-1.1.1"
       major: 16

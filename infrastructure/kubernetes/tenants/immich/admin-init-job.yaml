@@ -13,7 +13,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: admin-init
-          image: curlimages/curl:8.21.0@sha256:7c12af72ceb38b7432ab85e1a265cff6ae58e06f95539d539b654f2cfa64bb13
+          image: python:3.13-alpine
           env:
             - name: ADMIN_EMAIL
               valueFrom:
@@ -36,66 +36,71 @@ spec:
                   name: keycloak-secret
                   key: client-secret
           command:
-            - /bin/sh
+            - python3
             - -c
             - |
-              IMMICH_URL="http://immich-server.immich.svc.cluster.local:3001"
+              import json, os, sys, time, urllib.error, urllib.request
 
-              echo "Waiting for Immich server to be ready..."
-              until curl -sf "$IMMICH_URL/api/server-info/ping" > /dev/null 2>&1; do
-                echo "  not ready yet, retrying in 10s..."
-                sleep 10
-              done
-              echo "Immich is up."
+              BASE = "http://immich-server.immich.svc.cluster.local:2283"
 
-              echo "Creating Immich admin account for: $ADMIN_EMAIL"
-              RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST "$IMMICH_URL/api/auth/admin-sign-up" \
-                -H "Content-Type: application/json" \
-                -d "{
-                  \"email\": \"$ADMIN_EMAIL\",
-                  \"password\": \"$ADMIN_PASSWORD\",
-                  \"name\": \"$ADMIN_NAME\"
-                }")
+              def req(method, path, body=None, token=None):
+                  data = json.dumps(body).encode() if body is not None else None
+                  r = urllib.request.Request(BASE + path, data=data, method=method)
+                  r.add_header("Content-Type", "application/json")
+                  if token:
+                      r.add_header("Authorization", "Bearer " + token)
+                  try:
+                      with urllib.request.urlopen(r, timeout=30) as resp:
+                          return resp.status, json.loads(resp.read() or b"null")
+                  except urllib.error.HTTPError as e:
+                      return e.code, json.loads(e.read() or b"null")
 
-              HTTP_STATUS=$(echo "$RESPONSE" | tr -d '\n' | sed -e 's/.*HTTP_STATUS://')
-              BODY=$(echo "$RESPONSE" | sed -e 's/HTTP_STATUS:.*//')
+              print("Waiting for Immich server to be ready...", flush=True)
+              while True:
+                  try:
+                      if req("GET", "/api/server/ping")[0] == 200:
+                          break
+                  except Exception:
+                      pass
+                  print("  not ready yet, retrying in 10s...", flush=True)
+                  time.sleep(10)
 
-              if [ "$HTTP_STATUS" = "400" ]; then
-                echo "Admin account already exists (HTTP 400). Proceeding to config."
-              elif [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "201" ]; then
-                echo "Admin account created successfully. Proceeding to config."
-              else
-                echo "Failed to create admin account. HTTP $HTTP_STATUS"
-                echo "Response: $BODY"
-                exit 1
-              fi
+              email = os.environ["ADMIN_EMAIL"]
+              password = os.environ["ADMIN_PASSWORD"]
 
-              echo "Logging in as admin to configure OIDC..."
-              TOKEN=$(curl -s -X POST "$IMMICH_URL/api/auth/login" \
-                -H "Content-Type: application/json" \
-                -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}" | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
+              print(f"Creating Immich admin account for: {email}", flush=True)
+              status, body = req("POST", "/api/auth/admin-sign-up",
+                                 {"email": email, "password": password,
+                                  "name": os.environ["ADMIN_NAME"]})
+              if status in (200, 201):
+                  print("Admin account created.")
+              elif status == 400:
+                  print("Admin account already exists.")
+              else:
+                  sys.exit(f"Failed to create admin account: HTTP {status}: {body}")
 
-              if [ -z "$TOKEN" ]; then
-                echo "Failed to get admin access token!"
-                exit 1
-              fi
+              status, body = req("POST", "/api/auth/login",
+                                 {"email": email, "password": password})
+              if status not in (200, 201) or not body.get("accessToken"):
+                  sys.exit(f"Admin login failed: HTTP {status}")
+              token = body["accessToken"]
 
-              echo "Configuring OIDC via API..."
-              curl -s -H "Authorization: Bearer $TOKEN" "$IMMICH_URL/api/system-config" > /tmp/cfg.json
-              sed "s/\"clientSecret\":\"\"/\"clientSecret\":\"$OAUTH_CLIENT_SECRET\"/" /tmp/cfg.json | \
-              sed "s/\"clientId\":\"\"/\"clientId\":\"immich\"/" | \
-              sed "s|\"issuerUrl\":\"\"|\"issuerUrl\":\"https://identity.smallworlds.network/realms/smallworlds\"|" | \
-              sed "s/\"enabled\":false/\"enabled\":true/" | \
-              sed "s/\"autoRegister\":false/\"autoRegister\":true/" | \
-              sed "s/\"autoLaunch\":false/\"autoLaunch\":true/" > /tmp/new_cfg.json
-              
-              # Also ensure buttonText is set correctly
-              sed -i "s/\"buttonText\":\"[^\"]*\"/\"buttonText\":\"Login with SmallWorlds ID\"/" /tmp/new_cfg.json
+              print("Configuring OIDC...", flush=True)
+              status, cfg = req("GET", "/api/system-config", token=token)
+              if status != 200:
+                  sys.exit(f"Failed to fetch system config: HTTP {status}")
 
-              curl -s -X PUT "$IMMICH_URL/api/system-config" \
-                -H "Authorization: Bearer $TOKEN" \
-                -H "Content-Type: application/json" \
-                -d @/tmp/new_cfg.json
-              
-              echo "OIDC configured successfully!"
-              exit 0
+              cfg["oauth"].update({
+                  "enabled": True,
+                  "clientId": "immich",
+                  "clientSecret": os.environ["OAUTH_CLIENT_SECRET"],
+                  "issuerUrl": "https://identity.smallworlds.network/realms/smallworlds",
+                  "autoRegister": True,
+                  "autoLaunch": True,
+                  "buttonText": "Login with SmallWorlds ID",
+              })
+
+              status, body = req("PUT", "/api/system-config", cfg, token=token)
+              if status != 200:
+                  sys.exit(f"Failed to update system config: HTTP {status}: {body}")
+              print("OIDC configured successfully!")
