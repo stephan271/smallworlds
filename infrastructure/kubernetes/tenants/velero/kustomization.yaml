@@ -8,6 +8,7 @@ helmCharts:
     version: 12.1.0
     releaseName: velero
     namespace: velero
+    includeCRDs: true
     valuesInline:
       initContainers:
         - name: velero-plugin-for-aws
