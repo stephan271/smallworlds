@@ -286,6 +286,39 @@ echo -e "ArgoCD Dashboard:            ${CYAN}https://localhost:8080${NC} (requir
 echo -e "  To port-forward:           ${YELLOW}kubectl port-forward svc/argocd-server -n argocd 8080:443${NC}"
 echo -e "${GREEN}======================================================${NC}"
 
+# Watch the ArgoCD rollout until every application is Synced+Healthy.
+# ArgoCD parks a sync permanently once its retries are exhausted, so any app
+# whose operation ended in Failed/Error gets re-kicked automatically.
+if command -v kubectl >/dev/null 2>&1; then
+    echo -e "${CYAN}Watching application rollout (up to 40 minutes; safe to Ctrl+C — the cluster continues on its own)...${NC}"
+    export KUBECONFIG="$(pwd)/$KUBECONFIG_LOCAL"
+    CONVERGED=false
+    for i in $(seq 1 120); do
+        for app in $(kubectl get application -n argocd -o jsonpath='{range .items[?(@.status.operationState.phase=="Failed")]}{.metadata.name}{" "}{end}' 2>/dev/null) \
+                   $(kubectl get application -n argocd -o jsonpath='{range .items[?(@.status.operationState.phase=="Error")]}{.metadata.name}{" "}{end}' 2>/dev/null); do
+            echo -e "  ${YELLOW}Sync of '$app' gave up — retriggering...${NC}"
+            kubectl patch application "$app" -n argocd --type merge \
+                -p '{"operation":{"initiatedBy":{"username":"installer-watchdog"},"sync":{}}}' >/dev/null 2>&1 || true
+        done
+
+        TOTAL=$(kubectl get application -n argocd --no-headers 2>/dev/null | wc -l)
+        NOT_READY=$(kubectl get application -n argocd -o jsonpath='{range .items[?(@.status.health.status!="Healthy")]}{.metadata.name}{" "}{end}' 2>/dev/null)
+        if [ "$TOTAL" -gt 1 ] && [ -z "$NOT_READY" ]; then
+            echo -e "${GREEN}All $TOTAL applications are Healthy!${NC}"
+            CONVERGED=true
+            break
+        fi
+        echo -e "  [$i/120] $TOTAL apps, waiting on: ${YELLOW}${NOT_READY:-root app to create children}${NC}"
+        sleep 20
+    done
+    if [ "$CONVERGED" = false ]; then
+        echo -e "${YELLOW}Rollout did not fully converge within 40 minutes. Inspect with:${NC}"
+        echo -e "  kubectl get application -n argocd"
+    fi
+else
+    echo -e "${YELLOW}kubectl not found locally — skipping rollout watch. Check progress with the ArgoCD dashboard.${NC}"
+fi
+
 # Open the dashboard
 DASHBOARD_URL="https://dashboard.${DOMAIN}"
 echo ""

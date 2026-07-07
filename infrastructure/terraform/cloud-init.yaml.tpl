@@ -72,6 +72,15 @@ write_files:
           server: 'https://kubernetes.default.svc'
           namespace: argocd
         syncPolicy:
+          # Generous retries: without them ArgoCD gives up after 5 attempts and
+          # never retries the same revision — one transient wave failure during
+          # bootstrap then stalls the whole install until a manual sync
+          retry:
+            limit: 20
+            backoff:
+              duration: 15s
+              factor: 2
+              maxDuration: 5m
           automated:
             prune: true
             selfHeal: true
