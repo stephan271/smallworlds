@@ -36,6 +36,11 @@
     {
       "matchDatasources": ["docker"],
       "commitMessageTopic": "Docker image {{depName}}"
+    },
+    {
+      "description": "Provided-scope Jakarta APIs must match the Keycloak runtime (EE 10 / ws.rs 3.1 for Keycloak 25); bump manually together with Keycloak",
+      "matchPackageNames": ["jakarta.ws.rs:jakarta.ws.rs-api"],
+      "enabled": false
     }
   ]
 }
