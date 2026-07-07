@@ -126,8 +126,10 @@ EOF
 echo -e "${CYAN}[4/4] Powering off and creating snapshot...${NC}"
 hcloud server poweroff "$SERVER_NAME" >/dev/null
 SNAPSHOT_DESC="smallworlds-golden k3s=$K3S_VERSION $(date -u +%Y-%m-%d)"
-SNAPSHOT_ID=$(hcloud server create-image "$SERVER_NAME" --type snapshot \
-    --description "$SNAPSHOT_DESC" --label "$SNAPSHOT_LABEL" -o json | jq -r '.image.id')
+# Note: create-image has no -o json in all hcloud CLI versions; query the ID afterwards
+hcloud server create-image "$SERVER_NAME" --type snapshot \
+    --description "$SNAPSHOT_DESC" --label "$SNAPSHOT_LABEL"
+SNAPSHOT_ID=$(hcloud image list --selector "$SNAPSHOT_LABEL" -o json | jq -r 'sort_by(.created) | last | .id')
 
 echo -e "${GREEN}=======================================================${NC}"
 echo -e "${GREEN}Golden image created: $SNAPSHOT_ID ($SNAPSHOT_DESC)${NC}"
