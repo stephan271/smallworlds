@@ -13,6 +13,9 @@ bases:
   - ../../bases/setup-rbac
   - ../../bases/keycloak-client-job
 
+resources:
+  - jitsi-secret-init-job.yaml
+
 patches:
   - target:
       kind: ClusterRoleBinding
@@ -30,9 +33,4 @@ patches:
         value:
           - name: REDIRECT_URIS
             value: '["https://meet.smallworlds.network/*"]'
-
-secretGenerator:
-  - name: jitsi-jwt
-    literals:
-      - JWT_APP_SECRET=a8b3c9d2e4f1g5h6i7j8k9l0m1n2o3p4
 

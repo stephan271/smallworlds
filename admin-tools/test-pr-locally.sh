@@ -10,6 +10,7 @@ NC='\033[0m'
 if [ -z "$1" ]; then
     echo -e "${RED}Usage: $0 <branch-name>${NC}"
     echo -e "Example: $0 renovate/nextcloud-9.x"
+    echo -e "Set KEEP_VM=1 to skip destroying the staging VM on exit (for debugging)."
     exit 1
 fi
 
@@ -117,19 +118,27 @@ cleanup() {
     echo -e "${CYAN}          Starting Cleanup Phase          ${NC}"
     echo -e "${CYAN}==========================================${NC}"
     
-    echo -e "${YELLOW}Cleaning up /etc/hosts... (May prompt for sudo)${NC}"
-    sudo sed -i '/smallworlds\.network/d' /etc/hosts
-
-    if [ -d "$REPO_ROOT/infrastructure/terraform-staging" ]; then
-        echo -e "${YELLOW}Destroying Hetzner VM...${NC}"
-        cd "$REPO_ROOT/infrastructure/terraform-staging"
-        terraform destroy -auto-approve || true
+    if [ "${KEEP_VM:-0}" = "1" ]; then
+        echo -e "${YELLOW}KEEP_VM=1 set: skipping VM destruction so you can debug.${NC}"
+        echo -e "  kubectl:      export KUBECONFIG=$REPO_ROOT/kubeconfig-staging.yaml"
+        echo -e "  ssh:          ssh -i $TEMP_SSH_KEY root@\$(cd $REPO_ROOT/infrastructure/terraform-staging && terraform output -raw server_ipv4)"
+        echo -e "  destroy VM:   cd $REPO_ROOT/infrastructure/terraform-staging && terraform destroy -auto-approve"
+        echo -e "  clean hosts:  sudo sed -i '/smallworlds\\.network/d' /etc/hosts"
     else
-        echo -e "${YELLOW}Skipping Terraform destroy (directory missing on this branch)...${NC}"
+        echo -e "${YELLOW}Cleaning up /etc/hosts... (May prompt for sudo)${NC}"
+        sudo sed -i '/smallworlds\.network/d' /etc/hosts
+
+        if [ -d "$REPO_ROOT/infrastructure/terraform-staging" ]; then
+            echo -e "${YELLOW}Destroying Hetzner VM...${NC}"
+            cd "$REPO_ROOT/infrastructure/terraform-staging"
+            terraform destroy -auto-approve || true
+        else
+            echo -e "${YELLOW}Skipping Terraform destroy (directory missing on this branch)...${NC}"
+        fi
+
+        echo -e "${YELLOW}Cleaning up SSH keys and temporary files...${NC}"
+        rm -f "$TEMP_SSH_KEY" "${TEMP_SSH_KEY}.pub"
     fi
-    
-    echo -e "${YELLOW}Cleaning up SSH keys and temporary files...${NC}"
-    rm -f "$TEMP_SSH_KEY" "${TEMP_SSH_KEY}.pub"
     
     echo -e "${YELLOW}Restoring original git state...${NC}"
     cd "$REPO_ROOT"
@@ -310,6 +319,10 @@ echo -e "\n${CYAN}Starting E2E Smoke Tests...${NC}"
 cd e2e-tests
 npm ci
 npx playwright install chromium
+
+# Staging uses a self-signed ClusterIssuer; Node's fetch (used by the user
+# provisioning setup) rejects those certs, unlike Playwright itself.
+export NODE_TLS_REJECT_UNAUTHORIZED=0
 ./run-smoke-tests.sh smallworlds.network "e2e-dummy-pass" "$TEST_FILTER"
 
 echo -e "\n${GREEN}Success! Tests completed.${NC}"

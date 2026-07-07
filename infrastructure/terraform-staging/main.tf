@@ -52,7 +52,9 @@ resource "hcloud_firewall" "k8s_firewall_staging" {
 resource "hcloud_server" "smallworlds_staging_node" {
   name        = "cc-staging-node-01"
   image       = "ubuntu-24.04"
-  server_type = "cpx32"
+  # 8GB (cpx32) saturates when the full app suite deploys: probe timeouts
+  # cascade into CNPG failovers and OOM crashloops
+  server_type = "cpx42"
   location    = "fsn1"
   firewall_ids = [hcloud_firewall.k8s_firewall_staging.id]
   ssh_keys    = [hcloud_ssh_key.staging_key.id]
