@@ -39,17 +39,9 @@ nextcloud:
     secretName: nextcloud-admin-creds
     usernameKey: nextcloud-username
     passwordKey: nextcloud-password
-  extraEnv:
-    - name: OBJECTSTORE_S3_KEY
-      valueFrom:
-        secretKeyRef:
-          name: garage-secret
-          key: accessKey
-    - name: OBJECTSTORE_S3_SECRET
-      valueFrom:
-        secretKeyRef:
-          name: garage-secret
-          key: secretKey
+  # NOTE: no extraEnv for OBJECTSTORE_S3_KEY/SECRET — the chart injects them
+  # via objectStore.s3.secretKeys below. Duplicate env names break kubectl's
+  # strategic-merge patch and leave the app permanently OutOfSync.
   configs:
     trusted_domains.config.php: |-
       <?php
@@ -85,6 +77,9 @@ nextcloud:
       region: garage
       bucket: nextcloud
       existingSecret: garage-secret
+      secretKeys:
+        accessKey: accessKey
+        secretKey: secretKey
 ingress:
   enabled: true
   annotations:
