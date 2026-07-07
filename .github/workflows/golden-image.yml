@@ -1,0 +1,37 @@
+name: Rebuild Golden Image
+
+# Rebuild the Hetzner golden snapshot every Monday morning, right after the
+# Renovate "Weekly Updates" automerge window (before 04:00 Europe/Berlin),
+# so the baked container images match the freshly merged versions.
+# A stale image is never a correctness problem — missing images are simply
+# pulled at runtime — this just keeps the fast path fast.
+on:
+  schedule:
+    - cron: "0 5 * * 1" # Mondays 05:00 UTC (06:00/07:00 Berlin)
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: github.repository == 'stephan271/smallworlds'
+    timeout-minutes: 60
+    env:
+      HCLOUD_TOKEN: ${{ secrets.HCLOUD_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install hcloud CLI
+        run: |
+          curl -sL https://github.com/hetznercloud/cli/releases/latest/download/hcloud-linux-amd64.tar.gz | tar xz hcloud
+          sudo mv hcloud /usr/local/bin/
+
+      - name: Build golden image
+        run: ./admin-tools/build-golden-image.sh
+
+      - name: Prune old golden images (keep newest 2)
+        run: |
+          hcloud image list --selector smallworlds-golden=true -o json \
+            | jq -r 'sort_by(.created) | reverse | .[2:][].id' \
+            | xargs -r -n1 hcloud image delete

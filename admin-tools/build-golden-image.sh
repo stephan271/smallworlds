@@ -20,9 +20,10 @@ set -euo pipefail
 #   --refresh-list  regenerate images.txt from the live cluster
 #                   (requires KUBECONFIG pointing at it) before building
 #
-# Rebuild roughly monthly, or after weekly-update PRs change many image
-# versions — a stale image is harmless (missing images are simply pulled),
-# it just wins back less time.
+# Rebuilt automatically every Monday 05:00 UTC (after the Renovate weekly
+# automerge window) by .github/workflows/golden-image.yml, which also prunes
+# old snapshots. A stale image is harmless (missing images are simply
+# pulled), it just wins back less time.
 # ============================================================================
 
 K3S_VERSION="v1.36.2+k3s1"
