@@ -10,6 +10,7 @@ helmCharts:
     valuesFile: values.yaml
 
 bases:
+  - ../../bases/setup-rbac
   - ../../bases/keycloak-client-job
 
 patches:
