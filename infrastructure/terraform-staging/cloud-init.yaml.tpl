@@ -34,6 +34,10 @@ runcmd:
   # Create local directories (no persistent volume for staging)
   - mkdir -p /mnt/smallworlds-data/garage /mnt/smallworlds-data/immich-library /mnt/smallworlds-data/k3s
   
+  # Purge any cluster state a snapshot image may carry (datastore, TLS, node
+  # identity) — a fresh node must never inherit the image builder's cluster
+  - rm -rf /var/lib/rancher/k3s/server /etc/rancher/k3s /etc/rancher/node
+
   - mkdir -p /var/lib/rancher
   - ln -sfn /mnt/smallworlds-data/k3s /var/lib/rancher/k3s
 

@@ -127,6 +127,10 @@ rm -rf /etc/rancher/k3s /etc/rancher/node
 cloud-init clean --logs
 truncate -s 0 /etc/machine-id
 rm -f /tmp/images.txt /tmp/provision.sh
+# Flush all changes to disk: the snapshot is taken from the raw disk and a
+# hard poweroff discards page-cache-only deletions — this once shipped the
+# bake's datastore despite the verification passing
+sync
 EOF
 
 echo -e "${CYAN}[2/4] Provisioning: updates, k3s $K3S_VERSION, image preload...${NC}"
@@ -141,8 +145,19 @@ ssh $SSH_OPTS root@"$SERVER_IP" \
     || { echo -e "${RED}Cleanup verification FAILED — refusing to snapshot a dirty builder.${NC}"; exit 1; }
 echo -e "  Clean: no datastore, no node identity, image store present."
 
-echo -e "${CYAN}[4/4] Powering off and creating snapshot...${NC}"
-hcloud server poweroff "$SERVER_NAME" >/dev/null
+echo -e "${CYAN}[4/4] Shutting down gracefully and creating snapshot...${NC}"
+# Graceful ACPI shutdown, NOT poweroff: lets the OS flush filesystems before
+# the disk is snapshotted
+hcloud server shutdown "$SERVER_NAME" >/dev/null
+for i in $(seq 1 30); do
+    STATUS=$(hcloud server describe "$SERVER_NAME" -o json 2>/dev/null | jq -r '.status')
+    [ "$STATUS" = "off" ] && break
+    sleep 5
+done
+if [ "$STATUS" != "off" ]; then
+    echo -e "${YELLOW}Graceful shutdown timed out; forcing poweroff (fs already synced).${NC}"
+    hcloud server poweroff "$SERVER_NAME" >/dev/null
+fi
 SNAPSHOT_DESC="smallworlds-golden k3s=$K3S_VERSION $(date -u +%Y-%m-%d)"
 # Note: create-image has no -o json in all hcloud CLI versions; query the ID afterwards
 hcloud server create-image "$SERVER_NAME" --type snapshot \

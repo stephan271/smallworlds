@@ -109,6 +109,12 @@ runcmd:
     fi
     mkdir -p /mnt/smallworlds-data/garage /mnt/smallworlds-data/immich-library /mnt/smallworlds-data/k3s
 
+  # Purge any cluster state a snapshot image may carry (datastore, TLS, node
+  # identity) — a fresh node must never inherit the image builder's cluster.
+  # No-op on plain Ubuntu; must run BEFORE the relocate/symlink below so a
+  # preserved volume's own server state is untouched.
+  - rm -rf /var/lib/rancher/k3s/server /etc/rancher/k3s /etc/rancher/node
+
   # Relocate K3s data to the persistent volume to survive VM deletion
   - if [ -d "/var/lib/rancher/k3s" ] && [ ! -L "/var/lib/rancher/k3s" ]; then cp -a /var/lib/rancher/k3s/* /mnt/smallworlds-data/k3s/ ; rm -rf /var/lib/rancher/k3s ; fi
   - mkdir -p /var/lib/rancher

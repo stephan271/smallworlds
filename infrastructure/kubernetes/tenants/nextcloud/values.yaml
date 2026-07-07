@@ -1,3 +1,13 @@
+# First boot copies the ~700MB Nextcloud codebase into the volume and runs
+# the installer before apache serves /status.php. Without a startupProbe the
+# liveness probe (3x10s) kills the container mid-install, leaving a
+# permanently half-installed state ("CAN_INSTALL missing" error page).
+startupProbe:
+  enabled: true
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  failureThreshold: 60
+
 internalDatabase:
   enabled: false
 externalDatabase:
