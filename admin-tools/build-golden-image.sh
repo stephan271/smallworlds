@@ -26,7 +26,7 @@ set -euo pipefail
 # ============================================================================
 
 K3S_VERSION="v1.36.2+k3s1"
-BUILD_SERVER_TYPE="cx22"   # 40GB disk: snapshot stays usable on any >=40GB server
+BUILD_SERVER_TYPE="cx23"   # 40GB disk: snapshot stays usable on any >=40GB server
 LOCATION="nbg1"
 SNAPSHOT_LABEL="smallworlds-golden=true"
 
