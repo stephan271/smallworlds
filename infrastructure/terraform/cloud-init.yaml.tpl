@@ -117,12 +117,14 @@ runcmd:
   # 2. Install K3s (This will automatically apply the manifests in /var/lib/rancher/k3s/server/manifests/)
   - sysctl --system
   - echo "ipv4" > ~/.curlrc
+  # Explicit --node-name: at first boot from a snapshot the transient hostname
+  # can still be the image builder's when k3s starts, registering a ghost node
 %{ if golden_image ~}
   # Golden image: k3s binary and container images are baked in — just
   # regenerate the systemd unit with node-specific args and start
-  - INSTALL_K3S_SKIP_DOWNLOAD=true /usr/local/lib/k3s-install.sh server --cluster-init --node-ip=${server_ip} --disable traefik --kubelet-arg=registry-qps=50 --kubelet-arg=registry-burst=100
+  - INSTALL_K3S_SKIP_DOWNLOAD=true /usr/local/lib/k3s-install.sh server --cluster-init --node-ip=${server_ip} --node-name=cc-pilot-node-01 --disable traefik --kubelet-arg=registry-qps=50 --kubelet-arg=registry-burst=100
 %{ else ~}
-  - curl -sfL https://get.k3s.io | sh -s - server --cluster-init --node-ip=${server_ip} --disable traefik --kubelet-arg=registry-qps=50 --kubelet-arg=registry-burst=100
+  - curl -sfL https://get.k3s.io | sh -s - server --cluster-init --node-ip=${server_ip} --node-name=cc-pilot-node-01 --disable traefik --kubelet-arg=registry-qps=50 --kubelet-arg=registry-burst=100
 %{ endif ~}
   - export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
   - until kubectl get nodes | grep -v NotReady | grep -q Ready; do sleep 5; done
