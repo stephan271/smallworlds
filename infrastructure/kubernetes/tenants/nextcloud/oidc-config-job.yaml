@@ -46,7 +46,7 @@ spec:
       serviceAccountName: nextcloud-oidc-config
       containers:
         - name: configure-oidc
-          image: bitnami/kubectl:1.30.2
+          image: bitnami/kubectl:latest
           env:
             - name: CLIENT_SECRET
               valueFrom:
