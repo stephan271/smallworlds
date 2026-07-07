@@ -3,6 +3,11 @@ kind: Job
 metadata:
   name: keycloak-garage-init
   namespace: keycloak
+  annotations:
+    # Run as a sync hook (recreated each sync) — a plain Job drifts OutOfSync
+    # as soon as its spec changes in git, because completed Jobs are immutable
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
 spec:
   # Generous limit: at cluster bootstrap this job races garage's first start;
   # a Failed job is never retried by ArgoCD, deadlocking the wave-0 keycloak app
@@ -37,6 +42,11 @@ spec:
                 kubectl exec -n garage-system $POD -- /garage layout assign -z dc1 -c 100G $NODE || true
               done
               kubectl exec -n garage-system $POD -- /garage layout apply --version 1 || true
+
+              if kubectl get secret garage-secret -n keycloak >/dev/null 2>&1; then
+                echo "garage-secret already exists in keycloak namespace, nothing to do."
+                exit 0
+              fi
 
               echo "Setting up postgres-backups-keycloak key for CNPG..."
               kubectl exec -n garage-system $POD -- /garage key delete --yes keycloak-backup-key || true
