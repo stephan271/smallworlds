@@ -47,14 +47,18 @@ web:
         - name: http
           containerPort: 9000
       env:
-        - name: APP_ID
+        # NOTE: this adapter image reads JWT_APP_ID / JWT_APP_SECRET / OIDC_ISSUER_URL.
+        # Using APP_ID / APP_SECRET / OIDC_ISSUER leaves the image's placeholder
+        # defaults (ucs-sso-ng.mydomain.corp, myappid) in effect and breaks login.
+        # JWT_APP_ID/SECRET must match prosody's JWT_APP_ID (jitsi) + jitsi-jwt secret.
+        - name: JWT_APP_ID
           value: jitsi
-        - name: APP_SECRET
+        - name: JWT_APP_SECRET
           valueFrom:
             secretKeyRef:
               name: jitsi-jwt
               key: JWT_APP_SECRET
-        - name: OIDC_ISSUER
+        - name: OIDC_ISSUER_URL
           value: "https://identity.smallworlds.network/realms/smallworlds"
         - name: OIDC_CLIENT_ID
           valueFrom:
