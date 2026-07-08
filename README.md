@@ -1,5 +1,7 @@
 # SmallWorlds Setup Guide
 
+![SmallWorlds dashboard showing running applications and infrastructure](screenshots/screen_dashboard_3.png)
+
 > [!WARNING]
 > **Prototype — not production-ready.** SmallWorlds is still in an early prototyping state. It is intended for experimentation and evaluation only, and is **not yet suitable for production environments**. Expect breaking changes, incomplete hardening, and no stability or upgrade guarantees. Use at your own risk.
 
