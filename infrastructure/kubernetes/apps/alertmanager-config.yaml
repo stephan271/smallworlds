@@ -1,0 +1,41 @@
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: smallworlds-alerts
+  namespace: monitoring
+  labels:
+    # Matched by kube-prometheus-stack's alertmanagerConfigSelector.
+    alertmanagerConfig: smallworlds
+  annotations:
+    # Apply after the kube-prometheus-stack CRDs exist (fresh-install ordering;
+    # ArgoCD retries anyway if the CRD isn't ready yet).
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  route:
+    receiver: email-admin
+    groupBy: ["alertname", "namespace"]
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: 4h
+    routes:
+      # The kube-prometheus-stack deadman's-switch alert fires constantly by
+      # design — discard it instead of emailing.
+      - receiver: blackhole
+        matchers:
+          - name: alertname
+            value: Watchdog
+  receivers:
+    - name: email-admin
+      emailConfigs:
+        # Placeholder recipient. Each operator overrides this in their private
+        # overlay (my-community-config) via a kustomize patch on this CR:
+        #   /spec/receivers/0/emailConfigs/0/to
+        - to: alerts@example.com
+          from: alertmanager@smallworlds.network
+          # Stalwart's internal relay accepts unauthenticated mail from cluster
+          # subnets (10.42/10.43) and DKIM-signs local-domain senders; plain
+          # in-cluster port 25, no TLS needed.
+          smarthost: stalwart-mail.stalwart.svc.cluster.local:25
+          requireTLS: false
+          sendResolved: true
+    - name: blackhole

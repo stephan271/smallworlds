@@ -18,6 +18,7 @@ resources:
   - apps/hermes.yaml
   - apps/velero.yaml
   - apps/backup-replicator.yaml
+  - apps/alertmanager-config.yaml
   - apps/trivy-operator.yaml
   - apps/trivy-dashboard.yaml
   - apps/renovate-cronjob.yaml

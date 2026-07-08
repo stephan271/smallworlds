@@ -42,6 +42,15 @@ spec:
                       storage: 20Gi
         alertmanager:
           alertmanagerSpec:
+            # Load AlertmanagerConfig CRs labelled alertmanagerConfig=smallworlds.
+            # matcherStrategy None so a single CR in the monitoring namespace routes
+            # alerts from ALL namespaces (default OnNamespace would scope it to
+            # monitoring only). Routing/receivers live in apps/alertmanager-config.yaml.
+            alertmanagerConfigSelector:
+              matchLabels:
+                alertmanagerConfig: smallworlds
+            alertmanagerConfigMatcherStrategy:
+              type: None
             storage:
               volumeClaimTemplate:
                 spec:
