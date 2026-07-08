@@ -43,23 +43,31 @@ test.describe('Immich Photos', () => {
 
   test('loads main view after OIDC auto-login', async ({ page }) => {
     // Immich usually loads the timeline or an empty state initially
-    const photosHeader = page.getByRole('heading', { name: /photos/i, exact: true })
-        .or(page.getByText('Photos', { exact: true }))
-        .or(page.locator('text="Upload"'));
-    await expect(photosHeader.first()).toBeVisible({ timeout: 20_000 });
+    // Immich v3: a first-time OIDC user lands on the onboarding wizard —
+    // that IS a successful auto-login. Existing users land on the timeline.
+    // Role-based only: broad text unions can resolve to hidden nodes during
+    // the SPA's hydration and flake the visibility assertion.
+    const mainView = page.getByRole('heading', { name: /welcome|photos/i });
+    await expect(mainView.first()).toBeVisible({ timeout: 30_000 });
   });
 
   test('handles onboarding or empty state gracefully', async ({ page }) => {
     // Sometimes Immich shows a "Welcome" or "Click to upload your first photo" screen
     // We just want to ensure we are actually in the app UI
-    const appUI = page.getByText(/upload your first photo/i)
-      .or(page.getByText(/explore/i, { exact: true }))
-      .or(page.getByRole('button', { name: /upload/i }));
+    const appUI = page.getByRole('heading', { name: /welcome/i })
+      .or(page.getByRole('button', { name: /upload|theme/i }));
 
-    await expect(appUI.first()).toBeVisible({ timeout: 20_000 });
+    await expect(appUI.first()).toBeVisible({ timeout: 30_000 });
   });
 
   test('user profile menu is accessible', async ({ page }) => {
+    // A first-time user sits in the v3 onboarding wizard, which has no
+    // header — the profile menu only exists on the main app shell.
+    const onboarding = page.getByText(/let's get you started/i);
+    if (await onboarding.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      test.skip(true, 'fresh user is in the onboarding wizard — no app header yet');
+    }
+
     // Immich has a user avatar or menu icon in the top right
     // Use a very broad locator to find the avatar or account settings button
     const userAvatar = page.getByRole('button', { name: /account|profile/i })

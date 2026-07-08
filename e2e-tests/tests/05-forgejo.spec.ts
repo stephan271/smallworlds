@@ -64,18 +64,12 @@ test.describe('Forgejo', () => {
   test('shows user information', async ({ page }) => {
     await page.goto(FORGEJO_URL);
 
-    // Look for the user avatar in the top right
-    const userAvatar = page.locator('.item.ui.dropdown img.avatar, nav img[alt*="avatar"]')
-        .or(page.getByAltText(/avatar/i));
-
-    await expect(userAvatar.first()).toBeVisible({ timeout: 15_000 });
-
-    // Click it to open the dropdown
-    await userAvatar.first().click();
-
-    // Verify the username "sw-test-alice" is in the DOM (it may be visually hidden depending on viewport)
-    const usernameElem = page.getByText(/sw-test-alice|alice/i).or(page.locator('a[href*="/sw-test-alice"]'));
-    await expect(usernameElem.first()).toBeAttached({ timeout: 10_000 });
+    // Forgejo 15 redesigned the navbar and its avatar markup varies; the
+    // logged-in username reliably appears on the dashboard itself
+    // (breadcrumb and profile links).
+    const usernameElem = page.getByText(/sw-test-alice/i)
+        .or(page.locator('a[href*="/sw-test-alice"]'));
+    await expect(usernameElem.first()).toBeAttached({ timeout: 15_000 });
   });
 
   test('can navigate to user settings', async ({ page }) => {
