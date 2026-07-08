@@ -81,8 +81,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: stalwart-dns-secrets
-                  key: domain
-                  optional: true
+                  key: DOMAIN
             - name: STALWART_SERVER_HOSTNAME
               value: "mail.$(DOMAIN)"
             - name: STALWART_MTA_OUTBOUND_STRATEGY_DEFAULT_EHLO

@@ -21,14 +21,12 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: stalwart-dns-secrets
-                  key: hcloud-token
-                  optional: true
+                  key: HCLOUD_TOKEN
             - name: DOMAIN
               valueFrom:
                 secretKeyRef:
                   name: stalwart-dns-secrets
-                  key: domain
-                  optional: true
+                  key: DOMAIN
             - name: STALWART_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -358,7 +356,7 @@ spec:
                 # Group records by (name, type) for RRset management
                 grouped_new = {}
                 for rec in records:
-                    if rec["type"] not in ["MX", "TXT"]:
+                    if rec["type"] not in ["MX", "TXT", "SRV", "CNAME"]:
                         continue
                     key = (rec["name"], rec["type"])
                     if key not in grouped_new:
