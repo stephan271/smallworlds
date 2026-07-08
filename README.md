@@ -184,4 +184,4 @@ When adding a new application (tenant) to the SmallWorlds cluster, please ensure
 
 # Talks
 
-Watch the [SmallWorlds Lightning Talk](https://rawcdn.githack.com/stephan271/smallworlds/main/lightning_talk.html).
+Watch the [SmallWorlds Lightning Talk](https://rawcdn.githack.com/stephan271/smallworlds/e5f7bf523ecee1ccc66b66ff8612d9db50726fbd/lightning_talk.html).
