@@ -255,7 +255,7 @@
                 <div>
                     <span class="tag">Object Storage</span>
                     <h3>Garage S3</h3>
-                    <p><code>garage.yaml</code> deploys an S3-compatible object store. Crucially, Keycloak executes a <code>garage-init-job.yaml</code> during its sync phase. This job uses the Garage CLI to dynamically create the <code>nextcloud</code> and <code>immich</code> buckets and generates S3 access keys, storing them securely in K8s secrets for those apps to consume.</p>
+                    <p><code>garage.yaml</code> deploys an S3-compatible object store. Each tenant provisions its own storage in isolation: every app runs its own <code>garage-init-job.yaml</code> (from the shared <code>bases/garage-init-job</code> base) during its sync phase, which uses the Garage CLI to create that tenant's own bucket plus a dedicated <code>postgres-backups-&lt;tenant&gt;</code> bucket, and generates S3 access keys stored in per-tenant K8s secrets (<code>garage-secret</code>, <code>garage-secret-cnpg</code>). This per-app isolation means one tenant's credentials never grant access to another's data.</p>
                 </div>
             </div>
         </div>
@@ -272,7 +272,7 @@
             <ul>
                 <li><strong>OIDC Clients:</strong> Pre-registers clients for <code>nextcloud</code>, <code>immich</code>, <code>forgejo</code>, and <code>dashboard</code>. It defines their redirect URIs and client secrets.</li>
                 <li><strong>Passkey (WebAuthn) Flow:</strong> Overrides the default browser flow to enforce Passwordless WebAuthn authentication.</li>
-                <li><strong>SMTP Integration:</strong> Configured to use the internal DNS name of Stalwart (<code>stalwart-mail.stalwart.svc.cluster.local:25</code>) to send invitation emails. The SMTP password is injected dynamically via Kubernetes secrets using <code>jq</code> during the <code>realm-config-job</code>.</li>
+                <li><strong>SMTP Integration:</strong> Configured to use the internal DNS name of Stalwart (<code>stalwart-mail.stalwart.svc.cluster.local:25</code>) to send invitation emails. The SMTP password is injected dynamically from a Kubernetes secret using <code>sed</code> (substituting <code>${env.STALWART_PASSWORD}</code> in the realm JSON) during the <code>realm-config-job</code>.</li>
             </ul>
 
             <div class="file-path">
@@ -287,13 +287,13 @@
             <p>Here is how the applications wire themselves into the core infrastructure defined above:</p>
 
             <h3>Nextcloud</h3>
-            <p>Configured entirely via its Helm <code>values.yaml</code>. It references the CNPG Postgres cluster via environment variables. For OIDC, it uses the <code>social_login</code> plugin, hardcoding the Keycloak endpoints and reading the client secret from the <code>nextcloud-admin-creds</code> Kubernetes secret. It maps its primary storage to the S3 bucket created by the Garage Init Job.</p>
+            <p>The base install is driven by its Helm <code>values.yaml</code> (CNPG Postgres via environment variables, primary storage mapped to its Garage S3 bucket). OIDC, however, is wired up after install by the <code>oidc-config-job.yaml</code> hook, which uses <code>kubectl exec</code> + <code>php occ</code> to install the <code>user_oidc</code> app, register the <code>smallworlds</code> provider against Keycloak's discovery URL, and read the client secret from the <code>keycloak-secret</code> Kubernetes secret.</p>
 
             <h3>Immich</h3>
-            <p>Immich lacks declarative configuration for OIDC in its Helm chart. Therefore, an <strong>ArgoCD Post-Sync Hook</strong> (<code>admin-init-job.yaml</code>) runs a bash script that hits the Immich REST API. It creates the initial admin user, logs in to get a JWT, and then submits a JSON payload to the <code>/api/system-config</code> endpoint to enable OIDC and bind it to Keycloak.</p>
+            <p>Immich lacks declarative configuration for OIDC in its Helm chart. Therefore, an <strong>ArgoCD Sync Hook</strong> (<code>admin-init-job.yaml</code>) runs a script that hits the Immich REST API. It creates the initial admin user, logs in to get a JWT, and then submits a JSON payload to the <code>/api/system-config</code> endpoint to enable OIDC and bind it to Keycloak.</p>
 
             <h3>Roundcube & Stalwart Mail</h3>
-            <p>Stalwart mail is configured via TOML to use Keycloak as its LDAP/OIDC provider. Roundcube (the webmail UI) uses a custom <code>runtime-config.sh</code> script. Because Roundcube is PHP-based, this script dynamically generates the <code>config.inc.php</code> at startup, injecting the IMAP/SMTP endpoints of Stalwart and setting up the <code>oauth2</code> plugin to authenticate users silently against Keycloak.</p>
+            <p>Stalwart mail is wired to Keycloak as an <strong>OIDC Directory</strong>, configured imperatively by the <code>stalwart-init-job</code> via the Stalwart CLI (not via a static TOML file). Roundcube (the webmail UI) mounts a static <code>oauth-config.inc.php</code> from the <code>roundcube-oauth-config.yaml</code> ConfigMap, which points IMAP/SMTP at Stalwart's internal service and sets up the <code>oauth2</code>/<code>XOAUTH2</code> flow to authenticate users silently against Keycloak.</p>
         </div>
 
         <div class="card stagger-4" style="border-color: var(--accent-primary);">
@@ -332,7 +332,7 @@
                     IM -->|OIDC Auth| KC
                     GIT -->|OIDC Auth| KC
                     RC -->|OIDC Auth| KC
-                    MAIL -->|LDAP/OIDC| KC
+                    MAIL -->|OIDC Directory| KC
                     
                     KC -->|JDBC| CNPG
                     NC -->|JDBC| CNPG
