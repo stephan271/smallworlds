@@ -6,7 +6,7 @@
 This document outlines the deployment process for a SmallWorlds GitOps cluster. The architecture relies on an upstream foundation repository and a private, user-controlled configuration repository.
 
 > [!TIP]
-> Refer to the [SmallWorlds Architecture Diagram](smallworlds_architecture.html) for system topology and data flows.
+> Refer to the [SmallWorlds Architecture Diagram](smallworlds_architecture.md) for system topology and data flows (renders directly on GitHub; a styled standalone [HTML version](smallworlds_architecture.html) is also available for local viewing).
 
 ## System Components
 
