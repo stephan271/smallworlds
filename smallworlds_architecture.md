@@ -35,7 +35,7 @@ graph TD
     G -->|Renders upstream Helm chart| GChart[garage chart]
 ```
 
-> **Two kinds of Application.** In-repo tenants (all the end-user apps plus Keycloak) point at an `infrastructure/kubernetes/tenants/<name>` directory rendered with Kustomize. Core operators — **CloudNativePG, Garage, Traefik, cert-manager, kube-prometheus-stack, loki-stack, trivy-operator, auto-remediator** — instead reference an **upstream Helm chart** directly; there is no in-repo `tenants/` folder for them.
+> **Two kinds of Application.** In-repo tenants (all the end-user apps plus Keycloak) point at an `infrastructure/kubernetes/tenants/<name>` directory rendered with Kustomize. Core operators — **CloudNativePG, Garage, Traefik, cert-manager, kube-prometheus-stack, loki-stack, trivy-operator** — instead reference an **upstream Helm chart** directly; there is no in-repo `tenants/` folder for them.
 
 ## 3. Core Infrastructure Components Integration
 

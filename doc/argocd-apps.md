@@ -26,7 +26,7 @@ Identity, management, observability, and cluster utilities all deploy together i
 * **`keycloak.yaml`**: Central Identity Provider (OIDC). Must be up before end-user apps register their OIDC clients.
 * **`dashboard.yaml`**, **`kube-prometheus-stack.yaml`**, **`loki-stack.yaml`**: homepage, monitoring, logging.
 * **`velero.yaml`**: backup controller (only depends on Garage from wave -5, not on Keycloak).
-* **`auto-remediator.yaml`**, **`hermes.yaml`**, **`trivy-operator.yaml`**, **`backup-replicator.yaml`**: cluster-health and backup utilities.
+* **`hermes.yaml`**, **`trivy-operator.yaml`**, **`backup-replicator.yaml`**: the AI-driven auto-remediation agent, security scanning, and backup utilities.
 
 ### Wave 1 (End-User Tenant Applications)
 * **`nextcloud.yaml`**, **`collabora.yaml`**, **`forgejo.yaml`**, **`immich.yaml`**, **`jitsi.yaml`**, **`roundcube.yaml`**, **`excalidraw.yaml`**, **`stalwart.yaml`**
