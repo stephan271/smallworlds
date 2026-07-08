@@ -109,10 +109,10 @@ test.describe('Nextcloud', () => {
     // Click the New button
     await newBtn.first().click({ force: true });
     
-    // Wait for the dropdown menu and look for Document / Spreadsheet
-    const newDocMenu = page.getByText(/New document|New spreadsheet|New presentation/i)
-      .or(page.locator('.menuitem').filter({ hasText: /document|spreadsheet/i }))
-      .or(page.locator('.new-document-item, a[data-templatename="New document"]'));
+    // Wait for the dropdown menu. richdocuments (Collabora) contributes the
+    // "Document" / "Spreadsheet" / "Presentation" entries — they only appear
+    // when the integration is active. The menu renders them as menuitems.
+    const newDocMenu = page.getByRole('menuitem', { name: /document|spreadsheet|presentation/i });
     await expect(newDocMenu.first()).toBeVisible({ timeout: 10_000 });
   });
 });

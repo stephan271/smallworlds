@@ -42,12 +42,14 @@ test.describe('Immich Photos', () => {
   });
 
   test('loads main view after OIDC auto-login', async ({ page }) => {
-    // Immich usually loads the timeline or an empty state initially
-    // Immich v3: a first-time OIDC user lands on the onboarding wizard —
-    // that IS a successful auto-login. Existing users land on the timeline.
+    // A successful auto-login lands either on the main app shell — whose
+    // "Primary" sidebar nav and header Upload button are stable landmarks —
+    // or, for a brand-new user, the onboarding wizard (a "welcome" heading).
     // Role-based only: broad text unions can resolve to hidden nodes during
     // the SPA's hydration and flake the visibility assertion.
-    const mainView = page.getByRole('heading', { name: /welcome|photos/i });
+    const mainView = page.getByRole('navigation', { name: 'Primary' })
+      .or(page.getByRole('button', { name: /upload/i }))
+      .or(page.getByRole('heading', { name: /welcome/i }));
     await expect(mainView.first()).toBeVisible({ timeout: 30_000 });
   });
 
