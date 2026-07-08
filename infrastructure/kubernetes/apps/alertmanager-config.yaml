@@ -32,6 +32,9 @@ spec:
         #   /spec/receivers/0/emailConfigs/0/to
         - to: alerts@example.com
           from: alertmanager@smallworlds.network
+          # EHLO identity — must be a valid FQDN or Stalwart rejects it with
+          # "550 Invalid EHLO domain" (Alertmanager otherwise sends "localhost").
+          hello: smallworlds.network
           # Stalwart's internal relay accepts unauthenticated mail from cluster
           # subnets (10.42/10.43) and DKIM-signs local-domain senders; plain
           # in-cluster port 25, no TLS needed.
