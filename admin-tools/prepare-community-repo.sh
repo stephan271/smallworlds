@@ -71,8 +71,22 @@ while true; do
     fi
 done
 
+# 2b. Pin to a specific upstream smallworlds release tag (recommended). Pinning
+# makes updates deliberate and reproducible: ArgoCD only adopts a new base when
+# you bump this tag and commit. Enter HEAD to always track the latest main
+# (not recommended for production — ArgoCD picks it up non-deterministically on
+# cache expiry).
+if [ -n "$STORED_VERSION" ]; then
+    DEFAULT_VERSION="$STORED_VERSION"
+else
+    DEFAULT_VERSION="v1.0.0"
+fi
+read -e -i "$DEFAULT_VERSION" -p "3. Pin to which upstream smallworlds version tag (e.g. v1.0.0, or HEAD to track latest): " SMALLWORLDS_VERSION
+SMALLWORLDS_VERSION="${SMALLWORLDS_VERSION:-HEAD}"
+
 echo ""
 echo -e "${YELLOW}Initializing repository...${NC}"
+echo -e "Pinning upstream base to: ${GREEN}${SMALLWORLDS_VERSION}${NC}"
 
 # Navigate to target directory
 cd "$ABS_REPO_PATH"
@@ -112,7 +126,7 @@ for app in "${APPS[@]}"; do
         mkdir -p "$app"
         cat <<EOF > "$app/kustomization.yaml"
 resources:
-  - https://github.com/stephan271/smallworlds.git/infrastructure/kubernetes/tenants/$app?ref=HEAD
+  - https://github.com/stephan271/smallworlds.git/infrastructure/kubernetes/tenants/$app?ref=${SMALLWORLDS_VERSION}
 
 # Add your patches for $app here
 # patches:
@@ -131,9 +145,9 @@ if [ -f "kustomization.yaml" ]; then
             echo -e "Adding $app to kustomization.yaml..."
             # Insert resource before 'patches:' or at the end
             if grep -q "^patches:" kustomization.yaml; then
-                awk '/^patches:/{print "  - https://raw.githubusercontent.com/stephan271/smallworlds/main/infrastructure/kubernetes/apps/'"$app"'.yaml"}1' kustomization.yaml > kustomization.yaml.tmp && mv kustomization.yaml.tmp kustomization.yaml
+                awk '/^patches:/{print "  - https://raw.githubusercontent.com/stephan271/smallworlds/'"${SMALLWORLDS_VERSION}"'/infrastructure/kubernetes/apps/'"$app"'.yaml"}1' kustomization.yaml > kustomization.yaml.tmp && mv kustomization.yaml.tmp kustomization.yaml
             else
-                echo "  - https://raw.githubusercontent.com/stephan271/smallworlds/main/infrastructure/kubernetes/apps/$app.yaml" >> kustomization.yaml
+                echo "  - https://raw.githubusercontent.com/stephan271/smallworlds/${SMALLWORLDS_VERSION}/infrastructure/kubernetes/apps/$app.yaml" >> kustomization.yaml
             fi
             
             # Append the patch at the end
@@ -162,13 +176,13 @@ else
 # kustomization.yaml
 resources:
   # This line connects your server to the public Central Foundation Repository root
-  - https://github.com/stephan271/smallworlds.git/infrastructure/kubernetes?ref=HEAD
+  - https://github.com/stephan271/smallworlds.git/infrastructure/kubernetes?ref=${SMALLWORLDS_VERSION}
 EOF
 
     for app in "${SELECTED_APPS[@]}"; do
         cat <<EOF >> kustomization.yaml
   # Include the ArgoCD Application manifest for $app
-  - https://raw.githubusercontent.com/stephan271/smallworlds/main/infrastructure/kubernetes/apps/$app.yaml
+  - https://raw.githubusercontent.com/stephan271/smallworlds/${SMALLWORLDS_VERSION}/infrastructure/kubernetes/apps/$app.yaml
 EOF
     done
 
@@ -199,6 +213,7 @@ fi
 cat <<EOF > "$CONFIG_FILE"
 STORED_REPO_PATH="$ABS_REPO_PATH"
 STORED_REMOTE_URL="$REMOTE_URL"
+STORED_VERSION="$SMALLWORLDS_VERSION"
 EOF
 for app in "${OPTIONAL_APPS[@]}"; do
     var_name="STORED_APP_${app}"
@@ -233,7 +248,18 @@ This is the private GitOps overlay repository for my SmallWorlds sovereign cloud
 - \`kustomization.yaml\`: Connects this cluster to the upstream public SmallWorlds repository and stores configuration overrides (patches).
 
 ## Running Updates
-To pull the latest infrastructure and application definitions from upstream, make sure the reference in \`kustomization.yaml\` is pointing to the version you want (e.g. \`ref=HEAD\` or \`ref=v1.3.0\`). ArgoCD will automatically sync the changes into your cluster.
+This repo pins the upstream SmallWorlds base to a fixed release tag (currently \`${SMALLWORLDS_VERSION}\`) in every \`kustomization.yaml\` (\`?ref=<tag>\` and the raw \`.../smallworlds/<tag>/...\` App manifest URLs).
+
+To adopt a newer upstream release, bump that tag everywhere and commit — ArgoCD watches this repo and will sync the change deterministically:
+
+\`\`\`sh
+# from this repo root, e.g. moving v1.0.0 -> v1.1.0
+grep -rl 'ref=${SMALLWORLDS_VERSION}\\|/smallworlds/${SMALLWORLDS_VERSION}/' . \\
+  | xargs sed -i 's#ref=${SMALLWORLDS_VERSION}#ref=v1.1.0#g; s#/smallworlds/${SMALLWORLDS_VERSION}/#/smallworlds/v1.1.0/#g'
+git commit -am "Bump upstream smallworlds base to v1.1.0" && git push
+\`\`\`
+
+Pinning keeps updates deliberate, auditable and reproducible. Using \`HEAD\` instead would let ArgoCD pick up upstream changes non-deterministically (on cache expiry) — avoid it in production.
 EOF
 fi
 
