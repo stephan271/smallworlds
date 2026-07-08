@@ -6,7 +6,7 @@
 This document outlines the deployment process for a SmallWorlds GitOps cluster. The architecture relies on an upstream foundation repository and a private, user-controlled configuration repository.
 
 > [!TIP]
-> Refer to the [SmallWorlds Architecture Diagram](smallworlds_architecture.md) for system topology and data flows (renders directly on GitHub; a styled standalone [HTML version](smallworlds_architecture.html) is also available for local viewing).
+> Refer to the [SmallWorlds Architecture Diagram](smallworlds_architecture.md) for system topology and data flows.
 
 ## System Components
 
@@ -184,4 +184,4 @@ When adding a new application (tenant) to the SmallWorlds cluster, please ensure
 
 # Talks
 
-See https://raw.githack.com/stephan271/smallworlds/refs/heads/main/lightning_talk.html
+Watch the [SmallWorlds Lightning Talk](https://rawcdn.githack.com/stephan271/smallworlds/main/lightning_talk.html).
