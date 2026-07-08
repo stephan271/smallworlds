@@ -93,36 +93,61 @@ flowchart LR
     subgraph Data Layer
         CNPG[(CloudNativePG)]
         S3[(Garage S3)]
+        RD[(Redis per-tenant)]
     end
 
     subgraph Apps
         NC[Nextcloud]
+        CO[Collabora]
         IM[Immich]
         GIT[Forgejo]
         MAIL[Stalwart]
         RC[Roundcube]
+        JI[Jitsi]
+        EX[Excalidraw]
+        DASH[Dashboard]
     end
 
+    %% Ingress — every public host terminates TLS at Traefik
     T -->|HTTPS| KC
     T -->|HTTPS| NC
+    T -->|HTTPS| CO
     T -->|HTTPS| IM
     T -->|HTTPS| GIT
+    T -->|HTTPS| MAIL
     T -->|HTTPS| RC
+    T -->|HTTPS| JI
+    T -->|HTTPS| EX
+    T -->|HTTPS| DASH
 
+    %% Identity — apps that delegate login to Keycloak
     NC -->|OIDC Auth| KC
     IM -->|OIDC Auth| KC
     GIT -->|OIDC Auth| KC
     RC -->|OIDC Auth| KC
+    JI -->|OIDC Auth| KC
     MAIL -->|OIDC Directory| KC
 
-    KC -->|JDBC| CNPG
-    NC -->|JDBC| CNPG
-    IM -->|JDBC| CNPG
-    GIT -->|JDBC| CNPG
+    %% Databases — dedicated CNPG Postgres cluster per stateful app
+    KC -->|Postgres| CNPG
+    NC -->|Postgres| CNPG
+    IM -->|Postgres| CNPG
+    GIT -->|Postgres| CNPG
+    MAIL -->|Postgres| CNPG
 
+    %% Object storage — only Nextcloud and Forgejo use Garage as primary storage
     NC -->|S3 API| S3
-    IM -->|S3 API| S3
+    GIT -->|S3 API| S3
 
+    %% Cache / sessions
+    NC -->|Cache/Session| RD
+    IM -->|Cache/Session| RD
+    GIT -->|Cache/Session| RD
+
+    %% Collaborative editing (WOPI)
+    NC ---|WOPI| CO
+
+    %% Mail
     RC -->|IMAP/SMTP| MAIL
     KC -->|SMTP| MAIL
 ```
