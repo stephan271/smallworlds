@@ -84,6 +84,10 @@ fi
 read -e -i "$DEFAULT_VERSION" -p "3. Pin to which upstream smallworlds version tag (e.g. v1.0.0, or HEAD to track latest): " SMALLWORLDS_VERSION
 SMALLWORLDS_VERSION="${SMALLWORLDS_VERSION:-HEAD}"
 
+# Derive the "owner/repo" slug from the remote URL so the in-cluster Renovate
+# CronJob can scan THIS repo and open weekly base-tag bump PRs against it.
+REPO_SLUG=$(printf '%s' "$REMOTE_URL" | sed -E 's#^(https?://[^/]+/|git@[^:]+:|ssh://[^/]+/)##; s#\.git$##; s#/+$##')
+
 echo ""
 echo -e "${YELLOW}Initializing repository...${NC}"
 echo -e "Pinning upstream base to: ${GREEN}${SMALLWORLDS_VERSION}${NC}"
@@ -209,6 +213,72 @@ EOF
     done
 fi
 
+# Wire the in-cluster Renovate CronJob to also scan THIS overlay repo, so the
+# weekly base-tag bump PRs (see renovate.json) are raised here. Operator-specific
+# (your private repo), so it lives in the overlay, not the public base. Idempotent.
+if ! grep -q 'RENOVATE_REPOSITORIES' kustomization.yaml; then
+    echo -e "${YELLOW}Wiring Renovate to scan ${REPO_SLUG}...${NC}"
+    if ! grep -q '^patches:' kustomization.yaml; then
+        printf '\npatches:\n' >> kustomization.yaml
+    fi
+    cat <<EOF >> kustomization.yaml
+  - target:
+      kind: CronJob
+      name: renovate
+    patch: |-
+      apiVersion: batch/v1
+      kind: CronJob
+      metadata:
+        name: renovate
+      spec:
+        jobTemplate:
+          spec:
+            template:
+              spec:
+                containers:
+                  - name: renovate
+                    env:
+                      - name: RENOVATE_REPOSITORIES
+                        value: "$REPO_SLUG"
+EOF
+fi
+
+# Create renovate.json (weekly PRs that bump the pinned smallworlds base tag).
+# Written literally (quoted heredoc) so the JSON regex/backslashes are preserved.
+if [ ! -f "renovate.json" ]; then
+    echo -e "${YELLOW}Creating renovate.json (weekly base-tag update PRs)...${NC}"
+    cat <<'EOF' > renovate.json
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "kustomize": { "enabled": false },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/kustomization\\.yaml$/"],
+      "matchStrings": [
+        "smallworlds\\.git/[^\\s?]*\\?ref=(?<currentValue>v[0-9][0-9.]*)",
+        "raw\\.githubusercontent\\.com/stephan271/smallworlds/(?<currentValue>v[0-9][0-9.]*)/"
+      ],
+      "depNameTemplate": "stephan271/smallworlds",
+      "datasourceTemplate": "github-tags",
+      "versioningTemplate": "semver"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchDepNames": ["stephan271/smallworlds"],
+      "groupName": "SmallWorlds base",
+      "schedule": ["before 6am on monday"],
+      "allowedVersions": "/^v\\d+\\.\\d+\\.\\d+$/",
+      "commitMessageTopic": "SmallWorlds base",
+      "commitMessageExtra": "to {{{newVersion}}}"
+    }
+  ]
+}
+EOF
+fi
+
 # Save settings
 cat <<EOF > "$CONFIG_FILE"
 STORED_REPO_PATH="$ABS_REPO_PATH"
@@ -260,6 +330,9 @@ git commit -am "Bump upstream smallworlds base to v1.1.0" && git push
 \`\`\`
 
 Pinning keeps updates deliberate, auditable and reproducible. Using \`HEAD\` instead would let ArgoCD pick up upstream changes non-deterministically (on cache expiry) — avoid it in production.
+
+### Automated update proposals (Renovate)
+\`renovate.json\` configures the in-cluster Renovate CronJob to open **one pull request every Monday** bumping the pinned base tag to the newest \`smallworlds\` release. It does **not** auto-merge — review and merge when ready (the merge is what ArgoCD deploys). This repo (\`${REPO_SLUG}\`) is added to the CronJob's scan list via a patch in \`kustomization.yaml\`. The Git token Renovate uses must have pull-request/write access to this repo.
 EOF
 fi
 
