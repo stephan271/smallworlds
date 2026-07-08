@@ -23,3 +23,22 @@ Nextcloud is integrated with a standalone Collabora Online Development Edition (
 - **Standalone Microservice**: Instead of using the resource-heavy built-in CODE server, Collabora is deployed as its own independent Kubernetes Deployment (`collabora.yaml`). This separates document rendering workloads from file storage workloads.
 - **WOPI Protocol**: Nextcloud acts as a WOPI host. Users access documents via the Nextcloud frontend (`files.smallworlds.network`), which opens an iframe where the user's browser connects directly to the Collabora server (`office.smallworlds.network`) via WebSockets to stream the editing session.
 - **Configuration**: The `oidc-config-job.yaml` automates the installation of the `richdocuments` app and sets the `wopi_url` so the integration is seamless out of the box.
+
+## Notable changes per file (from git history)
+
+### `values.yaml`
+- **Duplicate `OBJECTSTORE` env broke every sync** (`4b09930`): `objectStore.s3.existingSecret` was set *without* `secretKeys`, so the chart rendered empty `OBJECTSTORE_S3_KEY/SECRET` while `extraEnv` added working duplicates. `kubectl`'s strategic-merge patch can't handle duplicate env names ("The order in patch list doesn't match"), so **every Nextcloud sync failed its Deployment task** — the source of chronic `OutOfSync` drift and, on fresh clusters, of the OIDC hook never running. Fix: let the chart inject the `secretKeyRefs` itself and drop `extraEnv`.
+- **Enable the chart's `startupProbe`** (`a71150a`): without it the liveness probe (3×10s) killed the container ~40s into first boot, while it was still copying the codebase and running the installer, leaving a permanently half-installed instance (the `CAN_INSTALL` error page). The golden image made this race deterministic — with no image-pull delay the install competes with every other tenant for disk I/O.
+- **Trim unnecessary startup steps** (`83d8f32`): reduced redundant boot-time work so Nextcloud comes up faster and more reliably.
+
+### `oidc-config-job.yaml`
+- **`richdocuments`/Collabora wiring** (`fce1053`, `196eeff`, `0fcd2b7`, `878480b`): the Collabora integration was iterated on heavily — installing the `richdocuments` app, setting `wopi_url`, and fixing the Nextcloud↔Collabora communication path — before it worked end to end.
+
+### `nextcloud-secret-init-job.yaml`
+- **Secret key names & ServiceAccount fix** (`37e08f8`, `b8113a6`): corrected the generated secret keys and pointed the job at the right `setup-sa` ServiceAccount so its `kubectl` calls have the needed RBAC.
+
+### `collabora/collabora.yaml`
+- **Standalone CODE deployment** (`fce1053` onward): added as its own Deployment (see §4). Multiple follow-ups (`0fcd2b7`, `878480b`, `196eeff`) tuned the WOPI host allow-list and proxy settings until Nextcloud and Collabora could reach each other through Traefik.
+
+### `cnpg-cluster.yaml` & `redis.yaml`
+- **Decoupled data services + secret isolation** (`c100cea`, `68bc5c9`, `b9a864f`): dedicated CNPG cluster and Redis with isolated secrets/S3, matching the cluster-wide decoupling pattern.

@@ -18,3 +18,18 @@ Git LFS objects, user avatars, and issue attachments can consume massive amounts
 Instead of manual admin configuration, SSO is wired automatically.
 - **CLI Automation**: The Sync Hook waits for Forgejo to be active, then runs `kubectl exec` to invoke the `forgejo admin auth add-oauth` CLI command inside the pod.
 - **Keycloak Integration**: It registers the OIDC provider pointing to Keycloak, using the `CLIENT_SECRET` extracted from the `keycloak-secret` (provisioned by the base job). It also enables `ENABLE_AUTO_REGISTRATION` in `values.yaml` so SSO users instantly get accounts without admin approval.
+- **Auto-registration rationale** (`40bd20d`): auto-registration was deliberately enabled so first-time SSO users don't need a pre-created local account, and the OIDC callback host was updated when `auth.` was renamed to `identity.smallworlds.network` (`7bfb924`).
+
+## Notable changes per file (from git history)
+
+### `kustomization.yaml` — Helm chart source churn
+- **Chart repo corrections** (`2641262`, `20a0c06`): the Forgejo Helm chart repository URL was corrected to `codeberg.org` (version 1.1.7) after the original repo reference was wrong — the reason the vendored chart lives under `charts/`.
+- **Bumped to v17** (`4231f17`): the pinned Forgejo image was updated to v17 via the automated dependency-update flow.
+- **Per-tenant unique `setup-binding`** (`7418e81`): same fix as other tenants — the cluster-scoped RBAC binding is named uniquely to avoid collisions.
+
+### `forgejo-secret-init-job.yaml`
+- **Admin username added to creds** (`cb5e62d`): the secret-init job was generating admin credentials without a username, so the bootstrapped admin account was incomplete; the username is now included.
+- **Correct `setup-sa` ServiceAccount** (`9cc8d6d`): points the job at the shared init ServiceAccount so its `kubectl` calls carry the right RBAC.
+
+### `cnpg-cluster.yaml`, `redis.yaml`, `values.yaml`
+- **Decoupled data services + DRY** (`c100cea`, `697067a`, `b9a864f`): the externalized Postgres (CNPG) and Redis, plus the S3-via-Garage config, were normalized under the modularize/DRY refactors described in §1–§2.

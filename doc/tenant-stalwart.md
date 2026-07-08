@@ -19,3 +19,29 @@ Because Keycloak doesn't natively push user creation events to external mail ser
 - **Direct Database Sync**: The Python script inside `mail-provisioner-code` connects *directly* to the Keycloak PostgreSQL database (`keycloak-db-rw.keycloak.svc.cluster.local`). 
 - **Cross-Namespace Secrets**: To authenticate to the Keycloak DB, the script queries the Kubernetes API to read the `keycloak-db-app` secret from the `keycloak` namespace. This is why `mail-provisioner-rbac.yaml` grants cross-namespace secret reading privileges to the `mail-provisioner` ServiceAccount.
 - **Stalwart API Integration**: Once it detects a new user in the Keycloak database, it uses the `stalwart-cli` (authenticating via `STALWART_API_KEY`) to provision the mailbox in Stalwart automatically.
+
+## Notable changes per file (from git history)
+
+### `stalwart-deployment.yaml` — relay config was hard-won
+The relay/allow-relaying expression went through several syntax iterations before landing:
+- **Indexed → single-quoted array syntax** (`3541253`, `ef52b00`): experiments finding a form of the relay-networks list that Stalwart's config parser accepts.
+- **`MtaStageRcpt allowRelaying` expression** (`66190a9`): settled on expressing "allow relaying from internal subnets" via the recipient-stage `allowRelaying` expression rather than a static network list.
+- **Relay ENV var fixed for Stalwart v0.9+** (`f47d9f6`): the relay environment variable name changed in v0.9; this also reverted Keycloak's SMTP back to the *internal* relay (talking to Stalwart in-cluster) rather than routing out and back through the public MX.
+- **Port 465 (submissions) exposed** (`b7a8317`): added to both the service and deployment so mail clients can use implicit-TLS submission.
+
+### `stalwart-ingress.yaml` — TLS issuer flip-flop
+- **Staging → prod Let's Encrypt** (`20fca09` → `10a65a0`): temporarily switched to `letsencrypt-staging` to dodge rate limits during heavy iteration, then back to `letsencrypt-prod` once stable — a reminder that repeated re-issuance can burn the prod ACME quota.
+- **HTTPS admin interface** (`be79736`, later partly reverted by `a00a215`): exposing the Stalwart admin UI over HTTPS.
+
+### `stalwart-init-job.yaml` — OIDC & mail policy
+- **`preferred_username` for OIDC** (`8b96a7c`): use the `preferred_username` claim instead of email to avoid a domain mismatch between the OIDC identity and the mail domain.
+- **Audience checks relaxed then re-hardened** (`c1dcd9d` "relax audience requirement to make tests pass" → `692cf17` "make mail audience checks safer"): the OIDC audience requirement was loosened to unblock E2E tests, then tightened again in a safe way.
+- **DMARC set to `p=quarantine`** (`1d130db`): stricter DMARC policy for outbound mail deliverability/anti-spoofing.
+
+### `stalwart-secret-init-job.yaml`
+- **Correct `serviceAccountName: setup-sa`** (`9cc8d6d`): the secret-init jobs were pointed at the shared `setup-sa` ServiceAccount so their `kubectl` calls have the right RBAC (ties into the setup-rbac base).
+
+### `mail-provisioner-*.yaml`
+- **Dynamic Keycloak DB sync** (`147a449`): switched from a static approach to pulling users *dynamically* from the Keycloak database.
+- **`emailAddress` parsing fix** (`9d1dd8b`): corrected the account-parsing logic for the `emailAddress` field.
+- **RBAC & authentication fix** (`2fc733d`): fixed the cross-namespace RBAC and the provisioner's authentication (the origin of the `mail-provisioner-rbac.yaml` cross-namespace secret-read grant described above).

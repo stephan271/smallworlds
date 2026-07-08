@@ -4,10 +4,12 @@ Immich is the photo and video management application. Its Kubernetes configurati
 
 ## Key Infrastructure Integrations
 
-### 1. Vector Database Setup (`cnpg-cluster.yaml` & `immich-catalog.yaml`)
-Immich's machine learning features require the PostgreSQL `pgvecto.rs` extension, which isn't present in the standard CloudNativePG image.
-- **Custom Image Catalog**: `immich-catalog.yaml` defines a `ClusterImageCatalog` pointing to `ghcr.io/tensorchord/cloudnative-pgvecto.rs`.
-- **Cluster Override**: `cnpg-cluster.yaml` references this catalog via the `imageCatalogRef` configuration, ensuring Immich gets the necessary vector search capabilities while still benefiting from CNPG's automated Garage S3 backups.
+### 1. Vector Database Setup (`cnpg-cluster.yaml`, `immich-catalog.yaml` & `kustomization.yaml`)
+Immich's machine learning features require a PostgreSQL vector extension that isn't present in the standard CloudNativePG image.
+- **Custom Image Catalog**: `immich-catalog.yaml` defines a `ClusterImageCatalog` pointing to `ghcr.io/tensorchord/cloudnative-vectorchord`. A `ClusterImageCatalog` is used specifically to bypass CNPG's image version check (`c4bff35`), which would otherwise reject a non-standard Postgres image.
+- **Cluster Override**: `kustomization.yaml` patches `imageCatalogRef` onto the CNPG cluster, so Immich gets vector search while still benefiting from CNPG's automated Garage S3 backups.
+- **`pgvecto.rs` → VectorChord** (`bae710d`): Immich v3 (chart 0.13.1) dropped `pgvecto.rs` in favor of the **VectorChord** (`vchord`) extension. The catalog image moved from `cloudnative-pgvecto.rs` to `cloudnative-vectorchord`, and DB init creates the `vchord` extension instead of `vectors`. An earlier fix (`6d93dd7`) had already pinned a CNPG-compatible `pgvecto.rs` image before this migration.
+- **Extensions must live in the *app* DB, not the maintenance DB** (`d0ea31a`): the extension creation was moved from `postInitSQL` to **`postInitApplicationSQL`**. `postInitSQL` runs against the `postgres` maintenance database, so Immich hit `permission denied to create extension` in the application database it actually connects to. Related earlier fixes tuned the `search_path`, `vectors`-schema grants and `USAGE` syntax during init (`bb1b33f`, `1c56664`, `b8113a6`).
 
 ### 2. OIDC & Identity Initialization (`admin-init-job.yaml`)
 Immich does not support declarative configuration files for OIDC; it must be configured via its database or API.
@@ -17,3 +19,17 @@ Immich does not support declarative configuration files for OIDC; it must be con
 
 ### 3. Storage (`library-pvc.yaml`)
 - **Persistent Storage**: Allocates a large PersistentVolumeClaim (`immich-library-pvc`) where the actual user photos, videos, and machine learning models are stored. This relies on the foundational storage classes provisioned in sync-wave `-10`.
+
+## Notable changes per file (from git history)
+
+### `admin-init-job.yaml`
+- **Dynamic OIDC secret via API** (`6fac780`, `2dd95d7`): the client secret is injected through Immich's API from `keycloak-secret` rather than baked into `values.yaml`, so Immich (and Roundcube) became "dynamic Keycloak clients" with no plaintext secret in git.
+- **v2+ API port & ping endpoint** (`07eacb0`, `bae710d`): the job targets port **2283** and `/api/server/ping` to detect readiness.
+- **`sed` → Python for system-config edits** (`bae710d`): the config patch was rewritten from `sed`-based JSON munging — which accidentally flipped *every* `"enabled":false` in the system config — to Python with proper JSON handling that only touches the `oauth` section.
+
+### `values.yaml`
+- **bjw-s common-library 5.x rewrite** (`bae710d`): values were rewritten for the new chart schema; keys the chart now rejects (postgresql/redis) were removed, the `valkey` subchart stays disabled in favor of the existing `redis.yaml` deployment, and obsolete probe-path/service-link patches were dropped. The chart source also moved to OCI because the upstream HTTP Helm repo was removed.
+- **Explicit `REDIS_PORT`** (`2ea7183`): set explicitly to override Kubernetes' auto-injected `REDIS_PORT` service env var (which is a `tcp://…` URL, not a port number, and breaks the client).
+
+### `redis.yaml` & `cnpg-cluster.yaml`
+- **Decoupled data services / secret isolation** (`c100cea`, `68bc5c9`, `b9a864f`): Immich runs its own Redis and CNPG cluster with isolated secrets/S3, part of the cluster-wide decoupling refactor.
