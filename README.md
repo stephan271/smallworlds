@@ -129,9 +129,42 @@ terraform destroy -target=hcloud_server.smallworlds_pilot_node
 terraform apply
 ```
 
-### Upstream Updates
-By default, the `kustomization.yaml` targets `ref=HEAD`, pulling continuous updates from the foundation repository. 
-To control update timing, pin the reference to a specific version tag (e.g., `ref=v1.2.0`). For automated dependency management, integrate RenovateBot or Dependabot into your configuration repository.
+### Managing Updates — the two-repo model
+
+SmallWorlds runs on **two repositories**, and understanding their interplay is the key to safe day-2 operations:
+
+| Repo | Role | Who changes it |
+| :--- | :--- | :--- |
+| **`smallworlds`** (this repo, public) | The upstream **base**: all app/infra manifests under `infrastructure/kubernetes/`. Released as semver tags (`v1.0.0`, `v1.1.0`, …). | The SmallWorlds project. |
+| **`my-community-config`** (yours, private) | The **overlay** ArgoCD actually deploys from. Each app's `kustomization.yaml` remote-references the base at a **pinned tag** (`?ref=v1.0.0`) plus your local patches. | You, the operator. |
+
+**ArgoCD only watches your private overlay.** It does *not* track the base's moving branch. Because the overlay pins the base to an **immutable tag**, upstream changes never reach your cluster on their own — adopting a new base version is always a deliberate, auditable action in *your* repo.
+
+> [!NOTE]
+> This separates two independent concerns. **Drift reconciliation** (ArgoCD `selfHeal`) keeps the cluster matching whatever is *declared* and stays on — it's safe and low-risk. **Version adoption** (moving to newer upstream code) is the deliberate lever described below. Don't conflate them.
+
+#### Adopting a new release manually
+
+Bump the pinned tag everywhere in your overlay and commit — ArgoCD (which watches this repo) then syncs the change deterministically:
+
+```bash
+# in my-community-config, e.g. v1.0.0 -> v1.1.0
+grep -rl 'v1.0.0' . | xargs sed -i 's#v1.0.0#v1.1.0#g'
+git commit -am "Bump upstream smallworlds base to v1.1.0" && git push
+```
+
+Rollback is just as simple: revert that commit. Because the ref is immutable, what you tested is exactly what deploys.
+
+> [!TIP]
+> `prepare-community-repo.sh` pins to a release tag by default (it prompts for the version). You *can* answer `HEAD` to always track the latest `main`, but avoid it in production: ArgoCD only re-pulls a floating `HEAD` non-deterministically (on cache expiry), so you lose reproducibility and can't tell what's actually running.
+
+#### Automated weekly update proposals (Renovate)
+
+An in-cluster **Renovate** CronJob is pre-wired to reduce the toil without giving up control. Every Monday it opens **one pull request** in your private overlay that bumps the pinned base tag to the newest `smallworlds` release (config in `my-community-config/renovate.json`). It does **not** auto-merge — you review the changelog and merge when ready; the merge is the commit that triggers ArgoCD. This gives you a low-effort cadence *and* a human gate *and* a full audit trail.
+
+Requirements for the PR automation:
+- The private overlay must be listed in the Renovate CronJob's `RENOVATE_REPOSITORIES` (added via an overlay patch in your `kustomization.yaml`, so operator-specific config stays out of the public base).
+- The Git token Renovate uses (`repo-git-creds`) must have **pull-request / write** access to the private overlay repo, not just read.
 
 ---
 
