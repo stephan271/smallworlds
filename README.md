@@ -8,6 +8,9 @@
 > [!WARNING]
 > **Prototype — not production-ready.** SmallWorlds is still in an early prototyping state. It is intended for experimentation and evaluation only, and is **not yet suitable for production environments**. Expect breaking changes, incomplete hardening, and no stability or upgrade guarantees. Use at your own risk.
 
+> [!IMPORTANT]
+> **Hetzner Cloud only.** The current `smallworlds-init.sh` bootstrap script and the bundled Terraform assume deployment to **Hetzner Cloud** — they provision an `hcloud_server`, manage DNS through the Hetzner API, and rely on Hetzner-specific storage. Running it requires a Hetzner Cloud account and an API token. Other providers are not yet supported; targeting one would require replacing the Terraform in `infrastructure/terraform/` and the storage/DNS assumptions in the init script.
+
 This document outlines the deployment process for a SmallWorlds GitOps cluster. The architecture relies on an upstream foundation repository and a private, user-controlled configuration repository.
 
 > [!TIP]
@@ -67,7 +70,7 @@ This script handles:
 Make sure to push the state to the remote repo (the script will ask you to do so)
 
 ### 2. Infrastructure Provider Setup
-SmallWorlds utilizes Hetzner Cloud.
+SmallWorlds currently supports **Hetzner Cloud only** — the init script and Terraform are written against it, so these steps are required (see the note at the top of this README).
 1. Create a Hetzner Cloud account and a new project.
 2. Generate an API Token with **Read & Write** permissions. Save this token.
 
