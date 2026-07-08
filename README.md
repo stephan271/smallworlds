@@ -124,6 +124,48 @@ To control update timing, pin the reference to a specific version tag (e.g., `re
 
 ---
 
+## End-to-End Smoke Tests
+
+Browser-based Playwright smoke tests simulate real users logging in via SSO and exercising each application. They live in `e2e-tests/tests` and run against a **live** SmallWorlds community.
+
+```bash
+./e2e-tests/run-smoke-tests.sh <domain> [keycloak-admin-password]
+
+# e.g.
+./e2e-tests/run-smoke-tests.sh smallworlds.network
+```
+
+If the Keycloak admin password is omitted, the runner reads it from the cluster via `kubectl`. The script checks service availability, provisions two test users (`sw-test-alice`, `sw-test-bob`), and runs the suite.
+
+### OIDC test depth (two-tier)
+
+Full OIDC login roundtrips require the applications to trust the TLS certificate of `identity.<domain>` for their server-side discovery/token calls. That holds in production (Let's Encrypt) but is structurally impossible on ephemeral staging clusters. The suite therefore runs at one of two depths:
+
+| Mode | How to run | What it verifies |
+| :--- | :--- | :--- |
+| **Shallow wiring** (default) | `./e2e-tests/run-smoke-tests.sh <domain>` | Each app redirects into Keycloak's authorize endpoint — proving client config, secrets, issuer URL, in-cluster DNS, and OIDC wiring. The deeper login-roundtrip tests are skipped. |
+| **Full OIDC** | `FULL_OIDC=1 ./e2e-tests/run-smoke-tests.sh <domain>` | The complete login roundtrips run — auto-login into each app, then asserting the app's authenticated UI loads (Files listing, inbox, timeline, dashboard, etc.). Requires app-trusted certificates, i.e. production. |
+
+In shallow mode you'll see the roundtrip tests reported as **skipped** (with the reason `Full OIDC roundtrip needs app-trusted certificates — run with FULL_OIDC=1`); this is expected, not a failure.
+
+### Other options
+
+These environment variables override the CLI arguments:
+
+| Variable | Effect |
+| :--- | :--- |
+| `DOMAIN` | Target domain (alternative to the first positional argument). |
+| `KC_ADMIN_PASS` | Keycloak admin password (alternative to the second positional argument). |
+| `FULL_OIDC=1` | Run the full OIDC login roundtrips (see above). |
+| `HEADED=1` | Run in headed browser mode instead of headless. |
+| `SLOWMO=500` | Slow operations down by the given number of milliseconds — useful when watching a headed run. |
+| `SKIP_PROVISION=1` | Skip test-user provisioning (reuse existing `sw-test-*` users). |
+| `KUBECONFIG` | Path to the kubeconfig used to read the admin password. |
+
+The HTML report is written to `e2e-tests/reports/html`; view it with `cd e2e-tests && npx playwright show-report reports/html`.
+
+---
+
 ## Developer Guide: Adding a New Application
 
 When adding a new application (tenant) to the SmallWorlds cluster, please ensure you complete all the items on this integration checklist:
