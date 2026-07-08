@@ -3,6 +3,22 @@ publicURL: "https://meet.smallworlds.network"
 enableAuth: true
 enableGuests: true
 
+# Route moderator ("I am the host") login through the jitsi-oidc-adapter so that
+# rooms can only be created by authenticated Keycloak users. Guests can still be
+# invited and join once a moderator has opened the room (enableGuests: true).
+#
+# These env vars land in the shared configmap consumed by the web, prosody and
+# jicofo containers. JWT_APP_SECRET is supplied separately to prosody from the
+# jitsi-jwt secret (prosody.jwt.existingSecretName) and must match the adapter's
+# APP_SECRET; JWT_APP_ID must match the adapter's APP_ID ("jitsi").
+extraCommonEnvs:
+  AUTH_TYPE: jwt
+  JWT_APP_ID: jitsi
+  JICOFO_ENABLE_AUTH: "false"
+  TOKEN_AUTH_URL: "https://meet.smallworlds.network/oidc/auth?state={state}"
+  XMPP_MODULES: persistent_lobby
+  XMPP_MUC_MODULES: muc_wait_for_host
+
 web:
   ingress:
     enabled: true
