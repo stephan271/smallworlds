@@ -33,4 +33,48 @@ patches:
         value:
           - name: REDIRECT_URIS
             value: '["https://meet.smallworlds.network/*"]'
+  # The OIDC auth env lives in the shared (common) ConfigMap, which is not
+  # covered by the web/prosody/jicofo pod-template checksums, so a values
+  # change alone does not roll the pods. Bump this annotation whenever the
+  # shared auth config changes to force ArgoCD to restart them in-cluster
+  # (we have no direct cluster API access to `kubectl rollout restart`).
+  - target:
+      kind: Deployment
+      name: jitsi-jitsi-meet-web
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: jitsi-jitsi-meet-web
+      spec:
+        template:
+          metadata:
+            annotations:
+              smallworlds.network/config-rev: "oidc-1"
+  - target:
+      kind: StatefulSet
+      name: jitsi-jitsi-meet-prosody
+    patch: |-
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: jitsi-jitsi-meet-prosody
+      spec:
+        template:
+          metadata:
+            annotations:
+              smallworlds.network/config-rev: "oidc-1"
+  - target:
+      kind: Deployment
+      name: jitsi-jitsi-meet-jicofo
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: jitsi-jitsi-meet-jicofo
+      spec:
+        template:
+          metadata:
+            annotations:
+              smallworlds.network/config-rev: "oidc-1"
 
