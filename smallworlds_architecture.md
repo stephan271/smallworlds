@@ -18,20 +18,24 @@ This root Application defines the **App of Apps** pattern. It points ArgoCD to t
 
 ## 2. The App of Apps Architecture
 
-The `infrastructure/kubernetes/apps/` directory contains individual ArgoCD `Application` manifests for every component in the cluster. Each of these manifests points to a specific tenant directory (e.g., `infrastructure/kubernetes/tenants/keycloak/`) where the actual Kustomize or Helm definitions live.
+The `infrastructure/kubernetes/apps/` directory contains individual ArgoCD `Application` manifests for every component in the cluster. Most of these — the end-user apps and Keycloak — point to a specific in-repo tenant directory (e.g., `infrastructure/kubernetes/tenants/keycloak/`) rendered with Kustomize. The core operators (CloudNativePG, Garage, Traefik, cert-manager, the monitoring/logging stacks, trivy-operator) instead reference an upstream Helm chart directly, so they have no in-repo `tenants/` directory.
 
 ```mermaid
 graph TD
     GitRepo[Git Repository] -->|Pulled by| ArgoRoot[ArgoCD Root App]
     ArgoRoot -->|Synchronizes| AppsDir[apps/*.yaml]
     AppsDir -->|Deploys| K[Keycloak App]
+    AppsDir -->|Deploys| TApps[Nextcloud, Immich, Forgejo, etc.]
     AppsDir -->|Deploys| CNPG[CloudNativePG App]
-    AppsDir -->|Deploys| G[Garage S3 App]
-    AppsDir -->|Deploys| Apps[Nextcloud, Immich, etc.]
+    AppsDir -->|Deploys| G[Garage App]
 
-    K -->|Applies| TenantK[tenants/keycloak/*]
-    CNPG -->|Applies| TenantCNPG[tenants/cloudnative-pg/*]
+    K -->|Applies in-repo Kustomize| TenantK[tenants/keycloak/*]
+    TApps -->|Apply in-repo Kustomize| TenantDirs[tenants/APP/*]
+    CNPG -->|Renders upstream Helm chart| CNPGChart[cloudnative-pg operator chart]
+    G -->|Renders upstream Helm chart| GChart[garage chart]
 ```
+
+> **Two kinds of Application.** In-repo tenants (all the end-user apps plus Keycloak) point at an `infrastructure/kubernetes/tenants/<name>` directory rendered with Kustomize. Core operators — **CloudNativePG, Garage, Traefik, cert-manager, kube-prometheus-stack, loki-stack, trivy-operator, auto-remediator** — instead reference an **upstream Helm chart** directly; there is no in-repo `tenants/` folder for them.
 
 ## 3. Core Infrastructure Components Integration
 

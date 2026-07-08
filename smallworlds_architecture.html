@@ -211,20 +211,23 @@
 
         <div class="card stagger-2">
             <h2>2. The App of Apps Architecture</h2>
-            <p>The <code>infrastructure/kubernetes/apps/</code> directory contains individual ArgoCD <code>Application</code> manifests for every component in the cluster. Each of these manifests points to a specific tenant directory (e.g., <code>infrastructure/kubernetes/tenants/keycloak/</code>) where the actual Kustomize or Helm definitions live.</p>
+            <p>The <code>infrastructure/kubernetes/apps/</code> directory contains individual ArgoCD <code>Application</code> manifests for every component in the cluster. Most of these — the end-user apps and Keycloak — point to a specific in-repo tenant directory (e.g., <code>infrastructure/kubernetes/tenants/keycloak/</code>) rendered with Kustomize. The core operators (CloudNativePG, Garage, Traefik, cert-manager, the monitoring/logging stacks, trivy-operator) instead reference an upstream Helm chart directly, so they have no in-repo <code>tenants/</code> directory.</p>
 
             <div class="diagram-container">
                 <div class="mermaid">
                     graph TD
                     GitRepo[Git Repository] -->|Pulled by| ArgoRoot[ArgoCD Root App]
                     ArgoRoot -->|Synchronizes| AppsDir[apps/*.yaml]
+
                     AppsDir -->|Deploys| K[Keycloak App]
+                    AppsDir -->|Deploys| TApps[Nextcloud, Immich, Forgejo, etc.]
                     AppsDir -->|Deploys| CNPG[CloudNativePG App]
-                    AppsDir -->|Deploys| G[Garage S3 App]
-                    AppsDir -->|Deploys| Apps[Nextcloud, Immich, etc.]
-                    
-                    K -->|Applies| TenantK[tenants/keycloak/*]
-                    CNPG -->|Applies| TenantCNPG[tenants/cloudnative-pg/*]
+                    AppsDir -->|Deploys| G[Garage App]
+
+                    K -->|Applies in-repo Kustomize| TenantK[tenants/keycloak/*]
+                    TApps -->|Apply in-repo Kustomize| TenantDirs[tenants/APP/*]
+                    CNPG -->|Renders upstream Helm chart| CNPGChart[cloudnative-pg operator chart]
+                    G -->|Renders upstream Helm chart| GChart[garage chart]
                 </div>
             </div>
         </div>
