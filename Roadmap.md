@@ -23,12 +23,12 @@ The following applications are planned to expand the capabilities of the SmallWo
   - *Details:* Real-time collaborative LaTeX editor. Essential for academic and professional publication authoring. The open-source community edition provides a solid foundation for robust document compilation.
 
 ### Software Project Management
-- **Target:** **Taiga**
-  - *Details:* Agile project management tool for cross-functional teams. Covers Scrum and Kanban methodologies, user stories, sprints, and issues, providing a more comprehensive planning interface than Forgejo's built-in issue tracking.
+- **Recommendation:** **Plane** (previously Taiga)
+  - *Why:* Plane is the modern default for self-hosted agile PM: full self-hosting with no user or feature limits in the Community Edition, a rapid development pace, and Scrum/Kanban boards, sprints, user stories, and issues — providing a more comprehensive planning interface than Forgejo's built-in issue tracking. We moved away from **Taiga** because Kaleidos, the company behind it, has wound down; its designated successor **Tenzu** shipped its first stable release in September 2025 but is still far from Taiga's feature parity. If deep waterfall/Gantt planning is ever needed, **OpenProject** is the heavier alternative, but Plane best fits our needs.
 
 ### Wiki Documentation
-- **Recommendation:** **Wiki.js** (or **Outline**)
-  - *Why:* **Wiki.js** is highly recommended as it has a rich set of features, Git-backed storage, and multiple editor types (Markdown, WYSIWYG). Alternatively, **Outline** is another fantastic choice if you want an ultra-modern, Notion-like collaborative editing experience (though Outline depends on PostgreSQL and Redis, and requires an OIDC provider like Keycloak, which we already have). We will start with Wiki.js based on its ease of setup and broad capabilities.
+- **Recommendation:** **Outline** (or **Docmost**)
+  - *Why:* **Outline** offers an ultra-modern, Notion-like collaborative editing experience and is actively maintained. It depends on PostgreSQL and Redis and requires an OIDC provider like Keycloak — which we already run — making it a natural fit for our stack. **Docmost** is a lighter, very actively developed alternative worth evaluating. We moved away from **Wiki.js**, our earlier pick, because its development has stalled: the v3 rewrite has had "no ETA" since a 2022 developer preview, v2 is in maintenance mode, and the main repository has seen little recent activity, while Outline, Docmost, and BookStack are all actively developed.
 
 ### Open Notebook
 - **Target:** **Open Notebook** ([github.com/lfnovo/open-notebook](https://github.com/lfnovo/open-notebook))
@@ -65,8 +65,8 @@ To counteract these issues, social media apps in this project must reject these 
   - *Details:* A federated video streaming platform. It uses peer-to-peer networking (WebTorrent) to share the bandwidth load among viewers, meaning a small, self-hosted server can deliver video effectively without massive infrastructure costs. It replaces YouTube while avoiding autoplay and algorithmic rabbit holes.
 
 ### Fact Checking
-- **Recommendation:** **OpenFactCheck**
-  - *Details:* An open-source, decentralized framework to verify news, cross-reference claims, and combat AI-generated misinformation. It aligns with the goal of fostering informed, meaningful discourse.
+- **Recommendation:** **Community-notes-style moderation** (built into the social apps), with **OpenFactCheck** reserved for LLM factuality evaluation.
+  - *Why:* There is currently no strong turnkey, federated fact-checking app for user-facing news and social posts. The most practical path to fostering informed discourse is crowd-sourced, community-note-style annotations layered onto Mastodon/Pixelfed/PeerTube, rather than a standalone service. **OpenFactCheck** — originally listed here — is actually a research framework for *evaluating the factuality of LLMs and their claims* (a Python library plus benchmarking modules), not a tool for checking human-authored news; it belongs alongside the SRE/LLM tooling rather than in the social-media stack.
 
 ---
 
