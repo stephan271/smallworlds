@@ -1,0 +1,39 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: database
+spec:
+  instances: 2
+  imageName: ghcr.io/cloudnative-pg/postgresql:16
+  primaryUpdateStrategy: unsupervised
+  storage:
+    size: 20Gi
+  bootstrap:
+    initdb:
+      database: app
+      owner: app
+  backup:
+    retentionPolicy: "7d"
+    barmanObjectStore:
+      destinationPath: s3://postgres-backups/
+      endpointURL: http://garage.garage-system.svc.cluster.local:3900
+      s3Credentials:
+        accessKeyId:
+          name: garage-secret-cnpg
+          key: accessKeyId
+        secretAccessKey:
+          name: garage-secret-cnpg
+          key: secretAccessKey
+      wal:
+        compression: gzip
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: database-backup
+spec:
+  schedule: "0 2 * * *"
+  cluster:
+    name: database
+  immediate: true
+  backupOwnerReference: self

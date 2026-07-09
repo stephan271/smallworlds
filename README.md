@@ -47,6 +47,7 @@ This project is built upon several foundational open-source technologies, core i
 | **Immich** | [immich.app](https://immich.app/) | High performance photo and video backup. |
 | **Jitsi Meet** | [jitsi.org](https://jitsi.org/) | Secure video conferencing and communication platform. |
 | **Nextcloud** | [nextcloud.com](https://nextcloud.com/) | File synchronization and collaboration. |
+| **Plane** | [plane.so](https://plane.so/) | Open-source project management tool. |
 | **Roundcube** | [roundcube.net](https://roundcube.net/) | IMAP webmail client connected to Stalwart. |
 
 ---

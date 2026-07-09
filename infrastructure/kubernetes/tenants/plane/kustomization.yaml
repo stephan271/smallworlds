@@ -1,0 +1,36 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: plane
+
+bases:
+  - ../../bases/setup-rbac
+  - ../../bases/keycloak-client-job
+
+resources:
+  - redis.yaml
+  - cnpg-cluster.yaml
+
+patches:
+  - target:
+      kind: ClusterRoleBinding
+      name: setup-binding
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: setup-binding-plane
+  - target:
+      kind: Job
+      name: keycloak-client-init
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env
+        value:
+          - name: REDIRECT_URIS
+            value: '["https://plan.smallworlds.network/auth/oidc/callback", "https://plan.smallworlds.network/*"]'
+
+helmCharts:
+  - name: plane-ce
+    repo: https://helm.plane.so/
+    releaseName: plane
+    version: 1.10.0
+    valuesFile: values.yaml
