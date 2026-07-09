@@ -49,6 +49,11 @@ patches:
           gethomepage.dev/description: "Project Management"
           gethomepage.dev/group: "Applications"
           gethomepage.dev/icon: "plane.png"
+      spec:
+        tls:
+          - hosts:
+              - plan.smallworlds.network
+            secretName: plane-tls
   - target:
       kind: Deployment
       name: plane-api-wl
