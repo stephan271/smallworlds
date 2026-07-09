@@ -1,0 +1,31 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - rbac.yaml
+  - config.yaml
+  - deployment.yaml
+  - service.yaml
+
+# Package the Python source as ConfigMaps mounted at /app and /app/handlers.
+# Split in two because ConfigMap keys can't contain "/", so the handlers
+# subpackage needs its own map to preserve the package layout. Kustomize hashes
+# these names and rewrites the Deployment's volume references, so a source edit
+# rolls the pod automatically.
+configMapGenerator:
+  - name: remediation-src
+    namespace: remediation
+    files:
+      - src/config.py
+      - src/prometheus.py
+      - src/escalation.py
+      - src/overlay_pr.py
+      - src/units.py
+      - src/registry.py
+      - src/main.py
+  - name: remediation-src-handlers
+    namespace: remediation
+    files:
+      - src/handlers/__init__.py
+      - src/handlers/base.py
+      - src/handlers/oomkill.py

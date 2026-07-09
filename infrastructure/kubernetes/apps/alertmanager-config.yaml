@@ -24,6 +24,20 @@ spec:
         matchers:
           - name: alertname
             value: Watchdog
+      # Tier 1 remediation: hand KubePodCrashLooping to the deterministic
+      # handler service (which confirms OOMKilled and opens a right-sizing PR).
+      # continue: true so the very next route still emails it — the operator
+      # keeps full visibility while Tier 1 is in DRY_RUN. Once armed, this
+      # duplicate email route can be dropped so handled alerts stop paging.
+      - receiver: tier1-webhook
+        continue: true
+        matchers:
+          - name: alertname
+            value: KubePodCrashLooping
+      - receiver: email-admin
+        matchers:
+          - name: alertname
+            value: KubePodCrashLooping
   receivers:
     - name: email-admin
       emailConfigs:
@@ -42,3 +56,7 @@ spec:
           requireTLS: false
           sendResolved: true
     - name: blackhole
+    - name: tier1-webhook
+      webhookConfigs:
+        - url: http://remediation.remediation.svc.cluster.local:8080/webhook
+          sendResolved: true

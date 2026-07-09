@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: remediation
+  namespace: remediation
+  labels:
+    app: remediation
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: remediation
+  template:
+    metadata:
+      labels:
+        app: remediation
+    spec:
+      serviceAccountName: remediation
+      containers:
+        - name: remediation
+          # Scaffold pattern (like the Hermes stub): run the source straight
+          # from ConfigMap-mounted volumes on a stock image. The service is
+          # pure Python stdlib (no third-party deps, no pip at startup), so it
+          # starts offline and deterministically. Graduate to a built, pinned
+          # image once the handler catalog stabilises.
+          image: python:3.14-slim@sha256:b877e50bd90de10af8d82c57a022fc2e0dc731c5320d762a27986facfc3355c1
+          command: ["python", "-u", "/app/main.py"]
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: remediation-config
+          env:
+            # GitHub PAT (repo scope) shared with Renovate. Optional so the pod
+            # runs in DRY_RUN without it; required before arming. The operator
+            # provisions repo-git-creds in this namespace when arming.
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: repo-git-creds
+                  key: password
+                  optional: true
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
+          volumeMounts:
+            - name: src
+              mountPath: /app
+            - name: src-handlers
+              mountPath: /app/handlers
+      volumes:
+        - name: src
+          configMap:
+            name: remediation-src
+        - name: src-handlers
+          configMap:
+            name: remediation-src-handlers

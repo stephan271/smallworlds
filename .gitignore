@@ -70,3 +70,7 @@ Thumbs.db
 *.swp
 *~
 temp.json
+
+# Python
+__pycache__/
+*.pyc

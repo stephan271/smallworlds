@@ -1,0 +1,9 @@
+# The Tier 1 service talks only to Prometheus, the GitHub API and Hermes over
+# HTTP — it never touches the Kubernetes API — so the ServiceAccount needs no
+# RBAC today. (If a handler later resolves workloads via ownerReferences it will
+# need read on pods/replicasets/statefulsets; add a ClusterRole then.)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: remediation
+  namespace: remediation

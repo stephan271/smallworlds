@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: remediation-config
+  namespace: remediation
+data:
+  # Safety switch. While "true" (scaffold default) handlers compute and log the
+  # intended fix but open NO PRs and escalate to nobody. Flip to "false" to arm.
+  DRY_RUN: "true"
+
+  # In-cluster Prometheus (kube-prometheus-stack) for sizing + OOM confirmation.
+  PROMETHEUS_URL: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090"
+
+  # PR target: the private overlay (the only ref that deploys on merge).
+  OVERLAY_REPO: "stephan271/my-community-config"
+  OVERLAY_BASE_BRANCH: "main"
+
+  # Tier 2 escalation endpoint (Hermes).
+  HERMES_WEBHOOK_URL: "http://hermes-agent.hermes.svc.cluster.local:8080/webhook"
+
+  # Sizing policy: new limit = ceil(P95 over window * headroom).
+  P95_WINDOW: "7d"
+  HEADROOM_FACTOR: "1.5"
+  MIN_BUMP_FRACTION: "0.15"
+
+  # Grace period a Tier 1 fix gets before a re-fire escalates (seconds).
+  RESOLVE_DEADLINE_SECONDS: "1800"

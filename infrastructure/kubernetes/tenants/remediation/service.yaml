@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: remediation
+  namespace: remediation
+  labels:
+    app: remediation
+spec:
+  selector:
+    app: remediation
+  ports:
+    # Alertmanager posts to http://remediation.remediation.svc.cluster.local:8080/webhook
+    - name: http
+      port: 8080
+      targetPort: http

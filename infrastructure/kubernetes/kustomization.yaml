@@ -16,6 +16,7 @@ resources:
   - apps/kube-prometheus-stack.yaml
   - apps/loki-stack.yaml
   - apps/hermes.yaml
+  - apps/remediation.yaml
   - apps/velero.yaml
   - apps/backup-replicator.yaml
   - apps/alertmanager-config.yaml
