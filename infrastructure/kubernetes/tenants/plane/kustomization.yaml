@@ -9,6 +9,7 @@ bases:
 resources:
   - redis.yaml
   - cnpg-cluster.yaml
+  - admin-nginx-configmap.yaml
 
 helmCharts:
   - name: plane-ce
@@ -187,6 +188,27 @@ patches:
                     value: "postgres://$(PGUSER):$(PGPASSWORD)@$(PGHOST):5432/$(PGDATABASE)"
                   - name: AMQP_URL
                     value: "amqp://plane:plane@plane-rabbitmq.plane.svc.cluster.local/"
+  - target:
+      kind: Deployment
+      name: plane-admin-wl
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: plane-admin-wl
+      spec:
+        template:
+          spec:
+            containers:
+              - name: plane-admin
+                volumeMounts:
+                  - name: nginx-conf
+                    mountPath: /etc/nginx/nginx.conf
+                    subPath: nginx.conf
+            volumes:
+              - name: nginx-conf
+                configMap:
+                  name: plane-admin-nginx-conf
   - target:
       kind: Job
       name: plane-api-migrate-1
