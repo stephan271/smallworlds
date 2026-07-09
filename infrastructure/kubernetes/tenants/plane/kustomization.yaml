@@ -91,6 +91,8 @@ patches:
                       secretKeyRef:
                         name: database-app
                         key: password
+                  - name: DATABASE_URL
+                    value: "postgres://$(PGUSER):$(PGPASSWORD)@$(PGHOST):5432/$(PGDATABASE)"
                   - name: REDIS_HOST
                     value: "redis"
                   - name: REDIS_PORT
@@ -139,6 +141,8 @@ patches:
                       secretKeyRef:
                         name: database-app
                         key: password
+                  - name: DATABASE_URL
+                    value: "postgres://$(PGUSER):$(PGPASSWORD)@$(PGHOST):5432/$(PGDATABASE)"
                   - name: REDIS_HOST
                     value: "redis"
                   - name: REDIS_PORT
@@ -187,6 +191,8 @@ patches:
                       secretKeyRef:
                         name: database-app
                         key: password
+                  - name: DATABASE_URL
+                    value: "postgres://$(PGUSER):$(PGPASSWORD)@$(PGHOST):5432/$(PGDATABASE)"
                   - name: REDIS_HOST
                     value: "redis"
                   - name: REDIS_PORT
@@ -221,6 +227,8 @@ patches:
                       secretKeyRef:
                         name: database-app
                         key: password
+                  - name: DATABASE_URL
+                    value: "postgres://$(PGUSER):$(PGPASSWORD)@$(PGHOST):5432/$(PGDATABASE)"
                   - name: REDIS_HOST
                     value: "redis"
                   - name: REDIS_PORT
