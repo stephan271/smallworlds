@@ -190,7 +190,7 @@ patches:
       metadata:
         name: plane-api-migrate-1
         annotations:
-          argocd.argoproj.io/hook: PreSync
+          argocd.argoproj.io/hook: Sync
           argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
       spec:
         template:
