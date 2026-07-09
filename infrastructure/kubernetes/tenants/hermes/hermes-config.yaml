@@ -1,16 +1,26 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: hermes-config
+  name: hermes-agent-config
   namespace: hermes
 data:
-  config.yaml: |
-    agent:
-      learning_mode: true
-      monthly_budget_soft_cap: 50
-      scaledown_observation_days: 30
-      alertmanager_webhook_port: 8080
-      model: "hermes-2-pro-llama-3-8b"
-    policies:
-      minor_updates_require_approval: true
-      major_updates_require_approval: true
+  # Safety switch. While "true" (default) Hermes logs the escalation and the
+  # intended investigation but makes NO Claude API calls and sends NO email.
+  # Flip to "false" (and provision the hermes-anthropic Secret) to arm.
+  DRY_RUN: "true"
+
+  HERMES_MODEL: "claude-opus-4-8"
+  HERMES_EFFORT: "high"
+  HERMES_MAX_ITERATIONS: "8"
+
+  # Diagnostic data sources.
+  PROMETHEUS_URL: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090"
+  LOKI_URL: "http://loki-stack.monitoring.svc.cluster.local:3100"
+
+  # Report delivery via Stalwart's internal relay (same path Alertmanager uses).
+  SMTP_HOST: "stalwart-mail.stalwart.svc.cluster.local"
+  SMTP_PORT: "25"
+  SMTP_HELO: "smallworlds.network"
+  MAIL_FROM: "hermes@smallworlds.network"
+  # Placeholder recipient; each operator overrides ADMIN_EMAIL in their overlay.
+  ADMIN_EMAIL: "admin@smallworlds.network"

@@ -4,20 +4,24 @@ kind: Kustomization
 resources:
   - hermes-rbac.yaml
   - hermes-config.yaml
-  - hermes-sa-secret.yaml
   - hermes-deployment.yaml
-  - notification-channels.yaml
+  - hermes-service.yaml
 
 configMapGenerator:
+  # The agent source, mounted at /app. Flat package (no subdirs), so a single
+  # ConfigMap suffices — ConfigMap keys can't contain "/".
+  - name: hermes-src
+    namespace: hermes
+    files:
+      - src/config.py
+      - src/prometheus.py
+      - src/loki.py
+      - src/k8s.py
+      - src/mailer.py
+      - src/tools.py
+      - src/agent.py
+      - src/main.py
   - name: hermes-system-prompt
     namespace: hermes
     files:
       - system-prompt.txt
-  - name: hermes-runbooks
-    namespace: hermes
-    files:
-      - runbooks/secret-rotation.yaml
-      - runbooks/resource-pressure.yaml
-      - runbooks/resource-rightsizing.yaml
-      - runbooks/vertical-scaling.yaml
-      - runbooks/storage-expansion.yaml

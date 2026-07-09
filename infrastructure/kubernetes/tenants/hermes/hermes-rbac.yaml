@@ -9,19 +9,13 @@ kind: ClusterRole
 metadata:
   name: hermes-agent-role
 rules:
-  # Read access to cluster state to diagnose issues
-  - apiGroups: ["", "apps", "batch", "extensions", "networking.k8s.io"]
-    resources: ["pods", "deployments", "services", "events", "nodes", "configmaps", "secrets", "ingresses", "persistentvolumeclaims"]
-    verbs: ["get", "list", "watch"]
-  # Write access to update status page
+  # Least privilege: the agent's only Kubernetes tools are get_pod_status and
+  # get_recent_events, so it needs read on pods and events and nothing else.
+  # (Metrics/logs come over HTTP from Prometheus/Loki — not the k8s API.) An LLM
+  # that ingests untrusted log/metric content must not be able to read Secrets.
   - apiGroups: [""]
-    resources: ["configmaps"]
-    resourceNames: ["status-data"]
-    verbs: ["patch", "update"]
-  # Access to logs
-  - apiGroups: [""]
-    resources: ["pods/log"]
-    verbs: ["get"]
+    resources: ["pods", "events"]
+    verbs: ["get", "list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

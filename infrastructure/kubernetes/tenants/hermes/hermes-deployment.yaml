@@ -3,6 +3,8 @@ kind: Deployment
 metadata:
   name: hermes-agent
   namespace: hermes
+  labels:
+    app: hermes-agent
 spec:
   replicas: 1
   selector:
@@ -16,36 +18,59 @@ spec:
       serviceAccountName: hermes-agent
       containers:
         - name: agent
-          # Placeholder image: in reality, this would be a Python agent running an LLM loop
+          # Pure Python stdlib (Claude is called over raw HTTP, no anthropic
+          # SDK), run straight from a ConfigMap-mounted volume — no pip at
+          # startup, so the pod starts offline and deterministically.
           image: python:3.14-slim@sha256:b877e50bd90de10af8d82c57a022fc2e0dc731c5320d762a27986facfc3355c1
-          command: ["/bin/sh", "-c"]
-          args:
-            - |
-              echo "Hermes AI Agent starting up..."
-              echo "Loading configuration from /etc/hermes..."
-              echo "Awaiting webhooks on port 8080."
-              # Simulate the agent loop keeping the container alive
-              tail -f /dev/null
+          command: ["python", "-u", "/app/main.py"]
           ports:
-            - containerPort: 8080
-              name: webhook
+            - name: webhook
+              containerPort: 8080
           env:
-            - name: GITHUB_TOKEN
+            # ConfigMap volumes symlink through a timestamped ..data dir; put
+            # /app on the path explicitly so imports resolve (learned the hard
+            # way on the remediation service).
+            - name: PYTHONPATH
+              value: /app
+            # Anthropic API key. Optional so the pod runs in DRY_RUN without it;
+            # required before arming (provision the hermes-anthropic Secret).
+            - name: ANTHROPIC_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: hermes-github-secret
-                  key: token
+                  name: hermes-anthropic
+                  key: api-key
+                  optional: true
+          envFrom:
+            - configMapRef:
+                name: hermes-agent-config
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: webhook
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: webhook
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 10m
+              memory: 96Mi
+            limits:
+              memory: 192Mi
           volumeMounts:
-            - name: config
-              mountPath: /etc/hermes/config.yaml
-              subPath: config.yaml
+            - name: src
+              mountPath: /app
             - name: prompt
               mountPath: /etc/hermes/system-prompt.txt
               subPath: system-prompt.txt
       volumes:
-        - name: config
+        - name: src
           configMap:
-            name: hermes-config
+            name: hermes-src
         - name: prompt
           configMap:
             name: hermes-system-prompt
