@@ -227,3 +227,13 @@ patches:
                     value: "6379"
                   - name: REDIS_URL
                     value: "redis://redis:6379/0"
+  - target:
+      kind: Ingress
+      name: plane-ingress
+    patch: |-
+      - op: add
+        path: /spec/tls
+        value:
+          - hosts:
+              - plan.smallworlds.network
+            secretName: plane-tls
