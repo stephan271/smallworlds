@@ -93,6 +93,8 @@ patches:
                         key: password
                   - name: DATABASE_URL
                     value: "postgres://$(PGUSER):$(PGPASSWORD)@$(PGHOST):5432/$(PGDATABASE)"
+                  - name: AMQP_URL
+                    value: "amqp://plane:plane@plane-rabbitmq.plane.svc.cluster.local/"
   - target:
       kind: Deployment
       name: plane-worker-wl
@@ -137,6 +139,8 @@ patches:
                         key: password
                   - name: DATABASE_URL
                     value: "postgres://$(PGUSER):$(PGPASSWORD)@$(PGHOST):5432/$(PGDATABASE)"
+                  - name: AMQP_URL
+                    value: "amqp://plane:plane@plane-rabbitmq.plane.svc.cluster.local/"
   - target:
       kind: Deployment
       name: plane-beat-worker-wl
@@ -181,6 +185,8 @@ patches:
                         key: password
                   - name: DATABASE_URL
                     value: "postgres://$(PGUSER):$(PGPASSWORD)@$(PGHOST):5432/$(PGDATABASE)"
+                  - name: AMQP_URL
+                    value: "amqp://plane:plane@plane-rabbitmq.plane.svc.cluster.local/"
   - target:
       kind: Job
       name: plane-api-migrate-1
