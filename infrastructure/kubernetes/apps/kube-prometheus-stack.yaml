@@ -15,6 +15,26 @@ spec:
     chart: kube-prometheus-stack
     helm:
       values: |
+        # Tier 0 alert suppression (k3s false positives).
+        # k3s bundles kube-controller-manager, kube-scheduler and kube-proxy into
+        # the single server process and does not expose the per-component metrics
+        # endpoints this chart scrapes. The default ServiceMonitors therefore have
+        # no endpoints, so up{job=...} is entirely absent and the absent()-based
+        # *Down alerts fire as permanent false-positive criticals. Disable both the
+        # dead scrape targets (component monitoring) and the corresponding alerting
+        # rules. (kube-etcd is left enabled — it does not false-fire here.)
+        kubeControllerManager:
+          enabled: false
+        kubeScheduler:
+          enabled: false
+        kubeProxy:
+          enabled: false
+        defaultRules:
+          rules:
+            # Each of these rule groups contains only the matching *Down alert.
+            kubeControllerManager: false
+            kubeSchedulerAlerting: false
+            kubeProxy: false
         grafana:
           ingress:
             enabled: true
