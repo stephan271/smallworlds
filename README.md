@@ -26,7 +26,7 @@ This project is built upon several foundational open-source technologies, core i
 | :--- | :--- | :--- |
 | **Terraform** | [terraform.io](https://www.terraform.io/) | Infrastructure as Code tool used to provision the underlying cloud resources and bootstrap the cluster. |
 | **Kubernetes** | [kubernetes.io](https://kubernetes.io/) | Core container orchestration system that serves as the foundation for the cluster. |
-| **Argo CD** | [argoproj.github.io/cd](https://argoproj.github.io/cd/) | GitOps continuous delivery tool that synchronizes cluster state with the configuration repository. |
+| **Argo CD** | [argoproj.github.io/cd](https://argoproj.github.io/cd/) | GitOps continuous delivery tool that synchronizes cluster state with the configuration repository (accessible at `deploy.<domain>`). |
 | **Velero** | [velero.io](https://velero.io/) | Cluster backup and disaster recovery solution. |
 | **Grafana** | [grafana.com](https://grafana.com/) | Operational dashboard for cluster monitoring and observability. |
 | **CloudNativePG** | [cloudnative-pg.io](https://cloudnative-pg.io/) | High-availability PostgreSQL database clustering. |

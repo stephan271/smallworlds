@@ -32,5 +32,5 @@ helmCharts:
   - name: plane-ce
     repo: https://helm.plane.so/
     releaseName: plane
-    version: 1.10.0
+    version: 1.6.0
     valuesFile: values.yaml
