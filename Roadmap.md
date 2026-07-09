@@ -64,10 +64,6 @@ To counteract these issues, social media apps in this project must reject these 
 - **Recommendation:** **PeerTube**
   - *Details:* A federated video streaming platform. It uses peer-to-peer networking (WebTorrent) to share the bandwidth load among viewers, meaning a small, self-hosted server can deliver video effectively without massive infrastructure costs. It replaces YouTube while avoiding autoplay and algorithmic rabbit holes.
 
-### Fact Checking
-- **Recommendation:** **Community-notes-style moderation** (built into the social apps), with **OpenFactCheck** reserved for LLM factuality evaluation.
-  - *Why:* There is currently no strong turnkey, federated fact-checking app for user-facing news and social posts. The most practical path to fostering informed discourse is crowd-sourced, community-note-style annotations layered onto Mastodon/Pixelfed/PeerTube, rather than a standalone service. **OpenFactCheck** — originally listed here — is actually a research framework for *evaluating the factuality of LLMs and their claims* (a Python library plus benchmarking modules), not a tool for checking human-authored news; it belongs alongside the SRE/LLM tooling rather than in the social-media stack.
-
 ---
 
 ## Infrastructure
