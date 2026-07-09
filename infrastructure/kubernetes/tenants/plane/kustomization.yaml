@@ -10,6 +10,13 @@ resources:
   - redis.yaml
   - cnpg-cluster.yaml
 
+helmCharts:
+  - name: plane-ce
+    repo: https://helm.plane.so/
+    releaseName: plane
+    version: 1.6.0
+    valuesFile: values.yaml
+
 patches:
   - target:
       kind: ClusterRoleBinding
@@ -27,10 +34,196 @@ patches:
         value:
           - name: REDIRECT_URIS
             value: '["https://plan.smallworlds.network/auth/oidc/callback", "https://plan.smallworlds.network/*"]'
-
-helmCharts:
-  - name: plane-ce
-    repo: https://helm.plane.so/
-    releaseName: plane
-    version: 1.6.0
-    valuesFile: values.yaml
+  - target:
+      kind: Ingress
+      name: plane-ingress
+    patch: |-
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: plane-ingress
+        annotations:
+          cert-manager.io/cluster-issuer: letsencrypt-prod
+          gethomepage.dev/enabled: "true"
+          gethomepage.dev/name: "Plane"
+          gethomepage.dev/description: "Project Management"
+          gethomepage.dev/group: "Applications"
+          gethomepage.dev/icon: "plane.png"
+  - target:
+      kind: Deployment
+      name: plane-api-wl
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: plane-api-wl
+      spec:
+        template:
+          spec:
+            containers:
+              - name: plane-api
+                env:
+                  - name: ENABLE_OIDC
+                    value: "1"
+                  - name: OPENID_ISSUER
+                    value: "https://identity.smallworlds.network/realms/smallworlds"
+                  - name: OPENID_CLIENT_ID
+                    valueFrom:
+                      secretKeyRef:
+                        name: keycloak-secret
+                        key: clientId
+                  - name: OPENID_CLIENT_SECRET
+                    valueFrom:
+                      secretKeyRef:
+                        name: keycloak-secret
+                        key: client-secret
+                  - name: PGHOST
+                    value: "database-rw"
+                  - name: PGDATABASE
+                    value: "app"
+                  - name: PGUSER
+                    valueFrom:
+                      secretKeyRef:
+                        name: database-app
+                        key: username
+                  - name: PGPASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        name: database-app
+                        key: password
+                  - name: REDIS_HOST
+                    value: "redis"
+                  - name: REDIS_PORT
+                    value: "6379"
+                  - name: REDIS_URL
+                    value: "redis://redis:6379/0"
+  - target:
+      kind: Deployment
+      name: plane-worker-wl
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: plane-worker-wl
+      spec:
+        template:
+          spec:
+            containers:
+              - name: plane-worker
+                env:
+                  - name: ENABLE_OIDC
+                    value: "1"
+                  - name: OPENID_ISSUER
+                    value: "https://identity.smallworlds.network/realms/smallworlds"
+                  - name: OPENID_CLIENT_ID
+                    valueFrom:
+                      secretKeyRef:
+                        name: keycloak-secret
+                        key: clientId
+                  - name: OPENID_CLIENT_SECRET
+                    valueFrom:
+                      secretKeyRef:
+                        name: keycloak-secret
+                        key: client-secret
+                  - name: PGHOST
+                    value: "database-rw"
+                  - name: PGDATABASE
+                    value: "app"
+                  - name: PGUSER
+                    valueFrom:
+                      secretKeyRef:
+                        name: database-app
+                        key: username
+                  - name: PGPASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        name: database-app
+                        key: password
+                  - name: REDIS_HOST
+                    value: "redis"
+                  - name: REDIS_PORT
+                    value: "6379"
+                  - name: REDIS_URL
+                    value: "redis://redis:6379/0"
+  - target:
+      kind: Deployment
+      name: plane-beat-worker-wl
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: plane-beat-worker-wl
+      spec:
+        template:
+          spec:
+            containers:
+              - name: plane-beat-worker
+                env:
+                  - name: ENABLE_OIDC
+                    value: "1"
+                  - name: OPENID_ISSUER
+                    value: "https://identity.smallworlds.network/realms/smallworlds"
+                  - name: OPENID_CLIENT_ID
+                    valueFrom:
+                      secretKeyRef:
+                        name: keycloak-secret
+                        key: clientId
+                  - name: OPENID_CLIENT_SECRET
+                    valueFrom:
+                      secretKeyRef:
+                        name: keycloak-secret
+                        key: client-secret
+                  - name: PGHOST
+                    value: "database-rw"
+                  - name: PGDATABASE
+                    value: "app"
+                  - name: PGUSER
+                    valueFrom:
+                      secretKeyRef:
+                        name: database-app
+                        key: username
+                  - name: PGPASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        name: database-app
+                        key: password
+                  - name: REDIS_HOST
+                    value: "redis"
+                  - name: REDIS_PORT
+                    value: "6379"
+                  - name: REDIS_URL
+                    value: "redis://redis:6379/0"
+  - target:
+      kind: Job
+      name: plane-api-migrate-1
+    patch: |-
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: plane-api-migrate-1
+      spec:
+        template:
+          spec:
+            containers:
+              - name: plane-api-migrate
+                env:
+                  - name: PGHOST
+                    value: "database-rw"
+                  - name: PGDATABASE
+                    value: "app"
+                  - name: PGUSER
+                    valueFrom:
+                      secretKeyRef:
+                        name: database-app
+                        key: username
+                  - name: PGPASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        name: database-app
+                        key: password
+                  - name: REDIS_HOST
+                    value: "redis"
+                  - name: REDIS_PORT
+                    value: "6379"
+                  - name: REDIS_URL
+                    value: "redis://redis:6379/0"

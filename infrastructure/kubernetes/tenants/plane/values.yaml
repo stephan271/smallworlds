@@ -1,62 +1,21 @@
-plane:
-  postgresql:
-    enabled: false
-  redis:
-    enabled: false
-  minio:
-    enabled: false
+postgres:
+  local_setup: false
+redis:
+  local_setup: false
+minio:
+  local_setup: false
+rabbitmq:
+  local_setup: false
 
-  app:
-    extraEnv:
-      - name: ENABLE_OIDC
-        value: "1"
-      - name: OPENID_ISSUER
-        value: "https://identity.smallworlds.network/realms/smallworlds"
-      - name: OPENID_CLIENT_ID
-        valueFrom:
-          secretKeyRef:
-            name: keycloak-secret
-            key: clientId
-      - name: OPENID_CLIENT_SECRET
-        valueFrom:
-          secretKeyRef:
-            name: keycloak-secret
-            key: client-secret
-      - name: PGHOST
-        value: "database-rw"
-      - name: PGDATABASE
-        value: "app"
-      - name: PGUSER
-        valueFrom:
-          secretKeyRef:
-            name: database-app
-            key: username
-      - name: PGPASSWORD
-        valueFrom:
-          secretKeyRef:
-            name: database-app
-            key: password
-      - name: REDIS_HOST
-        value: "redis"
-      - name: REDIS_PORT
-        value: "6379"
-      - name: REDIS_URL
-        value: "redis://redis:6379/0"
+ingress:
+  enabled: true
+  appHost: "plan.smallworlds.network"
+  ingressClass: "nginx"
+  ingress_annotations: {}
+  tls:
+    - hosts:
+        - plan.smallworlds.network
+      secretName: plane-tls
 
-  ingress:
-    enabled: true
-    annotations:
-      cert-manager.io/cluster-issuer: letsencrypt-prod
-      gethomepage.dev/enabled: "true"
-      gethomepage.dev/name: "Plane"
-      gethomepage.dev/description: "Project Management"
-      gethomepage.dev/group: "Applications"
-      gethomepage.dev/icon: "plane.png"
-    hosts:
-      - host: plan.smallworlds.network
-        paths:
-          - path: "/"
-    tls:
-      - secretName: plane-tls
-        hosts:
-          - plan.smallworlds.network
+# We are using Kustomize patches in kustomization.yaml to inject our custom
+# OIDC, Postgres, and Redis environment variables securely into all Deployments.
