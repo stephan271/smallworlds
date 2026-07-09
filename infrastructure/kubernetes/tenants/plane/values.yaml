@@ -16,5 +16,8 @@ ingress:
 ssl:
   tls_secret_name: "plane-tls"
 
+env:
+  remote_redis_url: "redis://redis:6379/0"
+
 # We are using Kustomize patches in kustomization.yaml to inject our custom
-# OIDC, Postgres, and Redis environment variables securely into all Deployments.
+# OIDC and Postgres environment variables securely into all Deployments.

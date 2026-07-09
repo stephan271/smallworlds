@@ -93,12 +93,6 @@ patches:
                         key: password
                   - name: DATABASE_URL
                     value: "postgres://$(PGUSER):$(PGPASSWORD)@$(PGHOST):5432/$(PGDATABASE)"
-                  - name: REDIS_HOST
-                    value: "redis"
-                  - name: REDIS_PORT
-                    value: "6379"
-                  - name: REDIS_URL
-                    value: "redis://redis:6379/0"
   - target:
       kind: Deployment
       name: plane-worker-wl
@@ -143,12 +137,6 @@ patches:
                         key: password
                   - name: DATABASE_URL
                     value: "postgres://$(PGUSER):$(PGPASSWORD)@$(PGHOST):5432/$(PGDATABASE)"
-                  - name: REDIS_HOST
-                    value: "redis"
-                  - name: REDIS_PORT
-                    value: "6379"
-                  - name: REDIS_URL
-                    value: "redis://redis:6379/0"
   - target:
       kind: Deployment
       name: plane-beat-worker-wl
@@ -193,12 +181,6 @@ patches:
                         key: password
                   - name: DATABASE_URL
                     value: "postgres://$(PGUSER):$(PGPASSWORD)@$(PGHOST):5432/$(PGDATABASE)"
-                  - name: REDIS_HOST
-                    value: "redis"
-                  - name: REDIS_PORT
-                    value: "6379"
-                  - name: REDIS_URL
-                    value: "redis://redis:6379/0"
   - target:
       kind: Job
       name: plane-api-migrate-1
@@ -229,12 +211,6 @@ patches:
                         key: password
                   - name: DATABASE_URL
                     value: "postgres://$(PGUSER):$(PGPASSWORD)@$(PGHOST):5432/$(PGDATABASE)"
-                  - name: REDIS_HOST
-                    value: "redis"
-                  - name: REDIS_PORT
-                    value: "6379"
-                  - name: REDIS_URL
-                    value: "redis://redis:6379/0"
   - target:
       kind: Ingress
       name: plane-ingress
