@@ -189,6 +189,9 @@ patches:
       kind: Job
       metadata:
         name: plane-api-migrate-1
+        annotations:
+          argocd.argoproj.io/hook: PreSync
+          argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
       spec:
         template:
           spec:
