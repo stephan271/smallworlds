@@ -32,6 +32,13 @@ spec:
             - configMapRef:
                 name: remediation-config
           env:
+            # The source is split across two ConfigMap mounts (/app and
+            # /app/handlers). ConfigMap volumes symlink through a timestamped
+            # ..data dir, so Python resolves the script dir to that real dir —
+            # which has no handlers/ subdir. Put /app on the path explicitly so
+            # `import handlers` resolves the separate mount.
+            - name: PYTHONPATH
+              value: /app
             # GitHub PAT (repo scope) shared with Renovate. Optional so the pod
             # runs in DRY_RUN without it; required before arming. The operator
             # provisions repo-git-creds in this namespace when arming.
