@@ -149,7 +149,8 @@ resource "hcloud_zone_rrset" "app_records" {
     "whiteboard",
     "meet",
     "office",
-    "plan"
+    "plan",
+    "deploy"
   ])
 
   zone = hcloud_zone.smallworlds_zone.id

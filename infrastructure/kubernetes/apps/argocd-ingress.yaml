@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server
+  namespace: argocd
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/service.serversscheme: https
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "ArgoCD"
+    gethomepage.dev/description: "GitOps Continuous Delivery"
+    gethomepage.dev/group: "Infrastructure"
+    gethomepage.dev/icon: "argocd.png"
+spec:
+  rules:
+    - host: deploy.smallworlds.network
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  number: 443
+  tls:
+    - hosts:
+        - deploy.smallworlds.network
+      secretName: argocd-server-tls
