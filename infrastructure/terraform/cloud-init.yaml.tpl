@@ -145,6 +145,7 @@ runcmd:
     cat << 'EOF' > /tmp/argocd-cm-patch.yaml
     data:
       kustomize.buildOptions: "--enable-helm"
+      server.insecure: "true"
       resource.customizations.health.argoproj.io_Application: |
         hs = {}
         hs.status = "Progressing"

@@ -5,7 +5,6 @@ metadata:
   namespace: argocd
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    traefik.ingress.kubernetes.io/service.serversscheme: https
     gethomepage.dev/enabled: "true"
     gethomepage.dev/name: "ArgoCD"
     gethomepage.dev/description: "GitOps Continuous Delivery"
@@ -22,7 +21,7 @@ spec:
               service:
                 name: argocd-server
                 port:
-                  number: 443
+                  number: 80
   tls:
     - hosts:
         - deploy.smallworlds.network
