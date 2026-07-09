@@ -189,6 +189,16 @@ patches:
                   - name: AMQP_URL
                     value: "amqp://plane:plane@plane-rabbitmq.plane.svc.cluster.local/"
   - target:
+      kind: ConfigMap
+      name: plane-app-vars
+    patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: plane-app-vars
+      data:
+        WEB_URL: "https://plan.smallworlds.network"
+  - target:
       kind: Deployment
       name: plane-admin-wl
     patch: |-
