@@ -237,3 +237,6 @@ patches:
           - hosts:
               - plan.smallworlds.network
             secretName: plane-tls
+      - op: replace
+        path: /spec/ingressClassName
+        value: traefik
