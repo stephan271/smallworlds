@@ -133,6 +133,64 @@
             width: 100%;
         }
 
+        .flow-steps {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 2vmin;
+            width: 100%;
+            margin-top: 3vmin;
+        }
+
+        .flow-step {
+            position: relative;
+            min-height: 28vh;
+            padding: 3vmin 2vmin;
+            background: #fff;
+            border: 0.15vmin solid rgba(109, 40, 217, 0.16);
+            border-radius: 1.5vmin;
+            box-shadow: 0 0.5vmin 1vmin -0.2vmin rgba(0, 0, 0, 0.05);
+        }
+
+        .flow-step:not(:last-child)::after {
+            content: '→';
+            position: absolute;
+            top: 50%;
+            right: -1.65vmin;
+            transform: translateY(-50%);
+            color: var(--accent-primary);
+            font: 900 3vmin/1 'Outfit', sans-serif;
+            z-index: 1;
+        }
+
+        .flow-number {
+            display: grid;
+            place-items: center;
+            width: 4.5vmin;
+            height: 4.5vmin;
+            margin: 0 auto 1.5vmin;
+            border-radius: 50%;
+            background: var(--accent-gradient);
+            color: #fff;
+            font: 900 2vmin/1 'Outfit', sans-serif;
+        }
+
+        .flow-step h3 {
+            font-size: 2.3vmin;
+            margin-bottom: 0.8vmin;
+        }
+
+        .flow-step p,
+        .flow-note {
+            width: 100%;
+            font-size: 1.7vmin;
+            line-height: 1.45;
+        }
+
+        .flow-note {
+            margin-top: 2vmin;
+            color: #475569;
+        }
+
         .feature-item {
             background: rgba(255, 255, 255, 1);
             padding: 2.5vmin;
@@ -198,6 +256,10 @@
         }
         .scroll-indicator:hover {
             opacity: 1;
+        }
+
+        .slide:last-child .scroll-indicator {
+            display: none;
         }
 
         .abstract-graphic {
@@ -320,6 +382,17 @@
             z-index: 10;
         }
 
+        .slide-logo {
+            position: absolute;
+            top: 2vmin;
+            left: 2vmin;
+            width: 7vmin;
+            height: 7vmin;
+            border-radius: 1.2vmin;
+            box-shadow: 0 0.5vmin 1.5vmin rgba(15, 23, 42, 0.14);
+            z-index: 10;
+        }
+
         .qr-code:hover {
             transform: scale(1.5) translateY(1vmin) translateX(-1vmin);
         }
@@ -336,6 +409,7 @@
         <!-- Slide 1: Introduction -->
         <section class="slide" id="slide1">
             <div class="glass-card">
+                <img class="slide-logo" src="logos/smallworlds_logo.svg" alt="SmallWorlds logo">
                 <div class="abstract-graphic">
                     <div class="infra-base">
                         <div class="infra-label">Automated Lifecycle Management</div>
@@ -383,7 +457,7 @@
                     </div>
                 </div>
                 <h1>SmallWorlds</h1>
-                <p>A network of community-operated digital hubs offering a suite of privacy-respecting, everyday software applications.</p>
+                <p>Everyone can build and operate their own suite of privacy-respecting, everyday software applications.</p>
                 <img class="qr-code" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADIAQMAAACXljzdAAAABlBMVEXx9fkPERql9GgkAAAACXBIWXMAAA7EAAAOxAGVKw4bAAABiklEQVRYhdWYsZGEMAxFxThwuCW4FDpbuzSX4hIcEjDo9CXYnbubjfejwAM8BxZ8f8mIfIyqCEmbXWJcdfEnBwF5+gIX3R6430qvy45H5CSpDstEtcuRgtikdgeCfDo+yBC5DxHJc21Hwpe4BQnt7HlilNLlj6q+SGI3gmDVrpBf+5STvGNti+/G/07HR1zMGOZqOeQh9UjTOTNBFGQSfl0Ufj2gHWYC90A+5tdNoXjL5DEwn5rs2ZYPjXfMMgUhQfDvE3FPs7dsrhwKAdHGTeqOV2t+bB4Ss/RUCDMxFZtTq3u0P7OsUEuEm1g+UDT8GlXmzKeyk+w36EQV1w3OF/nwErOPWZriW6Czs32KfKxOEpCn5Kgl6n6sXrcHnISaJN988BCJDt81XsmJYPMFsd4zEhtrnKZoSYR3dtdJEFPJScgmuujIJDp8oSbR+/u5RHGJMboNAnKd9MI9tNeXdm5A4HzxB0PQbdyDeBXBuUTPEG7i2vF/AV5l3ucSZnLuRn05X7uqDDP5GD+B6CaBYlKg7QAAAABJRU5ErkJggg==" alt="GitHub Repo QR Code" title="Scan to visit the GitHub Repo">
             </div>
             <div class="scroll-indicator">
@@ -394,6 +468,7 @@
         <!-- Slide 1b: Why (Rationale) -->
         <section class="slide" id="slide-why">
             <div class="glass-card">
+                <img class="slide-logo" src="logos/smallworlds_logo.svg" alt="SmallWorlds logo">
                 <h2>Why SmallWorlds?</h2>
                 <p>Big Tech rents you access to your own digital life. SmallWorlds hands it back.</p>
                 <div class="features">
@@ -424,6 +499,7 @@
         <!-- Slide 2: Purpose & Architecture -->
         <section class="slide" id="slide2">
             <div class="glass-card">
+                <img class="slide-logo" src="logos/smallworlds_logo.svg" alt="SmallWorlds logo">
                 <h2>The Vision: A small world...</h2>
                 <p>... that everyone can setup and operate. </p>
 
@@ -440,7 +516,7 @@
                     </div>
                     <div class="feature-item">
                         <h3>Sovereign Cloud</h3>
-                        <p>You own the apps and data. Can be hosted on any cloud provider or at home.</p>
+                        <p>You own the apps and data. The current automated bootstrap targets Hetzner Cloud; other providers and home hosting are future work.</p>
                     </div>
                     <div class="feature-item">
                         <h3>Lifecycle Management</h3>
@@ -454,9 +530,45 @@
             </div>
         </section>
 
+        <!-- Slide 2b: Simplified journey (comparison slide) -->
+        <section class="slide" id="slide-flow">
+            <div class="glass-card">
+                <img class="slide-logo" src="logos/smallworlds_logo.svg" alt="SmallWorlds logo">
+                <h2>From idea to your own digital world</h2>
+                <p>The short version of how SmallWorlds turns a collection of apps into something you control.</p>
+                <div class="flow-steps">
+                    <div class="flow-step">
+                        <div class="flow-number">1</div>
+                        <h3>Choose</h3>
+                        <p>Pick the apps your family or community needs, plus a domain.</p>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-number">2</div>
+                        <h3>Bootstrap</h3>
+                        <p>Run one guided setup to provision the server, DNS and platform.</p>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-number">3</div>
+                        <h3>Use</h3>
+                        <p>Sign in once, then use your photos, files, mail, code and more.</p>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-number">4</div>
+                        <h3>Own</h3>
+                        <p>Keep control with GitOps updates, backups and an auditable history.</p>
+                    </div>
+                </div>
+                <p class="flow-note">Today’s automated path is Hetzner Cloud; the architecture is designed to grow beyond it.</p>
+            </div>
+            <div class="scroll-indicator">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+        </section>
+
         <!-- Slide 3: Call to Action -->
         <section class="slide" id="slide3">
             <div class="glass-card">
+                <img class="slide-logo" src="logos/smallworlds_logo.svg" alt="SmallWorlds logo">
                 <h2>Your help is <strong>very welcome</strong>!</h2>
                 <p>Currently a single person effort. Working prototype available</p>
                 <p>More Apps, More testing, Improved operation automation, Federation.</p>
@@ -474,6 +586,7 @@
         <!-- Slide 4: Dashboard -->
         <section class="slide" id="slide4">
             <div class="glass-card">
+                <img class="slide-logo" src="logos/smallworlds_logo.svg" alt="SmallWorlds logo">
                 <h2>The Dashboard</h2>
                 <p>A unified interface for all your applications and services.</p>
                 <img class="screenshot-img" src="screenshots/screen_dashboard_4.png" alt="Dashboard Screenshot">
@@ -484,32 +597,20 @@
             </div>
         </section>
 
-        <!-- Slide 5: ArgoCD -->
-        <section class="slide" id="slide5">
-            <div class="glass-card">
-                <h2>GitOps Automation with ArgoCD</h2>
-                <p>Visualizing the automated deployment and synchronization of the cluster state.</p>
-                <img class="screenshot-img" src="screenshots/screen_argo_2.png" alt="ArgoCD Screenshot">
-                <img class="qr-code" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADIAQMAAACXljzdAAAABlBMVEXx9fkPERql9GgkAAAACXBIWXMAAA7EAAAOxAGVKw4bAAABiklEQVRYhdWYsZGEMAxFxThwuCW4FDpbuzSX4hIcEjDo9CXYnbubjfejwAM8BxZ8f8mIfIyqCEmbXWJcdfEnBwF5+gIX3R6430qvy45H5CSpDstEtcuRgtikdgeCfDo+yBC5DxHJc21Hwpe4BQnt7HlilNLlj6q+SGI3gmDVrpBf+5STvGNti+/G/07HR1zMGOZqOeQh9UjTOTNBFGQSfl0Ufj2gHWYC90A+5tdNoXjL5DEwn5rs2ZYPjXfMMgUhQfDvE3FPs7dsrhwKAdHGTeqOV2t+bB4Ss/RUCDMxFZtTq3u0P7OsUEuEm1g+UDT8GlXmzKeyk+w36EQV1w3OF/nwErOPWZriW6Czs32KfKxOEpCn5Kgl6n6sXrcHnISaJN988BCJDt81XsmJYPMFsd4zEhtrnKZoSYR3dtdJEFPJScgmuujIJDp8oSbR+/u5RHGJMboNAnKd9MI9tNeXdm5A4HzxB0PQbdyDeBXBuUTPEG7i2vF/AV5l3ucSZnLuRn05X7uqDDP5GD+B6CaBYlKg7QAAAABJRU5ErkJggg==" alt="GitHub Repo QR Code" title="Scan to visit the GitHub Repo">
-            </div>
-            <div class="scroll-indicator">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-            </div>
-        </section>
-
         <!-- Slide 6: Why you should NOT use this (the honest, funny disclaimer) -->
         <section class="slide" id="slide-dont">
             <div class="glass-card">
+                <img class="slide-logo" src="logos/smallworlds_logo.svg" alt="SmallWorlds logo">
                 <h2>Why you should <em>NOT</em> use SmallWorlds 🙈</h2>
                 <p>In the interest of full honesty, some excellent reasons to run away:</p>
                 <div class="features">
                     <div class="feature-item">
                         <h3>🧑‍🔧 You <em>are</em> the IT department</h3>
-                        <p>When it breaks at 2&nbsp;a.m., there is no support hotline. There is only you, a terminal, and a mirror to blame.</p>
+                        <p>When it breaks at 2&nbsp;a.m., there is no support hotline. There is only you and a terminal.</p>
                     </div>
                     <div class="feature-item">
                         <h3>🐣 It's a prototype</h3>
-                        <p>Held together by YAML, caffeine, and one person's stubbornness. Here be dragons — and the occasional <code>CrashLoopBackOff</code>.</p>
+                        <p>Held together by YAML, caffeine, and one person's stubbornness (and a lot of help from AI).</p>
                     </div>
                     <div class="feature-item">
                         <h3>🤷 No more good excuses</h3>
@@ -530,23 +631,23 @@
         <!-- Slide 7: Cost estimates (Hetzner cheap shared-vCPU line) -->
         <section class="slide" id="slide-costs">
             <div class="glass-card">
-                <h2>What does it cost? 💶</h2>
-                <p>A whole personal cloud for the price of a few subscriptions. Current Hetzner shared-vCPU <strong>CX</strong> pricing (20&nbsp;TB traffic included); a trimmed app set fits a smaller, cheaper server.</p>
+                <img class="slide-logo" src="logos/smallworlds_logo.svg" alt="SmallWorlds logo">
+                <h2>What does it cost? </h2>
+                <p>Example numbers  for Hetzner shared-vCPU <strong>CX</strong> pricing for Germany/Finland, checked 10 July 2026</p>
                 <div class="features" style="grid-template-columns: repeat(3, 1fr);">
                     <div class="feature-item">
-                        <h3>Family / full suite</h3>
-                        <p><strong style="font-size:2.6vmin; color:var(--accent-primary);">€19.03 / month</strong><br>CX43 · 8 vCPU · 16&nbsp;GB · 160&nbsp;GB SSD<br>The complete app suite — the tested baseline (8&nbsp;GB saturates).</p>
+                        <h3>Family</h3>
+                        <p><strong style="font-size:2.6vmin; color:var(--accent-primary);">ca. €19 / month</strong><br>CX43 · 8 vCPU · 16&nbsp;GB · 160&nbsp;GB SSD</p>
                     </div>
                     <div class="feature-item">
-                        <h3>Community / headroom</h3>
-                        <p><strong style="font-size:2.6vmin; color:var(--accent-primary);">€35.09 / month</strong><br>CX53 · 16 vCPU · 32&nbsp;GB · 320&nbsp;GB SSD<br>Many users, plenty of room to grow.</p>
+                        <h3>Community</h3>
+                        <p><strong style="font-size:2.6vmin; color:var(--accent-primary);">ca. €35 / month</strong><br>CX53 · 16 vCPU · 32&nbsp;GB · 320&nbsp;GB SSD<br>Many users, room to grow.</p>
                     </div>
                     <div class="feature-item">
-                        <h3>📦 Your data (1–few&nbsp;TB)</h3>
-                        <p><strong style="font-size:2.6vmin; color:var(--accent-primary);">≈ €5 / TB / month</strong><br>Attached Hetzner Volume · 1&nbsp;TB ≈ €5 · 3&nbsp;TB ≈ €16<br>Photos, files &amp; backups scale on their own.</p>
+                        <h3>Your Data</h3>
+                        <p><strong style="font-size:2.6vmin; color:var(--accent-primary);">≈ €5 / TB / month</strong><br>Attached Hetzner Volume</p>
                     </div>
                 </div>
-                <p style="font-size:1.6vmin; opacity:0.75; margin-top:1.5vmin;">Example all-in: CX43 + a 1&nbsp;TB data volume ≈ <strong>€24 / month</strong>. Volumes ≈ €0.0052 / GB·mo; a small IPv4 fee applies. The ARM <strong>CAX</strong> line is cheaper still where images support arm64. Prices excl. VAT — verify current rates at Hetzner.</p>
                 <img class="qr-code" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADIAQMAAACXljzdAAAABlBMVEXx9fkPERql9GgkAAAACXBIWXMAAA7EAAAOxAGVKw4bAAABiklEQVRYhdWYsZGEMAxFxThwuCW4FDpbuzSX4hIcEjDo9CXYnbubjfejwAM8BxZ8f8mIfIyqCEmbXWJcdfEnBwF5+gIX3R6430qvy45H5CSpDstEtcuRgtikdgeCfDo+yBC5DxHJc21Hwpe4BQnt7HlilNLlj6q+SGI3gmDVrpBf+5STvGNti+/G/07HR1zMGOZqOeQh9UjTOTNBFGQSfl0Ufj2gHWYC90A+5tdNoXjL5DEwn5rs2ZYPjXfMMgUhQfDvE3FPs7dsrhwKAdHGTeqOV2t+bB4Ss/RUCDMxFZtTq3u0P7OsUEuEm1g+UDT8GlXmzKeyk+w36EQV1w3OF/nwErOPWZriW6Czs32KfKxOEpCn5Kgl6n6sXrcHnISaJN988BCJDt81XsmJYPMFsd4zEhtrnKZoSYR3dtdJEFPJScgmuujIJDp8oSbR+/u5RHGJMboNAnKd9MI9tNeXdm5A4HzxB0PQbdyDeBXBuUTPEG7i2vF/AV5l3ucSZnLuRn05X7uqDDP5GD+B6CaBYlKg7QAAAABJRU5ErkJggg==" alt="GitHub Repo QR Code" title="Scan to visit the GitHub Repo">
             </div>
         </section>
@@ -570,6 +671,12 @@
 
         // Keyboard and Arrow Navigation
         const scroller = document.querySelector('.scroller');
+
+        // Keep one QR code for the opening and one for the final call to action.
+        document.querySelectorAll('.slide:not(#slide1):not(#slide3) .qr-code').forEach((qrCode) => qrCode.remove());
+
+        // A call to action has the most impact after the proof, caveats and costs.
+        scroller.append(document.getElementById('slide3'));
         
         document.addEventListener('keydown', (e) => {
             if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
