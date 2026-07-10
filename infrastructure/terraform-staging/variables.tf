@@ -52,3 +52,9 @@ variable "use_golden_image" {
   type        = bool
   default     = false
 }
+
+variable "staging_location" {
+  description = "Hetzner location for the ephemeral staging VM"
+  type        = string
+  default     = "nbg1"
+}

@@ -20,30 +20,30 @@ resource "hcloud_ssh_key" "staging_key" {
 # Create a secure firewall for the ephemeral node
 resource "hcloud_firewall" "k8s_firewall_staging" {
   name = "smallworlds-firewall-staging"
-  
+
   rule {
-    direction = "in"
-    protocol  = "tcp"
-    port      = "22"
+    direction  = "in"
+    protocol   = "tcp"
+    port       = "22"
     source_ips = ["0.0.0.0/0", "::/0"]
   }
-  
+
   rule {
-    direction = "in"
-    protocol  = "tcp"
-    port      = "80"
-    source_ips = ["0.0.0.0/0", "::/0"]
-  }
-  rule {
-    direction = "in"
-    protocol  = "tcp"
-    port      = "443"
+    direction  = "in"
+    protocol   = "tcp"
+    port       = "80"
     source_ips = ["0.0.0.0/0", "::/0"]
   }
   rule {
-    direction = "in"
-    protocol  = "tcp"
-    port      = "6443"
+    direction  = "in"
+    protocol   = "tcp"
+    port       = "443"
+    source_ips = ["0.0.0.0/0", "::/0"]
+  }
+  rule {
+    direction  = "in"
+    protocol   = "tcp"
+    port       = "6443"
     source_ips = ["0.0.0.0/0", "::/0"]
   }
 }
@@ -58,15 +58,15 @@ data "hcloud_image" "golden" {
 
 # Provision the staging VM
 resource "hcloud_server" "smallworlds_staging_node" {
-  name        = "cc-staging-node-01"
-  image       = var.use_golden_image ? tostring(data.hcloud_image.golden[0].id) : "ubuntu-24.04"
+  name  = "cc-staging-node-01"
+  image = var.use_golden_image ? tostring(data.hcloud_image.golden[0].id) : "ubuntu-24.04"
   # 16 GB minimum: 8GB nodes saturate when the full app suite deploys — probe
   # timeouts cascade into CNPG failovers and OOM crashloops
-  server_type = "cx43"
-  location    = "nbg1"
+  server_type  = "cx43"
+  location     = var.staging_location
   firewall_ids = [hcloud_firewall.k8s_firewall_staging.id]
-  ssh_keys    = [hcloud_ssh_key.staging_key.id]
-  
+  ssh_keys     = [hcloud_ssh_key.staging_key.id]
+
   public_net {
     ipv4_enabled = true
     ipv6_enabled = true

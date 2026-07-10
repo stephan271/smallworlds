@@ -23,6 +23,12 @@ if [ -z "$HCLOUD_TOKEN" ]; then
 fi
 export TF_VAR_hcloud_token="$HCLOUD_TOKEN"
 
+# Override with STAGING_LOCATION=hel1 (or any supported Hetzner location) when
+# the default region is temporarily out of capacity.
+if [ -n "${STAGING_LOCATION:-}" ]; then
+    export TF_VAR_staging_location="$STAGING_LOCATION"
+fi
+
 # Boot from the golden image (preloaded k3s + container images) if one exists
 GOLDEN_COUNT=$(curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" \
     "https://api.hetzner.cloud/v1/images?type=snapshot&label_selector=smallworlds-golden%3Dtrue" \
@@ -36,6 +42,7 @@ echo -e "${CYAN}╔════════════════════�
 echo -e "${CYAN}║     SmallWorlds Local Ephemeral Staging Runner       ║${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════════════════════╝${NC}"
 echo -e "Target Branch: ${YELLOW}$TARGET_BRANCH${NC}"
+echo -e "Staging Location: ${YELLOW}${TF_VAR_staging_location:-nbg1}${NC}"
 
 # Ask for sudo upfront to avoid timeout during trap
 echo -e "\n${YELLOW}We need sudo access to modify /etc/hosts for the tests. Please authenticate now:${NC}"
