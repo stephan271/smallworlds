@@ -75,30 +75,39 @@ cat << 'EOF' > infrastructure/kubernetes/kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - namespaces.yaml
-  - apps/cert-manager.yaml
-  - apps/cloudnative-pg.yaml
-  - apps/garage.yaml
-  - apps/persistent-storage.yaml
-  - apps/traefik.yaml
-  - apps/keycloak.yaml
 EOF
+
+# Keycloak is both a required staging dependency and a tenant that may be
+# under test. Add every resource through one idempotent path so it cannot be
+# listed twice in the generated Kustomization.
+add_resource() {
+    local resource="$1"
+    if ! grep -Fqx "  - $resource" infrastructure/kubernetes/kustomization.yaml; then
+        echo "  - $resource" >> infrastructure/kubernetes/kustomization.yaml
+    fi
+}
+
+add_resource namespaces.yaml
+add_resource apps/cert-manager.yaml
+add_resource apps/cloudnative-pg.yaml
+add_resource apps/garage.yaml
+add_resource apps/persistent-storage.yaml
+add_resource apps/traefik.yaml
+add_resource apps/keycloak.yaml
 
 TEST_FILTER=""
 if [ "$CORE_CHANGED" = true ]; then
     echo -e "${YELLOW}Core infrastructure changed. Deploying ALL applications.${NC}"
     for app in infrastructure/kubernetes/apps/*.yaml; do
         basename=$(basename "$app")
-        if ! grep -q "apps/$basename" infrastructure/kubernetes/kustomization.yaml; then
-            echo "  - apps/$basename" >> infrastructure/kubernetes/kustomization.yaml
-        fi
+        add_resource "apps/$basename"
     done
 else
     echo -e "${GREEN}Only specific tenants changed. Selectively deploying...${NC}"
     for tenant in $MODIFIED_TENANTS; do
         if [ -f "infrastructure/kubernetes/apps/${tenant}.yaml" ]; then
             echo -e "  Adding tenant: ${YELLOW}$tenant${NC}"
-            echo "  - apps/${tenant}.yaml" >> infrastructure/kubernetes/kustomization.yaml
+            add_resource "apps/${tenant}.yaml"
             TEST_FILTER="$TEST_FILTER $tenant"
         fi
     done
