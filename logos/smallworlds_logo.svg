@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="0 0 1000 1000" role="img" aria-labelledby="title desc">
+  <title id="title">SmallWorlds</title>
+  <desc id="desc">A bright central world connected to three colorful worlds by an orbit.</desc>
+  <rect width="1000" height="1000" fill="#071d3b"/>
+  <path d="M324 276C480 170 690 180 756 470c84 180-156 390-399 263C150 700 120 480 324 276Z" fill="none" stroke="#29dfc5" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="500" cy="500" r="140" fill="#13d5f5"/>
+  <circle cx="324" cy="276" r="57" fill="#ff6554"/>
+  <circle cx="756" cy="470" r="57" fill="#ffd34e"/>
+  <circle cx="357" cy="733" r="57" fill="#9a62f5"/>
+</svg>
