@@ -109,6 +109,9 @@ if [ "$CORE_CHANGED" = true ]; then
     echo -e "${YELLOW}Core infrastructure or Keycloak changed. Deploying ALL applications.${NC}"
     for app in infrastructure/kubernetes/apps/*.yaml; do
         basename=$(basename "$app")
+        # This is a Prometheus Operator custom resource, not an ArgoCD
+        # Application. Apply it after kube-prometheus-stack establishes its CRD.
+        [ "$basename" = "alertmanager-config.yaml" ] && continue
         add_resource "apps/$basename"
     done
 else
@@ -292,6 +295,23 @@ data:
 EOF
 
 kubectl apply -k infrastructure/kubernetes
+
+# kube-prometheus-stack installs the AlertmanagerConfig CRD asynchronously via
+# ArgoCD. It cannot be part of the initial `kubectl apply -k` on a fresh
+# cluster because client-side resource mapping happens before that CRD exists.
+echo -e "${YELLOW}Waiting for the AlertmanagerConfig CRD...${NC}"
+for i in {1..60}; do
+    if kubectl get crd alertmanagerconfigs.monitoring.coreos.com >/dev/null 2>&1 \
+        && kubectl wait --for=condition=Established crd/alertmanagerconfigs.monitoring.coreos.com --timeout=10s >/dev/null 2>&1; then
+        kubectl apply -f infrastructure/kubernetes/apps/alertmanager-config.yaml
+        break
+    fi
+    if [ "$i" -eq 60 ]; then
+        echo -e "${RED}AlertmanagerConfig CRD was not established within 10 minutes.${NC}"
+        exit 1
+    fi
+    sleep 10
+done
 
 echo -e "${YELLOW}Waiting for ArgoCD to sync and deploy pods (this may take up to 15 minutes)...${NC}"
 sleep 30

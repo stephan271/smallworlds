@@ -85,6 +85,8 @@ jobs:
              echo "Core infrastructure or Keycloak changed. Deploying ALL applications."
              for app in infrastructure/kubernetes/apps/*.yaml; do
                 basename=$(basename "$app")
+                # Applied after kube-prometheus-stack establishes its CRD.
+                [ "$basename" = "alertmanager-config.yaml" ] && continue
                 if ! grep -q "apps/$basename" infrastructure/kubernetes/kustomization.yaml; then
                    echo "  - apps/$basename" >> infrastructure/kubernetes/kustomization.yaml
                 fi
@@ -108,6 +110,21 @@ jobs:
           
           # Deploy the dynamic stack
           kubectl apply -k infrastructure/kubernetes
+
+          # AlertmanagerConfig is a Prometheus Operator custom resource, so it
+          # must wait for kube-prometheus-stack to establish its CRD.
+          for i in {1..60}; do
+            if kubectl get crd alertmanagerconfigs.monitoring.coreos.com >/dev/null 2>&1 \
+              && kubectl wait --for=condition=Established crd/alertmanagerconfigs.monitoring.coreos.com --timeout=10s >/dev/null 2>&1; then
+              kubectl apply -f infrastructure/kubernetes/apps/alertmanager-config.yaml
+              break
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo "AlertmanagerConfig CRD was not established within 10 minutes."
+              exit 1
+            fi
+            sleep 10
+          done
           
           echo "Waiting for ArgoCD to sync Applications..."
           sleep 15
