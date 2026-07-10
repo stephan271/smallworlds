@@ -134,6 +134,9 @@ fi
 if [[ -z "$APP_FILTER" || "$APP_FILTER" == *"jitsi"* ]]; then
   check_service "Jitsi"     "https://meet.${DOMAIN}/"      || SERVICES_OK=false
 fi
+if [[ -z "$APP_FILTER" || "$APP_FILTER" == *"plane"* ]]; then
+  check_service "Plane"     "https://plan.${DOMAIN}/"      || SERVICES_OK=false
+fi
 
 if [[ "$SERVICES_OK" != "true" ]]; then
   echo -e "\n${RED}⚠ Some services are not available. Tests may fail.${NC}"
@@ -154,18 +157,27 @@ echo ""
 echo -e "${CYAN}[4/4] Running smoke tests...${NC}"
 echo ""
 
-PLAYWRIGHT_ARGS=""
+PLAYWRIGHT_ARGS=()
 if [[ "${HEADED:-}" == "1" ]]; then
-  PLAYWRIGHT_ARGS="--headed"
+  PLAYWRIGHT_ARGS+=(--headed)
 fi
 
+# Application names normally match their Playwright test paths. Plane is the
+# exception: its test is deliberately named 08-plan.spec.ts. Keep this mapping
+# here so both local staging and CI select the OIDC test when Plane is deployed.
+PLAYWRIGHT_TARGETS=()
 if [[ -n "$APP_FILTER" ]]; then
-  PLAYWRIGHT_ARGS="$PLAYWRIGHT_ARGS $APP_FILTER"
+  for app in $APP_FILTER; do
+    case "$app" in
+      plane) PLAYWRIGHT_TARGETS+=("08-plan.spec.ts") ;;
+      *) PLAYWRIGHT_TARGETS+=("$app") ;;
+    esac
+  done
 fi
 
 # Run Playwright tests
 set +e
-npx playwright test $PLAYWRIGHT_ARGS
+npx playwright test "${PLAYWRIGHT_ARGS[@]}" "${PLAYWRIGHT_TARGETS[@]}"
 TEST_EXIT_CODE=$?
 set -e
 
