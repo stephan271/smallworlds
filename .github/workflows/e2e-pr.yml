@@ -59,7 +59,9 @@ jobs:
           
           # Detect if core infrastructure changed
           CORE_CHANGED=false
-          if echo "$CHANGED_FILES" | grep -qE '^infrastructure/kubernetes/(apps|bases)/' || echo "$CHANGED_FILES" | grep -qE '^infrastructure/terraform/'; then
+          if echo "$CHANGED_FILES" | grep -qE '^infrastructure/kubernetes/(apps|bases)/' \
+            || echo "$CHANGED_FILES" | grep -qE '^infrastructure/terraform/' \
+            || echo "$CHANGED_FILES" | grep -qE '^infrastructure/kubernetes/tenants/keycloak/'; then
             CORE_CHANGED=true
           fi
           
@@ -80,7 +82,7 @@ jobs:
           
           TEST_FILTER=""
           if [ "$CORE_CHANGED" = true ]; then
-             echo "Core infrastructure changed. Deploying ALL applications."
+             echo "Core infrastructure or Keycloak changed. Deploying ALL applications."
              for app in infrastructure/kubernetes/apps/*.yaml; do
                 basename=$(basename "$app")
                 if ! grep -q "apps/$basename" infrastructure/kubernetes/kustomization.yaml; then

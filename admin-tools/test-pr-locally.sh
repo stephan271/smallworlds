@@ -70,7 +70,9 @@ echo -e "${CYAN}Analyzing differences from main...${NC}"
 CHANGED_FILES=$(git diff --name-only origin/main...HEAD)
 
 CORE_CHANGED=false
-if echo "$CHANGED_FILES" | grep -qE '^infrastructure/kubernetes/(apps|bases)/' || echo "$CHANGED_FILES" | grep -qE '^infrastructure/terraform/'; then
+if echo "$CHANGED_FILES" | grep -qE '^infrastructure/kubernetes/(apps|bases)/' \
+    || echo "$CHANGED_FILES" | grep -qE '^infrastructure/terraform/' \
+    || echo "$CHANGED_FILES" | grep -qE '^infrastructure/kubernetes/tenants/keycloak/'; then
     CORE_CHANGED=true
 fi
 
@@ -104,7 +106,7 @@ add_resource apps/keycloak.yaml
 
 TEST_FILTER=""
 if [ "$CORE_CHANGED" = true ]; then
-    echo -e "${YELLOW}Core infrastructure changed. Deploying ALL applications.${NC}"
+    echo -e "${YELLOW}Core infrastructure or Keycloak changed. Deploying ALL applications.${NC}"
     for app in infrastructure/kubernetes/apps/*.yaml; do
         basename=$(basename "$app")
         add_resource "apps/$basename"
