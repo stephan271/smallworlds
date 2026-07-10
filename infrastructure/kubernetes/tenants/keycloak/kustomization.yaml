@@ -13,9 +13,6 @@ configMapGenerator:
   - name: keycloak-realm-config
     files:
       - smallworlds-realm.json
-  - name: keycloak-spi-config
-    files:
-      - action-token-generator.jar
 
 generatorOptions:
   disableNameSuffixHash: true
@@ -33,5 +30,5 @@ helmCharts:
   - name: keycloakx
     repo: https://codecentric.github.io/helm-charts
     releaseName: keycloak
-    version: 2.6.0
+    version: 7.2.0
     valuesFile: values.yaml

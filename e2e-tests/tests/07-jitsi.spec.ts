@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { expectRedirectIntoKeycloak } from './oidc-mode';
 
 test.describe('Jitsi Meet Smoke Test', () => {
   const domain = process.env.DOMAIN;
@@ -27,5 +28,12 @@ test.describe('Jitsi Meet Smoke Test', () => {
     // The exact selector might depend on Jitsi version, but there's always a join button or input.
     const joinButton = page.locator('button[aria-label="Start meeting"], button[title="Start meeting"], input[id="enter_room_field"]');
     await expect(joinButton.first()).toBeVisible({ timeout: 15000 });
+  });
+
+  test('Jitsi moderator OIDC wiring redirects into Keycloak', async ({ browser }) => {
+    // The JWT moderator flow delegates this endpoint to the OIDC adapter.
+    // A fresh browser context in the helper asserts that the adapter reaches
+    // Keycloak without requiring an actual WebAuthn login in staging.
+    await expectRedirectIntoKeycloak(browser, `https://meet.${domain}/oidc/auth?state=e2e`);
   });
 });
