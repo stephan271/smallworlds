@@ -352,13 +352,18 @@ while IFS= read -r f; do
     grep -q 'kind: Application' "infrastructure/kubernetes/$f" && EXPECTED_APPS=$((EXPECTED_APPS + 1))
 done < <(grep -oE 'apps/[a-z0-9-]+\.yaml' infrastructure/kubernetes/kustomization.yaml)
 echo -e "${CYAN}Waiting for all $EXPECTED_APPS ArgoCD applications to reach Healthy state (this may take up to 30 minutes)...${NC}"
+ALL_APPS_HEALTHY=false
 for i in {1..180}; do
-    TOTAL=$(kubectl get application -n argocd --no-headers 2>/dev/null | wc -l)
+    # A newly booted K3s API can briefly reject a status request. Treat that
+    # as a pending poll rather than letting `set -o pipefail` abort the whole
+    # staging run and tear down the evidence.
+    TOTAL=$(kubectl get application -n argocd --no-headers 2>/dev/null | wc -l || true)
     UNHEALTHY=$(kubectl get application -n argocd -o json 2>/dev/null \
-        | jq -r '[.items[] | select((.status.health.status // "Pending") != "Healthy") | .metadata.name] | join(" ")')
+        | jq -r '[.items[] | select((.status.health.status // "Pending") != "Healthy") | .metadata.name] | join(" ")' || true)
 
     if [ "$TOTAL" -ge "$EXPECTED_APPS" ] && [ -z "$UNHEALTHY" ]; then
         echo -e "${GREEN}All $TOTAL ArgoCD applications are Healthy!${NC}"
+        ALL_APPS_HEALTHY=true
         break
     fi
 
@@ -366,8 +371,8 @@ for i in {1..180}; do
     sleep 10
 done
 
-if [ -n "$UNHEALTHY" ]; then
-    echo -e "${RED}Timeout reached! The following apps never became healthy: ${UNHEALTHY}${NC}"
+if [ "$ALL_APPS_HEALTHY" != true ]; then
+    echo -e "${RED}Timeout reached! The following apps never became healthy: ${UNHEALTHY:-app creation}${NC}"
     echo -e "${YELLOW}Gathering debug information for unhealthy namespaces...${NC}"
     for app in $UNHEALTHY; do
         ns=$(kubectl get application $app -n argocd -o jsonpath='{.spec.destination.namespace}')
@@ -380,6 +385,7 @@ if [ -n "$UNHEALTHY" ]; then
             kubectl get events -n "$ns" --sort-by='.lastTimestamp' | tail -n 15
         fi
     done
+    exit 1
 fi
 
 # As a final safety check, ensure deployments and statefulsets are available
