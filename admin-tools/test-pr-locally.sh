@@ -122,7 +122,7 @@ if [ "$CORE_CHANGED" = true ]; then
     done
 elif [ "$KEYCLOAK_CHANGED" = true ]; then
     echo -e "${YELLOW}Keycloak changed. Deploying all OIDC-dependent applications.${NC}"
-    for tenant in stalwart nextcloud roundcube immich forgejo plane jitsi; do
+    for tenant in stalwart nextcloud roundcube immich forgejo jitsi; do
         add_resource "apps/$tenant.yaml"
         TEST_FILTER="$TEST_FILTER $tenant"
     done

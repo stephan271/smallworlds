@@ -144,6 +144,13 @@ if [[ "$SERVICES_OK" != "true" ]]; then
 fi
 echo ""
 
+# Plane Community Edition has no Keycloak/OIDC browser flow to exercise. A
+# Plane-only scoped run therefore ends after the successful availability check.
+if [[ "$APP_FILTER" =~ ^[[:space:]]*plane[[:space:]]*$ ]]; then
+  echo -e "${GREEN}Plane CE availability check passed; no OIDC test applies.${NC}"
+  exit 0
+fi
+
 # --- Step 3: Provision test users ---
 if [[ "${SKIP_PROVISION:-}" != "1" ]]; then
   echo -e "${CYAN}[3/4] Provisioning test users...${NC}"
@@ -162,16 +169,12 @@ if [[ "${HEADED:-}" == "1" ]]; then
   PLAYWRIGHT_ARGS+=(--headed)
 fi
 
-# Application names normally match their Playwright test paths. Plane is the
-# exception: its test is deliberately named 08-plan.spec.ts. Keep this mapping
-# here so both local staging and CI select the OIDC test when Plane is deployed.
 PLAYWRIGHT_TARGETS=()
 if [[ -n "$APP_FILTER" ]]; then
   for app in $APP_FILTER; do
-    case "$app" in
-      plane) PLAYWRIGHT_TARGETS+=("08-plan.spec.ts") ;;
-      *) PLAYWRIGHT_TARGETS+=("$app") ;;
-    esac
+    # Plane CE has no OIDC E2E specification. It may appear alongside other
+    # applications in a scoped run, but must not become a Playwright selector.
+    [[ "$app" == "plane" ]] || PLAYWRIGHT_TARGETS+=("$app")
   done
 fi
 

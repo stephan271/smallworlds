@@ -47,7 +47,7 @@ This project is built upon several foundational open-source technologies, core i
 | **Immich** | [immich.app](https://immich.app/) | High performance photo and video backup. |
 | **Jitsi Meet** | [jitsi.org](https://jitsi.org/) | Secure video conferencing and communication platform. |
 | **Nextcloud** | [nextcloud.com](https://nextcloud.com/) | File synchronization and collaboration. |
-| **Plane** | [plane.so](https://plane.so/) | Open-source project management tool. |
+| **Plane** | [plane.so](https://plane.so/) | Open-source project management tool. Plane Community Edition uses its native login; Keycloak OIDC SSO requires Plane Pro or Business. |
 | **Roundcube** | [roundcube.net](https://roundcube.net/) | IMAP webmail client connected to Stalwart. |
 
 ---
@@ -188,7 +188,7 @@ Full OIDC login roundtrips require the applications to trust the TLS certificate
 
 | Mode | How to run | What it verifies |
 | :--- | :--- | :--- |
-| **Shallow wiring** (default) | `./e2e-tests/run-smoke-tests.sh <domain>` | Each app redirects into Keycloak's authorize endpoint — proving client config, secrets, issuer URL, in-cluster DNS, and OIDC wiring. The deeper login-roundtrip tests are skipped. |
+| **Shallow wiring** (default) | `./e2e-tests/run-smoke-tests.sh <domain>` | Each Keycloak-integrated app redirects into Keycloak's authorize endpoint — proving client config, secrets, issuer URL, in-cluster DNS, and OIDC wiring. Plane CE is checked for availability only because it does not support Keycloak OIDC SSO. The deeper login-roundtrip tests are skipped. |
 | **Full OIDC** | `FULL_OIDC=1 ./e2e-tests/run-smoke-tests.sh <domain>` | The complete login roundtrips run — auto-login into each app, then asserting the app's authenticated UI loads (Files listing, inbox, timeline, dashboard, etc.). Requires app-trusted certificates, i.e. production. |
 
 In shallow mode you'll see the roundtrip tests reported as **skipped** (with the reason `Full OIDC roundtrip needs app-trusted certificates — run with FULL_OIDC=1`); this is expected, not a failure.

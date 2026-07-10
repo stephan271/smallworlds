@@ -27,14 +27,18 @@ The chart's `plane-app-secrets` Secret templates `DATABASE_URL` and `AMQP_URL` u
 
 Rather than patch the chart, `kustomization.yaml` overrides `DATABASE_URL` and `AMQP_URL` directly as container env vars (with the correct namespace hardcoded) on every workload that needs them: `plane-api-wl`, `plane-worker-wl`, `plane-beat-worker-wl`, and the `plane-api-migrate-1` Job (`DATABASE_URL` only — the migrator doesn't touch Celery). `DATABASE_URL` is built from `PGHOST`/`PGUSER`/`PGPASSWORD`/`PGDATABASE` using Kubernetes' `$(VAR)` env interpolation, which only works for vars listed explicitly in the same container's `env:` (not ones pulled in via `envFrom`).
 
-## Authentication (OIDC)
+## Authentication
 
-Plane delegates authentication to the central Keycloak identity provider via OIDC.
-The OIDC configuration is injected into the application via environment variables in the `values.yaml` Helm chart configuration:
+SmallWorlds deploys the Community Edition (`plane-ce`). It has **no usable
+Keycloak/OIDC SSO path**: Plane documents custom OIDC SSO as a Pro/Business
+feature configured manually in God Mode (`/god-mode/authentication/oidc`).
+Accordingly, Plane is deliberately not included in the Keycloak client-job base,
+does not receive Keycloak credentials, and is excluded from Keycloak-scoped E2E
+tests. Its normal availability check remains part of the smoke-test runner.
 
-- The standard `keycloak-client-job` base is included in Plane's Kustomize configuration to register the `plan` client with Keycloak.
-- The resulting `keycloak-secret` is mounted into the Plane deployment, populating the `OPENID_CLIENT_ID` and `OPENID_CLIENT_SECRET` environment variables.
-- The redirect URI `https://plan.<domain>/auth/oidc/callback` is registered during the Keycloak client job execution.
+If the deployment moves to an edition that includes OIDC SSO, configure it in
+God Mode using the provider's authorize, token, and user-info endpoints, then
+reintroduce a dedicated Keycloak client and OIDC test.
 
 ## ArgoCD Sync Ordering (`plane-api-migrate-1`)
 
@@ -46,12 +50,12 @@ Fix, applied as a Kustomize patch on the Job:
 annotations:
   argocd.argoproj.io/hook: Sync
   argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
-  argocd.argoproj.io/sync-wave: "1"
+  argocd.argoproj.io/sync-wave: "0"
 ```
 
-- `hook: Sync` + `hook-delete-policy: BeforeHookCreation` makes ArgoCD delete and recreate the Job each sync instead of patching it in place (same pattern the `keycloak-client-init` base job already used).
+- `hook: Sync` + `hook-delete-policy: BeforeHookCreation` makes ArgoCD delete and recreate the Job each sync instead of patching it in place.
 - `hook: PreSync` was tried first and rejected: PreSync hooks run *before* the chart's own resources (including the `plane-srv-account` ServiceAccount the Job's pod needs), so the Job spun forever with `serviceaccount "plane-srv-account" not found`.
-- `sync-wave: "1"` was then needed even with `hook: Sync`, because a same-wave Sync hook isn't reliably ordered after the ServiceAccount (observed empirically: the Job still raced ahead and failed the same way). Bumping it to wave 1 forces wave 0 — including the ServiceAccount — to fully apply first.
+- The hook shares sync wave 0 with the API. The API waits for migrations before becoming Ready, so placing the migration hook in wave 1 would deadlock ArgoCD while it waits for API health.
 
 ## Admin app: nginx trailing-slash redirect leaks internal port (`admin-nginx-configmap.yaml`)
 

@@ -99,7 +99,7 @@ jobs:
              done
           elif [ "$KEYCLOAK_CHANGED" = true ]; then
              echo "Keycloak changed. Deploying all OIDC-dependent applications."
-             for tenant in stalwart nextcloud roundcube immich forgejo plane jitsi; do
+             for tenant in stalwart nextcloud roundcube immich forgejo jitsi; do
                echo "  - apps/$tenant.yaml" >> infrastructure/kubernetes/kustomization.yaml
                TEST_FILTER="$TEST_FILTER $tenant"
              done
