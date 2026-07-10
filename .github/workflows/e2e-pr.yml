@@ -60,9 +60,13 @@ jobs:
           # Detect if core infrastructure changed
           CORE_CHANGED=false
           if echo "$CHANGED_FILES" | grep -qE '^infrastructure/kubernetes/(apps|bases)/' \
-            || echo "$CHANGED_FILES" | grep -qE '^infrastructure/terraform/' \
-            || echo "$CHANGED_FILES" | grep -qE '^infrastructure/kubernetes/tenants/keycloak/'; then
+            || echo "$CHANGED_FILES" | grep -qE '^infrastructure/terraform/'; then
             CORE_CHANGED=true
+          fi
+
+          KEYCLOAK_CHANGED=false
+          if echo "$CHANGED_FILES" | grep -qE '^infrastructure/kubernetes/tenants/keycloak/'; then
+            KEYCLOAK_CHANGED=true
           fi
           
           # Detect which tenants changed
@@ -81,8 +85,10 @@ jobs:
           echo "  - apps/keycloak.yaml" >> infrastructure/kubernetes/kustomization.yaml
           
           TEST_FILTER=""
+          DEPLOY_ALERTMANAGER_CONFIG=false
           if [ "$CORE_CHANGED" = true ]; then
-             echo "Core infrastructure or Keycloak changed. Deploying ALL applications."
+             echo "Core infrastructure changed. Deploying ALL applications."
+             DEPLOY_ALERTMANAGER_CONFIG=true
              for app in infrastructure/kubernetes/apps/*.yaml; do
                 basename=$(basename "$app")
                 # Applied after kube-prometheus-stack establishes its CRD.
@@ -90,6 +96,12 @@ jobs:
                 if ! grep -q "apps/$basename" infrastructure/kubernetes/kustomization.yaml; then
                    echo "  - apps/$basename" >> infrastructure/kubernetes/kustomization.yaml
                 fi
+             done
+          elif [ "$KEYCLOAK_CHANGED" = true ]; then
+             echo "Keycloak changed. Deploying all OIDC-dependent applications."
+             for tenant in stalwart nextcloud roundcube immich forgejo plane jitsi; do
+               echo "  - apps/$tenant.yaml" >> infrastructure/kubernetes/kustomization.yaml
+               TEST_FILTER="$TEST_FILTER $tenant"
              done
           else
              echo "Only specific tenants changed. Selectively deploying..."
@@ -112,19 +124,21 @@ jobs:
           kubectl apply -k infrastructure/kubernetes
 
           # AlertmanagerConfig is a Prometheus Operator custom resource, so it
-          # must wait for kube-prometheus-stack to establish its CRD.
-          for i in {1..60}; do
-            if kubectl get crd alertmanagerconfigs.monitoring.coreos.com >/dev/null 2>&1 \
-              && kubectl wait --for=condition=Established crd/alertmanagerconfigs.monitoring.coreos.com --timeout=10s >/dev/null 2>&1; then
-              kubectl apply -f infrastructure/kubernetes/apps/alertmanager-config.yaml
-              break
-            fi
-            if [ "$i" -eq 60 ]; then
-              echo "AlertmanagerConfig CRD was not established within 10 minutes."
-              exit 1
-            fi
-            sleep 10
-          done
+          # is only applied when the full core stack includes its CRD provider.
+          if [ "$DEPLOY_ALERTMANAGER_CONFIG" = true ]; then
+            for i in {1..60}; do
+              if kubectl get crd alertmanagerconfigs.monitoring.coreos.com >/dev/null 2>&1 \
+                && kubectl wait --for=condition=Established crd/alertmanagerconfigs.monitoring.coreos.com --timeout=10s >/dev/null 2>&1; then
+                kubectl apply -f infrastructure/kubernetes/apps/alertmanager-config.yaml
+                break
+              fi
+              if [ "$i" -eq 60 ]; then
+                echo "AlertmanagerConfig CRD was not established within 10 minutes."
+                exit 1
+              fi
+              sleep 10
+            done
+          fi
           
           echo "Waiting for ArgoCD to sync Applications..."
           sleep 15

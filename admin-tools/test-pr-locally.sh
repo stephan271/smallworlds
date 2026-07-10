@@ -71,9 +71,13 @@ CHANGED_FILES=$(git diff --name-only origin/main...HEAD)
 
 CORE_CHANGED=false
 if echo "$CHANGED_FILES" | grep -qE '^infrastructure/kubernetes/(apps|bases)/' \
-    || echo "$CHANGED_FILES" | grep -qE '^infrastructure/terraform/' \
-    || echo "$CHANGED_FILES" | grep -qE '^infrastructure/kubernetes/tenants/keycloak/'; then
+    || echo "$CHANGED_FILES" | grep -qE '^infrastructure/terraform/'; then
     CORE_CHANGED=true
+fi
+
+KEYCLOAK_CHANGED=false
+if echo "$CHANGED_FILES" | grep -qE '^infrastructure/kubernetes/tenants/keycloak/'; then
+    KEYCLOAK_CHANGED=true
 fi
 
 MODIFIED_TENANTS=$(echo "$CHANGED_FILES" | grep '^infrastructure/kubernetes/tenants/' | awk -F'/' '{print $4}' | sort -u || true)
@@ -105,14 +109,22 @@ add_resource apps/traefik.yaml
 add_resource apps/keycloak.yaml
 
 TEST_FILTER=""
+DEPLOY_ALERTMANAGER_CONFIG=false
 if [ "$CORE_CHANGED" = true ]; then
-    echo -e "${YELLOW}Core infrastructure or Keycloak changed. Deploying ALL applications.${NC}"
+    echo -e "${YELLOW}Core infrastructure changed. Deploying ALL applications.${NC}"
+    DEPLOY_ALERTMANAGER_CONFIG=true
     for app in infrastructure/kubernetes/apps/*.yaml; do
         basename=$(basename "$app")
         # This is a Prometheus Operator custom resource, not an ArgoCD
         # Application. Apply it after kube-prometheus-stack establishes its CRD.
         [ "$basename" = "alertmanager-config.yaml" ] && continue
         add_resource "apps/$basename"
+    done
+elif [ "$KEYCLOAK_CHANGED" = true ]; then
+    echo -e "${YELLOW}Keycloak changed. Deploying all OIDC-dependent applications.${NC}"
+    for tenant in stalwart nextcloud roundcube immich forgejo plane jitsi; do
+        add_resource "apps/$tenant.yaml"
+        TEST_FILTER="$TEST_FILTER $tenant"
     done
 else
     echo -e "${GREEN}Only specific tenants changed. Selectively deploying...${NC}"
@@ -294,24 +306,36 @@ data:
   DOMAIN: "smallworlds.network"
 EOF
 
+# Stalwart hard-mounts this Secret. Production gets it from cert-manager, but
+# the ephemeral cluster intentionally has no public ClusterIssuer.
+STAGING_TLS_DIR=$(mktemp -d)
+openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+    -subj '/CN=mail.smallworlds.network' \
+    -keyout "$STAGING_TLS_DIR/tls.key" -out "$STAGING_TLS_DIR/tls.crt" >/dev/null 2>&1
+kubectl -n stalwart create secret tls stalwart-tls \
+    --cert="$STAGING_TLS_DIR/tls.crt" --key="$STAGING_TLS_DIR/tls.key"
+rm -rf "$STAGING_TLS_DIR"
+
 kubectl apply -k infrastructure/kubernetes
 
 # kube-prometheus-stack installs the AlertmanagerConfig CRD asynchronously via
 # ArgoCD. It cannot be part of the initial `kubectl apply -k` on a fresh
 # cluster because client-side resource mapping happens before that CRD exists.
-echo -e "${YELLOW}Waiting for the AlertmanagerConfig CRD...${NC}"
-for i in {1..60}; do
-    if kubectl get crd alertmanagerconfigs.monitoring.coreos.com >/dev/null 2>&1 \
-        && kubectl wait --for=condition=Established crd/alertmanagerconfigs.monitoring.coreos.com --timeout=10s >/dev/null 2>&1; then
-        kubectl apply -f infrastructure/kubernetes/apps/alertmanager-config.yaml
-        break
-    fi
-    if [ "$i" -eq 60 ]; then
-        echo -e "${RED}AlertmanagerConfig CRD was not established within 10 minutes.${NC}"
-        exit 1
-    fi
-    sleep 10
-done
+if [ "$DEPLOY_ALERTMANAGER_CONFIG" = true ]; then
+    echo -e "${YELLOW}Waiting for the AlertmanagerConfig CRD...${NC}"
+    for i in {1..60}; do
+        if kubectl get crd alertmanagerconfigs.monitoring.coreos.com >/dev/null 2>&1 \
+            && kubectl wait --for=condition=Established crd/alertmanagerconfigs.monitoring.coreos.com --timeout=10s >/dev/null 2>&1; then
+            kubectl apply -f infrastructure/kubernetes/apps/alertmanager-config.yaml
+            break
+        fi
+        if [ "$i" -eq 60 ]; then
+            echo -e "${RED}AlertmanagerConfig CRD was not established within 10 minutes.${NC}"
+            exit 1
+        fi
+        sleep 10
+    done
+fi
 
 echo -e "${YELLOW}Waiting for ArgoCD to sync and deploy pods (this may take up to 15 minutes)...${NC}"
 sleep 30
