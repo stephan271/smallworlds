@@ -19,13 +19,13 @@ variable "ssh_public_key_path" {
 # Upload your local SSH key to Hetzner so it can be injected into the VM
 resource "hcloud_ssh_key" "smallworlds_admin" {
   count      = var.env_ext == "" ? 1 : 0
-  name       = "smallworlds-admin"
+  name       = "SmallWorlds Admin Key"
   public_key = file(var.ssh_public_key_path)
 }
 
 data "hcloud_ssh_key" "existing_admin" {
   count = var.env_ext != "" ? 1 : 0
-  name  = "smallworlds-admin"
+  name  = "SmallWorlds Admin Key"
 }
 
 locals {
