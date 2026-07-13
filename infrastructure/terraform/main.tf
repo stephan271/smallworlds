@@ -18,13 +18,13 @@ variable "ssh_public_key_path" {
 
 # Upload your local SSH key to Hetzner so it can be injected into the VM
 resource "hcloud_ssh_key" "smallworlds_admin" {
-  name       = "SmallWorlds Admin Key"
+  name       = "smallworlds-admin${var.env_ext}"
   public_key = file(var.ssh_public_key_path)
 }
 
 # Create a secure firewall for the node
 resource "hcloud_firewall" "k8s_firewall" {
-  name = "smallworlds-firewall"
+  name = "smallworlds-firewall${var.env_ext}"
 
   # Allow HTTP
   rule {
@@ -124,14 +124,24 @@ resource "hcloud_firewall" "k8s_firewall" {
 # NOTE: Primary IPs are datacenter-bound — create it in the same location
 # as var.location (e.g. Nuremberg/nbg1), or the server cannot attach it.
 data "hcloud_primary_ip" "main_ip" {
-  name = "Meine-Small-World-Cluster-IP"
+  name = "Meine-Small-World-Cluster-IP${var.env_ext}"
 }
 
 # Create the Hetzner DNS zone automatically for your domain
 resource "hcloud_zone" "smallworlds_zone" {
-  name = var.domain_name
-  mode = "primary"
-  ttl  = 3600
+  count = var.env_ext == "" ? 1 : 0
+  name  = var.domain_name
+  mode  = "primary"
+  ttl   = 3600
+}
+
+data "hcloud_zone" "existing_zone" {
+  count = var.env_ext != "" ? 1 : 0
+  name  = var.domain_name
+}
+
+locals {
+  zone_id = var.env_ext == "" ? hcloud_zone.smallworlds_zone[0].id : data.hcloud_zone.existing_zone[0].id
 }
 
 # Automatically create the A records for the root domain and all service subdomains
@@ -153,7 +163,7 @@ resource "hcloud_zone_rrset" "app_records" {
     "deploy"
   ])
 
-  zone = hcloud_zone.smallworlds_zone.id
+  zone = local.zone_id
   name = each.value == "@" ? "@" : "${each.value}${var.env_ext}"
   type = "A"
   ttl  = 3600
@@ -182,7 +192,7 @@ data "hcloud_image" "golden" {
 
 # Provision the actual VM
 resource "hcloud_server" "smallworlds_pilot_node" {
-  name        = "cc-pilot-node-01"
+  name        = "cc-pilot-node-01${var.env_ext}"
   image       = var.use_golden_image ? tostring(data.hcloud_image.golden[0].id) : "ubuntu-24.04"
   server_type = "cx43" # 8 shared vCPU (AMD), 16 GB RAM. Recommended x86 architecture for K3s and ML.
   location    = var.location
@@ -221,7 +231,7 @@ resource "hcloud_server" "smallworlds_pilot_node" {
 # Hetzner re-attaches this volume automatically when the VM is re-created.
 # ------------------------------------------------------------------------------
 resource "hcloud_volume" "smallworlds_data" {
-  name     = "smallworlds-data"
+  name     = "smallworlds-data${var.env_ext}"
   size     = 200 # GB — covers Garage (100 GB) + Immich library (50 GB) + room to grow
   location = var.location # Volumes are location-bound and must match the server
   format   = "ext4"

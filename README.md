@@ -57,23 +57,22 @@ This project is built upon several foundational open-source technologies, core i
 ### 1. Configuration Repository Initialization
 A private Git repository is required to store application state and configuration overrides.
 
-First create a completely empty private repo, e.g. at https://github.com/your-username/my-community-config . Make sure to create a Personal Access Token as a password to be able to push to this repo later.
-
-Then Execute the initialization script from the root of this repository:
+Execute the initialization script from the root of this repository:
 ```bash
 ./admin-tools/prepare-community-repo.sh
 ```
 This script handles:
+- Prompting for your target domain (e.g. `smallworlds.network`) and environment extension (e.g. `-dev` for staging).
+- Automatically creating a private GitHub repository using the `gh` CLI (if installed), or allowing you to provide an empty Git URL manually.
 - Interactive selection of optional applications.
-- Generation of the corresponding `kustomization.yaml` overlay.
-- Initialization of the local Git repository and initial commit.
-
-Make sure to push the state to the remote repo (the script will ask you to do so)
+- Generation of the corresponding `kustomization.yaml` overlays, injecting environment-specific patches for the chosen domain.
+- Initialization of the local Git repository and automatic push to your remote repository.
 
 ### 2. Infrastructure Provider Setup
-SmallWorlds currently supports **Hetzner Cloud only** — the init script and Terraform are written against it, so these steps are required (see the note at the top of this README).
+SmallWorlds currently supports **Hetzner Cloud only** — the init script and Terraform are written against it, so these steps are required:
 1. Create a Hetzner Cloud account and a new project.
 2. Generate an API Token with **Read & Write** permissions. Save this token.
+3. In the Hetzner Cloud Console, navigate to **Primary IPs** and click **Create Primary IP**. Select IPv4, choose your target location (e.g., Nuremberg/nbg1), and name it exactly `Meine-Small-World-Cluster-IP` (or `Meine-Small-World-Cluster-IP-dev` if deploying a `-dev` environment). Leave it unassigned. Terraform will attach it during provisioning.
 
 ### 3. Cluster Provisioning
 Execute the bootstrap script to provision the VM, configure DNS, and install Kubernetes/ArgoCD.
