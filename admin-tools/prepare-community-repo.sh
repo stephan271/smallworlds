@@ -57,19 +57,44 @@ elif [ -d "$ABS_REPO_PATH/.git" ]; then
     popd > /dev/null
 fi
 
-while true; do
-    if [ -n "$DEFAULT_URL" ]; then
-        read -e -i "$DEFAULT_URL" -p "2. Enter your private Git Remote HTTPS URL: " REMOTE_URL
+read -e -i "n" -p "2. Do you want to automatically create a new private GitHub repository using the GitHub CLI (gh)? (y/n): " CREATE_REPO
+if [[ "$CREATE_REPO" =~ ^[Yy]$ ]]; then
+    if ! command -v gh &> /dev/null; then
+        echo -e "${RED}Error: 'gh' (GitHub CLI) is not installed. Please install it first or answer 'n' to enter an existing URL.${NC}"
+        CREATE_REPO="n"
     else
-        read -e -p "2. Enter your private Git Remote HTTPS URL (required, e.g., https://github.com/user/my-community-config.git): " REMOTE_URL
+        # Extract default name from REPO_PATH
+        DEFAULT_REPO_NAME=$(basename "$ABS_REPO_PATH")
+        read -e -i "$DEFAULT_REPO_NAME" -p "   Enter the name for the new repository: " NEW_REPO_NAME
+        
+        echo -e "${YELLOW}Creating private repository '$NEW_REPO_NAME' on GitHub...${NC}"
+        if gh repo create "$NEW_REPO_NAME" --private; then
+            # Get the HTTPS URL
+            REPO_URL=$(gh repo view "$NEW_REPO_NAME" --json url -q .url)
+            REMOTE_URL="${REPO_URL}.git"
+            echo -e "${GREEN}Successfully created repository: $REMOTE_URL${NC}"
+        else
+            echo -e "${RED}Failed to create repository. Falling back to manual URL entry.${NC}"
+            CREATE_REPO="n"
+        fi
     fi
-    
-    if [ -n "$REMOTE_URL" ]; then
-        break
-    else
-        echo -e "${RED}Error: Git Remote URL is required to properly configure ArgoCD patches.${NC}"
-    fi
-done
+fi
+
+if [[ ! "$CREATE_REPO" =~ ^[Yy]$ ]]; then
+    while true; do
+        if [ -n "$DEFAULT_URL" ]; then
+            read -e -i "$DEFAULT_URL" -p "2b. Enter your private Git Remote HTTPS URL: " REMOTE_URL
+        else
+            read -e -p "2b. Enter your private Git Remote HTTPS URL (required, e.g., https://github.com/user/my-community-config.git): " REMOTE_URL
+        fi
+        
+        if [ -n "$REMOTE_URL" ]; then
+            break
+        else
+            echo -e "${RED}Error: Git Remote URL is required to properly configure ArgoCD patches.${NC}"
+        fi
+    done
+fi
 
 # 2b. Pin to a specific upstream smallworlds release tag (recommended). Pinning
 # makes updates deliberate and reproducible: ArgoCD only adopts a new base when
