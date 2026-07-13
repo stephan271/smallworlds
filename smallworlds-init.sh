@@ -267,7 +267,7 @@ until ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o Connect
     sleep 2
 done
 
-KUBECONFIG_LOCAL="../../k3s_kubeconfig.yaml"
+KUBECONFIG_LOCAL="../../k3s_kubeconfig${ENV_EXT}.yaml"
 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$SERVER_IP" "cat /etc/rancher/k3s/k3s.yaml" > "$KUBECONFIG_LOCAL" 2>/dev/null
 sed -i "s|127.0.0.1|$SERVER_IP|g" "$KUBECONFIG_LOCAL"
 chmod 600 "$KUBECONFIG_LOCAL"
@@ -286,9 +286,9 @@ echo ""
 echo -e "Your applications will take a few minutes to boot up and fetch their SSL certificates."
 echo ""
 echo -e "Kubernetes Access (kubeconfig):"
-echo -e "  Saved to:                  ${CYAN}./k3s_kubeconfig.yaml${NC}"
-echo -e "  To use with kubectl:       ${YELLOW}export KUBECONFIG=\$PWD/k3s_kubeconfig.yaml${NC}"
-echo -e "                             (or link it: ln -sf \$PWD/k3s_kubeconfig.yaml ~/.kube/config)"
+echo -e "  Saved to:                  ${CYAN}./k3s_kubeconfig${ENV_EXT}.yaml${NC}"
+echo -e "  To use with kubectl:       ${YELLOW}export KUBECONFIG=\$PWD/k3s_kubeconfig${ENV_EXT}.yaml${NC}"
+echo -e "                             (or link it: ln -sf \$PWD/k3s_kubeconfig${ENV_EXT}.yaml ~/.kube/config)"
 echo ""
 echo -e "Here are your auto-generated admin credentials. Save them somewhere safe!"
 echo -e "Keycloak Admin (admin):      ${CYAN}${KC_PASS}${NC}"
@@ -318,12 +318,11 @@ if command -v kubectl >/dev/null 2>&1; then
                 -p '{"operation":{"initiatedBy":{"username":"installer-watchdog"},"sync":{}}}' >/dev/null 2>&1 || true
         done
 
-        TOTAL=$(kubectl get application -n argocd --no-headers 2>/dev/null | wc -l)
-        # Count apps with a POPULATED Healthy status — freshly created apps have
-        # none at all and must not count as healthy
-        HEALTHY=$(kubectl get application -n argocd -o jsonpath='{range .items[?(@.status.health.status=="Healthy")]}{.metadata.name}{"\n"}{end}' 2>/dev/null | grep -c . || true)
-        # The root app being Synced+Healthy guarantees all child apps exist
-        ROOT_STATE=$(kubectl get application smallworlds-root -n argocd -o jsonpath='{.status.sync.status}/{.status.health.status}' 2>/dev/null)
+        # Get all ArgoCD apps that are not healthy
+        UNHEALTHY=$(KUBECONFIG="$KUBECONFIG_LOCAL" kubectl get apps -n argocd -o jsonpath='{.items[?(@.status.health.status!="Healthy")].metadata.name}' 2>/dev/null)
+        HEALTHY=$(KUBECONFIG="$KUBECONFIG_LOCAL" kubectl get apps -n argocd -o jsonpath='{.items[?(@.status.health.status=="Healthy")].metadata.name}' 2>/dev/null | wc -w)
+        TOTAL=$(KUBECONFIG="$KUBECONFIG_LOCAL" kubectl get apps -n argocd -o jsonpath='{.items[*].metadata.name}' 2>/dev/null | wc -w)
+        ROOT_STATE=$(KUBECONFIG="$KUBECONFIG_LOCAL" kubectl get app smallworlds-root -n argocd -o jsonpath='{.status.sync.status}/{.status.health.status}' 2>/dev/null)
         if [ "$TOTAL" -gt 1 ] && [ "$HEALTHY" -eq "$TOTAL" ] && [ "$ROOT_STATE" = "Synced/Healthy" ]; then
             echo -e "${GREEN}All $TOTAL applications are Healthy!${NC}"
             CONVERGED=true
