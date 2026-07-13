@@ -29,14 +29,32 @@ if [ -f "$CONFIG_FILE" ]; then
     source "$CONFIG_FILE"
 fi
 
-# 1. Ask for local repository path
+# 1. Ask for Target Domain
+if [ -n "$STORED_TARGET_DOMAIN" ]; then
+    DEFAULT_DOMAIN="$STORED_TARGET_DOMAIN"
+else
+    DEFAULT_DOMAIN="smallworlds.network"
+fi
+read -e -i "$DEFAULT_DOMAIN" -p "1. Enter your target base domain (e.g. smallworlds.network): " TARGET_DOMAIN
+
+# 2. Ask for Environment Extension
+if [ -n "$STORED_ENV_EXT" ]; then
+    DEFAULT_ENV_EXT="$STORED_ENV_EXT"
+else
+    DEFAULT_ENV_EXT=""
+fi
+read -e -i "$DEFAULT_ENV_EXT" -p "2. Enter environment extension (e.g. -dev, or leave empty for prod): " ENV_EXT
+
+# 3. Ask for local repository path
 if [ -n "$STORED_REPO_PATH" ]; then
+    # If the stored path exists but the extension changed, maybe we shouldn't use the stored path verbatim.
+    # But to keep it simple, we just use it if it exists.
     DEFAULT_PATH="$STORED_REPO_PATH"
 else
     # Script is in admin-tools, so community repo is normally parallel to smallworlds
-    DEFAULT_PATH="$(cd "$SCRIPT_DIR/.." && pwd)/../my-community-config"
+    DEFAULT_PATH="$(cd "$SCRIPT_DIR/.." && pwd)/../my-community${ENV_EXT}-config"
 fi
-read -e -i "$DEFAULT_PATH" -p "1. Enter the path where you want to create the repository: " REPO_PATH
+read -e -i "$DEFAULT_PATH" -p "3. Enter the path where you want to create the repository: " REPO_PATH
 
 # Resolve to absolute path
 mkdir -p "$REPO_PATH"
@@ -45,7 +63,7 @@ ABS_REPO_PATH="$(cd "$REPO_PATH" && pwd)"
 echo -e "Target directory: ${GREEN}${ABS_REPO_PATH}${NC}"
 echo ""
 
-# 2. Ask for the remote Git URL
+# 4. Ask for the remote Git URL
 DEFAULT_URL=""
 if [ -n "$STORED_REMOTE_URL" ]; then
     DEFAULT_URL="$STORED_REMOTE_URL"
@@ -57,7 +75,7 @@ elif [ -d "$ABS_REPO_PATH/.git" ]; then
     popd > /dev/null
 fi
 
-read -e -i "n" -p "2. Do you want to automatically create a new private GitHub repository using the GitHub CLI (gh)? (y/n): " CREATE_REPO
+read -e -i "n" -p "4. Do you want to automatically create a new private GitHub repository using the GitHub CLI (gh)? (y/n): " CREATE_REPO
 if [[ "$CREATE_REPO" =~ ^[Yy]$ ]]; then
     if ! command -v gh &> /dev/null; then
         echo -e "${RED}Error: 'gh' (GitHub CLI) is not installed. Please install it first or answer 'n' to enter an existing URL.${NC}"
@@ -83,9 +101,9 @@ fi
 if [[ ! "$CREATE_REPO" =~ ^[Yy]$ ]]; then
     while true; do
         if [ -n "$DEFAULT_URL" ]; then
-            read -e -i "$DEFAULT_URL" -p "2b. Enter your private Git Remote HTTPS URL: " REMOTE_URL
+            read -e -i "$DEFAULT_URL" -p "4b. Enter your private Git Remote HTTPS URL: " REMOTE_URL
         else
-            read -e -p "2b. Enter your private Git Remote HTTPS URL (required, e.g., https://github.com/user/my-community-config.git): " REMOTE_URL
+            read -e -p "4b. Enter your private Git Remote HTTPS URL (required, e.g., https://github.com/user/my-community-config.git): " REMOTE_URL
         fi
         
         if [ -n "$REMOTE_URL" ]; then
@@ -96,7 +114,7 @@ if [[ ! "$CREATE_REPO" =~ ^[Yy]$ ]]; then
     done
 fi
 
-# 2b. Pin to a specific upstream smallworlds release tag (recommended). Pinning
+# 5. Pin to a specific upstream smallworlds release tag (recommended). Pinning
 # makes updates deliberate and reproducible: ArgoCD only adopts a new base when
 # you bump this tag and commit. Enter HEAD to always track the latest main
 # (not recommended for production — ArgoCD picks it up non-deterministically on
@@ -106,24 +124,8 @@ if [ -n "$STORED_VERSION" ]; then
 else
     DEFAULT_VERSION="v1.0.0"
 fi
-read -e -i "$DEFAULT_VERSION" -p "3. Pin to which upstream smallworlds version tag (e.g. v1.0.0, or HEAD to track latest): " SMALLWORLDS_VERSION
+read -e -i "$DEFAULT_VERSION" -p "5. Pin to which upstream smallworlds version tag (e.g. v1.0.0, or HEAD to track latest): " SMALLWORLDS_VERSION
 SMALLWORLDS_VERSION="${SMALLWORLDS_VERSION:-HEAD}"
-
-if [ -n "$STORED_TARGET_DOMAIN" ]; then
-    DEFAULT_DOMAIN="$STORED_TARGET_DOMAIN"
-else
-    DEFAULT_DOMAIN="smallworlds.network"
-fi
-read -e -i "$DEFAULT_DOMAIN" -p "4. Enter your target base domain (e.g. smallworlds.network): " TARGET_DOMAIN
-
-if [ -n "$STORED_ENV_EXT" ]; then
-    DEFAULT_ENV_EXT="$STORED_ENV_EXT"
-else
-    DEFAULT_ENV_EXT=""
-fi
-read -e -i "$DEFAULT_ENV_EXT" -p "5. Enter environment extension (e.g. -dev, or leave empty for prod): " ENV_EXT
-
-
 # Derive the "owner/repo" slug from the remote URL so the in-cluster Renovate
 # CronJob can scan THIS repo and open weekly base-tag bump PRs against it.
 REPO_SLUG=$(printf '%s' "$REMOTE_URL" | sed -E 's#^(https?://[^/]+/|git@[^:]+:|ssh://[^/]+/)##; s#\.git$##; s#/+$##')
