@@ -391,7 +391,7 @@ fi
 # 7. Commit the files
 echo -e "${YELLOW}Committing updates...${NC}"
 git add .
-if ! git diff-index --quiet HEAD; then
+if [ -n "$(git status --porcelain)" ]; then
     git commit -m "Automated update: Synchronized SmallWorlds applications"
 else
     echo -e "${GREEN}No changes to commit.${NC}"
