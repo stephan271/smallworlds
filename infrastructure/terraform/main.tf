@@ -18,8 +18,18 @@ variable "ssh_public_key_path" {
 
 # Upload your local SSH key to Hetzner so it can be injected into the VM
 resource "hcloud_ssh_key" "smallworlds_admin" {
-  name       = "smallworlds-admin${var.env_ext}"
+  count      = var.env_ext == "" ? 1 : 0
+  name       = "smallworlds-admin"
   public_key = file(var.ssh_public_key_path)
+}
+
+data "hcloud_ssh_key" "existing_admin" {
+  count = var.env_ext != "" ? 1 : 0
+  name  = "smallworlds-admin"
+}
+
+locals {
+  ssh_key_id = var.env_ext == "" ? hcloud_ssh_key.smallworlds_admin[0].id : data.hcloud_ssh_key.existing_admin[0].id
 }
 
 # Create a secure firewall for the node
@@ -147,20 +157,22 @@ locals {
 # Automatically create the A records for the root domain and all service subdomains
 resource "hcloud_zone_rrset" "app_records" {
   for_each = toset([
-    "@",
-    "identity",
-    "dashboard",
-    "files",
-    "photos",
-    "git",
-    "mail",
-    "webmail",
-    "monitoring",
-    "whiteboard",
-    "meet",
-    "office",
-    "plan",
-    "deploy"
+    for r in [
+      "@",
+      "identity",
+      "dashboard",
+      "files",
+      "photos",
+      "git",
+      "mail",
+      "webmail",
+      "monitoring",
+      "whiteboard",
+      "meet",
+      "office",
+      "plan",
+      "deploy"
+    ] : r if r != "@" || var.env_ext == ""
   ])
 
   zone = local.zone_id
@@ -197,7 +209,7 @@ resource "hcloud_server" "smallworlds_pilot_node" {
   server_type = "cx43" # 8 shared vCPU (AMD), 16 GB RAM. Recommended x86 architecture for K3s and ML.
   location    = var.location
 
-  ssh_keys = [hcloud_ssh_key.smallworlds_admin.id]
+  ssh_keys = [local.ssh_key_id]
   firewall_ids = [hcloud_firewall.k8s_firewall.id]
   
   user_data = templatefile("${path.module}/cloud-init.yaml.tpl", {
