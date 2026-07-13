@@ -154,7 +154,7 @@ resource "hcloud_zone_rrset" "app_records" {
   ])
 
   zone = hcloud_zone.smallworlds_zone.id
-  name = each.value
+  name = each.value == "@" ? "@" : "${each.value}${var.env_ext}"
   type = "A"
   ttl  = 3600
 
@@ -169,7 +169,7 @@ resource "hcloud_zone_rrset" "app_records" {
 resource "hcloud_rdns" "main_ip_ptr" {
   primary_ip_id = data.hcloud_primary_ip.main_ip.id
   ip_address    = data.hcloud_primary_ip.main_ip.ip_address
-  dns_ptr       = "mail.${var.domain_name}"
+  dns_ptr       = "mail${var.env_ext}.${var.domain_name}"
 }
 
 # Most recent golden image built by admin-tools/build-golden-image.sh

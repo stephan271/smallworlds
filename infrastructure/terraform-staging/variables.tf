@@ -16,6 +16,12 @@ variable "domain_name" {
   default     = "smallworlds.network"
 }
 
+variable "env_ext" {
+  description = "The environment extension for subdomains (e.g. -dev)"
+  type        = string
+  default     = ""
+}
+
 variable "admin_email" {
   description = "Email address for the admin account in Nextcloud and Immich (set before terraform apply)"
   type        = string

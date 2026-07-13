@@ -63,15 +63,17 @@ if [[ -z "$ONBOARDING_MODE" ]]; then
 fi
 ask_with_default "3. Select onboarding mode (invitation or self-registration)" "ONBOARDING_MODE" "false"
 
+ask_with_default "4. Enter environment extension (e.g. -dev, or leave empty for prod)" "ENV_EXT" "false"
+
 echo ""
 echo -e "${YELLOW}Hetzner Configuration${NC}"
-ask_with_default "4. Paste your Hetzner Cloud API Token" "HCLOUD_TOKEN" "true"
+ask_with_default "5. Paste your Hetzner Cloud API Token" "HCLOUD_TOKEN" "true"
 
 echo ""
 echo -e "${YELLOW}GitOps Repository Configuration${NC}"
-ask_with_default "5. Enter your Git repository URL (e.g., https://github.com/my-community/config.git)" "GITOPS_REPO_URL" "false"
-ask_with_default "6. Enter your Git username" "GITOPS_REPO_USER" "false"
-ask_with_default "7. Paste your Git Access Token" "GITOPS_REPO_TOKEN" "true"
+ask_with_default "6. Enter your Git repository URL (e.g., https://github.com/my-community/config.git)" "GITOPS_REPO_URL" "false"
+ask_with_default "7. Enter your Git username" "GITOPS_REPO_USER" "false"
+ask_with_default "8. Paste your Git Access Token" "GITOPS_REPO_TOKEN" "true"
 
 # Auto-convert SSH URLs to HTTPS if access token is used
 if [[ -n "$GITOPS_REPO_TOKEN" ]]; then
@@ -94,6 +96,7 @@ if [[ -z "$GRAFANA_PASS" ]]; then GRAFANA_PASS=$(LC_ALL=C tr -dc 'A-Za-z0-9' </d
 # Save values to cache for next time
 cat <<EOF > "$CACHE_FILE"
 DOMAIN="${DOMAIN}"
+ENV_EXT="${ENV_EXT}"
 ADMIN_EMAIL="${ADMIN_EMAIL}"
 ONBOARDING_MODE="${ONBOARDING_MODE}"
 HCLOUD_TOKEN="${HCLOUD_TOKEN}"
@@ -137,6 +140,7 @@ TF_GIT_TOKEN="${GITOPS_REPO_TOKEN}"
 TFVARS_FILE="/tmp/smallworlds-${DOMAIN}.tfvars"
 cat <<EOF > "$TFVARS_FILE"
 domain_name       = "${DOMAIN}"
+env_ext           = "${ENV_EXT}"
 git_url        = "${GITOPS_REPO_URL}"
 git_username   = "${TF_GIT_USER}"
 git_password   = "${TF_GIT_TOKEN}"
@@ -172,6 +176,7 @@ metadata:
 data:
   ADMIN_EMAIL: "${ADMIN_EMAIL}"
   DOMAIN: "${DOMAIN}"
+  ENV_EXT: "${ENV_EXT}"
 ---
 apiVersion: v1
 kind: Namespace
@@ -202,6 +207,7 @@ type: Opaque
 stringData:
   HCLOUD_TOKEN: "${HCLOUD_TOKEN}"
   DOMAIN: "${DOMAIN}"
+  ENV_EXT: "${ENV_EXT}"
 ---
 apiVersion: v1
 kind: Namespace

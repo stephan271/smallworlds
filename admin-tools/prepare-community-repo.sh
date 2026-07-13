@@ -84,6 +84,21 @@ fi
 read -e -i "$DEFAULT_VERSION" -p "3. Pin to which upstream smallworlds version tag (e.g. v1.0.0, or HEAD to track latest): " SMALLWORLDS_VERSION
 SMALLWORLDS_VERSION="${SMALLWORLDS_VERSION:-HEAD}"
 
+if [ -n "$STORED_TARGET_DOMAIN" ]; then
+    DEFAULT_DOMAIN="$STORED_TARGET_DOMAIN"
+else
+    DEFAULT_DOMAIN="smallworlds.network"
+fi
+read -e -i "$DEFAULT_DOMAIN" -p "4. Enter your target base domain (e.g. smallworlds.network): " TARGET_DOMAIN
+
+if [ -n "$STORED_ENV_EXT" ]; then
+    DEFAULT_ENV_EXT="$STORED_ENV_EXT"
+else
+    DEFAULT_ENV_EXT=""
+fi
+read -e -i "$DEFAULT_ENV_EXT" -p "5. Enter environment extension (e.g. -dev, or leave empty for prod): " ENV_EXT
+
+
 # Derive the "owner/repo" slug from the remote URL so the in-cluster Renovate
 # CronJob can scan THIS repo and open weekly base-tag bump PRs against it.
 REPO_SLUG=$(printf '%s' "$REMOTE_URL" | sed -E 's#^(https?://[^/]+/|git@[^:]+:|ssh://[^/]+/)##; s#\.git$##; s#/+$##')
@@ -138,6 +153,14 @@ resources:
 #       kind: Ingress
 #     patch: |- ...
 EOF
+    fi
+    # Generate domain patches if using a different domain or extension
+    if [ "$TARGET_DOMAIN" != "smallworlds.network" ] || [ -n "$ENV_EXT" ]; then
+        python3 "$SCRIPT_DIR/generate_domain_patches.py" \
+            --app "$app" \
+            --domain "$TARGET_DOMAIN" \
+            --ext="$ENV_EXT" \
+            --kustomization-file "$ABS_REPO_PATH/$app/kustomization.yaml"
     fi
 done
 
@@ -282,8 +305,10 @@ fi
 # Save settings
 cat <<EOF > "$CONFIG_FILE"
 STORED_REPO_PATH="$ABS_REPO_PATH"
-STORED_REMOTE_URL="$REMOTE_URL"
-STORED_VERSION="$SMALLWORLDS_VERSION"
+STORED_REMOTE_URL="${REMOTE_URL}"
+STORED_VERSION="${SMALLWORLDS_VERSION}"
+STORED_TARGET_DOMAIN="${TARGET_DOMAIN}"
+STORED_ENV_EXT="${ENV_EXT}"
 EOF
 for app in "${OPTIONAL_APPS[@]}"; do
     var_name="STORED_APP_${app}"
