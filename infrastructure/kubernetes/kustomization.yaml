@@ -30,6 +30,6 @@ resources:
   - apps/keycloak.yaml
   - apps/stalwart.yaml
   
-  # Note: Optional apps (forgejo, immich, nextcloud, roundcube, excalidraw) 
+  # Note: Optional apps (forgejo, immich, nextcloud, bulwark, excalidraw) 
   # are dynamically added to your private kustomization.yaml by prepare-community-repo.sh
 

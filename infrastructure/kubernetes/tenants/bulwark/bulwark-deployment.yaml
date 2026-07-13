@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bulwark
+  namespace: bulwark
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bulwark
+  template:
+    metadata:
+      labels:
+        app: bulwark
+    spec:
+      containers:
+        - name: bulwark
+          image: ghcr.io/bulwarkmail/webmail:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: JMAP_SERVER_URL
+              value: "https://mail.smallworlds.network"
+            - name: OAUTH_ENABLED
+              value: "true"
+            - name: OAUTH_ONLY
+              value: "true"
+            - name: OAUTH_ISSUER_URL
+              value: "https://identity.smallworlds.network/realms/smallworlds"
+            - name: OAUTH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: clientId
+            - name: OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: client-secret
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: session-secret
+                  key: session-secret
+            - name: APP_NAME
+              value: "SmallWorlds Mail"
+            - name: STALWART_FEATURES
+              value: "true"
+          volumeMounts:
+            - name: bulwark-data
+              mountPath: /app/data/admin
+              subPath: admin
+            - name: bulwark-data
+              mountPath: /app/data/admin-state
+              subPath: admin-state
+      volumes:
+        - name: bulwark-data
+          persistentVolumeClaim:
+            claimName: bulwark-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bulwark
+  namespace: bulwark
+spec:
+  selector:
+    app: bulwark
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000

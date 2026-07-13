@@ -13,6 +13,7 @@ resources:
   - mail-provisioner-deployment.yaml
   - mail-provisioner-rbac.yaml
   - stalwart-ingress.yaml
+  - stalwart-cors-middleware.yaml
   - stalwart-secret-init-job.yaml
 
 patches:

@@ -31,7 +31,7 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: roundcube
+  name: bulwark
 ---
 apiVersion: v1
 kind: Namespace
