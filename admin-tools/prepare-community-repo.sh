@@ -122,7 +122,9 @@ fi
 if [ -n "$STORED_VERSION" ]; then
     DEFAULT_VERSION="$STORED_VERSION"
 else
-    DEFAULT_VERSION="v1.0.0"
+    # Fetch the latest semantic version tag
+    LATEST_TAG=$(git ls-remote --tags --sort=-v:refname https://github.com/stephan271/smallworlds.git | grep -Eo 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 2>/dev/null)
+    DEFAULT_VERSION="${LATEST_TAG:-v1.0.0}"
 fi
 read -e -i "$DEFAULT_VERSION" -p "5. Pin to which upstream smallworlds version tag (e.g. v1.0.0, or HEAD to track latest): " SMALLWORLDS_VERSION
 SMALLWORLDS_VERSION="${SMALLWORLDS_VERSION:-HEAD}"
