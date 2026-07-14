@@ -6,7 +6,6 @@ import textwrap
 def generate_patches(app_name, domain, ext):
     """Generate Kustomize patches for a specific app based on the domain and extension."""
     patches = ""
-    helm_charts = ""
     
     # Define subdomains
     subdomains = {
@@ -51,16 +50,13 @@ def generate_patches(app_name, domain, ext):
               - op: replace
                 path: /spec/tls/0/hosts/0
                 value: {subdomains['identity']}
-        """)
-        # Keycloak Helm values patch
-        helm_charts += textwrap.dedent(f"""\
-        helmCharts:
-          - name: keycloakx
-            releaseName: keycloak
-            valuesInline:
-              keycloak:
-                extraArgs:
-                  - "--hostname={subdomains['identity']}"
+          - target:
+              kind: StatefulSet
+              name: keycloak
+            patch: |-
+              - op: replace
+                path: /spec/template/spec/containers/0/args/0
+                value: start --hostname={subdomains['identity']} --hostname-strict=true --http-enabled=true --proxy-headers=xforwarded --import-realm
         """)
 
     elif app_name == "stalwart":
@@ -141,16 +137,13 @@ def generate_patches(app_name, domain, ext):
               - op: replace
                 path: /spec/template/spec/containers/0/env/0/value
                 value: '["https://{subdomains['files']}/*"]'
-        """)
-        helm_charts += textwrap.dedent(f"""\
-        helmCharts:
-          - name: nextcloud
-            releaseName: nextcloud
-            valuesInline:
-              nextcloud:
-                host: {subdomains['files']}
-              ingress:
-                enabled: false
+          - target:
+              kind: Deployment
+              name: nextcloud
+            patch: |-
+              - op: replace
+                path: /spec/template/spec/containers/0/env/10/value
+                value: {subdomains['files']}
         """)
 
     elif app_name == "immich":
@@ -169,22 +162,16 @@ def generate_patches(app_name, domain, ext):
               - op: replace
                 path: /spec/template/spec/containers/0/env/0/value
                 value: '["https://{subdomains['photos']}/auth/login", "https://{subdomains['photos']}/user-settings", "app.immich:///"]'
-        """)
-        helm_charts += textwrap.dedent(f"""\
-        helmCharts:
-          - name: immich
-            releaseName: immich
-            valuesInline:
-              ingress:
-                main:
-                  hosts:
-                    - host: {subdomains['photos']}
-                      paths:
-                        - path: "/"
-                  tls:
-                    - secretName: immich-tls
-                      hosts:
-                        - {subdomains['photos']}
+          - target:
+              kind: Ingress
+              name: immich-server
+            patch: |-
+              - op: replace
+                path: /spec/rules/0/host
+                value: {subdomains['photos']}
+              - op: replace
+                path: /spec/tls/0/hosts/0
+                value: {subdomains['photos']}
         """)
         
     elif app_name == "forgejo":
@@ -203,28 +190,35 @@ def generate_patches(app_name, domain, ext):
               - op: replace
                 path: /spec/template/spec/containers/0/env/0/value
                 value: '["https://{subdomains['git']}/user/oauth2/smallworlds/callback"]'
-        """)
-        helm_charts += textwrap.dedent(f"""\
-        helmCharts:
-          - name: forgejo
-            releaseName: forgejo
-            valuesInline:
-              ingress:
-                hosts:
-                  - host: {subdomains['git']}
-                    paths:
-                      - path: /
-                        pathType: Prefix
-                tls:
-                  - hosts:
-                      - {subdomains['git']}
-                    secretName: forgejo-tls
-              gitea:
-                config:
-                  server:
-                    DOMAIN: {subdomains['git']}
-                    ROOT_URL: "https://{subdomains['git']}/"
-                    SSH_DOMAIN: {subdomains['git']}
+          - target:
+              kind: Ingress
+              name: forgejo
+            patch: |-
+              - op: replace
+                path: /spec/rules/0/host
+                value: {subdomains['git']}
+              - op: replace
+                path: /spec/tls/0/hosts/0
+                value: {subdomains['git']}
+          - target:
+              kind: Deployment
+              name: forgejo
+            patch: |-
+              - op: add
+                path: /spec/template/spec/containers/0/env/-
+                value:
+                  name: GITEA__server__DOMAIN
+                  value: {subdomains['git']}
+              - op: add
+                path: /spec/template/spec/containers/0/env/-
+                value:
+                  name: GITEA__server__ROOT_URL
+                  value: "https://{subdomains['git']}/"
+              - op: add
+                path: /spec/template/spec/containers/0/env/-
+                value:
+                  name: GITEA__server__SSH_DOMAIN
+                  value: {subdomains['git']}
         """)
 
     elif app_name == "jitsi":
@@ -236,27 +230,44 @@ def generate_patches(app_name, domain, ext):
               - op: replace
                 path: /spec/template/spec/containers/0/env/0/value
                 value: '["https://{subdomains['meet']}/*"]'
-        """)
-        helm_charts += textwrap.dedent(f"""\
-        helmCharts:
-          - name: jitsi-meet
-            releaseName: jitsi
-            valuesInline:
-              publicURL: "https://{subdomains['meet']}"
-              web:
-                ingress:
-                  hosts:
-                    - host: {subdomains['meet']}
-                  tls:
-                    - hosts:
-                      - {subdomains['meet']}
-                      secretName: jitsi-tls
-                extraEnvs:
-                  TOKEN_AUTH_URL: "https://{subdomains['meet']}/oidc/auth?state={{state}}"
-              jwt-app:
-                extraEnvs:
-                  OIDC_ISSUER: "https://{subdomains['identity']}/realms/smallworlds"
-                  JWT_APP_URL: "https://{subdomains['meet']}"
+          - target:
+              kind: Ingress
+              name: jitsi-jitsi-meet-web
+            patch: |-
+              - op: replace
+                path: /spec/rules/0/host
+                value: {subdomains['meet']}
+              - op: replace
+                path: /spec/tls/0/hosts/0
+                value: {subdomains['meet']}
+          - target:
+              kind: Deployment
+              name: jitsi-jitsi-meet-web
+            patch: |-
+              - op: add
+                path: /spec/template/spec/containers/0/env/-
+                value:
+                  name: PUBLIC_URL
+                  value: "https://{subdomains['meet']}"
+              - op: add
+                path: /spec/template/spec/containers/0/env/-
+                value:
+                  name: TOKEN_AUTH_URL
+                  value: "https://{subdomains['meet']}/oidc/auth?state={{state}}"
+          - target:
+              kind: Deployment
+              name: jitsi-jitsi-meet-jwt-app
+            patch: |-
+              - op: add
+                path: /spec/template/spec/containers/0/env/-
+                value:
+                  name: OIDC_ISSUER
+                  value: "https://{subdomains['identity']}/realms/smallworlds"
+              - op: add
+                path: /spec/template/spec/containers/0/env/-
+                value:
+                  name: JWT_APP_URL
+                  value: "https://{subdomains['meet']}"
         """)
 
     elif app_name == "collabora":
@@ -298,26 +309,118 @@ def generate_patches(app_name, domain, ext):
         """)
         
     elif app_name == "plane":
-        helm_charts += textwrap.dedent(f"""\
-        helmCharts:
-          - name: plane-ce
-            releaseName: plane
-            valuesInline:
-              ingress:
-                hosts:
-                  - host: {subdomains['plan']}
-                    paths:
-                      - path: /
-                        pathType: ImplementationSpecific
-                tls:
-                  - hosts:
-                    - {subdomains['plan']}
-                    secretName: plane-tls
-              env:
-                NEXT_PUBLIC_API_BASE_URL: "https://{subdomains['plan']}"
+        patches += textwrap.dedent(f"""\
+          - target:
+              kind: Ingress
+              name: plane-ingress
+            patch: |-
+              - op: replace
+                path: /spec/rules/0/host
+                value: {subdomains['plan']}
+              - op: replace
+                path: /spec/tls/0/hosts/0
+                value: {subdomains['plan']}
+          - target:
+              kind: ConfigMap
+              name: plane-app-vars
+            patch: |-
+              - op: replace
+                path: /data/WEB_URL
+                value: "https://{subdomains['plan']}"
         """)
 
-    return patches, helm_charts
+    elif app_name == "argocd":
+        patches += textwrap.dedent(f"""\
+          - target:
+              kind: Ingress
+              name: argocd-server
+              namespace: argocd
+            patch: |-
+              - op: replace
+                path: /spec/rules/0/host
+                value: {subdomains['deploy']}
+              - op: replace
+                path: /spec/tls/0/hosts/0
+                value: {subdomains['deploy']}
+        """)
+
+    elif app_name == "monitoring":
+        # Modify the values within the kube-prometheus-stack Application manifest for Grafana ingress
+        patches += textwrap.dedent(f"""\
+          - target:
+              group: argoproj.io
+              kind: Application
+              name: kube-prometheus-stack
+            patch: |-
+              - op: replace
+                path: /spec/source/helm/values
+                value: |
+                  # Tier 0 alert suppression (k3s false positives).
+                  # k3s bundles kube-controller-manager, kube-scheduler and kube-proxy into
+                  # the single server process and does not expose the per-component metrics
+                  # endpoints this chart scrapes. The default ServiceMonitors therefore have
+                  # no endpoints, so up{{job=...}} is entirely absent and the absent()-based
+                  # *Down alerts fire as permanent false-positive criticals. Disable both the
+                  # dead scrape targets (component monitoring) and the corresponding alerting
+                  # rules. (kube-etcd is left enabled — it does not false-fire here.)
+                  kubeControllerManager:
+                    enabled: false
+                  kubeScheduler:
+                    enabled: false
+                  kubeProxy:
+                    enabled: false
+                  defaultRules:
+                    rules:
+                      # Each of these rule groups contains only the matching *Down alert.
+                      kubeControllerManager: false
+                      kubeSchedulerAlerting: false
+                      kubeProxy: false
+                  grafana:
+                    ingress:
+                      enabled: true
+                      ingressClassName: traefik
+                      annotations:
+                        cert-manager.io/cluster-issuer: letsencrypt-prod
+                      hosts:
+                        - {subdomains['monitoring']}
+                      tls:
+                        - secretName: grafana-tls
+                          hosts:
+                            - {subdomains['monitoring']}
+                    admin:
+                      existingSecret: "grafana-admin-creds"
+                      userKey: admin-user
+                      passwordKey: admin-password
+                  prometheus:
+                    prometheusSpec:
+                      storageSpec:
+                        volumeClaimTemplate:
+                          spec:
+                            accessModes: ["ReadWriteOnce"]
+                            resources:
+                              requests:
+                                storage: 20Gi
+                  alertmanager:
+                    alertmanagerSpec:
+                      # Load AlertmanagerConfig CRs labelled alertmanagerConfig=smallworlds.
+                      # matcherStrategy None so a single CR in the monitoring namespace routes
+                      # alerts from ALL namespaces (default OnNamespace would scope it to
+                      # monitoring only). Routing/receivers live in apps/alertmanager-config.yaml.
+                      alertmanagerConfigSelector:
+                        matchLabels:
+                          alertmanagerConfig: smallworlds
+                      alertmanagerConfigMatcherStrategy:
+                        type: None
+                      storage:
+                        volumeClaimTemplate:
+                          spec:
+                            accessModes: ["ReadWriteOnce"]
+                            resources:
+                              requests:
+                                storage: 2Gi
+        """)
+
+    return patches
 
 def main():
     parser = argparse.ArgumentParser(description="Generate Kustomize domain patches for an overlay repository.")
@@ -331,19 +434,16 @@ def main():
     if args.domain == "smallworlds.network" and not args.ext:
         return
         
-    patches, helm_charts = generate_patches(args.app, args.domain, args.ext)
+    patches = generate_patches(args.app, args.domain, args.ext)
     
-    if patches or helm_charts:
+    if patches:
         with open(getattr(args, 'kustomization_file'), 'a') as f:
-            if patches:
-                with open(getattr(args, 'kustomization_file'), 'r') as r:
-                    content = r.read()
-                    if "patches:" not in content:
-                        f.write("\npatches:\n")
-                f.write(patches)
-            if helm_charts:
-                f.write("\n" + helm_charts)
-            print(f"Appended domain patches for {args.app} to {getattr(args, 'kustomization_file')}")
+            with open(getattr(args, 'kustomization_file'), 'r') as r:
+                content = r.read()
+                if "patches:" not in content:
+                    f.write("\npatches:\n")
+            f.write(patches)
+        print(f"Appended domain patches for {args.app} to {getattr(args, 'kustomization_file')}")
 
 if __name__ == "__main__":
     main()

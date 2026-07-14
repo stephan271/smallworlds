@@ -265,6 +265,22 @@ EOF
     done
 fi
 
+# Generate domain patches for root-level apps if using a different domain or extension
+if [ "$TARGET_DOMAIN" != "smallworlds.network" ] || [ -n "$ENV_EXT" ]; then
+    echo -e "${YELLOW}Applying domain patches for root components...${NC}"
+    python3 "$SCRIPT_DIR/generate_domain_patches.py" \
+        --app "argocd" \
+        --domain "$TARGET_DOMAIN" \
+        --ext="$ENV_EXT" \
+        --kustomization-file "$ABS_REPO_PATH/kustomization.yaml"
+        
+    python3 "$SCRIPT_DIR/generate_domain_patches.py" \
+        --app "monitoring" \
+        --domain "$TARGET_DOMAIN" \
+        --ext="$ENV_EXT" \
+        --kustomization-file "$ABS_REPO_PATH/kustomization.yaml"
+fi
+
 # Wire the in-cluster Renovate CronJob to also scan THIS overlay repo, so the
 # weekly base-tag bump PRs (see renovate.json) are raised here. Operator-specific
 # (your private repo), so it lives in the overlay, not the public base. Idempotent.
