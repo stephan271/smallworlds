@@ -127,7 +127,7 @@ else
     DEFAULT_VERSION="${LATEST_TAG:-v1.0.0}"
 fi
 read -e -i "$DEFAULT_VERSION" -p "5. Pin to which upstream smallworlds version tag (e.g. v1.0.0, or HEAD to track latest): " SMALLWORLDS_VERSION
-SMALLWORLDS_VERSION="${SMALLWORLDS_VERSION:-HEAD}"
+SMALLWORLDS_VERSION="${SMALLWORLDS_VERSION:-$DEFAULT_VERSION}"
 # Derive the "owner/repo" slug from the remote URL so the in-cluster Renovate
 # CronJob can scan THIS repo and open weekly base-tag bump PRs against it.
 REPO_SLUG=$(printf '%s' "$REMOTE_URL" | sed -E 's#^(https?://[^/]+/|git@[^:]+:|ssh://[^/]+/)##; s#\.git$##; s#/+$##')
