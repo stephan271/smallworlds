@@ -29,7 +29,7 @@ def generate_patches(app_name, domain, ext):
         patches += textwrap.dedent(f"""\
           - target:
               kind: Ingress
-              name: dashboard-ingress
+              name: dashboard
             patch: |-
               - op: replace
                 path: /spec/rules/0/host
@@ -43,7 +43,7 @@ def generate_patches(app_name, domain, ext):
         patches += textwrap.dedent(f"""\
           - target:
               kind: Ingress
-              name: keycloak-ingress
+              name: keycloak
             patch: |-
               - op: replace
                 path: /spec/rules/0/host
@@ -119,7 +119,7 @@ def generate_patches(app_name, domain, ext):
         patches += textwrap.dedent(f"""\
           - target:
               kind: Ingress
-              name: nextcloud-ingress
+              name: nextcloud
             patch: |-
               - op: replace
                 path: /spec/rules/0/host
@@ -263,7 +263,7 @@ def generate_patches(app_name, domain, ext):
         patches += textwrap.dedent(f"""\
           - target:
               kind: Ingress
-              name: collabora-ingress
+              name: collabora
             patch: |-
               - op: replace
                 path: /spec/rules/0/host
@@ -287,7 +287,7 @@ def generate_patches(app_name, domain, ext):
         patches += textwrap.dedent(f"""\
           - target:
               kind: Ingress
-              name: excalidraw-ingress
+              name: excalidraw
             patch: |-
               - op: replace
                 path: /spec/rules/0/host
