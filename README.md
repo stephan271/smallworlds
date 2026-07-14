@@ -88,7 +88,12 @@ When prompted for Git credentials, provide:
 - **Access Token**: A Personal Access Token (PAT) with read-only access to repository contents.
 
 ### 4. DNS Configuration
-DNS records are automatically managed via the Hetzner API token provided during provisioning. Subdomains are routed to the provisioned server IP.
+
+> [!IMPORTANT]
+> **Domain Registration is manual:** The SmallWorlds setup scripts do **not** automatically register or reserve the domain name for you. You must manually register the domain at a registrar of your choice (e.g., Hetzner Domain service, Namecheap, Cloudflare) and point the domain's Nameservers to Hetzner's DNS servers (e.g., `helium.ns.hetzner.de`, `oxygen.ns.hetzner.com`, `hydrogen.ns.hetzner.com`).
+> Domain registration will incur costs at your registrar.
+
+The DNS zone and DNS records are automatically managed via the Hetzner API token provided during provisioning (which is free of charge). Subdomains are routed to the provisioned server IP.
 
 ### 5. Authentication Configuration
 By default, registration is invitation-only. To enable self-registration, patch the Keycloak configuration via your `kustomization.yaml`:
@@ -225,4 +230,4 @@ When adding a new application (tenant) to the SmallWorlds cluster, please ensure
 
 # Talks
 
-Watch the [SmallWorlds Lightning Talk](https://rawcdn.githack.com/stephan271/smallworlds/a7cf160bfad83c0cce1e92806ee3cfa5bef11b5c/lightning_talk.html).
+Watch the [SmallWorlds Lightning Talk](https://rawcdn.githack.com/stephan271/smallworlds/d2d65d084e1f1d0eacde6817a9c695c26fddfd55/lightning_talk.html).

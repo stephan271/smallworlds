@@ -54,6 +54,9 @@ ask_with_default() {
 }
 
 echo -e "${YELLOW}Gathering Configuration...${NC}"
+echo -e "${YELLOW}Note: You must manually register your domain with a registrar of your choice.${NC}"
+echo -e "${YELLOW}This script will only configure the DNS zone in Hetzner Cloud (which is free).${NC}"
+echo -e "${YELLOW}Domain registration itself is not automated and will incur costs at your registrar.${NC}"
 ask_with_default "1. Enter your target domain (e.g. smallworlds.network)" "DOMAIN" "false"
 ask_with_default "2. Enter the admin email address" "ADMIN_EMAIL" "false"
 
