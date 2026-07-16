@@ -7,11 +7,11 @@ set -e
 # run restore-certs-from-laptop.sh to inject the certificates into the new
 # cluster before cert-manager tries to re-issue them.
 #
-# Environment (production vs -dev) is auto-detected — see lib/cluster-env.sh.
+# Environment (production vs .dev) is auto-detected — see lib/cluster-env.sh.
 #
 # Usage:
 #   ./admin-tools/prepare-fresh-rebuild.sh                   # production
-#   ENV_EXT="-dev" ./admin-tools/prepare-fresh-rebuild.sh    # dev cluster
+#   ENV_EXT=".dev" ./admin-tools/prepare-fresh-rebuild.sh    # dev cluster
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/cluster-env.sh"

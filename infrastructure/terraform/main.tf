@@ -30,11 +30,16 @@ data "hcloud_ssh_key" "existing_admin" {
 
 locals {
   ssh_key_id = var.env_ext == "" ? hcloud_ssh_key.smallworlds_admin[0].id : data.hcloud_ssh_key.existing_admin[0].id
+  # Hetzner resource names use a dash form of the extension (".dev" -> "-dev"),
+  # keeping them stable across the DNS-syntax change so existing resources
+  # (notably the prevent_destroy data volume) are not recreated. DNS names use
+  # var.env_ext verbatim: env_ext=".dev" yields identity.dev.<domain> etc.
+  env_slug = replace(var.env_ext, ".", "-")
 }
 
 # Create a secure firewall for the node
 resource "hcloud_firewall" "k8s_firewall" {
-  name = "smallworlds-firewall${var.env_ext}"
+  name = "smallworlds-firewall${local.env_slug}"
 
   # Allow HTTP
   rule {
@@ -134,7 +139,7 @@ resource "hcloud_firewall" "k8s_firewall" {
 # NOTE: Primary IPs are datacenter-bound — create it in the same location
 # as var.location (e.g. Nuremberg/nbg1), or the server cannot attach it.
 data "hcloud_primary_ip" "main_ip" {
-  name = "Meine-Small-World-Cluster-IP${var.env_ext}"
+  name = "Meine-Small-World-Cluster-IP${local.env_slug}"
 }
 
 # Create the Hetzner DNS zone automatically for your domain
@@ -204,7 +209,7 @@ data "hcloud_image" "golden" {
 
 # Provision the actual VM
 resource "hcloud_server" "smallworlds_pilot_node" {
-  name        = "cc-pilot-node-01${var.env_ext}"
+  name        = "cc-pilot-node-01${local.env_slug}"
   image       = var.use_golden_image ? tostring(data.hcloud_image.golden[0].id) : "ubuntu-24.04"
   server_type = "cx43" # 8 shared vCPU (AMD), 16 GB RAM. Recommended x86 architecture for K3s and ML.
   location    = var.location
@@ -214,6 +219,7 @@ resource "hcloud_server" "smallworlds_pilot_node" {
   
   user_data = templatefile("${path.module}/cloud-init.yaml.tpl", {
     domain_name              = var.domain_name
+    env_ext                  = var.env_ext
     git_url               = var.git_url
     git_username          = var.git_username
     git_password          = var.git_password
@@ -243,7 +249,7 @@ resource "hcloud_server" "smallworlds_pilot_node" {
 # Hetzner re-attaches this volume automatically when the VM is re-created.
 # ------------------------------------------------------------------------------
 resource "hcloud_volume" "smallworlds_data" {
-  name     = "smallworlds-data${var.env_ext}"
+  name     = "smallworlds-data${local.env_slug}"
   size     = 200 # GB — covers Garage (100 GB) + Immich library (50 GB) + room to grow
   location = var.location # Volumes are location-bound and must match the server
   format   = "ext4"

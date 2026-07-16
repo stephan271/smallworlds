@@ -66,7 +66,7 @@ if [[ -z "$ONBOARDING_MODE" ]]; then
 fi
 ask_with_default "3. Select onboarding mode (invitation or self-registration)" "ONBOARDING_MODE" "false"
 
-ask_with_default "4. Enter environment extension (e.g. -dev, or leave empty for prod)" "ENV_EXT" "false"
+ask_with_default "4. Enter environment extension (e.g. .dev, or leave empty for prod)" "ENV_EXT" "false"
 
 echo ""
 echo -e "${YELLOW}Hetzner Configuration${NC}"

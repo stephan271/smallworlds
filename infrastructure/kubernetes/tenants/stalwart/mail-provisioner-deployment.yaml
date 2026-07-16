@@ -121,7 +121,7 @@ data:
         # ENV_EXT clusters
         base_domain = os.environ.get("DOMAIN", "smallworlds.network")
         env_ext = os.environ.get("ENV_EXT", "")
-        domain_name = f"{env_ext.lstrip('-')}.{base_domain}" if env_ext else base_domain
+        domain_name = f"{env_ext.lstrip('-.')}.{base_domain}" if env_ext else base_domain
         domain_id = None
         while not domain_id:
             domain_id = get_stalwart_domain_id(domain_name)

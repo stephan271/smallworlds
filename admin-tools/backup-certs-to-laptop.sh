@@ -5,13 +5,13 @@ set -e
 # live cluster to your local machine, so a cluster rebuilt from scratch can
 # reuse them instead of re-issuing — avoiding Let's Encrypt rate limits.
 #
-# Backups are stored per environment (production vs -dev cluster, selected via
+# Backups are stored per environment (production vs .dev cluster, selected via
 # the terraform `env_ext` variable / ENV_EXT override — see lib/cluster-env.sh):
 #   ~/.smallworlds/cert-backups/<production|dev>/<timestamp>/certs-backup.yaml
 #
 # Usage:
 #   ./admin-tools/backup-certs-to-laptop.sh [backup-root]   # production
-#   ENV_EXT="-dev" ./admin-tools/backup-certs-to-laptop.sh  # dev cluster
+#   ENV_EXT=".dev" ./admin-tools/backup-certs-to-laptop.sh  # dev cluster
 #
 # Kubeconfig: uses $KUBECONFIG if set; otherwise fetches a fresh one from the
 # server over SSH (locally cached kubeconfigs go stale after every rebuild).

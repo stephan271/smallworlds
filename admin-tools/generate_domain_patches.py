@@ -426,7 +426,7 @@ def main():
     parser = argparse.ArgumentParser(description="Generate Kustomize domain patches for an overlay repository.")
     parser.add_argument("--app", required=True, help="The application name (e.g. dashboard)")
     parser.add_argument("--domain", required=True, help="The target domain (e.g. example.com)")
-    parser.add_argument("--ext", required=False, default="", help="The environment extension (e.g. -dev)")
+    parser.add_argument("--ext", required=False, default="", help="The environment extension in subdomain syntax (e.g. .dev)")
     parser.add_argument("--kustomization-file", required=True, help="Path to the kustomization.yaml to append patches to")
     
     args = parser.parse_args()

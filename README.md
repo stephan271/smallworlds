@@ -62,7 +62,7 @@ Execute the initialization script from the root of this repository:
 ./admin-tools/prepare-community-repo.sh
 ```
 This script handles:
-- Prompting for your target domain (e.g. `smallworlds.network`) and environment extension (e.g. `-dev` for staging).
+- Prompting for your target domain (e.g. `smallworlds.network`) and environment extension in subdomain syntax (e.g. `.dev` for a dev cluster, giving hostnames like `identity.dev.smallworlds.network`; leave empty for production).
 - Automatically creating a private GitHub repository using the `gh` CLI (if installed), or allowing you to provide an empty Git URL manually.
 - Interactive selection of optional applications.
 - Generation of the corresponding `kustomization.yaml` overlays, injecting environment-specific patches for the chosen domain.
@@ -72,7 +72,7 @@ This script handles:
 SmallWorlds currently supports **Hetzner Cloud only** — the init script and Terraform are written against it, so these steps are required:
 1. Create a Hetzner Cloud account and a new project.
 2. Generate an API Token with **Read & Write** permissions. Save this token.
-3. In the Hetzner Cloud Console, navigate to **Primary IPs** and click **Create Primary IP**. Select IPv4, choose your target location (e.g., Nuremberg/nbg1), and name it exactly `Meine-Small-World-Cluster-IP` (or `Meine-Small-World-Cluster-IP-dev` if deploying a `-dev` environment). Leave it unassigned. Terraform will attach it during provisioning.
+3. In the Hetzner Cloud Console, navigate to **Primary IPs** and click **Create Primary IP**. Select IPv4, choose your target location (e.g., Nuremberg/nbg1), and name it exactly `Meine-Small-World-Cluster-IP` (or `Meine-Small-World-Cluster-IP-dev` if deploying a `.dev` environment — Hetzner resource names always use the dash form, regardless of the DNS syntax). Leave it unassigned. Terraform will attach it during provisioning.
 
 ### 3. Cluster Provisioning
 Execute the bootstrap script to provision the VM, configure DNS, and install Kubernetes/ArgoCD.
@@ -126,7 +126,7 @@ terraform apply
 ```
 
 ### Clean Rebuild (Wipe Data, Preserve TLS Certificates)
-This procedure wipes all cluster data but first backs up the TLS certificates to your local machine (`~/.smallworlds/cert-backups/<production|dev>/`), then re-injects them into the new cluster to avoid Let's Encrypt rate limits. For the `-dev` cluster, prefix each command with `ENV_EXT="-dev"`.
+This procedure wipes all cluster data but first backs up the TLS certificates to your local machine (`~/.smallworlds/cert-backups/<production|dev>/`), then re-injects them into the new cluster to avoid Let's Encrypt rate limits. For the dev cluster, prefix each command with `ENV_EXT=".dev"`.
 ```bash
 ./admin-tools/prepare-fresh-rebuild.sh
 cd infrastructure/terraform

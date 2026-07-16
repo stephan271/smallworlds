@@ -45,11 +45,13 @@ spec:
 
               DOMAIN_NAME="${DOMAIN:-smallworlds.network}"
 
-              # Non-production clusters (ENV_EXT set, e.g. "-dev") get their own
+              # Non-production clusters (ENV_EXT set, e.g. ".dev") get their own
               # mail (sub)domain — dev.<domain> with MX/SPF/DKIM/DMARC scoped
               # under it — so they never collide with production's records at
               # the zone apex. Production (ENV_EXT empty) keeps the apex domain.
+              # Both the ".dev" subdomain syntax and legacy "-dev" are accepted.
               ENV_LABEL="${ENV_EXT#-}"
+              ENV_LABEL="${ENV_LABEL#.}"
               if [ -n "$ENV_LABEL" ]; then
                 MAIL_DOMAIN="$ENV_LABEL.$DOMAIN_NAME"
               else

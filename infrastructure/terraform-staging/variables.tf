@@ -17,7 +17,7 @@ variable "domain_name" {
 }
 
 variable "env_ext" {
-  description = "The environment extension for subdomains (e.g. -dev)"
+  description = "The environment extension for subdomains, in subdomain syntax (e.g. \".dev\")"
   type        = string
   default     = ""
 }

@@ -82,8 +82,8 @@ spec:
                 secretKeyRef:
                   name: stalwart-dns-secrets
                   key: DOMAIN
-            # "-dev" on the dev cluster, "" on production — the hostname must
-            # match the server's PTR record (mail-dev.<domain> vs mail.<domain>)
+            # ".dev" on the dev cluster, "" on production — the hostname must
+            # match the server's PTR record (mail.dev.<domain> vs mail.<domain>)
             - name: ENV_EXT
               valueFrom:
                 secretKeyRef:

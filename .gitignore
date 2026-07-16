@@ -34,6 +34,7 @@ terraform.rc
 kubeconfig.yaml
 k3s_kubeconfig.yaml
 k3s_kubeconfig-dev.yaml
+k3s_kubeconfig.dev.yaml
 kubeconfig
 kubeconfig-staging.yaml
 

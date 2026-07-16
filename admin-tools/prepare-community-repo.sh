@@ -43,7 +43,7 @@ if [ -n "$STORED_ENV_EXT" ]; then
 else
     DEFAULT_ENV_EXT=""
 fi
-read -e -i "$DEFAULT_ENV_EXT" -p "2. Enter environment extension (e.g. -dev, or leave empty for prod): " ENV_EXT
+read -e -i "$DEFAULT_ENV_EXT" -p "2. Enter environment extension (e.g. .dev, or leave empty for prod): " ENV_EXT
 
 # 3. Ask for local repository path
 if [ -n "$STORED_REPO_PATH" ]; then

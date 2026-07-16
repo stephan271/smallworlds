@@ -11,11 +11,11 @@ set -e
 # If no backup exists for this environment it exits cleanly (certs will simply
 # be issued fresh).
 #
-# Environment (production vs -dev) is auto-detected — see lib/cluster-env.sh.
+# Environment (production vs .dev) is auto-detected — see lib/cluster-env.sh.
 #
 # Usage:
 #   ./admin-tools/restore-certs-from-laptop.sh [backup-file]   # production
-#   ENV_EXT="-dev" ./admin-tools/restore-certs-from-laptop.sh  # dev cluster
+#   ENV_EXT=".dev" ./admin-tools/restore-certs-from-laptop.sh  # dev cluster
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/cluster-env.sh"
