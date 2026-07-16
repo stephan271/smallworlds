@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: immich-admin-config
+  namespace: immich
+data:
+  ISSUER_URL: "https://identity.smallworlds.network/realms/smallworlds"

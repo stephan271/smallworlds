@@ -149,21 +149,12 @@ def generate_patches(app_name, domain, ext):
     elif app_name == "immich":
         patches += textwrap.indent(textwrap.dedent(f"""\
           - target:
-              kind: Job
-              name: immich-admin-init
+              kind: ConfigMap
+              name: immich-admin-config
             patch: |-
-              apiVersion: batch/v1
-              kind: Job
-              metadata:
-                name: immich-admin-init
-              spec:
-                template:
-                  spec:
-                    containers:
-                      - name: admin-init
-                        env:
-                          - name: ISSUER_URL
-                            value: "https://{subdomains['identity']}/realms/smallworlds"
+              - op: replace
+                path: /data/ISSUER_URL
+                value: "https://{subdomains['identity']}/realms/smallworlds"
           - target:
               kind: Job
               name: keycloak-client-init

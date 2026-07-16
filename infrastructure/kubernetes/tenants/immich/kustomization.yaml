@@ -10,6 +10,7 @@ bases:
 resources:
   - redis.yaml
   - cnpg-cluster.yaml
+  - admin-config.yaml
   - admin-init-job.yaml
   - immich-secret-init-job.yaml
   - library-pvc.yaml
