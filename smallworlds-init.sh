@@ -127,14 +127,18 @@ sed -i -E "s/value: \"(invitation|self-registration)\"/value: \"$ONBOARDING_MODE
 # Export Hetzner Token as environment variable so Terraform can find it
 export HCLOUD_TOKEN=$HCLOUD_TOKEN
 
-# Ensure DNS Zone exists in Hetzner DNS
+# Ensure DNS Zone exists in Hetzner Cloud DNS
 echo -e "${CYAN}Ensuring DNS Zone '$DOMAIN' exists in Hetzner...${NC}"
-ZONE_EXISTS=$(curl -s -H "Auth-API-Token: $HCLOUD_TOKEN" "https://dns.hetzner.com/api/v1/zones" | grep -o "\"name\":\"$DOMAIN\"" || true)
+ZONE_EXISTS=$(curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/zones" | grep -o "\"name\":\"$DOMAIN\"" || true)
 
 if [ -z "$ZONE_EXISTS" ]; then
     echo -e "${YELLOW}Zone $DOMAIN not found. Creating it...${NC}"
-    curl -s -X POST -H "Content-Type: application/json" -H "Auth-API-Token: $HCLOUD_TOKEN" "https://dns.hetzner.com/api/v1/zones" -d '{"name":"'"$DOMAIN"'", "ttl": 3600}' > /dev/null
-    echo -e "${GREEN}Zone created successfully.${NC}"
+    API_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/zones" -d '{"name":"'"$DOMAIN"'", "mode": "primary", "ttl": 3600}')
+    if echo "$API_RESPONSE" | grep -q "\"error\""; then
+        echo -e "${RED}Failed to create zone: $(echo "$API_RESPONSE" | jq -r '.error.message' || echo "$API_RESPONSE")${NC}"
+    else
+        echo -e "${GREEN}Zone created successfully.${NC}"
+    fi
 else
     echo -e "${GREEN}Zone $DOMAIN already exists.${NC}"
 fi
