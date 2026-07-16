@@ -35,6 +35,8 @@ spec:
                 secretKeyRef:
                   name: keycloak-secret
                   key: client-secret
+            - name: ISSUER_URL
+              value: "https://identity.smallworlds.network/realms/smallworlds"
           command:
             - python3
             - -c
@@ -94,7 +96,7 @@ spec:
                   "enabled": True,
                   "clientId": "immich",
                   "clientSecret": os.environ["OAUTH_CLIENT_SECRET"],
-                  "issuerUrl": "https://identity.smallworlds.network/realms/smallworlds",
+                  "issuerUrl": os.environ["ISSUER_URL"],
                   "autoRegister": True,
                   "autoLaunch": True,
                   "buttonText": "Login with SmallWorlds ID",

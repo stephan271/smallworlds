@@ -55,8 +55,8 @@ def generate_patches(app_name, domain, ext):
               name: keycloak
             patch: |-
               - op: replace
-                path: /spec/template/spec/containers/0/args/0
-                value: start --hostname={subdomains['identity']} --hostname-strict=true --http-enabled=true --proxy-headers=xforwarded --import-realm
+                path: /spec/template/spec/containers/0/env/0/value
+                value: "https://{subdomains['identity']}"
         """), "  ")
 
     elif app_name == "stalwart":
@@ -153,7 +153,7 @@ def generate_patches(app_name, domain, ext):
               name: immich-admin-init
             patch: |-
               - op: replace
-                path: /spec/template/spec/containers/0/env/0/value
+                path: /spec/template/spec/containers/0/env/4/value
                 value: "https://{subdomains['identity']}/realms/smallworlds"
           - target:
               kind: Job
@@ -440,7 +440,7 @@ def main():
         with open(getattr(args, 'kustomization_file'), 'a') as f:
             with open(getattr(args, 'kustomization_file'), 'r') as r:
                 content = r.read()
-                if "patches:" not in content:
+                if "\npatches:" not in content:
                     f.write("\npatches:\n")
             f.write(patches)
         print(f"Appended domain patches for {args.app} to {getattr(args, 'kustomization_file')}")
