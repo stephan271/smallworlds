@@ -152,16 +152,34 @@ def generate_patches(app_name, domain, ext):
               kind: Job
               name: immich-admin-init
             patch: |-
-              - op: replace
-                path: /spec/template/spec/containers/0/env/4/value
-                value: "https://{subdomains['identity']}/realms/smallworlds"
+              apiVersion: batch/v1
+              kind: Job
+              metadata:
+                name: immich-admin-init
+              spec:
+                template:
+                  spec:
+                    containers:
+                      - name: admin-init
+                        env:
+                          - name: ISSUER_URL
+                            value: "https://{subdomains['identity']}/realms/smallworlds"
           - target:
               kind: Job
               name: keycloak-client-init
             patch: |-
-              - op: replace
-                path: /spec/template/spec/containers/0/env/0/value
-                value: '["https://{subdomains['photos']}/auth/login", "https://{subdomains['photos']}/user-settings", "app.immich:///"]'
+              apiVersion: batch/v1
+              kind: Job
+              metadata:
+                name: keycloak-client-init
+              spec:
+                template:
+                  spec:
+                    containers:
+                      - name: setup
+                        env:
+                          - name: REDIRECT_URIS
+                            value: '["https://{subdomains['photos']}/auth/login", "https://{subdomains['photos']}/user-settings", "app.immich:///"]'
           - target:
               kind: Ingress
               name: immich-server
