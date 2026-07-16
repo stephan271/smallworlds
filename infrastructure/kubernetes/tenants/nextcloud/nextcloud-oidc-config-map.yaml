@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nextcloud-oidc-config-map
+  namespace: nextcloud
+data:
+  IDENTITY_URL: "https://identity.smallworlds.network/realms/smallworlds"
+  FILES_DOMAIN: "files.smallworlds.network"
+  OFFICE_URL: "https://office.smallworlds.network"

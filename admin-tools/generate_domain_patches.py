@@ -124,12 +124,18 @@ def generate_patches(app_name, domain, ext):
                 path: /spec/tls/0/hosts/0
                 value: {subdomains['files']}
           - target:
-              kind: Job
-              name: nextcloud-oidc-init
+              kind: ConfigMap
+              name: nextcloud-oidc-config-map
             patch: |-
               - op: replace
-                path: /spec/template/spec/containers/0/env/2/value
+                path: /data/IDENTITY_URL
                 value: "https://{subdomains['identity']}/realms/smallworlds"
+              - op: replace
+                path: /data/FILES_DOMAIN
+                value: "{subdomains['files']}"
+              - op: replace
+                path: /data/OFFICE_URL
+                value: "https://{subdomains['office']}"
           - target:
               kind: Job
               name: keycloak-client-init
@@ -137,13 +143,6 @@ def generate_patches(app_name, domain, ext):
               - op: replace
                 path: /spec/template/spec/containers/0/env/0/value
                 value: '["https://{subdomains['files']}/*"]'
-          - target:
-              kind: Deployment
-              name: nextcloud
-            patch: |-
-              - op: replace
-                path: /spec/template/spec/containers/0/env/10/value
-                value: {subdomains['files']}
         """), "  ")
 
     elif app_name == "immich":

@@ -10,6 +10,7 @@ bases:
 resources:
   - redis.yaml
   - cnpg-cluster.yaml
+  - nextcloud-oidc-config-map.yaml
   - oidc-config-job.yaml
   - nextcloud-secret-init-job.yaml
 
