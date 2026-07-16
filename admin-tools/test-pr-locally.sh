@@ -233,6 +233,7 @@ metadata:
 stringData:
   HCLOUD_TOKEN: "dummy"
   DOMAIN: "smallworlds.network"
+  ENV_EXT: ""
 ---
 apiVersion: v1
 kind: Namespace

@@ -116,7 +116,12 @@ data:
     def main():
         print("Starting Keycloak to Stalwart sync loop...", flush=True)
         
-        domain_name = "smallworlds.network"
+        # Must match the mail domain created by stalwart-init: the apex domain
+        # on production, <env>.<domain> (e.g. dev.smallworlds.network) on
+        # ENV_EXT clusters
+        base_domain = os.environ.get("DOMAIN", "smallworlds.network")
+        env_ext = os.environ.get("ENV_EXT", "")
+        domain_name = f"{env_ext.lstrip('-')}.{base_domain}" if env_ext else base_domain
         domain_id = None
         while not domain_id:
             domain_id = get_stalwart_domain_id(domain_name)
@@ -217,6 +222,16 @@ spec:
               value: "keycloak"
             - name: KC_DB_USER
               value: "keycloak"
+            - name: DOMAIN
+              valueFrom:
+                secretKeyRef:
+                  name: stalwart-dns-secrets
+                  key: DOMAIN
+            - name: ENV_EXT
+              valueFrom:
+                secretKeyRef:
+                  name: stalwart-dns-secrets
+                  key: ENV_EXT
           volumeMounts:
             - name: code-volume
               mountPath: /app/main.py

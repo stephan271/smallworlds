@@ -27,6 +27,11 @@ spec:
                 secretKeyRef:
                   name: stalwart-dns-secrets
                   key: DOMAIN
+            - name: ENV_EXT
+              valueFrom:
+                secretKeyRef:
+                  name: stalwart-dns-secrets
+                  key: ENV_EXT
             - name: STALWART_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -37,9 +42,22 @@ spec:
             - "-c"
             - |
               set -e
-              
+
               DOMAIN_NAME="${DOMAIN:-smallworlds.network}"
-              
+
+              # Non-production clusters (ENV_EXT set, e.g. "-dev") get their own
+              # mail (sub)domain — dev.<domain> with MX/SPF/DKIM/DMARC scoped
+              # under it — so they never collide with production's records at
+              # the zone apex. Production (ENV_EXT empty) keeps the apex domain.
+              ENV_LABEL="${ENV_EXT#-}"
+              if [ -n "$ENV_LABEL" ]; then
+                MAIL_DOMAIN="$ENV_LABEL.$DOMAIN_NAME"
+              else
+                MAIL_DOMAIN="$DOMAIN_NAME"
+              fi
+              MAIL_HOSTNAME="mail${ENV_EXT}.$DOMAIN_NAME"
+              export MAIL_DOMAIN
+
               # 1. Wait for JMAP endpoint to be online
               until nc -z -w 2 stalwart-mail 8080; do
                 echo "Waiting for Stalwart JMAP endpoint to be online on port 8080..."
@@ -152,15 +170,15 @@ spec:
               }' || true
               
               # 6. Declaratively create the domain
-              echo "Initializing $DOMAIN_NAME domain..."
-              $CLI create Domain --field name="$DOMAIN_NAME" || echo "Domain already exists or was already configured."
-              
-              DOMAIN_ID=$( $CLI query Domain --json | jq -r --arg domain "$DOMAIN_NAME" 'select(.name == $domain) | .id' )
-              
+              echo "Initializing mail domain $MAIL_DOMAIN (hostname $MAIL_HOSTNAME)..."
+              $CLI create Domain --field name="$MAIL_DOMAIN" || echo "Domain already exists or was already configured."
+
+              DOMAIN_ID=$( $CLI query Domain --json | jq -r --arg domain "$MAIL_DOMAIN" 'select(.name == $domain) | .id' )
+
               # If defaultDomainId wasn't set because the domain didn't exist, set it now
               if [ -n "$DOMAIN_ID" ]; then
                 echo "Configuring System Settings (defaultDomainId and defaultHostname)..."
-                $CLI update SystemSettings singleton --field defaultDomainId="$DOMAIN_ID" --field defaultHostname="mail.$DOMAIN_NAME" || true
+                $CLI update SystemSettings singleton --field defaultDomainId="$DOMAIN_ID" --field defaultHostname="$MAIL_HOSTNAME" || true
                 $CLI update Domain "$DOMAIN_ID" --field allowRelaying=true || true
               fi
               
@@ -171,7 +189,7 @@ spec:
               if [ -n "$DOMAIN_ID" ]; then
                 $CLI get Domain "$DOMAIN_ID"
               else
-                echo "Error: Domain $DOMAIN_NAME was not found!"
+                echo "Error: Domain $MAIL_DOMAIN was not found!"
               fi
               echo "=========================================================================="
               
@@ -188,8 +206,8 @@ spec:
 
               echo "Creating fresh OIDC Directory..."
               OIDC_JSON=$(jq -n \
-                --arg issuer "https://identity.smallworlds.network/realms/smallworlds" \
-                --arg domain "$DOMAIN_NAME" \
+                --arg issuer "https://identity${ENV_EXT}.${DOMAIN_NAME}/realms/smallworlds" \
+                --arg domain "$MAIL_DOMAIN" \
                 '{
                   description: "Keycloak",
                   issuerUrl: $issuer,
@@ -207,7 +225,7 @@ spec:
               fi
 
               if [ -n "$DIR_ID" ] && [ -n "$DOMAIN_ID" ]; then
-                echo "Associating domain $DOMAIN_NAME with OIDC Directory $DIR_ID..."
+                echo "Associating domain $MAIL_DOMAIN with OIDC Directory $DIR_ID..."
                 $CLI update Domain "$DOMAIN_ID" --field directoryId="$DIR_ID" || true
               else
                 echo "Error: Directory ID or Domain ID not resolved, skipping association."
@@ -224,11 +242,26 @@ spec:
                 zone_file = sys.stdin.read()
                 token = os.getenv("HCLOUD_TOKEN")
                 domain = os.getenv("DOMAIN")
-                
+                mail_domain = os.getenv("MAIL_DOMAIN") or domain
+                env_ext = os.getenv("ENV_EXT") or ""
+
                 if not token or not domain:
                     print("No valid Hetzner DNS API Token found. Skipping DNS automation.")
                     sys.exit(0)
-                
+
+                # Records for a subdomain mail domain (dev clusters) are grafted
+                # into the parent zone under this suffix (e.g. "dev"), so a
+                # non-production cluster can never touch apex mail records.
+                graft = ""
+                if mail_domain != domain:
+                    if not mail_domain.endswith("." + domain):
+                        print(f"Mail domain {mail_domain} is not inside zone {domain}. Refusing to push records.")
+                        sys.exit(1)
+                    graft = mail_domain[: -len(domain) - 1]
+                if env_ext and not graft:
+                    print(f"Refusing to push apex mail records from a non-production cluster (ENV_EXT={env_ext}).")
+                    sys.exit(1)
+
                 # Fetch Zone ID from Hetzner Cloud API
                 req = urllib.request.Request(
                     "https://api.hetzner.cloud/v1/zones",
@@ -321,13 +354,37 @@ spec:
                     if in_index < 1 or in_index + 2 >= len(tokens):
                         continue
                     
-                    name = tokens[0]
-                    if name == domain + "." or name == "@":
-                        name = "@"
-                    elif name.endswith("." + domain + "."):
-                        name = name[:-len(domain + ".") - 1]
-                    
+                    raw_name = tokens[0]
                     rtype = tokens[in_index + 1]
+
+                    # Name relative to the mail domain (a subdomain of the
+                    # zone on non-production clusters, the apex on production)
+                    if raw_name == "@" or raw_name == mail_domain + ".":
+                        rel = "@"
+                    elif raw_name.endswith("." + mail_domain + "."):
+                        rel = raw_name[: -len(mail_domain) - 2]
+                    else:
+                        rel = None
+
+                    if rel is not None:
+                        # Graft mail-domain-relative names into the parent zone
+                        if graft:
+                            name = graft if rel == "@" else rel + "." + graft
+                        else:
+                            name = rel
+                    else:
+                        # Not under the mail domain (e.g. the mail hostname
+                        # itself) — resolve directly against the parent zone
+                        if raw_name == domain + ".":
+                            name = "@"
+                        elif raw_name.endswith("." + domain + "."):
+                            name = raw_name[: -len(domain) - 2]
+                        else:
+                            print(f"Skipping out-of-zone record: {raw_name}")
+                            continue
+                        if graft and not (name == "mail" + env_ext or name.endswith(".mail" + env_ext)):
+                            print(f"Skipping {raw_name}: outside this environment's DNS scope.")
+                            continue
                     
                     # Extract value preserving original spacing
                     rtype_index = line.find(" " + rtype + " ")
@@ -343,7 +400,7 @@ spec:
                     else:
                         value = " ".join(tokens[in_index + 2:])
                         
-                    if rtype == "TXT" and name == "_dmarc":
+                    if rtype == "TXT" and rel == "_dmarc":
                         value = value.replace("p=reject", "p=quarantine")
 
                     # TXT record values are left fully quoted as BIND formatting provides them

@@ -82,10 +82,17 @@ spec:
                 secretKeyRef:
                   name: stalwart-dns-secrets
                   key: DOMAIN
+            # "-dev" on the dev cluster, "" on production — the hostname must
+            # match the server's PTR record (mail-dev.<domain> vs mail.<domain>)
+            - name: ENV_EXT
+              valueFrom:
+                secretKeyRef:
+                  name: stalwart-dns-secrets
+                  key: ENV_EXT
             - name: STALWART_SERVER_HOSTNAME
-              value: "mail.$(DOMAIN)"
+              value: "mail$(ENV_EXT).$(DOMAIN)"
             - name: STALWART_MTA_OUTBOUND_STRATEGY_DEFAULT_EHLO
-              value: "mail.$(DOMAIN)"
+              value: "mail$(ENV_EXT).$(DOMAIN)"
             - name: STALWART_SESSION_RCPT_ALLOW_RELAYING
               value: "!is_empty(authenticated_as) || starts_with(remote_ip, '10.42.') || starts_with(remote_ip, '10.43.')"
             - name: STALWART_CERTIFICATE_DEFAULT_CERT

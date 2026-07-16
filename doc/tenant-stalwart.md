@@ -20,6 +20,19 @@ Because Keycloak doesn't natively push user creation events to external mail ser
 - **Cross-Namespace Secrets**: To authenticate to the Keycloak DB, the script queries the Kubernetes API to read the `keycloak-db-app` secret from the `keycloak` namespace. This is why `mail-provisioner-rbac.yaml` grants cross-namespace secret reading privileges to the `mail-provisioner` ServiceAccount.
 - **Stalwart API Integration**: Once it detects a new user in the Keycloak database, it uses the `stalwart-cli` (authenticating via `STALWART_API_KEY`) to provision the mailbox in Stalwart automatically.
 
+## Environment-scoped mail domains (production vs `-dev`)
+
+Only one mail system can be authoritative for a DNS domain, so the `-dev` cluster must not share production's mail domain. The environment extension (`ENV_EXT` key in the `stalwart-dns-secrets` secret, written by `smallworlds-init.sh`, matching the terraform `env_ext` variable) drives an asymmetric split:
+
+- **Production** (`ENV_EXT=""`): mail domain is the apex (`smallworlds.network`), MX/SPF/DKIM/DMARC live at the zone apex, hostname `mail.smallworlds.network` — unchanged historical behavior.
+- **`-dev` cluster** (`ENV_EXT="-dev"`): mail domain is `dev.smallworlds.network` (addresses `user@dev.smallworlds.network`), hostname `mail-dev.smallworlds.network` (matching the env-aware PTR terraform sets), and all records are grafted into the shared zone under the `dev` label (`dev` MX, `_dmarc.dev`, `<selector>._domainkey.dev`, …).
+
+Three components must agree on this and all derive it from the same secret: `stalwart-init-job.yaml` (creates the Stalwart domain, sets `defaultHostname`, pushes DNS records), `stalwart-deployment.yaml` (`STALWART_SERVER_HOSTNAME` / EHLO — must match the PTR for deliverability), and `mail-provisioner-deployment.yaml` (waits for the domain by name before syncing accounts).
+
+**Safety guards** in the init job's DNS push (`push_dns.py`): a cluster with non-empty `ENV_EXT` refuses to run against an apex mail domain, refuses a mail domain outside the zone, and skips any record whose name would land outside its own subdomain scope. This exists because a dev cluster previously pushed apex records — overwriting production's DKIM keys with its own and breaking production's outbound mail signing. Ephemeral staging (`test-pr-locally.sh`) is additionally protected by a dummy `HCLOUD_TOKEN`.
+
+The Keycloak OIDC issuer URL in the init job is also env-aware (`identity${ENV_EXT}.<domain>`), so a dev Stalwart validates tokens against the dev Keycloak, not production's.
+
 ## Notable changes per file (from git history)
 
 ### `stalwart-deployment.yaml` — relay config was hard-won
