@@ -122,8 +122,8 @@ check_service "Keycloak"  "https://identity.${DOMAIN}/" || SERVICES_OK=false
 if [[ -z "$APP_FILTER" || "$APP_FILTER" == *"nextcloud"* ]]; then
   check_service "Nextcloud" "https://files.${DOMAIN}/"    || SERVICES_OK=false
 fi
-if [[ -z "$APP_FILTER" || "$APP_FILTER" == *"roundcube"* ]]; then
-  check_service "Roundcube" "https://webmail.${DOMAIN}/"   || SERVICES_OK=false
+if [[ -z "$APP_FILTER" || "$APP_FILTER" == *"bulwark"* ]]; then
+  check_service "Bulwark"   "https://webmail.${DOMAIN}/"   || SERVICES_OK=false
 fi
 if [[ -z "$APP_FILTER" || "$APP_FILTER" == *"immich"* ]]; then
   check_service "Immich"    "https://photos.${DOMAIN}/"    || SERVICES_OK=false

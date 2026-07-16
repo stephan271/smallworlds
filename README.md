@@ -57,23 +57,22 @@ This project is built upon several foundational open-source technologies, core i
 ### 1. Configuration Repository Initialization
 A private Git repository is required to store application state and configuration overrides.
 
-First create a completely empty private repo, e.g. at https://github.com/your-username/my-community-config . Make sure to create a Personal Access Token as a password to be able to push to this repo later.
-
-Then Execute the initialization script from the root of this repository:
+Execute the initialization script from the root of this repository:
 ```bash
 ./admin-tools/prepare-community-repo.sh
 ```
 This script handles:
+- Prompting for your target domain (e.g. `smallworlds.network`) and environment extension (e.g. `-dev` for staging).
+- Automatically creating a private GitHub repository using the `gh` CLI (if installed), or allowing you to provide an empty Git URL manually.
 - Interactive selection of optional applications.
-- Generation of the corresponding `kustomization.yaml` overlay.
-- Initialization of the local Git repository and initial commit.
-
-Make sure to push the state to the remote repo (the script will ask you to do so)
+- Generation of the corresponding `kustomization.yaml` overlays, injecting environment-specific patches for the chosen domain.
+- Initialization of the local Git repository and automatic push to your remote repository.
 
 ### 2. Infrastructure Provider Setup
-SmallWorlds currently supports **Hetzner Cloud only** — the init script and Terraform are written against it, so these steps are required (see the note at the top of this README).
+SmallWorlds currently supports **Hetzner Cloud only** — the init script and Terraform are written against it, so these steps are required:
 1. Create a Hetzner Cloud account and a new project.
 2. Generate an API Token with **Read & Write** permissions. Save this token.
+3. In the Hetzner Cloud Console, navigate to **Primary IPs** and click **Create Primary IP**. Select IPv4, choose your target location (e.g., Nuremberg/nbg1), and name it exactly `Meine-Small-World-Cluster-IP` (or `Meine-Small-World-Cluster-IP-dev` if deploying a `-dev` environment). Leave it unassigned. Terraform will attach it during provisioning.
 
 ### 3. Cluster Provisioning
 Execute the bootstrap script to provision the VM, configure DNS, and install Kubernetes/ArgoCD.
@@ -89,7 +88,12 @@ When prompted for Git credentials, provide:
 - **Access Token**: A Personal Access Token (PAT) with read-only access to repository contents.
 
 ### 4. DNS Configuration
-DNS records are automatically managed via the Hetzner API token provided during provisioning. Subdomains are routed to the provisioned server IP.
+
+> [!IMPORTANT]
+> **Domain Registration is manual:** The SmallWorlds setup scripts do **not** automatically register or reserve the domain name for you. You must manually register the domain at a registrar of your choice (e.g., Hetzner Domain service, Namecheap, Cloudflare) and point the domain's Nameservers to Hetzner's DNS servers (e.g., `helium.ns.hetzner.de`, `oxygen.ns.hetzner.com`, `hydrogen.ns.hetzner.com`).
+> Domain registration will incur costs at your registrar.
+
+The DNS zone and DNS records are automatically managed via the Hetzner API token provided during provisioning (which is free of charge). Subdomains are routed to the provisioned server IP.
 
 ### 5. Authentication Configuration
 By default, registration is invitation-only. To enable self-registration, patch the Keycloak configuration via your `kustomization.yaml`:
@@ -226,4 +230,4 @@ When adding a new application (tenant) to the SmallWorlds cluster, please ensure
 
 # Talks
 
-Watch the [SmallWorlds Lightning Talk](https://rawcdn.githack.com/stephan271/smallworlds/a7cf160bfad83c0cce1e92806ee3cfa5bef11b5c/lightning_talk.html).
+Watch the [SmallWorlds Lightning Talk](https://rawcdn.githack.com/stephan271/smallworlds/d2d65d084e1f1d0eacde6817a9c695c26fddfd55/lightning_talk.html).

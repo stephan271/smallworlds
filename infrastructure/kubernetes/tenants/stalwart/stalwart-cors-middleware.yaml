@@ -1,0 +1,17 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: stalwart-cors
+  namespace: stalwart
+spec:
+  headers:
+    accessControlAllowOriginList:
+      - "https://webmail.smallworlds.network"
+    accessControlAllowMethods:
+      - GET
+      - POST
+      - OPTIONS
+    accessControlAllowHeaders:
+      - "*"
+    accessControlAllowCredentials: true
+    accessControlMaxAge: 86400

@@ -3,7 +3,7 @@ kind: Application
 metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "1"
-  name: roundcube
+  name: bulwark
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -12,10 +12,10 @@ spec:
   source:
     repoURL: 'https://github.com/stephan271/smallworlds.git'
     targetRevision: HEAD
-    path: infrastructure/kubernetes/tenants/roundcube
+    path: infrastructure/kubernetes/tenants/bulwark
   destination:
     server: 'https://kubernetes.default.svc'
-    namespace: roundcube
+    namespace: bulwark
   syncPolicy:
     retry:
       limit: 15

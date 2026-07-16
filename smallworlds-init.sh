@@ -54,6 +54,9 @@ ask_with_default() {
 }
 
 echo -e "${YELLOW}Gathering Configuration...${NC}"
+echo -e "${YELLOW}Note: You must manually register your domain with a registrar of your choice.${NC}"
+echo -e "${YELLOW}This script will only configure the DNS zone in Hetzner Cloud (which is free).${NC}"
+echo -e "${YELLOW}Domain registration itself is not automated and will incur costs at your registrar.${NC}"
 ask_with_default "1. Enter your target domain (e.g. smallworlds.network)" "DOMAIN" "false"
 ask_with_default "2. Enter the admin email address" "ADMIN_EMAIL" "false"
 
@@ -63,15 +66,17 @@ if [[ -z "$ONBOARDING_MODE" ]]; then
 fi
 ask_with_default "3. Select onboarding mode (invitation or self-registration)" "ONBOARDING_MODE" "false"
 
+ask_with_default "4. Enter environment extension (e.g. -dev, or leave empty for prod)" "ENV_EXT" "false"
+
 echo ""
 echo -e "${YELLOW}Hetzner Configuration${NC}"
-ask_with_default "4. Paste your Hetzner Cloud API Token" "HCLOUD_TOKEN" "true"
+ask_with_default "5. Paste your Hetzner Cloud API Token" "HCLOUD_TOKEN" "true"
 
 echo ""
 echo -e "${YELLOW}GitOps Repository Configuration${NC}"
-ask_with_default "5. Enter your Git repository URL (e.g., https://github.com/my-community/config.git)" "GITOPS_REPO_URL" "false"
-ask_with_default "6. Enter your Git username" "GITOPS_REPO_USER" "false"
-ask_with_default "7. Paste your Git Access Token" "GITOPS_REPO_TOKEN" "true"
+ask_with_default "6. Enter your Git repository URL (e.g., https://github.com/my-community/config.git)" "GITOPS_REPO_URL" "false"
+ask_with_default "7. Enter your Git username" "GITOPS_REPO_USER" "false"
+ask_with_default "8. Paste your Git Access Token" "GITOPS_REPO_TOKEN" "true"
 
 # Auto-convert SSH URLs to HTTPS if access token is used
 if [[ -n "$GITOPS_REPO_TOKEN" ]]; then
@@ -94,6 +99,7 @@ if [[ -z "$GRAFANA_PASS" ]]; then GRAFANA_PASS=$(LC_ALL=C tr -dc 'A-Za-z0-9' </d
 # Save values to cache for next time
 cat <<EOF > "$CACHE_FILE"
 DOMAIN="${DOMAIN}"
+ENV_EXT="${ENV_EXT}"
 ADMIN_EMAIL="${ADMIN_EMAIL}"
 ONBOARDING_MODE="${ONBOARDING_MODE}"
 HCLOUD_TOKEN="${HCLOUD_TOKEN}"
@@ -137,6 +143,7 @@ TF_GIT_TOKEN="${GITOPS_REPO_TOKEN}"
 TFVARS_FILE="/tmp/smallworlds-${DOMAIN}.tfvars"
 cat <<EOF > "$TFVARS_FILE"
 domain_name       = "${DOMAIN}"
+env_ext           = "${ENV_EXT}"
 git_url        = "${GITOPS_REPO_URL}"
 git_username   = "${TF_GIT_USER}"
 git_password   = "${TF_GIT_TOKEN}"
@@ -172,6 +179,7 @@ metadata:
 data:
   ADMIN_EMAIL: "${ADMIN_EMAIL}"
   DOMAIN: "${DOMAIN}"
+  ENV_EXT: "${ENV_EXT}"
 ---
 apiVersion: v1
 kind: Namespace
@@ -202,6 +210,7 @@ type: Opaque
 stringData:
   HCLOUD_TOKEN: "${HCLOUD_TOKEN}"
   DOMAIN: "${DOMAIN}"
+  ENV_EXT: "${ENV_EXT}"
 ---
 apiVersion: v1
 kind: Namespace
@@ -261,7 +270,7 @@ until ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o Connect
     sleep 2
 done
 
-KUBECONFIG_LOCAL="../../k3s_kubeconfig.yaml"
+KUBECONFIG_LOCAL="../../k3s_kubeconfig${ENV_EXT}.yaml"
 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$SERVER_IP" "cat /etc/rancher/k3s/k3s.yaml" > "$KUBECONFIG_LOCAL" 2>/dev/null
 sed -i "s|127.0.0.1|$SERVER_IP|g" "$KUBECONFIG_LOCAL"
 chmod 600 "$KUBECONFIG_LOCAL"
@@ -280,9 +289,9 @@ echo ""
 echo -e "Your applications will take a few minutes to boot up and fetch their SSL certificates."
 echo ""
 echo -e "Kubernetes Access (kubeconfig):"
-echo -e "  Saved to:                  ${CYAN}./k3s_kubeconfig.yaml${NC}"
-echo -e "  To use with kubectl:       ${YELLOW}export KUBECONFIG=\$PWD/k3s_kubeconfig.yaml${NC}"
-echo -e "                             (or link it: ln -sf \$PWD/k3s_kubeconfig.yaml ~/.kube/config)"
+echo -e "  Saved to:                  ${CYAN}./k3s_kubeconfig${ENV_EXT}.yaml${NC}"
+echo -e "  To use with kubectl:       ${YELLOW}export KUBECONFIG=\$PWD/k3s_kubeconfig${ENV_EXT}.yaml${NC}"
+echo -e "                             (or link it: ln -sf \$PWD/k3s_kubeconfig${ENV_EXT}.yaml ~/.kube/config)"
 echo ""
 echo -e "Here are your auto-generated admin credentials. Save them somewhere safe!"
 echo -e "Keycloak Admin (admin):      ${CYAN}${KC_PASS}${NC}"
@@ -292,6 +301,20 @@ echo -e "Bulk Invite Secret:          ${CYAN}${INVITE_SECRET}${NC}"
 echo ""
 echo -e "Note: Passwords for optional apps (Nextcloud, Immich, Forgejo) and Stalwart are automatically"
 echo -e "generated securely upon installation. You can retrieve them via kubectl later."
+echo ""
+echo -e "Application URLs (installed apps will be available here):"
+echo -e "  Dashboard:         ${CYAN}https://dashboard${ENV_EXT}.${DOMAIN}${NC}"
+echo -e "  Identity:          ${CYAN}https://identity${ENV_EXT}.${DOMAIN}${NC}"
+echo -e "  Mail (Stalwart):   ${CYAN}https://mail${ENV_EXT}.${DOMAIN}${NC}"
+echo -e "  Files (Nextcloud): ${CYAN}https://files${ENV_EXT}.${DOMAIN}${NC}"
+echo -e "  Photos (Immich):   ${CYAN}https://photos${ENV_EXT}.${DOMAIN}${NC}"
+echo -e "  Git (Forgejo):     ${CYAN}https://git${ENV_EXT}.${DOMAIN}${NC}"
+echo -e "  Webmail (Bulwark): ${CYAN}https://webmail${ENV_EXT}.${DOMAIN}${NC}"
+echo -e "  Monitoring:        ${CYAN}https://monitoring${ENV_EXT}.${DOMAIN}${NC}"
+echo -e "  Whiteboard:        ${CYAN}https://whiteboard${ENV_EXT}.${DOMAIN}${NC}"
+echo -e "  Meet:              ${CYAN}https://meet${ENV_EXT}.${DOMAIN}${NC}"
+echo -e "  Office:            ${CYAN}https://office${ENV_EXT}.${DOMAIN}${NC}"
+echo -e "  Plan:              ${CYAN}https://plan${ENV_EXT}.${DOMAIN}${NC}"
 echo ""
 echo -e "ArgoCD Dashboard:            ${CYAN}https://localhost:8080${NC} (requires port-forward)"
 echo -e "  To port-forward:           ${YELLOW}kubectl port-forward svc/argocd-server -n argocd 8080:443${NC}"
@@ -312,12 +335,11 @@ if command -v kubectl >/dev/null 2>&1; then
                 -p '{"operation":{"initiatedBy":{"username":"installer-watchdog"},"sync":{}}}' >/dev/null 2>&1 || true
         done
 
-        TOTAL=$(kubectl get application -n argocd --no-headers 2>/dev/null | wc -l)
-        # Count apps with a POPULATED Healthy status — freshly created apps have
-        # none at all and must not count as healthy
-        HEALTHY=$(kubectl get application -n argocd -o jsonpath='{range .items[?(@.status.health.status=="Healthy")]}{.metadata.name}{"\n"}{end}' 2>/dev/null | grep -c . || true)
-        # The root app being Synced+Healthy guarantees all child apps exist
-        ROOT_STATE=$(kubectl get application smallworlds-root -n argocd -o jsonpath='{.status.sync.status}/{.status.health.status}' 2>/dev/null)
+        # Get all ArgoCD apps that are not healthy
+        UNHEALTHY=$(KUBECONFIG="$KUBECONFIG_LOCAL" kubectl get apps -n argocd -o jsonpath='{.items[?(@.status.health.status!="Healthy")].metadata.name}' 2>/dev/null)
+        HEALTHY=$(KUBECONFIG="$KUBECONFIG_LOCAL" kubectl get apps -n argocd -o jsonpath='{.items[?(@.status.health.status=="Healthy")].metadata.name}' 2>/dev/null | wc -w)
+        TOTAL=$(KUBECONFIG="$KUBECONFIG_LOCAL" kubectl get apps -n argocd -o jsonpath='{.items[*].metadata.name}' 2>/dev/null | wc -w)
+        ROOT_STATE=$(KUBECONFIG="$KUBECONFIG_LOCAL" kubectl get app smallworlds-root -n argocd -o jsonpath='{.status.sync.status}/{.status.health.status}' 2>/dev/null)
         if [ "$TOTAL" -gt 1 ] && [ "$HEALTHY" -eq "$TOTAL" ] && [ "$ROOT_STATE" = "Synced/Healthy" ]; then
             echo -e "${GREEN}All $TOTAL applications are Healthy!${NC}"
             CONVERGED=true

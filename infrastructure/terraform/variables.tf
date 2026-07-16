@@ -11,9 +11,14 @@ variable "git_username" {
 
 
 variable "domain_name" {
-  description = "The root domain name (e.g., smallworlds.network)"
+  description = "The root domain name for your cluster (e.g. smallworlds.network)"
   type        = string
-  default     = "smallworlds.network"
+}
+
+variable "env_ext" {
+  description = "The environment extension for subdomains (e.g. -dev)"
+  type        = string
+  default     = ""
 }
 
 variable "admin_email" {

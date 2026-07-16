@@ -10,7 +10,6 @@ resources:
   # 1. Backend Components (Installed as ArgoCD Apps)
   - apps/cert-manager.yaml
   - apps/cloudnative-pg.yaml
-  - tenants/dashboard
   - apps/argocd-ingress.yaml
   - apps/garage.yaml
   - apps/persistent-storage.yaml
@@ -30,6 +29,6 @@ resources:
   - apps/keycloak.yaml
   - apps/stalwart.yaml
   
-  # Note: Optional apps (forgejo, immich, nextcloud, roundcube, excalidraw) 
+  # Note: Optional apps (forgejo, immich, nextcloud, bulwark, excalidraw) 
   # are dynamically added to your private kustomization.yaml by prepare-community-repo.sh
 

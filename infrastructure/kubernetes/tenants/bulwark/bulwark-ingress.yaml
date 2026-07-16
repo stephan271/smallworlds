@@ -1,17 +1,17 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: roundcube-ingress
-  namespace: roundcube
+  name: bulwark-ingress
+  namespace: bulwark
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     gethomepage.dev/enabled: "true"
     gethomepage.dev/name: "Webmail"
-    gethomepage.dev/description: "Roundcube"
+    gethomepage.dev/description: "Bulwark"
     gethomepage.dev/group: "Applications"
-    gethomepage.dev/icon: "roundcube.png"
-    gethomepage.dev/pod-selector: "app=roundcube"
+    gethomepage.dev/icon: "bulwark.png"
+    gethomepage.dev/pod-selector: "app=bulwark"
 spec:
   rules:
     - host: webmail.smallworlds.network
@@ -21,10 +21,10 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: roundcube
+                name: bulwark
                 port:
                   name: http
   tls:
     - hosts:
         - webmail.smallworlds.network
-      secretName: roundcube-tls
+      secretName: bulwark-tls
