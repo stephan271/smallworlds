@@ -141,21 +141,13 @@ data "hcloud_primary_ip" "main_ip" {
   name = "Meine-Small-World-Cluster-IP${local.env_slug}"
 }
 
-# Create the Hetzner DNS zone automatically for your domain
-resource "hcloud_zone" "smallworlds_zone" {
-  count = var.env_ext == "" ? 1 : 0
-  name  = var.domain_name
-  mode  = "primary"
-  ttl   = 3600
-}
-
+# The DNS zone is created by the smallworlds-init.sh script to avoid Terraform state conflicts
 data "hcloud_zone" "existing_zone" {
-  count = var.env_ext != "" ? 1 : 0
   name  = var.domain_name
 }
 
 locals {
-  zone_id = var.env_ext == "" ? hcloud_zone.smallworlds_zone[0].id : data.hcloud_zone.existing_zone[0].id
+  zone_id = data.hcloud_zone.existing_zone.id
 }
 
 # Automatically create the A records for the root domain and all service subdomains
