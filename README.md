@@ -179,6 +179,29 @@ Requirements for the PR automation:
 
 ---
 
+## Administrative Tools (`admin-tools/`)
+
+The `admin-tools/` directory contains helper scripts to automate common operations and maintenance tasks:
+
+### Cluster Lifecycle & Disaster Recovery
+- **`backup-certs-to-laptop.sh`**: Downloads Let's Encrypt certificates from the cluster to your local machine to avoid rate limits during rebuilds.
+- **`restore-certs-from-laptop.sh`**: Injects previously backed-up certificates into a newly built cluster before cert-manager re-issues them.
+- **`prepare-fresh-rebuild.sh`**: Prepares a cluster for a clean reinstall by backing up certificates and wiping all persistent application data on the server.
+- **`destroy-cluster.sh`**: Wraps the cluster teardown process. It automatically backs up your certificates and then safely executes `terraform destroy` to delete the cloud resources.
+- **`build-golden-image.sh`**: Builds a pre-configured Hetzner snapshot (golden image) to speed up future VM provisioning.
+
+### Repository & Version Management
+- **`prepare-community-repo.sh`**: Interactive script to initialize a new private configuration repository, select applications, and wire it up to the upstream base.
+- **`bump-version.sh`**: Automatically detects the highest release tag, increments the patch version, creates a new Git tag, and pushes it to origin.
+- **`update-community-version.sh`**: Updates all `kustomization.yaml` files in your private config repository to pin them to a specific upstream release, then commits and pushes the change.
+
+### Utilities
+- **`test-pr-locally.sh`**: Deploys a local testing environment to validate pull requests.
+- **`generate_domain_patches.py`**: Automatically generates Kustomize domain patches for all applications when a non-default domain or environment extension (e.g., `.dev`) is used.
+- **`bulk-invite.py` & `update_realm_json.py`**: Python utilities for Keycloak realm manipulation and user invitations.
+
+---
+
 ## End-to-End Smoke Tests
 
 Browser-based Playwright smoke tests simulate real users logging in via SSO and exercising each application. They live in `e2e-tests/tests` and run against a **live** SmallWorlds community.
