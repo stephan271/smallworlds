@@ -82,7 +82,7 @@ This script handles:
 SmallWorlds currently supports **Hetzner Cloud only** — the init script and Terraform are written against it, so these steps are required:
 1. Create a Hetzner Cloud account and a new project.
 2. Generate an API Token with **Read & Write** permissions. Save this token.
-3. In the Hetzner Cloud Console, navigate to **Primary IPs** and click **Create Primary IP**. Select IPv4, choose your target location (e.g., Helsinki/hel1), and name it exactly `smallworlds-ip` (or `smallworlds-ip.dev` if deploying a `.dev` environment — Hetzner resource names always use the dash form, regardless of the DNS syntax). Leave it unassigned. Terraform will attach it during provisioning.
+3. In the Hetzner Cloud Console, navigate to **Primary IPs** and click **Create Primary IP**. Select IPv4, choose your target location (e.g., Helsinki/hel1), and name it exactly `smallworlds-ip` (or `smallworlds-ip-dev` if deploying a `.dev` environment — Hetzner resource names always use the dash form, regardless of the DNS syntax). Leave it unassigned. Terraform will attach it during provisioning.
 
 ### 4. Cluster Provisioning
 Execute the bootstrap script to provision the VM, configure DNS, and install Kubernetes/ArgoCD.
