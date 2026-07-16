@@ -1,13 +1,29 @@
 #!/bin/bash
 set -e
 
-# Automatically figure out the server IP from Terraform or default to DNS
-SERVER_IP=$(terraform -chdir=infrastructure/terraform output -raw server_ipv4 2>/dev/null || echo "identity.smallworlds.network")
+# Prepares a clean cluster rebuild: backs up the Let's Encrypt certificates to
+# your laptop (see backup-certs-to-laptop.sh), then wipes ALL data on the
+# server's persistent volume. After `terraform destroy` + `terraform apply`,
+# run restore-certs-from-laptop.sh to inject the certificates into the new
+# cluster before cert-manager tries to re-issue them.
+#
+# Environment (production vs -dev) is auto-detected — see lib/cluster-env.sh.
+#
+# Usage:
+#   ./admin-tools/prepare-fresh-rebuild.sh                   # production
+#   ENV_EXT="-dev" ./admin-tools/prepare-fresh-rebuild.sh    # dev cluster
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/cluster-env.sh"
+
+CUR_ENV_EXT=$(detect_env_ext)
+CLUSTER=$(cluster_label "$CUR_ENV_EXT")
+SERVER_IP=$(detect_server_ip "$CUR_ENV_EXT")
 
 echo "=========================================================="
-echo "⚠️  WARNING: TRUE NUKE INITIATED"
-echo "This will back up your certificates and WIPE ALL DATA"
-echo "from your persistent volume on $SERVER_IP."
+echo "⚠️  WARNING: TRUE NUKE INITIATED ('$CLUSTER' cluster)"
+echo "This will back up your certificates to this machine and"
+echo "WIPE ALL DATA from the persistent volume on $SERVER_IP."
 echo "=========================================================="
 read -p "Are you absolutely sure? (Type YES to continue): " confirm
 if [ "$confirm" != "YES" ]; then
@@ -16,78 +32,31 @@ if [ "$confirm" != "YES" ]; then
 fi
 
 echo ""
-echo "1. Backing up Let's Encrypt certificates from Kubernetes..."
-kubectl get secret letsencrypt-prod -n cert-manager -o json > /tmp/letsencrypt-prod.json || echo "Warning: letsencrypt-prod secret not found."
-kubectl get secret -A --field-selector type=kubernetes.io/tls -o json > /tmp/tls-certs.json || echo "Warning: TLS secrets could not be fetched."
+echo "1. Backing up Let's Encrypt certificates to this machine..."
+ENV_EXT="$CUR_ENV_EXT" "$SCRIPT_DIR/backup-certs-to-laptop.sh"
 
-echo "2. Cleaning up backup payload..."
-python3 -c '
-import sys, json
-
-try:
-    with open("/tmp/letsencrypt-prod.json", "r") as f:
-        le_data = json.load(f)
-except Exception:
-    le_data = {"items": []}
-
-try:
-    with open("/tmp/tls-certs.json", "r") as f:
-        tls_data = json.load(f)
-except Exception:
-    tls_data = {"items": []}
-
-items = []
-if "items" in le_data:
-    items.extend(le_data["items"])
-elif "metadata" in le_data:
-    items.append(le_data)
-
-def is_letsencrypt_prod(item):
-    ann = item.get("metadata", {}).get("annotations", {})
-    issuer = ann.get("cert-manager.io/cluster-issuer-name") or ann.get("cert-manager.io/issuer-name")
-    return issuer == "letsencrypt-prod"
-
-if "items" in tls_data:
-    for item in tls_data["items"]:
-        if is_letsencrypt_prod(item):
-            items.append(item)
-elif "metadata" in tls_data:
-    if is_letsencrypt_prod(tls_data):
-        items.append(tls_data)
-
-for item in items:
-    for key in ["creationTimestamp", "resourceVersion", "uid", "ownerReferences", "generation"]:
-        item.get("metadata", {}).pop(key, None)
-    item.pop("status", None)
-
-merged = {"apiVersion": "v1", "kind": "List", "items": items}
-with open("/tmp/certs-backup.yaml", "w") as f:
-    json.dump(merged, f, indent=2)
-'
-
-echo "3. Transferring backup to the server's persistent volume..."
-scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null /tmp/certs-backup.yaml root@$SERVER_IP:/mnt/smallworlds-data/certs-backup.yaml
-
-echo "4. Stopping K3s and unmounting volumes to release file locks..."
-ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@$SERVER_IP << 'EOF'
+echo ""
+echo "2. Stopping K3s and unmounting volumes to release file locks..."
+ssh $SSH_OPTS root@$SERVER_IP << 'EOF'
 /usr/local/bin/k3s-killall.sh || true
 for mount in $(awk '{print $2}' /proc/mounts | grep '^/mnt/smallworlds-data/k3s' | sort -r); do
     umount -l "$mount" || true
 done
 EOF
 
-echo "5. Wiping all application data (Immich, Nextcloud, Garage, and K3s state)..."
-ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@$SERVER_IP "cd /mnt/smallworlds-data && find . -mindepth 1 -maxdepth 1 ! -name 'certs-backup.yaml' -exec rm -rf {} +"
+echo "3. Wiping all application data (Immich, Nextcloud, Garage, and K3s state)..."
+ssh $SSH_OPTS root@$SERVER_IP "cd /mnt/smallworlds-data && find . -mindepth 1 -maxdepth 1 -exec rm -rf {} +"
 
 echo ""
 echo "✅ Preparation complete!"
-echo "Your certificates are safely stored at /mnt/smallworlds-data/certs-backup.yaml"
+echo "Your certificates are safely stored under ~/.smallworlds/cert-backups/$CLUSTER/"
 echo "All other data has been destroyed."
 echo ""
 echo "You may now safely run:"
 echo "  cd infrastructure/terraform"
-echo "  terraform destroy"
+echo "  terraform destroy -target=hcloud_server.smallworlds_pilot_node"
 echo "  terraform apply"
+echo "  cd ../.. && ./admin-tools/restore-certs-from-laptop.sh"
 echo ""
-echo "When the new server boots, cloud-init will automatically detect the certs-backup.yaml"
-echo "file on the persistent volume and inject it into the new cluster."
+echo "The restore script waits for the new cluster's API to come up and injects"
+echo "the certificates before cert-manager re-issues them."

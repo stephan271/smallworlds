@@ -126,13 +126,15 @@ terraform apply
 ```
 
 ### Clean Rebuild (Wipe Data, Preserve TLS Certificates)
-This procedure wipes all cluster data but backups TLS certificates to avoid Let's Encrypt rate limits.
+This procedure wipes all cluster data but first backs up the TLS certificates to your local machine (`~/.smallworlds/cert-backups/<production|dev>/`), then re-injects them into the new cluster to avoid Let's Encrypt rate limits. For the `-dev` cluster, prefix each command with `ENV_EXT="-dev"`.
 ```bash
 ./admin-tools/prepare-fresh-rebuild.sh
 cd infrastructure/terraform
 terraform destroy -target=hcloud_server.smallworlds_pilot_node
 terraform apply
+cd ../.. && ./admin-tools/restore-certs-from-laptop.sh
 ```
+The restore script waits for the new cluster's API, then applies the saved certificate secrets before cert-manager re-issues them; if no local backup exists it exits cleanly and certificates are issued fresh. You can also snapshot certificates at any time without a rebuild via `./admin-tools/backup-certs-to-laptop.sh`.
 
 ### Managing Updates — the two-repo model
 

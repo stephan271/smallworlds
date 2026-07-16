@@ -5,30 +5,47 @@ set -e
 # live cluster to your local machine, so a cluster rebuilt from scratch can
 # reuse them instead of re-issuing — avoiding Let's Encrypt rate limits.
 #
-# The output file uses the exact same format as prepare-fresh-rebuild.sh's
-# certs-backup.yaml, so it can be restored either with
-# restore-certs-from-laptop.sh or by placing it at
-# /mnt/smallworlds-data/certs-backup.yaml before boot (cloud-init applies it).
+# Backups are stored per environment (production vs -dev cluster, selected via
+# the terraform `env_ext` variable / ENV_EXT override — see lib/cluster-env.sh):
+#   ~/.smallworlds/cert-backups/<production|dev>/<timestamp>/certs-backup.yaml
 #
 # Usage:
-#   export KUBECONFIG=$PWD/k3s_kubeconfig.yaml
-#   ./admin-tools/backup-certs-to-laptop.sh [backup-dir]
+#   ./admin-tools/backup-certs-to-laptop.sh [backup-root]   # production
+#   ENV_EXT="-dev" ./admin-tools/backup-certs-to-laptop.sh  # dev cluster
 #
-# Default backup dir: ~/.smallworlds/cert-backups
+# Kubeconfig: uses $KUBECONFIG if set; otherwise fetches a fresh one from the
+# server over SSH (locally cached kubeconfigs go stale after every rebuild).
 
-BACKUP_ROOT="${1:-$HOME/.smallworlds/cert-backups}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/cluster-env.sh"
+
+CUR_ENV_EXT=$(detect_env_ext)
+CLUSTER=$(cluster_label "$CUR_ENV_EXT")
+BACKUP_ROOT="${1:-$HOME/.smallworlds/cert-backups/$CLUSTER}"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 BACKUP_DIR="$BACKUP_ROOT/$TIMESTAMP"
 WORK_DIR=$(mktemp -d)
 trap 'rm -rf "$WORK_DIR"' EXIT
 
-echo "1. Fetching Let's Encrypt ACME account key and TLS secrets from cluster..."
+echo "Backing up certificates from the '$CLUSTER' cluster..."
+
+if [ -z "$KUBECONFIG" ]; then
+  SERVER_IP=$(detect_server_ip "$CUR_ENV_EXT")
+  echo "1. Fetching kubeconfig from $SERVER_IP (KUBECONFIG not set)..."
+  export KUBECONFIG="$WORK_DIR/kubeconfig.yaml"
+  fetch_kubeconfig "$SERVER_IP" "$KUBECONFIG" \
+    || { echo "Error: could not fetch kubeconfig from root@$SERVER_IP."; exit 1; }
+else
+  echo "1. Using kubeconfig from \$KUBECONFIG ($KUBECONFIG)..."
+fi
+
+echo "2. Fetching Let's Encrypt ACME account key and TLS secrets from cluster..."
 kubectl get secret letsencrypt-prod -n cert-manager -o json > "$WORK_DIR/letsencrypt-prod.json" \
   || echo "Warning: letsencrypt-prod secret not found."
 kubectl get secret -A --field-selector type=kubernetes.io/tls -o json > "$WORK_DIR/tls-certs.json" \
-  || { echo "Error: could not fetch TLS secrets — is KUBECONFIG pointing at the cluster?"; exit 1; }
+  || { echo "Error: could not fetch TLS secrets — is the cluster reachable?"; exit 1; }
 
-echo "2. Filtering to letsencrypt-prod certificates and cleaning metadata..."
+echo "3. Filtering to letsencrypt-prod certificates and cleaning metadata..."
 mkdir -p "$BACKUP_DIR"
 WORK_DIR="$WORK_DIR" BACKUP_DIR="$BACKUP_DIR" python3 - << 'PYEOF'
 import json, os
@@ -77,7 +94,7 @@ for item in items:
     print(f"   - {md.get('namespace', '?')}/{md.get('name', '?')}")
 PYEOF
 
-echo "3. Checking certificate expiry dates..."
+echo "4. Checking certificate expiry dates..."
 BACKUP_DIR="$BACKUP_DIR" python3 - << 'PYEOF'
 import json, base64, os, subprocess
 
@@ -108,6 +125,5 @@ echo "⚠️  Let's Encrypt certificates are valid for 90 days. A backup older t
 echo "   the remaining lifetime is useless — cert-manager will simply re-issue."
 echo "   Re-run this script periodically (e.g. after each cert-manager renewal)."
 echo ""
-echo "To restore into a fresh cluster:"
-echo "  ./admin-tools/restore-certs-from-laptop.sh          # uses latest backup"
-echo "  ./admin-tools/restore-certs-from-laptop.sh <file>   # or a specific one"
+echo "To restore into a fresh '$CLUSTER' cluster after terraform apply:"
+echo "  ./admin-tools/restore-certs-from-laptop.sh"
