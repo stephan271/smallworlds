@@ -8,4 +8,4 @@ Any tenant application deploying OIDC client registration via the shared job bas
 * **Client ID Key**: `clientId`
 * **Client Secret Key**: `client-secret`
 
-Do not define or reference custom secret names (e.g., `roundcube-oauth-secret` or `immich-keycloak-secret`) in deployment templates.
+Do not define or reference custom secret names (e.g., `bulwark-oauth-secret` or `immich-keycloak-secret`) in deployment templates.

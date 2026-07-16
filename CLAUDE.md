@@ -38,7 +38,7 @@ plans-and-walkthroughs/  Design docs and implementation walkthroughs
 - **Wave -10**: `cert-manager`, `cloudnative-pg`, `persistent-storage`, `traefik` — foundational infra.
 - **Wave -5**: `garage` — S3 storage, needed early by CNPG/Velero backups.
 - **Wave 0**: everything that doesn't need Keycloak — `keycloak` itself, `dashboard`, monitoring/logging stacks, `velero`, `hermes`, `remediation`, `trivy-operator`.
-- **Wave 1**: end-user tenant apps (Nextcloud, Forgejo, Immich, Jitsi, Roundcube, Excalidraw, Stalwart) — depend on CNPG/Garage/Keycloak/Traefik being up.
+- **Wave 1**: end-user tenant apps (Nextcloud, Forgejo, Immich, Jitsi, Bulwark, Excalidraw, Stalwart) — depend on CNPG/Garage/Keycloak/Traefik being up.
 
 Intra-wave dependencies are handled by init jobs' poll-and-retry loops and ArgoCD sync retries, not by more waves. When adding a new ArgoCD Application, pick the wave based on what it actually depends on, not by copying an unrelated app's wave.
 

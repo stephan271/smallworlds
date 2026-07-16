@@ -29,7 +29,7 @@ Identity, management, observability, and cluster utilities all deploy together i
 * **`hermes.yaml`**, **`trivy-operator.yaml`**, **`backup-replicator.yaml`**: the AI-driven auto-remediation agent, security scanning, and backup utilities.
 
 ### Wave 1 (End-User Tenant Applications)
-* **`nextcloud.yaml`**, **`collabora.yaml`**, **`forgejo.yaml`**, **`immich.yaml`**, **`jitsi.yaml`**, **`roundcube.yaml`**, **`excalidraw.yaml`**, **`stalwart.yaml`**
+* **`nextcloud.yaml`**, **`collabora.yaml`**, **`forgejo.yaml`**, **`immich.yaml`**, **`jitsi.yaml`**, **`bulwark.yaml`**, **`excalidraw.yaml`**, **`stalwart.yaml`**
 * These are the final workloads. They rely on the foundational layers (CNPG for DBs, Garage for S3, Keycloak for SSO, Traefik for Ingress) being operational. **Stalwart stays in this wave** despite being "infrastructure" because it depends on Keycloak's OIDC/directory integration.
 
 ## Why the waves were flattened (`8496e89`)

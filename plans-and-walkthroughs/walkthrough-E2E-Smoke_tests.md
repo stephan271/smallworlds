@@ -22,7 +22,7 @@ e2e-tests/
     ├── auth.setup.ts               # Logs into Keycloak, saves SSO session for reuse
     ├── 01-keycloak-login.spec.ts   # Keycloak account page + logout
     ├── 02-nextcloud.spec.ts        # Nextcloud files view + user menu
-    ├── 03-roundcube.spec.ts        # Roundcube inbox + compose button
+    ├── 03-bulwark.spec.ts        # Bulwark inbox + compose button
     ├── 04-immich.spec.ts           # Immich timeline + onboarding + profile
     └── 05-forgejo.spec.ts          # Forgejo dashboard + settings
 ```
@@ -30,12 +30,12 @@ e2e-tests/
 ## Phase 3: Fixing Keycloak Integrations and End-to-End Tests
 After initial testing, we hit several application-specific roadblocks in the automation. We addressed these to bring the tests to full stability:
 
-1. **Roundcube (Stalwart OIDC)**: Stalwart's IMAP layer failed to validate Keycloak tokens because `requireAudience` enforced strict single-audience validation, while Keycloak returned an array. Removing `requireAudience` in the Stalwart deployment resolved IMAP OIDC login errors.
+1. **Bulwark (Stalwart OIDC)**: Stalwart's IMAP layer failed to validate Keycloak tokens because `requireAudience` enforced strict single-audience validation, while Keycloak returned an array. Removing `requireAudience` in the Stalwart deployment resolved IMAP OIDC login errors.
 2. **Nextcloud**: The First-Run Wizard intermittently blocked automated clicks on the UI. We updated the test to force-click the `user-menu` (bypassing invisible modals) and updated the Files component locators (`.files-filestable`) to target Vue 3 selectors used in Nextcloud 29+.
 3. **Forgejo**: The test hit a Keycloak "We are sorry" (invalid redirect URI) error. The Forgejo tenant config created an invalid OAuth app configuration. We ran a dynamic script inside `kcadm.sh` to update the Keycloak Forgejo client `redirectUris` to properly match `https://git.smallworlds.network/user/oauth2/smallworlds/callback`. Test locators were also adjusted to correctly find usernames visually hidden on desktop screens.
 
 ### Final Run Results
-Running `./run-smoke-tests.sh smallworlds.network` successfully provisions `sw-test-alice` and `sw-test-bob`, and runs Playwright testing in full UI-based browser interactions against **Nextcloud**, **Roundcube**, **Immich**, and **Forgejo**. All tests complete successfully!
+Running `./run-smoke-tests.sh smallworlds.network` successfully provisions `sw-test-alice` and `sw-test-bob`, and runs Playwright testing in full UI-based browser interactions against **Nextcloud**, **Bulwark**, **Immich**, and **Forgejo**. All tests complete successfully!
 
 ## Architecture
 
@@ -113,7 +113,7 @@ cd e2e-tests && npx playwright show-report reports/html
 |---|---|---|
 | **Keycloak** | 2 | Account page loads with SSO, logout redirects to login page |
 | **Nextcloud** | 3 | OIDC auto-login, Files app loads, user menu shows alice |
-| **Roundcube** | 2 | OIDC auto-login, inbox loads, compose button available |
+| **Bulwark** | 2 | OIDC auto-login, inbox loads, compose button available |
 | **Immich** | 3 | OIDC auto-login, onboarding handled, profile menu accessible |
 | **Forgejo** | 3 | OIDC login via Keycloak button, dashboard loads, settings page |
 | **Total** | **15 tests** | |

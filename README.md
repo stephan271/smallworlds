@@ -48,7 +48,7 @@ This project is built upon several foundational open-source technologies, core i
 | **Jitsi Meet** | [jitsi.org](https://jitsi.org/) | Secure video conferencing and communication platform. |
 | **Nextcloud** | [nextcloud.com](https://nextcloud.com/) | File synchronization and collaboration. |
 | **Plane** | [plane.so](https://plane.so/) | Open-source project management tool. |
-| **Roundcube** | [roundcube.net](https://roundcube.net/) | IMAP webmail client connected to Stalwart. |
+| **Bulwark** | [github.com/bulwarkmail/webmail](https://github.com/bulwarkmail/webmail) | JMAP webmail client connected to Stalwart. |
 
 ---
 

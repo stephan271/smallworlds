@@ -79,8 +79,8 @@ The base install is driven by its Helm `values.yaml` (CNPG Postgres via environm
 **Immich**
 Immich lacks declarative configuration for OIDC in its Helm chart. Therefore, an **ArgoCD Sync Hook** (`admin-init-job.yaml`) runs a script that hits the Immich REST API. It creates the initial admin user, logs in to get a JWT, and then submits a JSON payload to the `/api/system-config` endpoint to enable OIDC and bind it to Keycloak.
 
-**Roundcube & Stalwart Mail**
-Stalwart mail is wired to Keycloak as an **OIDC Directory**, configured imperatively by the `stalwart-init-job` via the Stalwart CLI (not via a static TOML file). Roundcube (the webmail UI) mounts a static `oauth-config.inc.php` from the `roundcube-oauth-config.yaml` ConfigMap, which points IMAP/SMTP at Stalwart's internal service and sets up the `oauth2`/`XOAUTH2` flow to authenticate users silently against Keycloak.
+**Bulwark & Stalwart Mail**
+Stalwart mail is wired to Keycloak as an **OIDC Directory**, configured imperatively by the `stalwart-init-job` via the Stalwart CLI (not via a static TOML file). Bulwark (the webmail UI) is a JMAP client configured via environment variables: it authenticates users against Keycloak in OIDC-only mode using the shared `keycloak-secret`, and talks JMAP to Stalwart at `mail.<domain>`.
 
 ## System Topology Map
 
@@ -106,7 +106,7 @@ flowchart LR
         IM[Immich]
         GIT[Forgejo]
         MAIL[Stalwart]
-        RC[Roundcube]
+        BW[Bulwark]
         JI[Jitsi]
         EX[Excalidraw]
         DASH[Dashboard]
@@ -119,7 +119,7 @@ flowchart LR
     T -->|HTTPS| IM
     T -->|HTTPS| GIT
     T -->|HTTPS| MAIL
-    T -->|HTTPS| RC
+    T -->|HTTPS| BW
     T -->|HTTPS| JI
     T -->|HTTPS| EX
     T -->|HTTPS| DASH
@@ -128,7 +128,7 @@ flowchart LR
     NC -->|OIDC Auth| KC
     IM -->|OIDC Auth| KC
     GIT -->|OIDC Auth| KC
-    RC -->|OIDC Auth| KC
+    BW -->|OIDC Auth| KC
     JI -->|OIDC Auth| KC
     MAIL -->|OIDC Directory| KC
 
@@ -152,6 +152,6 @@ flowchart LR
     NC ---|WOPI| CO
 
     %% Mail
-    RC -->|IMAP/SMTP| MAIL
+    BW -->|JMAP| MAIL
     KC -->|SMTP| MAIL
 ```

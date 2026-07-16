@@ -1,15 +1,13 @@
 # Other Tenants (`infrastructure/kubernetes/tenants/`)
 
-This document covers the infrastructure integrations for the smaller or more specialized tenants in the cluster, including Roundcube, Velero, Backup-Replicator, Excalidraw, and Jitsi.
+This document covers the infrastructure integrations for the smaller or more specialized tenants in the cluster, including Bulwark, Velero, Backup-Replicator, Excalidraw, and Jitsi.
 
-## Roundcube (`tenants/roundcube/*.yaml`)
-Roundcube provides webmail access. It doesn't host mail itself, so it acts strictly as a client to Stalwart and Keycloak.
-- **SSO (Keycloak)**: In `roundcube-oauth-config.yaml`, the `oauth-config.inc.php` integrates with the cluster's Keycloak instance. It pulls the client secret from the `keycloak-secret` dynamically.
-- **Internal Mail Routing (Stalwart)**: Rather than routing out to the public internet and back in via `mail.smallworlds.network`, the configuration forces Roundcube to talk directly to the internal cluster service `stalwart-mail.stalwart.svc.cluster.local` for IMAP and SMTP.
-- **TLS Bypass**: Because it talks to the internal service IP instead of the public domain, `verify_peer` is set to `false` in the PHP configuration to prevent TLS hostname mismatch errors.
-
-- **Dynamic Keycloak client** (`57b040e`, `2dd95d7`): Roundcube was migrated to consume the shared `keycloak-secret` instead of a dedicated `roundcube-oauth-secret`, so it no longer carries its own committed OAuth secret.
-- **Mail-domain handling** (`3ba4fb2`, `8233eb7`): the `username_domain` setting was removed in favor of `mail_domain`, fixing how Roundcube maps the OIDC identity to a mailbox address (avoids appending the wrong domain).
+## Bulwark (`tenants/bulwark/*.yaml`)
+Bulwark (`ghcr.io/bulwarkmail/webmail`) provides webmail access at `webmail.<domain>`. It doesn't host mail itself — it's a JMAP client to Stalwart and an OIDC client to Keycloak, configured entirely through environment variables in `bulwark-deployment.yaml`.
+- **SSO (Keycloak)**: runs OIDC-only (`OAUTH_ONLY=true`) against the cluster realm, consuming the shared `keycloak-secret` (`clientId`/`client-secret`) per the project-wide contract — no dedicated OAuth secret.
+- **Mail access (Stalwart)**: talks JMAP to `https://mail.<domain>` (`JMAP_SERVER_URL`), with `STALWART_FEATURES=true` for Stalwart-specific capabilities. The in-cluster CoreDNS override maps that hostname to the node, so the traffic never leaves the cluster.
+- **Session secret**: `session-secret-job.yaml` is an init Job that generates the random `session-secret` Secret consumed via `SESSION_SECRET`.
+- **State**: a small PVC (`bulwark-data`) persists admin data.
 
 ## Velero (`tenants/velero/*.yaml`)
 Velero is the cluster's disaster recovery solution.

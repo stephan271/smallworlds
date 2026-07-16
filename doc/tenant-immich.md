@@ -23,7 +23,7 @@ Immich does not support declarative configuration files for OIDC; it must be con
 ## Notable changes per file (from git history)
 
 ### `admin-init-job.yaml`
-- **Dynamic OIDC secret via API** (`6fac780`, `2dd95d7`): the client secret is injected through Immich's API from `keycloak-secret` rather than baked into `values.yaml`, so Immich (and Roundcube) became "dynamic Keycloak clients" with no plaintext secret in git.
+- **Dynamic OIDC secret via API** (`6fac780`, `2dd95d7`): the client secret is injected through Immich's API from `keycloak-secret` rather than baked into `values.yaml`, so Immich became "dynamic Keycloak clients" with no plaintext secret in git.
 - **v2+ API port & ping endpoint** (`07eacb0`, `bae710d`): the job targets port **2283** and `/api/server/ping` to detect readiness.
 - **`sed` → Python for system-config edits** (`bae710d`): the config patch was rewritten from `sed`-based JSON munging — which accidentally flipped *every* `"enabled":false` in the system config — to Python with proper JSON handling that only touches the `oauth` section.
 
