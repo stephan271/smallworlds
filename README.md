@@ -215,7 +215,7 @@ These environment variables override the CLI arguments:
 | `HEADED=1` | Run in headed browser mode instead of headless. |
 | `SLOWMO=500` | Slow operations down by the given number of milliseconds — useful when watching a headed run. |
 | `SKIP_PROVISION=1` | Skip test-user provisioning (reuse existing `sw-test-*` users). |
-| `KUBECONFIG` | Path to the kubeconfig used to read the admin password. |
+| `KUBECONFIG` | Path to the kubeconfig used to read the admin password (default: `~/.smallworlds/kubeconfigs/<production\|dev>.yaml`, matching the configured `env_ext`). |
 
 The HTML report is written to `e2e-tests/reports/html`; view it with `cd e2e-tests && npx playwright show-report reports/html`.
 

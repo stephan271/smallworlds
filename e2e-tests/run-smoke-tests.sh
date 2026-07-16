@@ -26,7 +26,9 @@ set -euo pipefail
 #   FULL_OIDC       - Set to "1" to run full OIDC login roundtrips (requires
 #                     certificates the APPS trust, i.e. production; staging
 #                     runs shallow OIDC wiring checks instead)
-#   KUBECONFIG      - Path to kubeconfig file
+#   KUBECONFIG      - Path to kubeconfig file (default:
+#                     ~/.smallworlds/kubeconfigs/<production|dev>.yaml,
+#                     per the configured env_ext / ENV_EXT)
 # ============================================================================
 
 GREEN='\033[0;32m'
@@ -57,7 +59,8 @@ echo -e "  Domain:  ${YELLOW}${DOMAIN}${NC}"
 # --- Resolve Keycloak admin password ---
 if [[ -z "$KC_ADMIN_PASS" ]]; then
   echo -e "  ${YELLOW}No admin password provided. Trying kubectl...${NC}"
-  KUBECONFIG="${KUBECONFIG:-$(dirname "$SCRIPT_DIR")/k3s_kubeconfig.yaml}"
+  source "$(dirname "$SCRIPT_DIR")/admin-tools/lib/cluster-env.sh"
+  KUBECONFIG="${KUBECONFIG:-$(kubeconfig_path "$(cluster_label "$(detect_env_ext)")")}"
 
   if [[ -f "$KUBECONFIG" ]]; then
     export KUBECONFIG

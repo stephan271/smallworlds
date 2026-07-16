@@ -46,6 +46,8 @@ while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
 # Go to repo root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+source "$SCRIPT_DIR/lib/cluster-env.sh"
+STAGING_KUBECONFIG="$(kubeconfig_path staging)"
 cd "$REPO_ROOT"
 
 # Ensure target branch is available locally
@@ -129,7 +131,7 @@ cleanup() {
     
     if [ "${KEEP_VM:-0}" = "1" ]; then
         echo -e "${YELLOW}KEEP_VM=1 set: skipping VM destruction so you can debug.${NC}"
-        echo -e "  kubectl:      export KUBECONFIG=$REPO_ROOT/kubeconfig-staging.yaml"
+        echo -e "  kubectl:      export KUBECONFIG=$STAGING_KUBECONFIG"
         echo -e "  ssh:          ssh -i $TEMP_SSH_KEY root@\$(cd $REPO_ROOT/infrastructure/terraform-staging && terraform output -raw server_ipv4)"
         echo -e "  destroy VM:   cd $REPO_ROOT/infrastructure/terraform-staging && terraform destroy -auto-approve"
         echo -e "  clean hosts:  sudo sed -i '/smallworlds\\.network/d' /etc/hosts"
@@ -181,8 +183,9 @@ echo -e "${GREEN}VM provisioned at: $SERVER_IP${NC}"
 # 4. Fetch Kubeconfig
 echo -e "\n${CYAN}[2/3] Waiting for K3s initialization...${NC}"
 timeout 300 bash -c "until ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i $TEMP_SSH_KEY root@$SERVER_IP 'test -f /root/k3s.yaml' 2>/dev/null; do sleep 10; done"
-scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "$TEMP_SSH_KEY" root@$SERVER_IP:/root/k3s.yaml "$REPO_ROOT/kubeconfig-staging.yaml"
-export KUBECONFIG="$REPO_ROOT/kubeconfig-staging.yaml"
+scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "$TEMP_SSH_KEY" root@$SERVER_IP:/root/k3s.yaml "$STAGING_KUBECONFIG"
+chmod 600 "$STAGING_KUBECONFIG"
+export KUBECONFIG="$STAGING_KUBECONFIG"
 
 echo -e "${GREEN}K3s is ready!${NC}"
 

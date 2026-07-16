@@ -98,7 +98,7 @@ terraform validate                                            # from infrastruct
 python3 -c 'import json;json.load(open("renovate.json"))'    # validate renovate.json after editing
 ```
 
-Cluster access for read-only inspection uses `k3s_kubeconfig.yaml` in the repo root (the default `~/.kube/config` is stale) — `export KUBECONFIG=$PWD/k3s_kubeconfig.yaml`.
+Cluster access for read-only inspection: kubeconfigs live in `~/.smallworlds/kubeconfigs/<production|dev|staging>.yaml` (the default `~/.kube/config` is stale) — `export KUBECONFIG=~/.smallworlds/kubeconfigs/production.yaml`. They are written there by `smallworlds-init.sh` (production/dev) and `test-pr-locally.sh` (staging); see `kubeconfig_path()` in `admin-tools/lib/cluster-env.sh`.
 
 ## Documentation map (`doc/`)
 

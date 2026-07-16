@@ -27,6 +27,15 @@ cluster_label() {
   if [ -z "$ext" ]; then echo "production"; else echo "$ext"; fi
 }
 
+# Canonical local kubeconfig path for a cluster label ("production", "dev",
+# "staging" — see cluster_label). All tooling reads and writes kubeconfigs
+# here, outside any git checkout. Creates the directory on demand.
+kubeconfig_path() {
+  local dir="$HOME/.smallworlds/kubeconfigs"
+  mkdir -p "$dir"
+  echo "$dir/$1.yaml"
+}
+
 detect_domain() {
   local domain
   domain=$(sed -n 's/^[[:space:]]*domain_name[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' \

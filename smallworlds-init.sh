@@ -7,6 +7,9 @@ CYAN='\033[0;36m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Shared helpers (cluster_label, kubeconfig_path)
+source "$(cd "$(dirname "$0")" && pwd)/admin-tools/lib/cluster-env.sh"
+
 echo -e "${CYAN}======================================================${NC}"
 echo -e "${CYAN}        Welcome to the SmallWorlds Installer         ${NC}"
 echo -e "${CYAN}======================================================${NC}"
@@ -270,7 +273,7 @@ until ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o Connect
     sleep 2
 done
 
-KUBECONFIG_LOCAL="../../k3s_kubeconfig${ENV_EXT}.yaml"
+KUBECONFIG_LOCAL="$(kubeconfig_path "$(cluster_label "$ENV_EXT")")"
 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$SERVER_IP" "cat /etc/rancher/k3s/k3s.yaml" > "$KUBECONFIG_LOCAL" 2>/dev/null
 sed -i "s|127.0.0.1|$SERVER_IP|g" "$KUBECONFIG_LOCAL"
 chmod 600 "$KUBECONFIG_LOCAL"
@@ -289,9 +292,9 @@ echo ""
 echo -e "Your applications will take a few minutes to boot up and fetch their SSL certificates."
 echo ""
 echo -e "Kubernetes Access (kubeconfig):"
-echo -e "  Saved to:                  ${CYAN}./k3s_kubeconfig${ENV_EXT}.yaml${NC}"
-echo -e "  To use with kubectl:       ${YELLOW}export KUBECONFIG=\$PWD/k3s_kubeconfig${ENV_EXT}.yaml${NC}"
-echo -e "                             (or link it: ln -sf \$PWD/k3s_kubeconfig${ENV_EXT}.yaml ~/.kube/config)"
+echo -e "  Saved to:                  ${CYAN}${KUBECONFIG_LOCAL}${NC}"
+echo -e "  To use with kubectl:       ${YELLOW}export KUBECONFIG=${KUBECONFIG_LOCAL}${NC}"
+echo -e "                             (or link it: ln -sf ${KUBECONFIG_LOCAL} ~/.kube/config)"
 echo ""
 echo -e "Here are your auto-generated admin credentials. Save them somewhere safe!"
 echo -e "Keycloak Admin (admin):      ${CYAN}${KC_PASS}${NC}"
@@ -325,7 +328,7 @@ echo -e "${GREEN}======================================================${NC}"
 # whose operation ended in Failed/Error gets re-kicked automatically.
 if command -v kubectl >/dev/null 2>&1; then
     echo -e "${CYAN}Watching application rollout (up to 40 minutes; safe to Ctrl+C — the cluster continues on its own)...${NC}"
-    export KUBECONFIG="$(pwd)/$KUBECONFIG_LOCAL"
+    export KUBECONFIG="$KUBECONFIG_LOCAL"
     CONVERGED=false
     for i in $(seq 1 120); do
         for app in $(kubectl get application -n argocd -o jsonpath='{range .items[?(@.status.operationState.phase=="Failed")]}{.metadata.name}{" "}{end}' 2>/dev/null) \
