@@ -376,7 +376,7 @@ else
 fi
 
 # Open the dashboard
-DASHBOARD_URL="https://dashboard.${DOMAIN}"
+DASHBOARD_URL="https://dashboard${ENV_EXT}.${DOMAIN}"
 echo ""
 echo -e "${YELLOW}Please note: The infrastructure is currently being provisioned in the background.${NC}"
 echo -e "${YELLOW}It may take 5-10 minutes for all services to come online and for SSL certificates to be issued.${NC}"

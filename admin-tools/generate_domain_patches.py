@@ -25,7 +25,7 @@ def generate_patches(app_name, domain, ext):
     }
 
     if app_name == "dashboard":
-        patches += textwrap.dedent(f"""\
+        patches += textwrap.indent(textwrap.dedent(f"""\
           - target:
               kind: Ingress
               name: dashboard
@@ -36,10 +36,10 @@ def generate_patches(app_name, domain, ext):
               - op: replace
                 path: /spec/tls/0/hosts/0
                 value: {subdomains['dashboard']}
-        """)
+        """), "  ")
     
     elif app_name == "keycloak":
-        patches += textwrap.dedent(f"""\
+        patches += textwrap.indent(textwrap.dedent(f"""\
           - target:
               kind: Ingress
               name: keycloak
@@ -57,10 +57,10 @@ def generate_patches(app_name, domain, ext):
               - op: replace
                 path: /spec/template/spec/containers/0/args/0
                 value: start --hostname={subdomains['identity']} --hostname-strict=true --http-enabled=true --proxy-headers=xforwarded --import-realm
-        """)
+        """), "  ")
 
     elif app_name == "stalwart":
-        patches += textwrap.dedent(f"""\
+        patches += textwrap.indent(textwrap.dedent(f"""\
           - target:
               kind: Ingress
               name: stalwart-ingress
@@ -78,10 +78,10 @@ def generate_patches(app_name, domain, ext):
               - op: replace
                 path: /spec/headers/accessControlAllowOriginList/0
                 value: "https://{subdomains['webmail']}"
-        """)
+        """), "  ")
 
     elif app_name == "bulwark":
-        patches += textwrap.dedent(f"""\
+        patches += textwrap.indent(textwrap.dedent(f"""\
           - target:
               kind: Ingress
               name: bulwark-ingress
@@ -109,10 +109,10 @@ def generate_patches(app_name, domain, ext):
               - op: replace
                 path: /spec/template/spec/containers/0/env/0/value
                 value: '["https://{subdomains['webmail']}/api/auth/callback"]'
-        """)
+        """), "  ")
         
     elif app_name == "nextcloud":
-        patches += textwrap.dedent(f"""\
+        patches += textwrap.indent(textwrap.dedent(f"""\
           - target:
               kind: Ingress
               name: nextcloud
@@ -144,10 +144,10 @@ def generate_patches(app_name, domain, ext):
               - op: replace
                 path: /spec/template/spec/containers/0/env/10/value
                 value: {subdomains['files']}
-        """)
+        """), "  ")
 
     elif app_name == "immich":
-        patches += textwrap.dedent(f"""\
+        patches += textwrap.indent(textwrap.dedent(f"""\
           - target:
               kind: Job
               name: immich-admin-init
@@ -172,10 +172,10 @@ def generate_patches(app_name, domain, ext):
               - op: replace
                 path: /spec/tls/0/hosts/0
                 value: {subdomains['photos']}
-        """)
+        """), "  ")
         
     elif app_name == "forgejo":
-        patches += textwrap.dedent(f"""\
+        patches += textwrap.indent(textwrap.dedent(f"""\
           - target:
               kind: Job
               name: forgejo-oidc-init
@@ -219,10 +219,10 @@ def generate_patches(app_name, domain, ext):
                 value:
                   name: GITEA__server__SSH_DOMAIN
                   value: {subdomains['git']}
-        """)
+        """), "  ")
 
     elif app_name == "jitsi":
-        patches += textwrap.dedent(f"""\
+        patches += textwrap.indent(textwrap.dedent(f"""\
           - target:
               kind: Job
               name: keycloak-client-init
@@ -268,10 +268,10 @@ def generate_patches(app_name, domain, ext):
                 value:
                   name: JWT_APP_URL
                   value: "https://{subdomains['meet']}"
-        """)
+        """), "  ")
 
     elif app_name == "collabora":
-        patches += textwrap.dedent(f"""\
+        patches += textwrap.indent(textwrap.dedent(f"""\
           - target:
               kind: Ingress
               name: collabora
@@ -292,10 +292,10 @@ def generate_patches(app_name, domain, ext):
               - op: replace
                 path: /spec/template/spec/containers/0/env/1/value
                 value: {subdomains['office']}
-        """)
+        """), "  ")
 
     elif app_name == "excalidraw":
-        patches += textwrap.dedent(f"""\
+        patches += textwrap.indent(textwrap.dedent(f"""\
           - target:
               kind: Ingress
               name: excalidraw
@@ -306,10 +306,10 @@ def generate_patches(app_name, domain, ext):
               - op: replace
                 path: /spec/tls/0/hosts/0
                 value: {subdomains['whiteboard']}
-        """)
+        """), "  ")
         
     elif app_name == "plane":
-        patches += textwrap.dedent(f"""\
+        patches += textwrap.indent(textwrap.dedent(f"""\
           - target:
               kind: Ingress
               name: plane-ingress
@@ -327,10 +327,10 @@ def generate_patches(app_name, domain, ext):
               - op: replace
                 path: /data/WEB_URL
                 value: "https://{subdomains['plan']}"
-        """)
+        """), "  ")
 
     elif app_name == "argocd":
-        patches += textwrap.dedent(f"""\
+        patches += textwrap.indent(textwrap.dedent(f"""\
           - target:
               kind: Ingress
               name: argocd-server
@@ -342,11 +342,11 @@ def generate_patches(app_name, domain, ext):
               - op: replace
                 path: /spec/tls/0/hosts/0
                 value: {subdomains['deploy']}
-        """)
+        """), "  ")
 
     elif app_name == "monitoring":
         # Modify the values within the kube-prometheus-stack Application manifest for Grafana ingress
-        patches += textwrap.dedent(f"""\
+        patches += textwrap.indent(textwrap.dedent(f"""\
           - target:
               group: argoproj.io
               kind: Application
@@ -418,7 +418,7 @@ def generate_patches(app_name, domain, ext):
                             resources:
                               requests:
                                 storage: 2Gi
-        """)
+        """), "  ")
 
     return patches
 
