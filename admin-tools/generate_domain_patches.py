@@ -42,7 +42,7 @@ def generate_patches(app_name, domain, ext):
         patches += textwrap.indent(textwrap.dedent(f"""\
           - target:
               kind: Ingress
-              name: keycloak
+              name: keycloak-keycloakx
             patch: |-
               - op: replace
                 path: /spec/rules/0/host
@@ -52,7 +52,7 @@ def generate_patches(app_name, domain, ext):
                 value: {subdomains['identity']}
           - target:
               kind: StatefulSet
-              name: keycloak
+              name: keycloak-keycloakx
             patch: |-
               - op: replace
                 path: /spec/template/spec/containers/0/env/0/value
@@ -123,6 +123,37 @@ def generate_patches(app_name, domain, ext):
               - op: replace
                 path: /spec/tls/0/hosts/0
                 value: {subdomains['files']}
+          - target:
+              kind: Deployment
+              name: nextcloud
+            patch: |-
+              apiVersion: apps/v1
+              kind: Deployment
+              metadata:
+                name: nextcloud
+              spec:
+                template:
+                  spec:
+                    containers:
+                    - name: nextcloud
+                      env:
+                      - name: NEXTCLOUD_TRUSTED_DOMAINS
+                        value: {subdomains['files']}
+                      startupProbe:
+                        httpGet:
+                          httpHeaders:
+                          - name: Host
+                            value: {subdomains['files']}
+                      livenessProbe:
+                        httpGet:
+                          httpHeaders:
+                          - name: Host
+                            value: {subdomains['files']}
+                      readinessProbe:
+                        httpGet:
+                          httpHeaders:
+                          - name: Host
+                            value: {subdomains['files']}
           - target:
               kind: ConfigMap
               name: nextcloud-oidc-config-map

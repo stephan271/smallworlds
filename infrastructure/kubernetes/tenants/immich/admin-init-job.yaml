@@ -109,3 +109,10 @@ spec:
               if status != 200:
                   sys.exit(f"Failed to update system config: HTTP {status}: {body}")
               print("OIDC configured successfully!")
+
+              print("Setting admin onboarding status...", flush=True)
+              status, body = req("POST", "/api/system-metadata/admin-onboarding", {"isOnboarded": True}, token=token)
+              if status not in (200, 201):
+                  print(f"Warning: Failed to set admin onboarding status: HTTP {status}: {body}")
+              else:
+                  print("Admin onboarding completed!")
