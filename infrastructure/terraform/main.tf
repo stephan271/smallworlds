@@ -30,10 +30,9 @@ data "hcloud_ssh_key" "existing_admin" {
 
 locals {
   ssh_key_id = var.env_ext == "" ? hcloud_ssh_key.smallworlds_admin[0].id : data.hcloud_ssh_key.existing_admin[0].id
-  # Hetzner resource names use a dash form of the extension (".dev" -> "-dev"),
-  # keeping them stable across the DNS-syntax change so existing resources
-  # (notably the prevent_destroy data volume) are not recreated. DNS names use
-  # var.env_ext verbatim: env_ext=".dev" yields identity.dev.<domain> etc.
+  # Hetzner resource names use a dash form of the extension (".dev" -> "-dev")
+  # since dots belong to DNS, not resource naming. DNS names use var.env_ext
+  # verbatim: env_ext=".dev" yields identity.dev.<domain> etc.
   env_slug = replace(var.env_ext, ".", "-")
 }
 

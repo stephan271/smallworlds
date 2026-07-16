@@ -1,9 +1,8 @@
 # Shared helpers for cluster-facing admin scripts. Source, don't execute.
 #
 # Environment selection (production vs dev cluster):
-#   1. ENV_EXT environment variable if set (e.g. ENV_EXT=".dev", legacy "-dev"
-#      also accepted), matching the terraform `env_ext` variable — empty string
-#      means production.
+#   1. ENV_EXT environment variable if set (e.g. ENV_EXT=".dev"), matching the
+#      terraform `env_ext` variable — empty string means production.
 #   2. Otherwise `env_ext` parsed from infrastructure/terraform/terraform.tfvars.
 #   3. Otherwise "" (production).
 
@@ -22,11 +21,9 @@ detect_env_ext() {
 }
 
 # "production" for env_ext="", otherwise the extension without its leading
-# separator (".dev" or "-dev" -> "dev")
+# dot (".dev" -> "dev")
 cluster_label() {
-  local ext="$1"
-  ext="${ext#-}"
-  ext="${ext#.}"
+  local ext="${1#.}"
   if [ -z "$ext" ]; then echo "production"; else echo "$ext"; fi
 }
 

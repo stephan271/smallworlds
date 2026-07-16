@@ -49,9 +49,7 @@ spec:
               # mail (sub)domain — dev.<domain> with MX/SPF/DKIM/DMARC scoped
               # under it — so they never collide with production's records at
               # the zone apex. Production (ENV_EXT empty) keeps the apex domain.
-              # Both the ".dev" subdomain syntax and legacy "-dev" are accepted.
-              ENV_LABEL="${ENV_EXT#-}"
-              ENV_LABEL="${ENV_LABEL#.}"
+              ENV_LABEL="${ENV_EXT#.}"
               if [ -n "$ENV_LABEL" ]; then
                 MAIL_DOMAIN="$ENV_LABEL.$DOMAIN_NAME"
               else
@@ -368,25 +366,18 @@ spec:
                     else:
                         rel = None
 
-                    if rel is not None:
-                        # Graft mail-domain-relative names into the parent zone
-                        if graft:
-                            name = graft if rel == "@" else rel + "." + graft
-                        else:
-                            name = rel
+                    if rel is None:
+                        # The mail hostname (mail.<mail-domain>) always sits
+                        # inside the mail domain, so anything outside it is
+                        # foreign — never push it
+                        print(f"Skipping record outside the mail domain: {raw_name}")
+                        continue
+
+                    # Graft mail-domain-relative names into the parent zone
+                    if graft:
+                        name = graft if rel == "@" else rel + "." + graft
                     else:
-                        # Not under the mail domain (e.g. the mail hostname
-                        # itself) — resolve directly against the parent zone
-                        if raw_name == domain + ".":
-                            name = "@"
-                        elif raw_name.endswith("." + domain + "."):
-                            name = raw_name[: -len(domain) - 2]
-                        else:
-                            print(f"Skipping out-of-zone record: {raw_name}")
-                            continue
-                        if graft and not (name == "mail" + env_ext or name.endswith(".mail" + env_ext)):
-                            print(f"Skipping {raw_name}: outside this environment's DNS scope.")
-                            continue
+                        name = rel
                     
                     # Extract value preserving original spacing
                     rtype_index = line.find(" " + rtype + " ")

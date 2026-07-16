@@ -16,7 +16,7 @@ variable "domain_name" {
 }
 
 variable "env_ext" {
-  description = "The environment extension for subdomains, in subdomain syntax (e.g. \".dev\" for identity.dev.<domain>; empty for production). The legacy dash syntax (\"-dev\") still works but is deprecated."
+  description = "The environment extension for subdomains, in subdomain syntax (e.g. \".dev\" for identity.dev.<domain>; empty for production)"
   type        = string
   default     = ""
 }

@@ -25,7 +25,7 @@ Because Keycloak doesn't natively push user creation events to external mail ser
 Only one mail system can be authoritative for a DNS domain, so the dev cluster must not share production's mail domain. The environment extension (`ENV_EXT` key in the `stalwart-dns-secrets` secret, written by `smallworlds-init.sh`, matching the terraform `env_ext` variable) drives an asymmetric split:
 
 - **Production** (`ENV_EXT=""`): mail domain is the apex (`smallworlds.network`), MX/SPF/DKIM/DMARC live at the zone apex, hostname `mail.smallworlds.network` — unchanged historical behavior.
-- **Dev cluster** (`ENV_EXT=".dev"`, subdomain syntax; legacy `"-dev"` still accepted): mail domain is `dev.smallworlds.network` (addresses `user@dev.smallworlds.network`), hostname `mail.dev.smallworlds.network` (matching the env-aware PTR terraform sets), and all records are grafted into the shared zone under the `dev` label (`dev` MX, `_dmarc.dev`, `<selector>._domainkey.dev`, …).
+- **Dev cluster** (`ENV_EXT=".dev"`): mail domain is `dev.smallworlds.network` (addresses `user@dev.smallworlds.network`), hostname `mail.dev.smallworlds.network` (matching the env-aware PTR terraform sets), and all records are grafted into the shared zone under the `dev` label (`dev` MX, `_dmarc.dev`, `<selector>._domainkey.dev`, …).
 
 Three components must agree on this and all derive it from the same secret: `stalwart-init-job.yaml` (creates the Stalwart domain, sets `defaultHostname`, pushes DNS records), `stalwart-deployment.yaml` (`STALWART_SERVER_HOSTNAME` / EHLO — must match the PTR for deliverability), and `mail-provisioner-deployment.yaml` (waits for the domain by name before syncing accounts).
 
