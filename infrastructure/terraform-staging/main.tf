@@ -72,13 +72,15 @@ resource "hcloud_server" "smallworlds_staging_node" {
     ipv6_enabled = true
   }
 
-  user_data = templatefile("${path.module}/cloud-init.yaml.tpl", {
-    domain_name      = var.domain_name
-    git_url          = var.git_url
-    github_pr_branch = var.github_pr_branch
-    admin_email      = var.admin_email
-    server_ip        = "0.0.0.0" # Passed down, but dynamic IP is used via local scripts instead
-    golden_image     = var.use_golden_image
+  user_data = templatefile("${path.module}/../cloud-init/k3s-node.yaml.tpl", {
+    golden_image      = var.use_golden_image
+    node_name         = "cc-staging-node-01"
+    server_ip         = "" # dynamic — discovered at runtime on the node
+    domain_name       = var.domain_name
+    env_ext           = ""
+    acme_email        = "" # self-signed issuer; no DNS, so ACME can't validate
+    root_app_git_url  = "" # test-pr-locally.sh applies the Applications itself
+    persistent_volume = false
   })
 }
 

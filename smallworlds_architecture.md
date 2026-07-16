@@ -8,7 +8,7 @@ A deep dive into the GitOps workflow, ArgoCD setup, and the seamless collaborati
 
 The entire SmallWorlds cluster is managed declaratively using ArgoCD. The initialization sequence ensures that as soon as the Kubernetes (K3s) cluster boots, it immediately pulls its desired state from your Git repository.
 
-**`infrastructure/terraform/cloud-init.yaml.tpl`**
+**`infrastructure/cloud-init/k3s-node.yaml.tpl`** (shared by the production/dev and staging terraform roots)
 
 When the VM boots, Cloud-init installs K3s and immediately applies the ArgoCD installation manifest. Once ArgoCD is running, it applies the `argocd-root-app.yaml`. K3s automatically processes any manifest dropped into `/var/lib/rancher/k3s/server/manifests/`, making this the perfect hook for our root application.
 

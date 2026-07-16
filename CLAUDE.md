@@ -14,8 +14,9 @@ Read `README.md` first for deployment/maintenance instructions aimed at operator
 
 ```
 infrastructure/
-  terraform/            Production Hetzner VM + DNS provisioning
+  terraform/            Production/dev Hetzner VM + DNS provisioning
   terraform-staging/    Ephemeral staging VM used by admin-tools/test-pr-locally.sh
+  cloud-init/           Shared k3s+ArgoCD bootstrap template used by both terraform roots
   kubernetes/
     kustomization.yaml  The master base — root list of ArgoCD Applications + core tenants
     argocd-root-app.yaml  The "app of apps" ArgoCD Application, self-healing retry policy

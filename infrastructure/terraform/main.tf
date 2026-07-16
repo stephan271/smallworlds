@@ -216,18 +216,15 @@ resource "hcloud_server" "smallworlds_pilot_node" {
   ssh_keys = [local.ssh_key_id]
   firewall_ids = [hcloud_firewall.k8s_firewall.id]
   
-  user_data = templatefile("${path.module}/cloud-init.yaml.tpl", {
-    domain_name              = var.domain_name
-    env_ext                  = var.env_ext
-    git_url               = var.git_url
-    git_username          = var.git_username
-    git_password          = var.git_password
-
-    admin_email              = var.admin_email
-
-    server_ip                = data.hcloud_primary_ip.main_ip.ip_address
-    hcloud_token        = var.hcloud_token
-    golden_image        = var.use_golden_image
+  user_data = templatefile("${path.module}/../cloud-init/k3s-node.yaml.tpl", {
+    golden_image      = var.use_golden_image
+    node_name         = "cc-pilot-node-01"
+    server_ip         = data.hcloud_primary_ip.main_ip.ip_address
+    domain_name       = var.domain_name
+    env_ext           = var.env_ext
+    acme_email        = var.admin_email
+    root_app_git_url  = var.git_url
+    persistent_volume = true
   })
 
   public_net {
