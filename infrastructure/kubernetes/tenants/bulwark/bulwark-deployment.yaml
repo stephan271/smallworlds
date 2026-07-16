@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: bulwark
-          image: ghcr.io/bulwarkmail/webmail:latest
+          image: ghcr.io/bulwarkmail/webmail:v1.4.8@sha256:022b19000e9d56400a56770c9087d5bd47bd1439c4f6d22502f249174f2f6332
           ports:
             - containerPort: 3000
           env:
