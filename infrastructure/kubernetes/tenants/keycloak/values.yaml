@@ -1,12 +1,21 @@
 http:
   relativePath: "/"
 
+image:
+  repository: quay.io/keycloak/keycloak
+  tag: "26.6.4"
+  digest: "sha256:0aae0de7fca85525f727d3354df17896092de8bb26ae4c12d89c77e5df8cbce4"
+
+proxy:
+  # Keycloak 26 removed KC_PROXY; configure trusted Traefik headers below.
+  enabled: false
+
 command:
   - "/opt/keycloak/bin/kc.sh"
   - "start"
   - "--http-port=8080"
   - "--http-relative-path=/"
-  - "--hostname=identity.smallworlds.network"
+  - "--hostname=https://identity.smallworlds.network"
   - "--spi-events-listener-jboss-logging-success-level=info"
   - "--spi-events-listener-jboss-logging-error-level=warn"
   - "--features=recovery-codes"
@@ -59,16 +68,10 @@ extraEnv: |
         key: password
         optional: true
 
-  - name: KC_PROXY
-    value: "edge"
   - name: KC_PROXY_HEADERS
     value: "xforwarded"
   - name: KC_HTTP_ENABLED
     value: "true"
-  - name: KC_HOSTNAME_STRICT
-    value: "false"
-  - name: KC_HOSTNAME_STRICT_HTTPS
-    value: "false"
 
 ingress:
   enabled: true

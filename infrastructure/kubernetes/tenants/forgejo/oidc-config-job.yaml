@@ -68,15 +68,22 @@ spec:
               sleep 15
               
               echo "Configuring Keycloak OIDC provider in Forgejo..."
-              # Forgejo CLI commands can be run directly because the container runs as the 'git' user by default
-              kubectl exec -n forgejo $POD_NAME -c forgejo -- \
-                forgejo admin auth add-oauth \
-                  --name=smallworlds \
-                  --provider=openidConnect \
-                  --key=forgejo \
-                  --secret=$CLIENT_SECRET \
-                  --auto-discover-url=https://identity.smallworlds.network/realms/smallworlds/.well-known/openid-configuration \
-                  --scopes='openid email profile' || true
-              
+              # Use Keycloak's in-cluster service for discovery. Keycloak still
+              # advertises its public identity URL in the discovery document,
+              # but this avoids requiring the Forgejo pod to trust the public
+              # TLS certificate during bootstrap (notably in ephemeral staging).
+              if kubectl exec -n forgejo "$POD_NAME" -c forgejo -- forgejo admin auth list | grep -Fq smallworlds; then
+                echo "Keycloak OIDC provider already exists."
+              else
+                kubectl exec -n forgejo "$POD_NAME" -c forgejo -- \
+                  forgejo admin auth add-oauth \
+                    --name=smallworlds \
+                    --provider=openidConnect \
+                    --key=forgejo \
+                    --secret="$CLIENT_SECRET" \
+                    --auto-discover-url=http://keycloak-keycloakx-http.keycloak.svc.cluster.local/realms/smallworlds/.well-known/openid-configuration \
+                    --scopes='openid email profile'
+              fi
+
               echo "OIDC configuration complete."
       restartPolicy: OnFailure

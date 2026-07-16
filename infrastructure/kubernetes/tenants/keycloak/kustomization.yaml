@@ -33,5 +33,5 @@ helmCharts:
   - name: keycloakx
     repo: https://codecentric.github.io/helm-charts
     releaseName: keycloak
-    version: 2.6.0
+    version: 7.2.0
     valuesFile: values.yaml

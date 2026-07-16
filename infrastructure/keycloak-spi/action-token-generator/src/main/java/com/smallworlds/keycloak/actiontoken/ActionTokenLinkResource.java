@@ -8,8 +8,6 @@ import org.keycloak.models.UserModel;
 import org.keycloak.services.managers.AppAuthManager;
 import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.resources.admin.AdminAuth;
-import org.keycloak.services.resources.admin.permissions.AdminPermissionEvaluator;
-import org.keycloak.services.resources.admin.permissions.AdminPermissions;
 import org.keycloak.services.Urls;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
@@ -46,8 +44,11 @@ public class ActionTokenLinkResource {
         RealmModel realm = session.getContext().getRealm();
         AdminAuth auth = new AdminAuth(realm, authResult.getToken(), authResult.getUser(), authResult.getClient());
         
-        AdminPermissionEvaluator realmAuth = AdminPermissions.evaluator(session, realm, auth);
-        realmAuth.users().requireManage();
+        // Fallback admin check for Keycloak 26 since AdminPermissions is no longer exposed here
+        org.keycloak.models.ClientModel realmManagementClient = session.clients().getClientByClientId(realm, "realm-management");
+        if (!auth.hasRealmRole("admin") && !auth.hasOneOfAppRole(realmManagementClient, "manage-users")) {
+            throw new jakarta.ws.rs.ForbiddenException("Requires admin or manage-users role");
+        }
 
         String userId = (String) requestBody.get("userId");
         String redirectUri = (String) requestBody.get("redirectUri");
@@ -69,7 +70,7 @@ public class ActionTokenLinkResource {
         ExecuteActionsActionToken token = new ExecuteActionsActionToken(user.getId(), expiration, actions, redirectUri, clientId);
 
         UriInfo uriInfo = session.getContext().getUri();
-        UriBuilder builder = Urls.actionTokenBuilder(uriInfo.getBaseUri(), token.serialize(session, realm, uriInfo), clientId, "");
+        UriBuilder builder = Urls.actionTokenBuilder(uriInfo.getBaseUri(), token.serialize(session, realm, uriInfo), clientId, "", "");
         String link = builder.build(realm.getName()).toString();
 
         return Response.ok(Map.of("link", link)).build();
