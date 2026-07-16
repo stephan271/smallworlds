@@ -54,7 +54,17 @@ This project is built upon several foundational open-source technologies, core i
 
 ## Deployment Instructions
 
-### 1. Configuration Repository Initialization
+### 1. Domain Registration & DNS Configuration
+
+> [!IMPORTANT]
+> **Domain Registration is manual:** The SmallWorlds setup scripts do **not** automatically register or reserve the domain name for you. You must manually register the domain at a registrar of your choice (e.g., Hetzner Domain service, Namecheap, Cloudflare) and point the domain's Nameservers to Hetzner's DNS servers (e.g., `helium.ns.hetzner.de`, `oxygen.ns.hetzner.com`, `hydrogen.ns.hetzner.com`).
+> Domain registration will incur costs at your registrar.
+
+The DNS zone and DNS records are automatically managed via the Hetzner API token provided during provisioning (which is free of charge). Subdomains are routed to the provisioned server IP.
+
+A `.dev` cluster additionally gets its own scoped mail domain: addresses are `user@dev.<domain>`, with MX/SPF/DKIM/DMARC records placed under the `dev` subdomain so they can never conflict with production's mail records at the zone apex (see `doc/tenant-stalwart.md`).
+
+### 2. Configuration Repository Initialization
 A private Git repository is required to store application state and configuration overrides.
 
 Execute the initialization script from the root of this repository:
@@ -68,13 +78,13 @@ This script handles:
 - Generation of the corresponding `kustomization.yaml` overlays, injecting environment-specific patches for the chosen domain.
 - Initialization of the local Git repository and automatic push to your remote repository.
 
-### 2. Infrastructure Provider Setup
+### 3. Infrastructure Provider Setup
 SmallWorlds currently supports **Hetzner Cloud only** — the init script and Terraform are written against it, so these steps are required:
 1. Create a Hetzner Cloud account and a new project.
 2. Generate an API Token with **Read & Write** permissions. Save this token.
 3. In the Hetzner Cloud Console, navigate to **Primary IPs** and click **Create Primary IP**. Select IPv4, choose your target location (e.g., Nuremberg/nbg1), and name it exactly `Meine-Small-World-Cluster-IP` (or `Meine-Small-World-Cluster-IP-dev` if deploying a `.dev` environment — Hetzner resource names always use the dash form, regardless of the DNS syntax). Leave it unassigned. Terraform will attach it during provisioning.
 
-### 3. Cluster Provisioning
+### 4. Cluster Provisioning
 Execute the bootstrap script to provision the VM, configure DNS, and install Kubernetes/ArgoCD.
 
 ```bash
@@ -86,16 +96,6 @@ When prompted for Git credentials, provide:
 - **URL**: The HTTPS URL of your private configuration repository (SSH URLs are unsupported).
 - **Username**: Your Git platform username.
 - **Access Token**: A Personal Access Token (PAT) with read-only access to repository contents.
-
-### 4. DNS Configuration
-
-> [!IMPORTANT]
-> **Domain Registration is manual:** The SmallWorlds setup scripts do **not** automatically register or reserve the domain name for you. You must manually register the domain at a registrar of your choice (e.g., Hetzner Domain service, Namecheap, Cloudflare) and point the domain's Nameservers to Hetzner's DNS servers (e.g., `helium.ns.hetzner.de`, `oxygen.ns.hetzner.com`, `hydrogen.ns.hetzner.com`).
-> Domain registration will incur costs at your registrar.
-
-The DNS zone and DNS records are automatically managed via the Hetzner API token provided during provisioning (which is free of charge). Subdomains are routed to the provisioned server IP.
-
-A `.dev` cluster additionally gets its own scoped mail domain: addresses are `user@dev.<domain>`, with MX/SPF/DKIM/DMARC records placed under the `dev` subdomain so they can never conflict with production's mail records at the zone apex (see `doc/tenant-stalwart.md`).
 
 ### 5. Authentication Configuration
 By default, registration is invitation-only. To enable self-registration, patch the Keycloak configuration via your `kustomization.yaml`:
