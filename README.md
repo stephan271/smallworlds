@@ -95,6 +95,8 @@ When prompted for Git credentials, provide:
 
 The DNS zone and DNS records are automatically managed via the Hetzner API token provided during provisioning (which is free of charge). Subdomains are routed to the provisioned server IP.
 
+A `.dev` cluster additionally gets its own scoped mail domain: addresses are `user@dev.<domain>`, with MX/SPF/DKIM/DMARC records placed under the `dev` subdomain so they can never conflict with production's mail records at the zone apex (see `doc/tenant-stalwart.md`).
+
 ### 5. Authentication Configuration
 By default, registration is invitation-only. To enable self-registration, patch the Keycloak configuration via your `kustomization.yaml`:
 
@@ -144,6 +146,8 @@ SmallWorlds runs on **two repositories**, and understanding their interplay is t
 | :--- | :--- | :--- |
 | **`smallworlds`** (this repo, public) | The upstream **base**: all app/infra manifests under `infrastructure/kubernetes/`. Released as semver tags (`v1.0.0`, `v1.1.0`, …). | The SmallWorlds project. |
 | **`my-community-config`** (yours, private) | The **overlay** ArgoCD actually deploys from. Each app's `kustomization.yaml` remote-references the base at a **pinned tag** (`?ref=v1.0.0`) plus your local patches. | You, the operator. |
+
+Each cluster (production, `.dev`) has its own private overlay repo, generated the same way by `prepare-community-repo.sh` with the matching environment extension.
 
 **ArgoCD only watches your private overlay.** It does *not* track the base's moving branch. Because the overlay pins the base to an **immutable tag**, upstream changes never reach your cluster on their own — adopting a new base version is always a deliberate, auditable action in *your* repo.
 
