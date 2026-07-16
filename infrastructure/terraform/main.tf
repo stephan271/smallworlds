@@ -138,7 +138,7 @@ resource "hcloud_firewall" "k8s_firewall" {
 # NOTE: Primary IPs are datacenter-bound — create it in the same location
 # as var.location (e.g. Nuremberg/nbg1), or the server cannot attach it.
 data "hcloud_primary_ip" "main_ip" {
-  name = "Meine-Small-World-Cluster-IP${local.env_slug}"
+  name = "smallworlds-ip${local.env_slug}"
 }
 
 # The DNS zone is created by the smallworlds-init.sh script to avoid Terraform state conflicts
