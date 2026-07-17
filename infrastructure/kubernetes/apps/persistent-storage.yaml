@@ -38,7 +38,10 @@ spec:
             - key: kubernetes.io/hostname
               operator: In
               values:
+                # Both provisioning targets: Hetzner VM (cloud-init) and
+                # local server (bootstrap-local-node.sh)
                 - cc-pilot-node-01
+                - smallworlds-local-node
 ---
 # PersistentVolume for Immich photo library
 # The immich-library-pvc will bind to this by name.
@@ -65,4 +68,7 @@ spec:
             - key: kubernetes.io/hostname
               operator: In
               values:
+                # Both provisioning targets: Hetzner VM (cloud-init) and
+                # local server (bootstrap-local-node.sh)
                 - cc-pilot-node-01
+                - smallworlds-local-node
