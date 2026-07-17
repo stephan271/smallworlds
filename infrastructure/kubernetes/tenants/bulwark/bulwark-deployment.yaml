@@ -28,6 +28,10 @@ spec:
               value: "true"
             - name: OAUTH_ONLY
               value: "true"
+            # OAUTH_ONLY alone only hides the password form; the automatic
+            # redirect into Keycloak is a separate switch (default false)
+            - name: AUTO_SSO_ENABLED
+              value: "true"
             - name: OAUTH_ISSUER_URL
               value: "https://identity.smallworlds.network/realms/smallworlds"
             - name: OAUTH_CLIENT_ID
