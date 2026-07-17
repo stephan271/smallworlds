@@ -583,8 +583,16 @@ if command -v kubectl >/dev/null 2>&1; then
         for app in $(kubectl get application -n argocd -o jsonpath='{range .items[?(@.status.operationState.phase=="Failed")]}{.metadata.name}{" "}{end}' 2>/dev/null) \
                    $(kubectl get application -n argocd -o jsonpath='{range .items[?(@.status.operationState.phase=="Error")]}{.metadata.name}{" "}{end}' 2>/dev/null); do
             echo -e "  ${YELLOW}Sync of '$app' gave up — retriggering...${NC}"
+            # A manually patched operation does NOT inherit the app's
+            # spec.syncPolicy.syncOptions — a bare {"sync":{}} drops
+            # SkipDryRunOnMissingResource and the sync then aborts on any
+            # CR whose CRD isn't installed yet (e.g. AlertmanagerConfig
+            # before kube-prometheus-stack). Copy the options explicitly.
+            APP_SYNC_OPTS=$(kubectl get application "$app" -n argocd -o json 2>/dev/null \
+                | python3 -c 'import json,sys; print(json.dumps((json.load(sys.stdin)["spec"].get("syncPolicy") or {}).get("syncOptions") or []))' 2>/dev/null)
+            [ -z "$APP_SYNC_OPTS" ] && APP_SYNC_OPTS='[]'
             kubectl patch application "$app" -n argocd --type merge \
-                -p '{"operation":{"initiatedBy":{"username":"installer-watchdog"},"sync":{}}}' >/dev/null 2>&1 || true
+                -p '{"operation":{"initiatedBy":{"username":"installer-watchdog"},"sync":{"syncOptions":'"$APP_SYNC_OPTS"'}}}' >/dev/null 2>&1 || true
         done
 
         # Get all ArgoCD apps that are not healthy
