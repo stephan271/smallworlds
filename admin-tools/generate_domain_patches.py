@@ -151,7 +151,7 @@ def generate_patches(app_name, domain, ext):
             patch: |-
               - op: replace
                 path: /spec/template/spec/containers/0/env/0/value
-                value: '["https://{subdomains['webmail']}/api/auth/callback"]'
+                value: '["https://{subdomains['webmail']}/*"]'
         """), "  ")
         
     elif app_name == "nextcloud":

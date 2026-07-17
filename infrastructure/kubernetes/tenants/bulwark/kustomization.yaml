@@ -28,6 +28,6 @@ patches:
         path: /spec/template/spec/containers/0/env
         value:
           - name: REDIRECT_URIS
-            value: '["https://webmail.smallworlds.network/api/auth/callback"]'
+            value: '["https://webmail.smallworlds.network/*"]'
           - name: OIDC_AUDIENCE_MAPPER
             value: "stalwart"
