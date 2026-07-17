@@ -15,7 +15,10 @@ spec:
     spec:
       containers:
         - name: bulwark
-          image: ghcr.io/bulwarkmail/webmail:v1.4.8@sha256:022b19000e9d56400a56770c9087d5bd47bd1439c4f6d22502f249174f2f6332
+          # v1.4.8 shipped a broken build (v1.4.7 UI with mismatched Next.js
+          # server actions — the login page's auto-SSO action 404s and users
+          # are stuck on "Sign in with SSO")
+          image: ghcr.io/bulwarkmail/webmail:v1.5.0@sha256:4a784a5d9574d2996ac42e395c685c90a66a4691eefc5ab77bb61fe78e397e51
           ports:
             - containerPort: 3000
           env:

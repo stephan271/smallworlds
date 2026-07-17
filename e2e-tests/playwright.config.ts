@@ -10,6 +10,14 @@ import { defineConfig, devices } from '@playwright/test';
  * Optional:
  *   HEADED          - Set to "1" to run in headed mode
  *   SLOWMO          - Milliseconds to slow down operations (e.g. "500")
+ *   RESOLVE_IP      - Resolve all *.DOMAIN hostnames to this IP inside the
+ *                     browser (Chromium host-resolver-rules). Use when
+ *                     testing a LAN deployment from inside the same LAN:
+ *                     public DNS points at the router's WAN address and the
+ *                     hairpin-NAT path can be slow enough to flake
+ *                     first-load assertions — this takes the direct LAN
+ *                     path, which is also what real clients use via router
+ *                     DNS / hosts entries.
  */
 
 const domain = process.env.DOMAIN;
@@ -50,6 +58,9 @@ export default defineConfig({
     /* Slow down for debugging if requested */
     launchOptions: {
       slowMo: process.env.SLOWMO ? parseInt(process.env.SLOWMO) : 0,
+      args: process.env.RESOLVE_IP && domain
+        ? [`--host-resolver-rules=MAP *.${domain} ${process.env.RESOLVE_IP}, MAP ${domain} ${process.env.RESOLVE_IP}`]
+        : [],
     },
   },
 

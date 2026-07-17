@@ -26,6 +26,9 @@ set -euo pipefail
 #   FULL_OIDC       - Set to "1" to run full OIDC login roundtrips (requires
 #                     certificates the APPS trust, i.e. production; staging
 #                     runs shallow OIDC wiring checks instead)
+#   RESOLVE_IP      - Resolve all app hostnames to this IP in the browser
+#                     (for LAN deployments tested from inside the LAN; see
+#                     playwright.config.ts)
 #   KUBECONFIG      - Path to kubeconfig file (default:
 #                     ~/.smallworlds/kubeconfigs/<production|dev>.yaml,
 #                     per the configured env_ext / ENV_EXT)
