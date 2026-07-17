@@ -27,14 +27,20 @@ The chart's `plane-app-secrets` Secret templates `DATABASE_URL` and `AMQP_URL` u
 
 Rather than patch the chart, `kustomization.yaml` overrides `DATABASE_URL` and `AMQP_URL` directly as container env vars (with the correct namespace hardcoded) on every workload that needs them: `plane-api-wl`, `plane-worker-wl`, `plane-beat-worker-wl`, and the `plane-api-migrate-1` Job (`DATABASE_URL` only — the migrator doesn't touch Celery). `DATABASE_URL` is built from `PGHOST`/`PGUSER`/`PGPASSWORD`/`PGDATABASE` using Kubernetes' `$(VAR)` env interpolation, which only works for vars listed explicitly in the same container's `env:` (not ones pulled in via `envFrom`).
 
-## Authentication (OIDC)
+## Authentication
 
-Plane delegates authentication to the central Keycloak identity provider via OIDC.
-The OIDC configuration is injected into the application via environment variables in the `values.yaml` Helm chart configuration:
+**Plane Community Edition has no OIDC/SSO support.** Its instance
+configuration (the `instance_configurations` table, AUTHENTICATION category)
+exposes only `ENABLE_EMAIL_PASSWORD`, `ENABLE_MAGIC_LINK_LOGIN` and
+`ENABLE_SIGNUP` — verified against a live deployment. Users sign in with
+email/password; Plane accounts are separate from Keycloak identities.
 
-- The standard `keycloak-client-job` base is included in Plane's Kustomize configuration to register the `plan` client with Keycloak.
-- The resulting `keycloak-secret` is mounted into the Plane deployment, populating the `OPENID_CLIENT_ID` and `OPENID_CLIENT_SECRET` environment variables.
-- The redirect URI `https://plan.<domain>/auth/oidc/callback` is registered during the Keycloak client job execution.
+An earlier revision of this document described Keycloak OIDC injection via
+`keycloak-client-job` and `OPENID_CLIENT_ID`/`OPENID_CLIENT_SECRET` env vars
+— that never matched the deployed manifests (the plane tenant registers no
+Keycloak client and injects no OIDC env) and is not achievable with CE. The
+e2e spec asserts the email login form instead of a Keycloak redirect for the
+same reason. SSO would require Plane's commercial edition.
 
 ## ArgoCD Sync Ordering (`plane-api-migrate-1`)
 

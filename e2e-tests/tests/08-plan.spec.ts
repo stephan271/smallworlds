@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { FULL_OIDC, SKIP_REASON, expectRedirectIntoKeycloak } from './oidc-mode';
+import { FULL_OIDC, SKIP_REASON } from './oidc-mode';
 
 /**
  * Plane — smoke test via OIDC SSO
@@ -10,10 +10,19 @@ import { FULL_OIDC, SKIP_REASON, expectRedirectIntoKeycloak } from './oidc-mode'
 const DOMAIN = process.env.DOMAIN!;
 const PLAN_URL = `https://plan.${DOMAIN}`;
 
-test('Plane: OIDC wiring redirects into Keycloak', async ({ browser }) => {
-  // Plane usually triggers OIDC from a specific endpoint or the root login page.
-  // We'll hit a route that forces OIDC authentication.
-  await expectRedirectIntoKeycloak(browser, `${PLAN_URL}/`);
+test('Plane: login page is served (Plane CE ships no OIDC/SSO)', async ({ browser }) => {
+  // Plane Community Edition has NO OIDC support — its instance configuration
+  // exposes only ENABLE_EMAIL_PASSWORD / ENABLE_MAGIC_LINK_LOGIN /
+  // ENABLE_SIGNUP (verified against the live instance_configurations table).
+  // Login is email/password, so the meaningful smoke check is that the app
+  // serves its own login form, not a Keycloak redirect.
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await page.goto(`${PLAN_URL}/`);
+  const loginForm = page.getByPlaceholder(/name@company\.com/i)
+    .or(page.getByRole('button', { name: /continue/i }));
+  await expect(loginForm.first()).toBeVisible({ timeout: 20_000 });
+  await context.close();
 });
 
 test.describe('Plane', () => {
