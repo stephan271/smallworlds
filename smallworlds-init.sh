@@ -263,8 +263,8 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 stringData:
   url: "${GITOPS_REPO_URL}"
-  username: "${TF_GIT_USER}"
-  password: "${TF_GIT_TOKEN}"
+  username: "${GITOPS_REPO_USER}"
+  password: "${GITOPS_REPO_TOKEN}"
 ---
 apiVersion: v1
 kind: Namespace
