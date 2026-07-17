@@ -57,7 +57,7 @@ This project is built upon several foundational open-source technologies, core i
 SmallWorlds supports two deployment targets — the installer asks which one you want as its first question:
 
 - **`hetzner`** — a Hetzner Cloud VM provisioned by Terraform, with public DNS and Let's Encrypt certificates. The internet-facing default.
-- **`local`** — an existing Linux machine in your LAN (laptop, mini-PC, home server; 32 GB RAM recommended), bootstrapped in place over SSH. No Terraform, no public DNS (you add router-DNS or `/etc/hosts` entries), self-signed certificates. See `doc/local-deployment.md` for requirements and limitations before you start.
+- **`local`** — an existing Linux machine in your LAN (laptop, mini-PC, home server; 32 GB RAM recommended), bootstrapped in place over SSH without Terraform. By default LAN-only: no public DNS (you add router-DNS or `/etc/hosts` entries) and self-signed certificates. Optionally **internet-exposed**: with a registered domain, a Hetzner DNS token and router port forwards (80/tcp, 443/tcp, 10000/udp), the wizard sets up Let's Encrypt certificates and an in-cluster DDNS job that keeps the DNS records pointed at your home IP. See `doc/local-deployment.md` for requirements and limitations before you start.
 
 Steps 1 and 3 below apply to the **hetzner** target only; steps 2 and 4 apply to both.
 
@@ -66,7 +66,7 @@ Steps 1 and 3 below apply to the **hetzner** target only; steps 2 and 4 apply to
 > [!IMPORTANT]
 > **Domain Registration is manual:** The SmallWorlds setup scripts do **not** automatically register or reserve the domain name for you. You must manually register the domain at a registrar of your choice (e.g., Hetzner Domain service, Namecheap, Cloudflare) and point the domain's Nameservers to Hetzner's DNS servers (e.g., `helium.ns.hetzner.de`, `oxygen.ns.hetzner.com`, `hydrogen.ns.hetzner.com`).
 > Domain registration will incur costs at your registrar.
-> For the **local** target none of this applies — the domain never has to be registered, since name resolution happens inside your LAN.
+> For a LAN-only **local** deployment none of this applies — the domain never has to be registered, since name resolution happens inside your LAN. For an internet-exposed local deployment, domain registration and the Hetzner nameservers ARE required (records are then managed by the in-cluster DDNS job instead of Terraform).
 
 The DNS zone and DNS records are automatically managed via the Hetzner API token provided during provisioning (which is free of charge). Subdomains are routed to the provisioned server IP.
 

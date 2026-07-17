@@ -20,6 +20,11 @@
 #                     Only set this if ports 80/443 of this machine are
 #                     reachable from the public internet — HTTP-01 fails
 #                     behind NAT and the cluster ends up with no certs at all.
+#   MANAGE_DNS        "true" = deploy a DDNS CronJob that keeps the domain's
+#                     A records in Hetzner DNS pointed at this connection's
+#                     public IP (for internet-exposed deployments; the token
+#                     comes from the hetzner-dns-token secret in the ddns
+#                     namespace, delivered via SECRETS_MANIFEST)
 #   DATA_DIR          where all persistent data lives (default
 #                     /var/lib/smallworlds-data); symlinked to
 #                     /mnt/smallworlds-data, which the manifests expect
@@ -80,6 +85,7 @@ DOMAIN="${DOMAIN:?DOMAIN must be set in $CONFIG_FILE}"
 ENV_EXT="${ENV_EXT:-}"
 ROOT_APP_GIT_URL="${ROOT_APP_GIT_URL:-}"
 ACME_EMAIL="${ACME_EMAIL:-}"
+MANAGE_DNS="${MANAGE_DNS:-}"
 DATA_DIR="${DATA_DIR:-/var/lib/smallworlds-data}"
 NODE_NAME="${NODE_NAME:-smallworlds-local-node}"
 SECRETS_MANIFEST="${SECRETS_MANIFEST:-}"
@@ -209,6 +215,120 @@ data:
       forward . /etc/resolv.conf
     }
 COREDNS
+
+# Dynamic DNS for internet-exposed deployments: a CronJob keeps the zone's
+# A records pointed at this connection's public IP (home IPs change). The
+# rrset upsert pattern (list -> delete stale -> POST) mirrors the Stalwart
+# init job, the only other Hetzner DNS client in this repo.
+if [ "$MANAGE_DNS" = "true" ]; then
+    RECORD_NAMES=""
+    if [ -z "$ENV_EXT" ]; then RECORD_NAMES="@"; fi
+    for sub in identity dashboard files photos git mail webmail monitoring whiteboard meet office plan deploy; do
+        RECORD_NAMES="${RECORD_NAMES:+$RECORD_NAMES }${sub}${ENV_EXT}"
+    done
+
+    cat > /var/lib/rancher/k3s/server/manifests/ddns.yaml <<DDNSHEAD
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ddns-script
+  namespace: ddns
+data:
+  ddns.sh: |
+DDNSHEAD
+    cat >> /var/lib/rancher/k3s/server/manifests/ddns.yaml <<'DDNSSCRIPT'
+    #!/bin/sh
+    # Upserts an A record for every name in $RECORD_NAMES to the current
+    # public IPv4. Env: HCLOUD_TOKEN, DOMAIN, RECORD_NAMES.
+    set -eu
+    API="https://api.hetzner.cloud/v1"
+    AUTH="Authorization: Bearer $HCLOUD_TOKEN"
+
+    IP=$(curl -4 -sf --max-time 10 https://api.ipify.org || curl -4 -sf --max-time 10 https://ifconfig.me)
+    case "$IP" in
+      *[!0-9.]*|"") echo "Could not determine public IPv4 (got: '$IP')" >&2; exit 1;;
+    esac
+
+    ZONE_ID=$(curl -sf -H "$AUTH" "$API/zones" | jq -r --arg d "$DOMAIN" '.zones[] | select(.name==$d) | .id')
+    if [ -z "$ZONE_ID" ] || [ "$ZONE_ID" = "null" ]; then
+      echo "Zone $DOMAIN not found in Hetzner DNS" >&2; exit 1
+    fi
+
+    # All existing A records, as "name=value" lines (paginated)
+    EXISTING=$(
+      page=1
+      while [ -n "$page" ] && [ "$page" != "null" ]; do
+        resp=$(curl -sf -H "$AUTH" "$API/zones/$ZONE_ID/rrsets?per_page=50&page=$page")
+        echo "$resp" | jq -r '.rrsets[] | select(.type=="A") | "\(.name)=\(.records[0].value)"'
+        page=$(echo "$resp" | jq -r '.meta.pagination.next_page')
+      done
+    )
+
+    for name in $RECORD_NAMES; do
+      current=$(printf '%s\n' "$EXISTING" | sed -n "s/^$name=//p" | head -1)
+      if [ "$current" = "$IP" ]; then
+        continue
+      fi
+      if [ -n "$current" ]; then
+        echo "Updating $name: $current -> $IP"
+        encoded=$(printf '%s' "$name" | sed 's/@/%40/')
+        curl -sf -X DELETE -H "$AUTH" "$API/zones/$ZONE_ID/rrsets/$encoded/A" >/dev/null || true
+      else
+        echo "Creating $name -> $IP"
+      fi
+      curl -sf -X POST -H "$AUTH" -H "Content-Type: application/json" \
+        -d "{\"name\":\"$name\",\"type\":\"A\",\"ttl\":300,\"records\":[{\"value\":\"$IP\"}]}" \
+        "$API/zones/$ZONE_ID/rrsets" >/dev/null
+    done
+    echo "DDNS check complete (public IP: $IP)"
+DDNSSCRIPT
+    cat >> /var/lib/rancher/k3s/server/manifests/ddns.yaml <<DDNSTAIL
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ddns
+  namespace: ddns
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: ddns
+              image: docker.io/alpine/k8s:1.36.2
+              command: ["/bin/sh", "/scripts/ddns.sh"]
+              env:
+                - name: DOMAIN
+                  value: "${DOMAIN}"
+                - name: RECORD_NAMES
+                  value: "${RECORD_NAMES}"
+                - name: HCLOUD_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: hetzner-dns-token
+                      key: HCLOUD_TOKEN
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  memory: 64Mi
+              volumeMounts:
+                - name: script
+                  mountPath: /scripts
+          volumes:
+            - name: script
+              configMap:
+                name: ddns-script
+DDNSTAIL
+fi
 
 # Operator-provided secrets (generated by smallworlds-init.sh)
 if [ -n "$SECRETS_MANIFEST" ] && [ -f "$SECRETS_MANIFEST" ]; then

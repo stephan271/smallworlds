@@ -34,15 +34,19 @@ on Hetzner works locally and vice versa.
 
 ## What differs from a Hetzner deployment
 
-| Concern | Hetzner | Local |
-|---|---|---|
-| Provisioning | Terraform (VM, firewall, volume, DNS) | `bootstrap-local-node.sh` over SSH |
-| Public DNS | Hetzner DNS zone + A records | none — you provide LAN name resolution |
-| TLS | Let's Encrypt (HTTP-01) | self-signed `ClusterIssuer` (same as staging) |
-| Persistent data | Hetzner network volume at `/mnt/smallworlds-data` | local directory (default `/var/lib/smallworlds-data`), symlinked to `/mnt/smallworlds-data` |
-| Kubeconfig label | `production` / `dev` | `local` / `local-<ext>` (`~/.smallworlds/kubeconfigs/local.yaml`) |
-| Mail (Stalwart) | fully functional (public IP, PTR, port 25) | deploys, but external delivery does not work behind NAT; no Hetzner DNS automation |
-| Golden image | optional fast-boot snapshot | n/a |
+A local deployment runs in one of two modes, chosen in the wizard: **LAN-only**
+(the default) or **internet-exposed** (public DNS + Let's Encrypt, see the
+"Internet exposure" section below).
+
+| Concern | Hetzner | Local (LAN-only) | Local (internet-exposed) |
+|---|---|---|---|
+| Provisioning | Terraform (VM, firewall, volume, DNS) | `bootstrap-local-node.sh` over SSH | same |
+| Public DNS | Hetzner DNS zone + A records (Terraform) | none — you provide LAN name resolution | Hetzner DNS zone + A records, maintained by an in-cluster DDNS CronJob |
+| TLS | Let's Encrypt (HTTP-01) | self-signed `ClusterIssuer` (same as staging) | Let's Encrypt (HTTP-01) |
+| Persistent data | Hetzner network volume at `/mnt/smallworlds-data` | local directory (default `/var/lib/smallworlds-data`), symlinked to `/mnt/smallworlds-data` | same |
+| Kubeconfig label | `production` / `dev` | `local` / `local-<ext>` (`~/.smallworlds/kubeconfigs/local.yaml`) | same |
+| Mail (Stalwart) | fully functional (public IP, PTR, port 25) | deploys, but external delivery does not work behind NAT; no DNS automation | mail DNS records automated, but delivery from home connections is unreliable (see below) |
+| Golden image | optional fast-boot snapshot | n/a | n/a |
 
 The manifests are untouched by the target choice: `persistent-storage.yaml`
 hard-codes `hostPath: /mnt/smallworlds-data/...`, which the bootstrap
@@ -51,9 +55,9 @@ is published under the name `letsencrypt-prod`, so the `cluster-issuer`
 annotations on all Ingresses work unchanged (the same trick the staging
 pipeline uses).
 
-## LAN name resolution
+## LAN name resolution (LAN-only mode)
 
-Nothing manages DNS for a local deployment. Two layers are involved:
+In LAN-only mode nothing manages DNS. Two layers are involved:
 
 1. **In-cluster**: handled automatically. The bootstrap writes the
    `coredns-custom` ConfigMap so pods resolve the app hostnames to the node's
@@ -71,17 +75,63 @@ Note: the laptop's LAN IP is baked into the kubeconfig, the CoreDNS override
 and your hosts entries — give the machine a static IP / DHCP reservation in
 your router.
 
-## TLS
+## TLS (LAN-only mode)
 
 Certificates are self-signed; browsers warn on first visit — expected.
 `FULL_OIDC=1` e2e runs are impossible against self-signed certs (same
-limitation as ephemeral staging).
+limitation as ephemeral staging). Choose internet exposure (below) to get
+real Let's Encrypt certificates.
 
-If your machine *is* publicly reachable on ports 80/443 (port forwarding +
-public DNS pointing at your connection), you can switch to Let's Encrypt by
-setting `ACME_EMAIL` in the bootstrap config and re-applying the
-`letsencrypt-prod` ClusterIssuer — see the header of
-`infrastructure/local/bootstrap-local-node.sh`.
+## Internet exposure
+
+Answering **yes** to the wizard's "Expose the apps on the internet?" question
+turns the LAN deployment into a publicly reachable one. Prerequisites:
+
+- **A real public IPv4, not CGNAT.** Check: the WAN IP in your router's status
+  page must equal what `curl -4 ifconfig.me` reports. Behind CGNAT inbound
+  connections are impossible and this mode cannot work (a VPS relay would be
+  needed instead).
+- **A registered domain** with its nameservers pointed at Hetzner DNS
+  (`helium.ns.hetzner.de`, `oxygen.ns.hetzner.com`, `hydrogen.ns.hetzner.com`)
+  — same as a Hetzner deployment.
+- **A Hetzner API token**, used exclusively for DNS record management (no VM
+  is created; the DNS zone is free).
+- **Router port forwards** to the server: `80/tcp`, `443/tcp` (HTTP/HTTPS) and
+  `10000/udp` (Jitsi media). Nothing else — keep 6443 and SSH LAN-only.
+
+What the installer then does differently:
+
+1. Ensures the DNS zone exists in Hetzner DNS (same code path as the Hetzner
+   target).
+2. Passes `ACME_EMAIL` to the bootstrap, so the `letsencrypt-prod`
+   ClusterIssuer is a real ACME HTTP-01 issuer instead of self-signed.
+3. Deploys a **DDNS CronJob** (namespace `ddns`, written by the bootstrap as a
+   k3s auto-apply manifest, token via the `hetzner-dns-token` secret): every
+   5 minutes it compares the zone's A records (`@`, `identity`, `dashboard`,
+   ..., matching the Terraform record set) against the connection's current
+   public IP and upserts them at TTL 300. This both creates the records on
+   first run and keeps them correct when your home IP changes. Check it with
+   `kubectl -n ddns get jobs` / `kubectl -n ddns logs -l job-name=<name>`.
+
+Expected timeline after install: DNS records appear on the CronJob's first
+run (≤5 min), Let's Encrypt certificates a few minutes after that; expect
+browser certificate warnings until issuance completes.
+
+Caveats:
+
+- **Hairpin NAT**: some routers cannot reach their own public IP from inside
+  the LAN. If apps work from mobile data but not from home Wi-Fi, add the
+  hosts line from `~/.smallworlds/hosts-local.txt` to your router DNS /
+  Pi-hole / device `/etc/hosts` (LAN clients then talk to the laptop
+  directly).
+- **Mail**: Stalwart's DNS automation now runs (MX/SPF/DKIM/DMARC), but real
+  mail delivery from a residential connection remains unreliable — ISPs block
+  outbound port 25, the home IP has no PTR record and sits on blocklists.
+  Use an outbound SMTP relay, or keep mail on a cloud deployment.
+- **Security**: the same internet-facing surface as a Hetzner deployment
+  (Traefik + the apps behind Keycloak), so keep the pinned overlay up to date.
+  Only forward the three ports listed above; the k8s API and SSH must stay
+  LAN-only.
 
 ## Lifecycle
 

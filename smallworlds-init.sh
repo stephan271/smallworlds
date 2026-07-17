@@ -5,6 +5,7 @@ set -e
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Shared helpers (cluster_label, kubeconfig_path)
@@ -56,6 +57,26 @@ ask_with_default() {
     fi
 }
 
+# Ensure the DNS zone for $DOMAIN exists in Hetzner DNS (uses $HCLOUD_TOKEN).
+# Used by the hetzner target and by internet-exposed local deployments.
+ensure_dns_zone() {
+    echo -e "${CYAN}Ensuring DNS Zone '$DOMAIN' exists in Hetzner...${NC}"
+    local zone_exists api_response
+    zone_exists=$(curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/zones" | grep -o "\"name\":\"$DOMAIN\"" || true)
+
+    if [ -z "$zone_exists" ]; then
+        echo -e "${YELLOW}Zone $DOMAIN not found. Creating it...${NC}"
+        api_response=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/zones" -d '{"name":"'"$DOMAIN"'", "mode": "primary", "ttl": 3600}')
+        if echo "$api_response" | grep -q "\"error\""; then
+            echo -e "${RED}Failed to create zone: $(echo "$api_response" | jq -r '.error.message' || echo "$api_response")${NC}"
+        else
+            echo -e "${GREEN}Zone created successfully.${NC}"
+        fi
+    else
+        echo -e "${GREEN}Zone $DOMAIN already exists.${NC}"
+    fi
+}
+
 echo -e "${YELLOW}Gathering Configuration...${NC}"
 echo -e "Deployment targets:"
 echo -e "  ${CYAN}hetzner${NC} — provision a Hetzner Cloud VM + DNS via Terraform (public, internet-facing)"
@@ -74,8 +95,10 @@ if [[ "$DEPLOY_TARGET" == "hetzner" ]]; then
     echo -e "${YELLOW}This script will only configure the DNS zone in Hetzner Cloud (which is free).${NC}"
     echo -e "${YELLOW}Domain registration itself is not automated and will incur costs at your registrar.${NC}"
 else
-    echo -e "${YELLOW}Note: For a local deployment the domain does not need to be registered anywhere —${NC}"
+    echo -e "${YELLOW}Note: For a LAN-only deployment the domain does not need to be registered anywhere —${NC}"
     echo -e "${YELLOW}name resolution happens inside your LAN (router DNS, Pi-hole, or /etc/hosts entries).${NC}"
+    echo -e "${YELLOW}If you choose internet exposure later in this wizard, the domain MUST be registered,${NC}"
+    echo -e "${YELLOW}with its nameservers pointed at Hetzner DNS (helium/oxygen/hydrogen.ns.hetzner.*).${NC}"
 fi
 ask_with_default "2. Enter your target domain (e.g. smallworlds.network)" "DOMAIN" "false"
 ask_with_default "3. Enter the admin email address" "ADMIN_EMAIL" "false"
@@ -108,9 +131,29 @@ else
         DATA_DIR="/var/lib/smallworlds-data"
     fi
     ask_with_default "10. Enter the data directory on the server (all user data lives here)" "DATA_DIR" "false"
-    # No Hetzner token in a local deployment (Stalwart's DNS automation is
-    # unavailable — external mail delivery needs a public IP anyway).
-    HCLOUD_TOKEN=""
+
+    echo ""
+    echo -e "Optionally, the apps can be exposed on the internet: DNS records for your domain"
+    echo -e "are then managed in Hetzner DNS (free, token required) and kept pointed at your"
+    echo -e "connection's public IP by an in-cluster DDNS job, and certificates come from"
+    echo -e "Let's Encrypt instead of being self-signed. Requires: a registered domain with"
+    echo -e "nameservers at Hetzner DNS, a public IPv4 (no CGNAT), and these forwards on your"
+    echo -e "router to the server: ${CYAN}80/tcp, 443/tcp, 10000/udp${NC}."
+    if [[ -z "$LOCAL_PUBLIC" ]]; then
+        LOCAL_PUBLIC="no"
+    fi
+    ask_with_default "11. Expose the apps on the internet? (yes/no)" "LOCAL_PUBLIC" "false"
+    case "$LOCAL_PUBLIC" in
+        y|Y|yes|Yes|YES) LOCAL_PUBLIC="yes";;
+        *) LOCAL_PUBLIC="no";;
+    esac
+    if [[ "$LOCAL_PUBLIC" == "yes" ]]; then
+        ask_with_default "12. Paste your Hetzner API Token (used for DNS record management only)" "HCLOUD_TOKEN" "true"
+    else
+        # No Hetzner token in a LAN-only deployment (Stalwart's DNS automation
+        # is unavailable — external mail delivery needs a public IP anyway).
+        HCLOUD_TOKEN=""
+    fi
 fi
 
 # Auto-convert SSH URLs to HTTPS if access token is used
@@ -136,6 +179,7 @@ cat <<EOF > "$CACHE_FILE"
 DEPLOY_TARGET="${DEPLOY_TARGET}"
 LOCAL_SSH_TARGET="${LOCAL_SSH_TARGET}"
 DATA_DIR="${DATA_DIR}"
+LOCAL_PUBLIC="${LOCAL_PUBLIC}"
 DOMAIN="${DOMAIN}"
 ENV_EXT="${ENV_EXT}"
 ADMIN_EMAIL="${ADMIN_EMAIL}"
@@ -264,20 +308,7 @@ if [[ "$DEPLOY_TARGET" == "hetzner" ]]; then
     export HCLOUD_TOKEN=$HCLOUD_TOKEN
 
     # Ensure DNS Zone exists in Hetzner Cloud DNS
-    echo -e "${CYAN}Ensuring DNS Zone '$DOMAIN' exists in Hetzner...${NC}"
-    ZONE_EXISTS=$(curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/zones" | grep -o "\"name\":\"$DOMAIN\"" || true)
-
-    if [ -z "$ZONE_EXISTS" ]; then
-        echo -e "${YELLOW}Zone $DOMAIN not found. Creating it...${NC}"
-        API_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/zones" -d '{"name":"'"$DOMAIN"'", "mode": "primary", "ttl": 3600}')
-        if echo "$API_RESPONSE" | grep -q "\"error\""; then
-            echo -e "${RED}Failed to create zone: $(echo "$API_RESPONSE" | jq -r '.error.message' || echo "$API_RESPONSE")${NC}"
-        else
-            echo -e "${GREEN}Zone created successfully.${NC}"
-        fi
-    else
-        echo -e "${GREEN}Zone $DOMAIN already exists.${NC}"
-    fi
+    ensure_dns_zone
 
     # Boot from the golden image (preloaded k3s + container images) if one exists
     GOLDEN_COUNT=$(curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" \
@@ -355,15 +386,50 @@ else
     REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
     BOOTSTRAP_SRC="$REPO_ROOT/infrastructure/local/bootstrap-local-node.sh"
 
+    # Internet exposure: public DNS in Hetzner (maintained by an in-cluster
+    # DDNS CronJob, since home IPs change) and Let's Encrypt certificates.
+    # LAN-only deployments keep ACME_EMAIL empty -> self-signed issuer.
+    LOCAL_ACME_EMAIL=""
+    MANAGE_DNS=""
+    if [[ "$LOCAL_PUBLIC" == "yes" ]]; then
+        LOCAL_ACME_EMAIL="$ADMIN_EMAIL"
+        MANAGE_DNS="true"
+
+        ensure_dns_zone
+
+        PUBLIC_IP=$(curl -4 -sf --max-time 10 https://api.ipify.org || true)
+        echo -e "${CYAN}Detected public IP: ${PUBLIC_IP:-unknown}${NC}"
+        echo -e "${YELLOW}Reminder: forward 80/tcp, 443/tcp and 10000/udp on your router to the server,${NC}"
+        echo -e "${YELLOW}or certificate issuance and app access from the internet will fail.${NC}"
+
+        # The DDNS CronJob (created by the bootstrap) reads the token from
+        # this secret; the A records appear within its first run (~5 min).
+        cat <<EOF >> "$SECRETS_FILE"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ddns
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hetzner-dns-token
+  namespace: ddns
+type: Opaque
+stringData:
+  HCLOUD_TOKEN: "${HCLOUD_TOKEN}"
+EOF
+    fi
+
     # Config consumed by the bootstrap script on the target machine.
-    # ACME_EMAIL stays empty: a LAN machine is not reachable for HTTP-01,
-    # so the cluster gets the self-signed issuer (same as staging).
     LOCAL_ENV_FILE="/tmp/smallworlds-${DOMAIN}-local.env"
     cat <<EOF > "$LOCAL_ENV_FILE"
 DOMAIN="${DOMAIN}"
 ENV_EXT="${ENV_EXT}"
 ROOT_APP_GIT_URL="${GITOPS_REPO_URL}"
-ACME_EMAIL=""
+ACME_EMAIL="${LOCAL_ACME_EMAIL}"
+MANAGE_DNS="${MANAGE_DNS}"
 DATA_DIR="${DATA_DIR}"
 NODE_NAME="smallworlds-local-node"
 SECRETS_MANIFEST="/tmp/smallworlds-${DOMAIN}-secrets.yaml"
@@ -439,11 +505,27 @@ echo -e "${GREEN}======================================================${NC}"
 echo ""
 if [[ "$DEPLOY_TARGET" == "hetzner" ]]; then
     echo -e "Your applications will take a few minutes to boot up and fetch their SSL certificates."
+elif [[ "$LOCAL_PUBLIC" == "yes" ]]; then
+    echo -e "Your applications will take a few minutes to boot up. The in-cluster DDNS job creates"
+    echo -e "the public DNS records on its first run (within ~5 minutes); Let's Encrypt certificates"
+    echo -e "are issued shortly after — expect certificate warnings until then."
+    echo ""
+    echo -e "${YELLOW}Notes for internet-exposed local deployments:${NC}"
+    echo -e " - Router forwards required: ${CYAN}80/tcp, 443/tcp, 10000/udp${NC} -> ${CYAN}${SERVER_IP}${NC}."
+    echo -e " - If devices INSIDE your LAN cannot reach the apps, your router does not"
+    echo -e "   support hairpin NAT — add this line to your router DNS/Pi-hole//etc/hosts"
+    echo -e "   (saved to ${CYAN}${HOSTS_SNIPPET}${NC}):"
+    echo ""
+    cat "$HOSTS_SNIPPET"
+    echo ""
+    echo -e " - Stalwart mail deploys and its DNS records are automated, but real mail"
+    echo -e "   delivery from a home connection is unreliable (ISPs block port 25, no PTR"
+    echo -e "   record, home-IP blocklists) — consider an SMTP relay for outbound mail."
 else
     echo -e "Your applications will take a few minutes to boot up (certificates are self-signed on a local deployment)."
     echo ""
     echo -e "${YELLOW}LAN name resolution — required before the URLs below work:${NC}"
-    echo -e "Nothing manages DNS for a local deployment. Point the app hostnames at your"
+    echo -e "Nothing manages DNS for a LAN-only deployment. Point the app hostnames at your"
     echo -e "server (${CYAN}${SERVER_IP}${NC}) in your router's DNS / Pi-hole, or add this line to the"
     echo -e "/etc/hosts of every device that should access the cloud:"
     echo ""
@@ -533,7 +615,11 @@ echo -e "${YELLOW}Please note: The infrastructure is currently being provisioned
 echo -e "${YELLOW}It may take 5-10 minutes for all services to come online and for SSL certificates to be issued.${NC}"
 echo -e "${YELLOW}If you see a 'Bad Gateway' or SSL warning, simply wait a few minutes and refresh.${NC}"
 if [[ "$DEPLOY_TARGET" == "local" ]]; then
-    echo -e "${YELLOW}Remember: the dashboard only resolves once the hosts entries above are in place.${NC}"
+    if [[ "$LOCAL_PUBLIC" == "yes" ]]; then
+        echo -e "${YELLOW}Remember: the dashboard only resolves once the DDNS job has created the DNS records (~5 min).${NC}"
+    else
+        echo -e "${YELLOW}Remember: the dashboard only resolves once the hosts entries above are in place.${NC}"
+    fi
 fi
 echo ""
 echo -e "${CYAN}Opening your dashboard: ${DASHBOARD_URL}${NC}"
