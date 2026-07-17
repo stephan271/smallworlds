@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-SmallWorlds is a GitOps-driven, self-hosted "sovereign cloud" for a small community: Terraform provisions a single Hetzner Cloud VM, `smallworlds-init.sh` bootstraps k3s + ArgoCD on it, and ArgoCD then reconciles everything else (identity, storage, databases, and end-user apps like Nextcloud, Immich, Forgejo, Plane, Jitsi, Stalwart mail) from Kubernetes manifests in this repo.
+SmallWorlds is a GitOps-driven, self-hosted "sovereign cloud" for a small community: `smallworlds-init.sh` provisions a single node — either a Terraform-managed Hetzner Cloud VM (target `hetzner`) or an existing LAN machine bootstrapped over SSH via `infrastructure/local/bootstrap-local-node.sh` (target `local`, see `doc/local-deployment.md`) — installs k3s + ArgoCD on it, and ArgoCD then reconciles everything else (identity, storage, databases, and end-user apps like Nextcloud, Immich, Forgejo, Plane, Jitsi, Stalwart mail) from Kubernetes manifests in this repo. The cloud-init template and the local bootstrap script implement the same bootstrap contract (self-signed vs ACME `letsencrypt-prod` issuer, `coredns-custom` override, `/mnt/smallworlds-data` layout, ArgoCD root app) — a change to one usually needs mirroring in the other.
 
 **This repo is the base only — it is never deployed to directly.** A separate private repo (`my-community-config`, not present here) is the Kustomize *overlay* that ArgoCD actually watches. It remote-references this repo's manifests at a pinned semver tag (`?ref=v1.x.x`) and layers operator-specific patches/secrets on top. Upstream changes here only reach a live cluster when someone bumps the pinned tag in the overlay — see the README's "Managing Updates — the two-repo model" section for the full mechanics. Keep this in mind: a change merged here does not go live anywhere on its own.
 
@@ -17,6 +17,7 @@ infrastructure/
   terraform/            Production/dev Hetzner VM + DNS provisioning
   terraform-staging/    Ephemeral staging VM used by admin-tools/test-pr-locally.sh
   cloud-init/           Shared k3s+ArgoCD bootstrap template used by both terraform roots
+  local/                LAN-server bootstrap (shell counterpart of cloud-init, no Terraform)
   kubernetes/
     kustomization.yaml  The master base — root list of ArgoCD Applications + core tenants
     argocd-root-app.yaml  The "app of apps" ArgoCD Application, self-healing retry policy
@@ -102,7 +103,7 @@ Cluster access for read-only inspection: kubeconfigs live in `~/.smallworlds/kub
 
 ## Documentation map (`doc/`)
 
-`argocd-apps.md` (sync waves) and `bases.md` (init job bases) are summarized above. Also present: `bases.md`, `plane-architecture.md`, `tenant-dashboard.md`, `tenant-forgejo.md`, `tenant-hermes.md`, `tenant-immich.md`, `tenant-keycloak.md`, `tenant-nextcloud.md`, `tenant-other.md`, `tenant-stalwart.md` — check the relevant one before making non-trivial changes to that subsystem, as several encode hard-won fixes (version incompatibilities, ordering bugs) that aren't obvious from the manifests alone.
+`argocd-apps.md` (sync waves) and `bases.md` (init job bases) are summarized above. `local-deployment.md` covers the LAN/local-server target (requirements, DNS/TLS differences, lifecycle). Also present: `bases.md`, `plane-architecture.md`, `tenant-dashboard.md`, `tenant-forgejo.md`, `tenant-hermes.md`, `tenant-immich.md`, `tenant-keycloak.md`, `tenant-nextcloud.md`, `tenant-other.md`, `tenant-stalwart.md` — check the relevant one before making non-trivial changes to that subsystem, as several encode hard-won fixes (version incompatibilities, ordering bugs) that aren't obvious from the manifests alone.
 
 ## Project-wide contracts
 

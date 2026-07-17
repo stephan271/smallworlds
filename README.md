@@ -54,11 +54,19 @@ This project is built upon several foundational open-source technologies, core i
 
 ## Deployment Instructions
 
-### 1. Domain Registration & DNS Configuration
+SmallWorlds supports two deployment targets — the installer asks which one you want as its first question:
+
+- **`hetzner`** — a Hetzner Cloud VM provisioned by Terraform, with public DNS and Let's Encrypt certificates. The internet-facing default.
+- **`local`** — an existing Linux machine in your LAN (laptop, mini-PC, home server; 32 GB RAM recommended), bootstrapped in place over SSH. No Terraform, no public DNS (you add router-DNS or `/etc/hosts` entries), self-signed certificates. See `doc/local-deployment.md` for requirements and limitations before you start.
+
+Steps 1 and 3 below apply to the **hetzner** target only; steps 2 and 4 apply to both.
+
+### 1. Domain Registration & DNS Configuration (hetzner target only)
 
 > [!IMPORTANT]
 > **Domain Registration is manual:** The SmallWorlds setup scripts do **not** automatically register or reserve the domain name for you. You must manually register the domain at a registrar of your choice (e.g., Hetzner Domain service, Namecheap, Cloudflare) and point the domain's Nameservers to Hetzner's DNS servers (e.g., `helium.ns.hetzner.de`, `oxygen.ns.hetzner.com`, `hydrogen.ns.hetzner.com`).
 > Domain registration will incur costs at your registrar.
+> For the **local** target none of this applies — the domain never has to be registered, since name resolution happens inside your LAN.
 
 The DNS zone and DNS records are automatically managed via the Hetzner API token provided during provisioning (which is free of charge). Subdomains are routed to the provisioned server IP.
 
@@ -78,14 +86,16 @@ This script handles:
 - Generation of the corresponding `kustomization.yaml` overlays, injecting environment-specific patches for the chosen domain.
 - Initialization of the local Git repository and automatic push to your remote repository.
 
-### 3. Infrastructure Provider Setup
-SmallWorlds currently supports **Hetzner Cloud only** — the init script and Terraform are written against it, so these steps are required:
+### 3. Infrastructure Provider Setup (hetzner target only)
+For the **local** target, skip this section — instead make sure the target machine meets the requirements in `doc/local-deployment.md` (systemd Linux, SSH + sudo access, firewalld disabled or configured for k3s, 100 GB+ free disk).
+
+For the **hetzner** target, these steps are required:
 1. Create a Hetzner Cloud account and a new project.
 2. Generate an API Token with **Read & Write** permissions. Save this token.
 3. In the Hetzner Cloud Console, navigate to **Primary IPs** and click **Create Primary IP**. Select IPv4, choose your target location (e.g., Helsinki/hel1), and name it exactly `smallworlds-ip` (or `smallworlds-ip-dev` if deploying a `.dev` environment — Hetzner resource names always use the dash form, regardless of the DNS syntax). Leave it unassigned. Terraform will attach it during provisioning.
 
 ### 4. Cluster Provisioning
-Execute the bootstrap script to provision the VM, configure DNS, and install Kubernetes/ArgoCD.
+Execute the bootstrap script to provision the server and install Kubernetes/ArgoCD. On the `hetzner` target it provisions the VM and DNS via Terraform; on the `local` target it bootstraps your LAN machine over SSH (asking for its SSH target, e.g. `root@192.168.1.50`, or `localhost` to install on the machine you are running the script on).
 
 ```bash
 git clone https://github.com/stephan271/smallworlds.git
@@ -118,6 +128,8 @@ To deploy external applications, add standard Kubernetes manifests to your confi
 ---
 
 ## Maintenance Operations
+
+The rebuild procedures below are for the **hetzner** target (they drive Terraform). For **local** deployments, the equivalent lifecycle (uninstall/reinstall preserving data, full wipe) is described in `doc/local-deployment.md`.
 
 ### Rebuild (Preserve Data)
 This procedure replaces the VM while retaining the persistent volume containing cluster state and data.
