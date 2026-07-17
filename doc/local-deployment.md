@@ -83,7 +83,7 @@ limitation as ephemeral staging). Choose internet exposure (below) to get
 real Let's Encrypt certificates.
 
 Converting an already-installed LAN-only cluster to Let's Encrypt later is
-possible but needs three manual steps (cert-manager's webhook forbids
+possible but needs several manual steps (cert-manager's webhook forbids
 changing an issuer's type in place — "may not specify more than one issuer
 type"):
 
@@ -102,6 +102,23 @@ type"):
    new certificates are issued: Stalwart caches its OIDC discovery against
    Keycloak, and a cache poisoned by the self-signed era makes it 401 every
    bearer token (webmail login fails) until restarted.
+5. Populate the mail-DNS token and re-push the mail records: a LAN-only
+   install deliberately blanks `HCLOUD_TOKEN` in the `stalwart-dns-secrets`
+   secret (no DNS automation), so the Stalwart init job silently skipped
+   pushing the mail domain's MX/SPF/DKIM/DMARC records. Copy the token from
+   the DDNS secret created in step 2 and re-sync the stalwart app so the
+   init job (a sync hook) runs again:
+
+   ```bash
+   kubectl -n stalwart patch secret stalwart-dns-secrets --type=json -p="[
+     {\"op\":\"replace\",\"path\":\"/data/HCLOUD_TOKEN\",
+      \"value\":\"$(kubectl -n ddns get secret hetzner-dns-token -o jsonpath='{.data.HCLOUD_TOKEN}')\"}]"
+   kubectl -n argocd patch application stalwart --type merge \
+     -p '{"operation":{"sync":{"prune":false}}}'
+   ```
+
+   Verify with `dig MX <mail-domain>` (and `TXT`/`_dmarc`/`_domainkey`
+   lookups) once the `stalwart-init` job completes.
 
 ## Internet exposure
 
