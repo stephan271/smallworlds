@@ -98,6 +98,10 @@ type"):
    lists them) **after** the issuer swap — the issuer keeps its name, so
    cert-manager will not re-issue existing self-signed certificates on its
    own.
+4. `kubectl -n stalwart rollout restart deploy/stalwart-mail` **after** the
+   new certificates are issued: Stalwart caches its OIDC discovery against
+   Keycloak, and a cache poisoned by the self-signed era makes it 401 every
+   bearer token (webmail login fails) until restarted.
 
 ## Internet exposure
 
