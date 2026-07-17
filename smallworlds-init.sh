@@ -149,10 +149,6 @@ else
     esac
     if [[ "$LOCAL_PUBLIC" == "yes" ]]; then
         ask_with_default "12. Paste your Hetzner API Token (used for DNS record management only)" "HCLOUD_TOKEN" "true"
-    else
-        # No Hetzner token in a LAN-only deployment (Stalwart's DNS automation
-        # is unavailable — external mail delivery needs a public IP anyway).
-        HCLOUD_TOKEN=""
     fi
 fi
 
@@ -203,6 +199,15 @@ echo -e "${CYAN}Generating configuration...${NC}"
 # Update ONBOARDING_MODE in the job manifest
 sed -i -E "s/value: \"(invitation|self-registration)\"/value: \"$ONBOARDING_MODE\"/g" infrastructure/kubernetes/tenants/keycloak/realm-config-job.yaml
 
+# Token that lands in cluster secrets (stalwart-dns-secrets): a LAN-only
+# local deployment must not carry it into the cluster (no DNS automation
+# there) — but never blank HCLOUD_TOKEN itself, it stays cached for future
+# hetzner or internet-exposed runs.
+SECRETS_HCLOUD_TOKEN="$HCLOUD_TOKEN"
+if [[ "$DEPLOY_TARGET" == "local" && "$LOCAL_PUBLIC" != "yes" ]]; then
+    SECRETS_HCLOUD_TOKEN=""
+fi
+
 # Generate the secrets manifest — deployed into the node's k3s auto-apply
 # manifests directory on both deployment targets
 SECRETS_FILE="/tmp/smallworlds-${DOMAIN}-secrets.yaml"
@@ -245,7 +250,7 @@ metadata:
   namespace: stalwart
 type: Opaque
 stringData:
-  HCLOUD_TOKEN: "${HCLOUD_TOKEN}"
+  HCLOUD_TOKEN: "${SECRETS_HCLOUD_TOKEN}"
   DOMAIN: "${DOMAIN}"
   ENV_EXT: "${ENV_EXT}"
 ---
