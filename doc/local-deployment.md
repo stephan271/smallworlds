@@ -82,6 +82,23 @@ Certificates are self-signed; browsers warn on first visit — expected.
 limitation as ephemeral staging). Choose internet exposure (below) to get
 real Let's Encrypt certificates.
 
+Converting an already-installed LAN-only cluster to Let's Encrypt later is
+possible but needs three manual steps (cert-manager's webhook forbids
+changing an issuer's type in place — "may not specify more than one issuer
+type"):
+
+1. Overwrite `/var/lib/rancher/k3s/server/manifests/letsencrypt-prod.yaml`
+   on the server with the ACME variant (see the cloud-init template), then
+   `kubectl delete clusterissuer letsencrypt-prod` and re-create it from
+   that file.
+2. Deploy the DDNS pieces: the `ddns` namespace + `hetzner-dns-token`
+   secret, and the `ddns.yaml` manifest the bootstrap generates when
+   `MANAGE_DNS=true`.
+3. Delete every certificate's TLS secret (`kubectl get certificate -A`
+   lists them) **after** the issuer swap — the issuer keeps its name, so
+   cert-manager will not re-issue existing self-signed certificates on its
+   own.
+
 ## Internet exposure
 
 Answering **yes** to the wizard's "Expose the apps on the internet?" question
