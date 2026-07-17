@@ -35,6 +35,12 @@ spec:
                   optional: true
             - name: ONBOARDING_MODE
               value: "invitation"
+            # Public identity host baked into the realm import (WebAuthn RP ID).
+            # Overridden per-environment by the overlay's domain patches so dev
+            # gets identity.dev.<domain> instead of the base host — see
+            # admin-tools/generate_domain_patches.py (keycloak block).
+            - name: IDENTITY_HOST
+              value: "identity.smallworlds.network"
           command:
             - /bin/sh
             - -c
@@ -46,7 +52,9 @@ spec:
               done
               
               echo "Importing smallworlds realm..."
-              sed "s/\${env.STALWART_PASSWORD}/$STALWART_PASSWORD/g" /opt/keycloak/data/realm-config/smallworlds-realm.json > /tmp/realm-configured.json
+              sed -e "s/\${env.STALWART_PASSWORD}/$STALWART_PASSWORD/g" \
+                  -e "s/\${env.IDENTITY_HOST}/$IDENTITY_HOST/g" \
+                  /opt/keycloak/data/realm-config/smallworlds-realm.json > /tmp/realm-configured.json
               /opt/keycloak/bin/kcadm.sh create realms -f /tmp/realm-configured.json || echo "Realm may already exist."
 
               echo "Setting onboarding mode to $ONBOARDING_MODE..."

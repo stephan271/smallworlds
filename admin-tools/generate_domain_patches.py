@@ -54,9 +54,44 @@ def generate_patches(app_name, domain, ext):
               kind: StatefulSet
               name: keycloak-keycloakx
             patch: |-
+              apiVersion: apps/v1
+              kind: StatefulSet
+              metadata:
+                name: keycloak-keycloakx
+              spec:
+                template:
+                  spec:
+                    containers:
+                      - name: keycloak
+                        env:
+                          - name: KC_HOSTNAME
+                            value: "https://{subdomains['identity']}"
+          - target:
+              kind: Middleware
+              name: keycloak-redirect
+            patch: |-
               - op: replace
-                path: /spec/template/spec/containers/0/env/0/value
-                value: "https://{subdomains['identity']}"
+                path: /spec/redirectRegex/regex
+                value: "^https://{subdomains['identity']}/?$"
+              - op: replace
+                path: /spec/redirectRegex/replacement
+                value: "https://{subdomains['identity']}/realms/smallworlds/account/"
+          - target:
+              kind: Job
+              name: keycloak-realm-config
+            patch: |-
+              apiVersion: batch/v1
+              kind: Job
+              metadata:
+                name: keycloak-realm-config
+              spec:
+                template:
+                  spec:
+                    containers:
+                      - name: kcadm
+                        env:
+                          - name: IDENTITY_HOST
+                            value: "{subdomains['identity']}"
         """), "  ")
 
     elif app_name == "stalwart":
@@ -96,12 +131,20 @@ def generate_patches(app_name, domain, ext):
               kind: Deployment
               name: bulwark
             patch: |-
-              - op: replace
-                path: /spec/template/spec/containers/0/env/0/value
-                value: "https://{subdomains['mail']}"
-              - op: replace
-                path: /spec/template/spec/containers/0/env/3/value
-                value: "https://{subdomains['identity']}/realms/smallworlds"
+              apiVersion: apps/v1
+              kind: Deployment
+              metadata:
+                name: bulwark
+              spec:
+                template:
+                  spec:
+                    containers:
+                      - name: bulwark
+                        env:
+                          - name: JMAP_SERVER_URL
+                            value: "https://{subdomains['mail']}"
+                          - name: OAUTH_ISSUER_URL
+                            value: "https://{subdomains['identity']}/realms/smallworlds"
           - target:
               kind: Job
               name: keycloak-client-init
@@ -214,14 +257,13 @@ def generate_patches(app_name, domain, ext):
         """), "  ")
         
     elif app_name == "forgejo":
+        # NOTE: Forgejo's OIDC discovery is bootstrapped by the forgejo-oidc-config
+        # Job against Keycloak's in-cluster service URL, so there is no per-domain
+        # discovery URL to patch here. Keycloak advertises its public issuer in the
+        # discovery document, which comes from KC_HOSTNAME (patched in the keycloak
+        # block above) — so fixing the domain there is what makes Forgejo's login
+        # redirect to identity{ext}.{domain} instead of the base identity host.
         patches += textwrap.indent(textwrap.dedent(f"""\
-          - target:
-              kind: Job
-              name: forgejo-oidc-init
-            patch: |-
-              - op: replace
-                path: /spec/template/spec/containers/0/env/0/value
-                value: "https://{subdomains['identity']}/realms/smallworlds/.well-known/openid-configuration"
           - target:
               kind: Job
               name: keycloak-client-init
