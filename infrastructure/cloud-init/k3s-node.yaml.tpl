@@ -217,6 +217,11 @@ runcmd:
         return hs
     EOF
   - kubectl patch cm/argocd-cm -n argocd --type=merge --patch-file /tmp/argocd-cm-patch.yaml
+  # server.insecure is only honored in argocd-cmd-params-cm (NOT argocd-cm);
+  # without it argocd-server 307-redirects Traefik's plain-HTTP upstream
+  # traffic back to https forever and the deploy.<domain> UI never loads
+  - kubectl patch cm/argocd-cmd-params-cm -n argocd --type=merge -p '{"data":{"server.insecure":"true"}}'
+  - kubectl -n argocd rollout restart deployment argocd-server
 %{ if root_app_git_url != "" ~}
 
   # 4. Apply ArgoCD Root App
