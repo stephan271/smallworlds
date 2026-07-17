@@ -68,6 +68,17 @@ nextcloud:
         'overwriteprotocol' => 'https',
         'trusted_proxies' => array('10.42.0.0/16', '10.43.0.0/16'),
       );
+    # Nextcloud's HTTP client refuses RFC1918 targets by default (SSRF
+    # guard). On a LAN deployment the CoreDNS override resolves ALL app
+    # hostnames to the node's private IP, so without this flag Nextcloud
+    # cannot fetch the Keycloak OIDC discovery document ("Could not reach
+    # the OpenID Connect provider" / "violates local access rules") or talk
+    # to Collabora. Harmless on Hetzner (public IP) deployments.
+    local-remote-servers.config.php: |-
+      <?php
+      $CONFIG = array (
+        'allow_local_remote_servers' => true,
+      );
     disable_updates.config.php: |-
       <?php
       $CONFIG = array (

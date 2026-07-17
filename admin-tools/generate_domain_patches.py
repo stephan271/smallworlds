@@ -322,33 +322,38 @@ def generate_patches(app_name, domain, ext):
                 path: /spec/tls/0/hosts/0
                 value: {subdomains['meet']}
           - target:
+              kind: ConfigMap
+              name: jitsi-jitsi-meet-common
+            patch: |-
+              - op: replace
+                path: /data/PUBLIC_URL
+                value: "https://{subdomains['meet']}"
+              - op: replace
+                path: /data/TOKEN_AUTH_URL
+                value: "https://{subdomains['meet']}/oidc/auth?state={{state}}"
+          # The OIDC adapter runs as an extraContainers sidecar on the web
+          # deployment (the old jitsi-jitsi-meet-jwt-app Deployment no longer
+          # exists), and the web container itself carries its URLs via the
+          # -common ConfigMap (envFrom), not container env. Strategic-merge
+          # by container name so the env list merge stays robust.
+          - target:
               kind: Deployment
               name: jitsi-jitsi-meet-web
             patch: |-
-              - op: add
-                path: /spec/template/spec/containers/0/env/-
-                value:
-                  name: PUBLIC_URL
-                  value: "https://{subdomains['meet']}"
-              - op: add
-                path: /spec/template/spec/containers/0/env/-
-                value:
-                  name: TOKEN_AUTH_URL
-                  value: "https://{subdomains['meet']}/oidc/auth?state={{state}}"
-          - target:
+              apiVersion: apps/v1
               kind: Deployment
-              name: jitsi-jitsi-meet-jwt-app
-            patch: |-
-              - op: add
-                path: /spec/template/spec/containers/0/env/-
-                value:
-                  name: OIDC_ISSUER
-                  value: "https://{subdomains['identity']}/realms/smallworlds"
-              - op: add
-                path: /spec/template/spec/containers/0/env/-
-                value:
-                  name: JWT_APP_URL
-                  value: "https://{subdomains['meet']}"
+              metadata:
+                name: jitsi-jitsi-meet-web
+              spec:
+                template:
+                  spec:
+                    containers:
+                      - name: jitsi-oidc-adapter
+                        env:
+                          - name: OIDC_ISSUER_URL
+                            value: "https://{subdomains['identity']}/realms/smallworlds"
+                          - name: URL_BASE
+                            value: "https://{subdomains['meet']}"
         """), "  ")
 
     elif app_name == "collabora":
