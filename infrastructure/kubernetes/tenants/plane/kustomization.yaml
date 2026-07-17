@@ -18,6 +18,23 @@ helmCharts:
     valuesFile: values.yaml
 
 patches:
+  # Fresh-install deadlock fix: the migrate Job below is a wave-1 Sync hook,
+  # but ArgoCD only starts wave 1 once wave 0 is fully healthy — and the api
+  # Deployment (wave 0 by default) never becomes ready before migrations have
+  # run, so on a virgin database the sync stalled forever. Pushing the api
+  # Deployment to wave 2 makes the order: everything else (0) -> migrate
+  # hook (1) -> api (2). Existing clusters are unaffected (api is already
+  # healthy there and wave gating passes straight through).
+  - target:
+      kind: Deployment
+      name: plane-api-wl
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: plane-api-wl
+        annotations:
+          argocd.argoproj.io/sync-wave: "2"
   - target:
       kind: ClusterRoleBinding
       name: setup-binding

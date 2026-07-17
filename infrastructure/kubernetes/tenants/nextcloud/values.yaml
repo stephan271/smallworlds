@@ -43,14 +43,24 @@ nextcloud:
   # via objectStore.s3.secretKeys below. Duplicate env names break kubectl's
   # strategic-merge patch and leave the app permanently OutOfSync.
   configs:
+    # Includes NEXTCLOUD_TRUSTED_DOMAINS from the container env: config-dir
+    # files OVERRIDE config.php per key, so a hardcoded array here would
+    # discard both the image's install-time value and the oidc-config-job's
+    # `occ config:system:set trusted_domains 3` — on a fresh install the
+    # startup probe (Host: files.<domain>) then fails with 400 forever and
+    # the wave-1 oidc job never runs (wave 0 never becomes healthy).
     trusted_domains.config.php: |-
       <?php
+      $trusted = array('localhost', '127.0.0.1');
+      if (isset($_SERVER['SERVER_ADDR'])) { $trusted[] = $_SERVER['SERVER_ADDR']; }
+      $env = getenv('NEXTCLOUD_TRUSTED_DOMAINS');
+      if ($env) {
+        foreach (preg_split('/[\s,]+/', $env) as $d) {
+          if ($d !== '') { $trusted[] = $d; }
+        }
+      }
       $CONFIG = array (
-        'trusted_domains' => array (
-          0 => 'localhost',
-          1 => '127.0.0.1',
-          2 => isset($_SERVER['SERVER_ADDR']) ? $_SERVER['SERVER_ADDR'] : '127.0.0.1',
-        ),
+        'trusted_domains' => array_values(array_unique($trusted)),
       );
     proxy.config.php: |-
       <?php

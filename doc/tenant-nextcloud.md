@@ -42,3 +42,15 @@ Nextcloud is integrated with a standalone Collabora Online Development Edition (
 
 ### `cnpg-cluster.yaml` & `redis.yaml`
 - **Decoupled data services + secret isolation** (`c100cea`, `68bc5c9`, `b9a864f`): dedicated CNPG cluster and Redis with isolated secrets/S3, matching the cluster-wide decoupling pattern.
+
+## trusted_domains and fresh installs
+
+`trusted_domains.config.php` (from `values.yaml`) must stay **env-aware**: it
+appends every entry of `NEXTCLOUD_TRUSTED_DOMAINS` to the array. Config-dir
+files override `config.php` per key, so a hardcoded localhost-only array
+silently discards both the image's install-time domain and the
+`occ config:system:set trusted_domains 3` performed by the oidc-config job.
+On a fresh install that meant: startup probe (Host: `files.<domain>`) → 400 →
+Deployment never healthy (wave 0) → the wave-1 oidc-config hook never ran —
+the same deadlock class as plane's migrate Job (see
+`doc/plane-architecture.md`).

@@ -60,3 +60,15 @@ Clicking "Get started" in the web UI (which links to `/god-mode`, no trailing sl
 Fix: `admin-nginx-configmap.yaml` ships a corrected `nginx.conf` (identical to the image's own, plus `absolute_redirect off;`), mounted over `/etc/nginx/nginx.conf` in `plane-admin-wl` via a `volumeMounts`/`volumes` patch. With that directive, the redirect is emitted as a relative `/god-mode/`, which the browser resolves against whatever origin (scheme/host) it actually used.
 
 `plane-space` and `plane-live` aren't affected — they run a Node-based server (`react-router-serve`), not nginx, and already emit relative redirects. `plane-web`'s nginx has the same underlying `try_files $uri $uri/ ...` pattern, but its base path is `/`, which browsers always request with a trailing slash already, so the bug is latent there rather than triggered.
+
+### Fresh-install deadlock (wave-1 hook vs wave-0 health)
+
+The `hook: Sync` + `sync-wave: "1"` combination above has a failure mode that
+only shows on a **virgin database**: ArgoCD starts wave 1 only after every
+wave-0 resource is healthy, but `plane-api-wl` (wave 0 by default) gates its
+readiness on migrations having run — which is exactly what the wave-1 Job
+does. First observed on the first local-server install; the Hetzner clusters
+never hit it because their databases were already migrated when this hook
+setup landed. Fix: a kustomize patch pins `plane-api-wl` to `sync-wave: "2"`,
+so the order on a fresh cluster is: everything else (0) → migrate hook (1) →
+api Deployment (2).
