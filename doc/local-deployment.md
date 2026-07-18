@@ -48,12 +48,15 @@ A local deployment runs in one of two modes, chosen in the wizard: **LAN-only**
 | Mail (Stalwart) | fully functional (public IP, PTR, port 25) | deploys, but external delivery does not work behind NAT; no DNS automation | mail DNS records automated, but delivery from home connections is unreliable (see below) |
 | Golden image | optional fast-boot snapshot | n/a | n/a |
 
-The manifests are untouched by the target choice: `persistent-storage.yaml`
-hard-codes `hostPath: /mnt/smallworlds-data/...`, which the bootstrap
-satisfies via a symlink to the chosen data directory. The self-signed issuer
-is published under the name `letsencrypt-prod`, so the `cluster-issuer`
-annotations on all Ingresses work unchanged (the same trick the staging
-pipeline uses).
+The manifests are (nearly) untouched by the target choice:
+`persistent-storage.yaml` hard-codes `hostPath: /mnt/smallworlds-data/...`,
+which the bootstrap satisfies via a symlink to the chosen data directory, and
+its PersistentVolumes' `kubernetes.io/hostname` node affinity lists both
+possible node names (`cc-pilot-node-01` and `smallworlds-local-node`, since
+`098aa6e` — with only the Hetzner name, Immich could never schedule locally).
+The self-signed issuer is published under the name `letsencrypt-prod`, so the
+`cluster-issuer` annotations on all Ingresses work unchanged (the same trick
+the staging pipeline uses).
 
 ## LAN name resolution (LAN-only mode)
 

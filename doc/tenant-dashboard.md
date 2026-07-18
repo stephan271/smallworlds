@@ -27,3 +27,6 @@ Homepage expects to write into its own config directory and hostname allow-list 
 
 ### `dashboard-rbac.yaml`, `dashboard-service.yaml`, `dashboard-ingress.yaml`
 - **Dynamic dashboard introduction** (`86bcb16`, "Create dynamic dashboard using the homepage tool"): these files were introduced together when the cluster switched to the auto-discovering Homepage dashboard described in §1.
+
+### Managed by the `dashboard` Application only (`a0113c7`)
+The root `infrastructure/kubernetes/kustomization.yaml` used to include `tenants/dashboard` *directly* in addition to `apps/dashboard.yaml` — so the same manifests were applied twice, once by the root app and once by the dashboard Application, and the two owners fought over sync status. The direct inclusion was removed; like every other tenant, the dashboard now reaches the cluster only through its ArgoCD `Application`.

@@ -19,13 +19,16 @@ Immich does not support declarative configuration files for OIDC; it must be con
 
 ### 3. Storage (`library-pvc.yaml`)
 - **Persistent Storage**: Allocates a large PersistentVolumeClaim (`immich-library-pvc`) where the actual user photos, videos, and machine learning models are stored. This relies on the foundational storage classes provisioned in sync-wave `-10`.
+- **Node-affinity gotcha**: the backing PersistentVolume (`apps/persistent-storage.yaml`) pins `kubernetes.io/hostname` to the node name. It originally listed only the Hetzner name (`cc-pilot-node-01`), so on a local-server deployment `immich-server` could never schedule (`FailedScheduling: node didn't match PersistentVolume's node affinity`); `098aa6e` added `smallworlds-local-node` so both provisioning targets bind.
 
 ## Notable changes per file (from git history)
 
-### `admin-init-job.yaml`
+### `admin-init-job.yaml` & `admin-config.yaml`
 - **Dynamic OIDC secret via API** (`6fac780`, `2dd95d7`): the client secret is injected through Immich's API from `keycloak-secret` rather than baked into `values.yaml`, so Immich became "dynamic Keycloak clients" with no plaintext secret in git.
 - **v2+ API port & ping endpoint** (`07eacb0`, `bae710d`): the job targets port **2283** and `/api/server/ping` to detect readiness.
 - **`sed` → Python for system-config edits** (`bae710d`): the config patch was rewritten from `sed`-based JSON munging — which accidentally flipped *every* `"enabled":false` in the system config — to Python with proper JSON handling that only touches the `oauth` section.
+- **Issuer URL moved into `admin-config.yaml`** (`33b623a`, `251ea8c`): the Keycloak issuer URL was first lifted out of the inline Python into an `ISSUER_URL` env var so overlays could override it per domain, then moved again into the `immich-admin-config` ConfigMap (read via `configMapKeyRef`) — because overlays patching the Job's env array by index collided with the job's other env entries (the same Kustomize env-array bug that drove Nextcloud's `nextcloud-oidc-config-map`, see `doc/tenant-nextcloud.md`; `c9437e8` switched the generator to strategic-merge patches for the same reason).
+- **Admin onboarding auto-completed** (`8f3b363`): after configuring OIDC the job now POSTs `{"isOnboarded": true}` to `/api/system-metadata/admin-onboarding`. Without it the first SSO user landed in Immich's interactive onboarding wizard, which is confusing when an admin account already exists and OIDC is preconfigured (failure here is a warning, not fatal).
 
 ### `values.yaml`
 - **bjw-s common-library 5.x rewrite** (`bae710d`): values were rewritten for the new chart schema; keys the chart now rejects (postgresql/redis) were removed, the `valkey` subchart stays disabled in favor of the existing `redis.yaml` deployment, and obsolete probe-path/service-link patches were dropped. The chart source also moved to OCI because the upstream HTTP Helm repo was removed.

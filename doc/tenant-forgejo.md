@@ -19,6 +19,7 @@ Instead of manual admin configuration, SSO is wired automatically.
 - **CLI Automation**: The Sync Hook waits for Forgejo to be active, then runs `kubectl exec` to invoke the `forgejo admin auth add-oauth` CLI command inside the pod.
 - **Keycloak Integration**: It registers the OIDC provider pointing to Keycloak, using the `CLIENT_SECRET` extracted from the `keycloak-secret` (provisioned by the base job). It also enables `ENABLE_AUTO_REGISTRATION` in `values.yaml` so SSO users instantly get accounts without admin approval.
 - **Auto-registration rationale** (`40bd20d`): auto-registration was deliberately enabled so first-time SSO users don't need a pre-created local account, and the OIDC callback host was updated when `auth.` was renamed to `identity.smallworlds.network` (`7bfb924`).
+- **In-cluster discovery URL + idempotency guard** (`cf880ab`): the `--auto-discover-url` now points at Keycloak's in-cluster service (`http://keycloak-keycloakx-http.keycloak.svc...`) instead of the public `https://identity.<domain>` endpoint. Keycloak still advertises its public URL in the discovery *document*, but the fetch itself no longer requires the Forgejo pod to trust the public TLS certificate during bootstrap — which is impossible on ephemeral staging and LAN-only installs (self-signed issuer). The job also gained a `forgejo admin auth list | grep` guard so re-runs skip registration instead of relying on `|| true` to swallow duplicate errors.
 
 ## Notable changes per file (from git history)
 

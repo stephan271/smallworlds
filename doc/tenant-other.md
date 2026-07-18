@@ -9,10 +9,15 @@ Bulwark (`ghcr.io/bulwarkmail/webmail`) provides webmail access at `webmail.<dom
 - **Session secret**: `session-secret-job.yaml` is an init Job that generates the random `session-secret` Secret consumed via `SESSION_SECRET`.
 - **State**: a small PVC (`bulwark-data`) persists admin data.
 
+### Bulwark — notable changes (from git history)
+- **v1.4.8 pinned, then found broken, bumped to v1.5.0** (`808b1d9`, `27dee50`): the digest-pinned v1.4.8 image shipped a defective build — its pages identify as v1.4.7 and their Next.js server-action IDs don't exist in the running server ("Failed to find Server Action"), so the login page's automatic SSO launch 404'd and every user was stuck on "Sign in with SSO". v1.5.0 fixed it (digest-pinned as usual).
+- **`AUTO_SSO_ENABLED=true`** (`8bbe1a3`): `OAUTH_ONLY=true` only hides the password form; the automatic redirect into Keycloak is a *separate* switch that defaults to false. Without it, users (and the e2e suite) landed on a "Sign in with SSO" interstitial instead of going straight to Keycloak.
+- **Redirect URI widened to a wildcard** (`855fa5e`): v1.5.0 calls back at `/{locale}/auth/callback` instead of the fixed `/api/auth/callback`. Keycloak only supports a *trailing* wildcard in redirect URIs, so the registered URI is now `https://webmail.<domain>/*` (the same pattern Jitsi uses), both in the base tenant's `REDIRECT_URIS` patch and the overlay generator.
+
 ## Velero (`tenants/velero/*.yaml`)
 Velero is the cluster's disaster recovery solution.
 - **S3 Backup Target**: Velero is configured using the AWS S3 plugin, but it's pointed at the internal Garage cluster (`http://garage.garage-system.svc.cluster.local:3900`) and the `velero-backups` bucket.
-- **Initialization**: It includes the `velero-garage-init-job` base via Kustomize to automatically provision these S3 credentials during deployment (`cb82b4e`).
+- **Initialization**: It includes the `velero-garage-init-job` base via Kustomize to automatically provision these S3 credentials during deployment (`cb82b4e`). The job was later moved from a `PreSync` to a `Sync` hook (`7755200`) — PreSync hooks run before *any* of the sync's plain resources exist, including the `setup-rbac` ServiceAccount the job runs as (see `doc/bases.md`).
 - **Schedule**: It automatically backs up the entire cluster state daily at 2:00 AM.
 - **CRD handling for fresh clusters** (`173b2e2`, `901d1f6`): the Helm generator was configured to render/upgrade Velero's CRDs (`includeCRDs`) and skip the dry-run against missing resources, so a brand-new cluster can sync Velero without the CRDs pre-existing. The chart was later bumped to v12 (`f4f6127`).
 
@@ -32,6 +37,7 @@ These applications are mostly standalone.
 - **Missing `setup-rbac` base added** (`e628268`): the init job needs the shared `setup-sa` ServiceAccount, which was absent from the kustomization.
 - **`nodeAffinity` override in staging** (`e33292e`): overridden so Jitsi's pod schedules onto the node where its Garage-backed PV can bind (single-node staging PV binding constraint).
 - **Chart repo/version fix** (`c7e2bae`) and **Homepage pod-selector fix** (`560b0ae`).
+- **Overlay domain patches rewritten** (`f93b314`, in `admin-tools/generate_domain_patches.py`): the generated overlay patches targeted a `jitsi-jitsi-meet-jwt-app` Deployment that no longer exists and appended `env` to the web container, which only uses `envFrom` — the JSON patch failed, `kustomize build` errored, and the jitsi Application deployed **zero resources** (`meet.<domain>` 404). The generator now patches the `-common` ConfigMap (`PUBLIC_URL`/`TOKEN_AUTH_URL`) and the `jitsi-oidc-adapter` sidecar env via strategic merge. A reminder that a broken overlay patch fails the whole app's render, not just the patched field.
 
 ### Excalidraw — notable changes (from git history)
 - **Ingress host `whiteboard.`** (`1edcdf8`): the default host was changed to `whiteboard.smallworlds.network`; the E2E/staging flow adds this subdomain to `/etc/hosts` so tests can resolve it.

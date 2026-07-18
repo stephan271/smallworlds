@@ -46,6 +46,7 @@ A specialized variant of the Garage init job dedicated to Velero.
 **Key Configuration Highlights:**
 - **Why a separate job?** (`cb82b4e`, "Automate velero s3 credentials using garage-init-job"): Velero's backup target lives in a `velero-backups` bucket that is *cluster-scoped* rather than tenant-scoped, so it needs its own provisioning step rather than reusing the per-tenant `garage-init-job`. This job creates that bucket + access key and writes the credentials Velero's `BackupStorageLocation` consumes, so no S3 keys are hand-managed.
 - **Runs as a `Sync` hook** ahead of Velero itself, and shares the same `alpine/k8s` image pinning history (`62aa15b`, `bf7535f`, `4bb426f`) as the other init jobs.
+- **`PreSync` → `Sync` hook** (`7755200`): as a `PreSync` hook the job ran before any of the sync's plain resources were applied — including the `setup-rbac` ServiceAccount it runs as — so it failed on fresh installs. A `Sync` hook at wave `-2` still precedes Velero itself but runs after the wave `-3` RBAC exists. This is the same PreSync-vs-ServiceAccount trap documented for `setup-rbac` below and for Plane's migrate Job (`doc/plane-architecture.md`).
 
 ### 4. Setup RBAC (`setup-rbac`)
 Provides the ServiceAccount and RoleBindings required by the initialization jobs.

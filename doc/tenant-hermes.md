@@ -1,36 +1,72 @@
-# Hermes Tenant (`infrastructure/kubernetes/tenants/hermes/*.yaml`)
+# Hermes Tenant (`infrastructure/kubernetes/tenants/hermes/*`)
 
-Hermes is an automated, AI-driven operations agent (the "auto-remediator") deployed in the cluster. It watches for alerts, executes runbooks, and can propose or automatically apply infrastructure fixes.
+Hermes is the **Tier 2 AI SRE agent**: the escalation target that the Tier 1
+`remediation` service (see `tenants/remediation/README.md`) and Alertmanager
+hand alerts to when no deterministic handler applies. On an escalation it runs
+a bounded tool-use loop with Claude (`claude-opus-4-8`, adaptive thinking,
+effort high) over the **raw Anthropic Messages API** — no `anthropic` SDK, no
+third-party packages — diagnoses the incident with read-only tools, and emails
+the operator a report.
 
-## Key Infrastructure Integrations
+> **History**: this tenant was completely rewritten in `bf13408`
+> ("implement the Tier 2 Claude-powered SRE agent", 2026-07-09). Before that
+> it was a `tail -f /dev/null` stub left over from the earlier runbook-based
+> "hybrid auto-remediation" phases (`db1ae5b`, `fe1c5d1`, `1caa0e0`); the
+> rewrite deleted the runbooks, the notification-channels ConfigMap, the
+> unused GitHub PAT secret, and the orphan status-page ingress. An older
+> revision of this document described that runbook architecture — none of it
+> exists anymore.
 
-### 1. Agent Configuration (`hermes-config.yaml`)
-- **LLM Configuration**: Configures the agent to use the `hermes-2-pro-llama-3-8b` model.
-- **Policies**: Sets policies such as `minor_updates_require_approval`, dictating when the agent can act autonomously versus when it must page a human.
+## Deployment pattern: source from a ConfigMap, no image build
 
-### 2. Notification Channels (`notification-channels.yaml`)
-Hermes communicates its actions and alerts through defined channels:
-- **SMTP (Stalwart)**: Configured to send emails directly via the internal Stalwart mail relay (`stalwart-smtp.stalwart.svc.cluster.local:2525`) without needing external API keys. It uses templates (e.g., `approval-required`) to ask administrators to merge PRs.
-- **Status Page (Dashboard)**: It automatically updates the cluster's public status page by directly modifying the `status-data` ConfigMap in the `dashboard` namespace when incidents occur or are resolved.
+Hermes shares the `remediation` tenant's unusual deployment model: **pure
+Python 3.14 stdlib** running straight out of a ConfigMap inside a stock
+`python:3.14-slim` image.
 
-### 3. Runbooks (`runbooks/*.yaml`)
-These YAML files define the operational playbooks Hermes can execute. They heavily interact with other cluster components:
-- **`secret-rotation.yaml`**: Demonstrates deep cross-tenant integration. When rotating the shared Keycloak OAuth secret, Hermes uses `kubectl` to update the secret in the `keycloak` namespace, and then automatically restarts dependent deployments across the cluster (`nextcloud`, `immich-server`, `dashboard`) so they pick up the new keys.
-- **Human-in-the-loop**: For high-risk operations (like `rotate-garage` which rotates S3 storage keys), the runbook is configured to exit with an error. This forces Hermes to pause execution and instead open a Pull Request against the Git repository for manual human approval.
+- `kustomization.yaml` uses a `configMapGenerator` (`hermes-src`) over the
+  flat `src/` package — flat because ConfigMap keys cannot contain `/`, so a
+  single ConfigMap can only hold one directory level.
+- The Deployment mounts it at `/app` and runs `python -u /app/main.py` with
+  `PYTHONPATH=/app` (ConfigMap volumes symlink through a timestamped `..data`
+  dir, which breaks default import resolution otherwise).
+- Editing a handler is just editing the `.py` file; Kustomize regenerates the
+  hash-suffixed ConfigMap and the pod rolls. No registry, no pip at startup,
+  fully offline/deterministic boot.
+- The system prompt lives in its own `hermes-system-prompt` ConfigMap
+  (`system-prompt.txt`), so prompt tuning also needs no image work.
 
-## How Hermes was built up — phase history (from git history)
+## Runtime behaviour (`src/`, `hermes-config.yaml`)
 
-Hermes was assembled incrementally, each phase adding a layer. This ordering explains why the files exist:
-- **Phase 1 — Observability** (`dfa21bf`): `healthz-ingress.yaml` and the initial wiring. Alerting/metrics had to exist before any automated remediation could be triggered.
-- **Phase 4 — Hybrid AI remediation** (`db1ae5b`): the core agent — `hermes-config.yaml` (LLM + policies), `hermes-deployment.yaml`, `hermes-rbac.yaml`, and `hermes-sa-secret.yaml`. "Hybrid" = the agent proposes fixes but is gated by approval policies rather than acting freely.
-- **Status updates** (`d314855`): `notification-channels.yaml` and the dashboard `status-data` patching integration.
-- **Phase 6 — Security hardening** (`fe1c5d1`): added `runbooks/secret-rotation.yaml`.
-- **Phase 7 — Scalability management** (`1caa0e0`): added the resource/scaling runbooks.
+- **Entry point** (`main.py`): a stdlib `ThreadingHTTPServer` exposing
+  `GET /healthz` and `POST /webhook` (Alertmanager-format payloads, whether
+  from the Tier 1 escalation or Alertmanager directly).
+- **Storm protection**: a bounded worker pool (max 2 concurrent
+  investigations) plus an in-flight fingerprint dedup, so an alert storm
+  cannot spawn one paid Opus loop per alert; already-resolved alerts are
+  skipped.
+- **Diagnostic tools** (`tools.py`): read-only — Prometheus queries
+  (`prometheus.py`), Loki queries (`loki.py`), and pod status/events via the
+  Kubernetes API (`k8s.py`). Query errors from Prometheus/Loki are surfaced
+  back to the model verbatim so it can correct its own query. The terminal
+  tool is `send_report`, which emails the admin via Stalwart's internal relay
+  (`mailer.py`, same SMTP path Alertmanager uses).
+- **Diagnose-and-report only**: this first cut never mutates the cluster.
+  `open_pr` against the overlay repo is the planned next tool; until then a
+  failed or abandoned investigation still emails the admin — never silent.
+- **API hardening**: 429/529/5xx retries with backoff, `max_tokens` 16000
+  shared with thinking, truncation flagged in the report.
 
-### Runbook catalogue (`runbooks/*.yaml`)
-Each runbook binds Alertmanager triggers to a graded response; risky actions stop and open a PR rather than self-applying:
-- **`secret-rotation.yaml`**: rotates CNPG passwords (via a `kubectl-patch` annotation that makes the CNPG operator rotate), the shared Keycloak OAuth secret (then restarts dependents — see §3), and Garage S3 keys. The Garage step deliberately `exit 1`s to force a manual PR.
-- **`resource-pressure.yaml`**: reacts to `KubePodCrashLooping (OOM)`, `NodeCPUHigh`, `NodeMemoryHigh`; escalates to a vertical-scaling recommendation when a node is saturated.
-- **`resource-rightsizing.yaml`**: analyzes 7-day P95 usage and recommends requests/limits adjustments.
-- **`storage-expansion.yaml`**: triggered by `KubePersistentVolumeFillingUp`; predicts and proposes PV expansion.
-- **`vertical-scaling.yaml`**: on `SustainedNodeCPUHigh/MemoryHigh`, proposes Hetzner server upgrades/downgrades — gated behind human approval and a maintenance window.
+## Configuration & arming (`hermes-config.yaml`, `hermes-rbac.yaml`)
+
+- Ships with **`DRY_RUN: "true"`**: escalations are logged with the intended
+  investigation, but no Claude API calls and no email. Arming = provisioning
+  the `hermes-anthropic` Secret (API key) in the overlay and flipping
+  `DRY_RUN` to `"false"`; a startup guard refuses to arm without a key.
+- `ADMIN_EMAIL` is a placeholder each operator overrides in their overlay.
+- RBAC is scoped to **pods + events, read-only** (`bf13408` deliberately cut
+  it down from a cluster-wide role that included Secrets).
+
+## Sync wave
+
+Deployed at wave 0 (`apps/hermes.yaml`) — it needs nothing but the
+monitoring stack's in-cluster endpoints, which its calls simply retry for.
