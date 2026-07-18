@@ -38,32 +38,45 @@ Cloud DNS API: `hetzner/cert-manager-webhook-hetzner`
 `solverName: hetzner`, token Secret `hetzner`/`token` in the `cert-manager`
 namespace).
 
-### Step 0.1 — New ArgoCD Application for the webhook
+### Step 0.1 — New ArgoCD Application for the webhook (IMPLEMENTED)
 New file `infrastructure/kubernetes/apps/cert-manager-webhook-hetzner.yaml`,
 modeled on `apps/cert-manager.yaml`:
 
 - `sync-wave: "-10"` (foundational infra tier; the ArgoCD retry policy absorbs
   the ordering dependency on cert-manager within the wave).
 - `repoURL: https://charts.hetzner.cloud`, `chart: cert-manager-webhook-hetzner`,
-  pinned `targetRevision` (latest release, v0.8.x at time of writing).
-- `namespace: cert-manager`.
+  pinned `targetRevision: 0.8.0` (confirmed latest via `helm search repo
+  --versions` at implementation time).
+- `namespace: cert-manager`. No `helm: values:` override needed — the chart's
+  defaults already set `groupName: acme.hetzner.com`,
+  `certManager.namespace: cert-manager`, and
+  `certManager.serviceAccountName: cert-manager`, matching this repo's single
+  cert-manager install exactly (checked via `helm show values`).
 
-Register it in `infrastructure/kubernetes/kustomization.yaml`.
+Registered in `infrastructure/kubernetes/kustomization.yaml` right after
+`apps/cert-manager.yaml`.
 
-### Step 0.2 — API token Secret
-The webhook needs a Hetzner Cloud API token (Read & Write on the project
-holding the DNS zone). Follow the existing bootstrap-manifest pattern rather
-than inventing a new secret channel:
+### Step 0.2 — API token Secret (IMPLEMENTED, reusing the existing token)
+No new terraform variable was needed. `var.hcloud_token` already exists in
+both `infrastructure/terraform/variables.tf` and `terraform-staging/variables.tf`
+("The Hetzner DNS API Token"), is already populated with a real,
+DNS-zone-write-capable Hetzner Cloud API token on every apply
+(`smallworlds-init.sh` writes it into `terraform.tfvars`;
+`test-pr-locally.sh` exports `TF_VAR_hcloud_token`), and is already proven to
+work for DNS automation — it's the same token used by `ensure_dns_zone()` in
+`smallworlds-init.sh` and by the Stalwart mail DNS provisioner
+(`stalwart-dns-secrets`). It was simply never threaded into the cloud-init
+`templatefile()` call. Fixed that instead of inventing a parallel credential:
 
-1. Add `variable "dns_api_token" { sensitive = true }` to
-   `infrastructure/terraform/variables.tf` (and to the operator's
-   `terraform.tfvars`). Use a **dedicated token**, not the main
-   `hcloud_token`, so it can be rotated independently.
-2. Pass it into `templatefile(...)` in `infrastructure/terraform/main.tf`
-   (`user_data` block) and in `terraform-staging/main.tf` pass `""`.
-3. In `infrastructure/cloud-init/k3s-node.yaml.tpl`, inside the existing
-   `%{ if acme_email != "" }` branch, write a second bootstrap manifest next to
-   `letsencrypt-prod.yaml`:
+1. `infrastructure/terraform/main.tf`: added `hcloud_token = var.hcloud_token`
+   to the `templatefile(...)` call.
+2. `infrastructure/terraform-staging/main.tf`: added `hcloud_token = ""`
+   (required because `templatefile()` needs every referenced variable bound
+   regardless of which `%{ if }` branch is live — matches the existing
+   `acme_email = ""` convention for staging).
+3. `infrastructure/cloud-init/k3s-node.yaml.tpl`, inside the existing
+   `%{ if acme_email != "" }` branch, added a second bootstrap manifest file
+   `cert-manager-webhook-hetzner-secret.yaml` next to `letsencrypt-prod.yaml`:
 
    ```yaml
    apiVersion: v1
@@ -71,13 +84,24 @@ than inventing a new secret channel:
    metadata:
      name: hetzner
      namespace: cert-manager
+   type: Opaque
    stringData:
-     token: "${dns_api_token}"
+     token: "${hcloud_token}"
    ```
 
-   Note: the `cert-manager` namespace must exist before k3s applies this;
-   add a bare Namespace object in the same manifest file (k3s applies
-   multi-doc YAML in order).
+   No explicit `Namespace: cert-manager` object was added. Precedent: the
+   existing `letsencrypt-prod.yaml` ClusterIssuer already gets applied by
+   k3s's built-in manifest controller before cert-manager's own CRDs exist
+   (ArgoCD installs them later), and it already works — k3s's addon
+   controller retries failed applies until they succeed. The same retry
+   carries the Secret until the `cert-manager` Application creates its
+   namespace via `CreateNamespace=true`.
+
+   Verified by rendering the template standalone via `templatefile()` in a
+   throwaway `terraform apply` (both the `acme_email != ""` and `== ""`
+   branches), confirming no "vars map does not contain key" errors, and
+   `yaml.safe_load`-parsing both the outer cloud-config and the two embedded
+   heredoc manifests (ClusterIssuer, Secret).
 
 ### Step 0.3 — Switch the ClusterIssuer solver
 In the same tpl, replace the `http01` solver of `letsencrypt-prod` with:

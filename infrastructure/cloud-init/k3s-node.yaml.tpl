@@ -9,6 +9,8 @@
 #   domain_name       string  root domain for the CoreDNS override
 #   env_ext           string  subdomain-syntax env extension (".dev"); "" for prod/staging
 #   acme_email        string  Let's Encrypt account email; "" = self-signed issuer
+#   hcloud_token      string  Hetzner Cloud API token, for the cert-manager DNS01
+#                             webhook (ACME challenges); "" when acme_email is also ""
 #   root_app_git_url  string  overlay repo for the ArgoCD root app; "" = no root app
 #                             (the staging pipeline applies Applications itself)
 #   persistent_volume bool    mount Hetzner volume + relocate k3s data onto it
@@ -136,10 +138,30 @@ runcmd:
         privateKeySecretRef:
           name: letsencrypt-prod
         solvers:
-        - http01:
-            ingress:
-              class: traefik
+        - dns01:
+            webhook:
+              groupName: acme.hetzner.com
+              solverName: hetzner
+              config:
+                tokenSecretKeyRef:
+                  name: hetzner
+                  key: token
     ISSUER
+  # DNS01 challenge token for the cert-manager-webhook-hetzner solver above,
+  # written directly rather than via ArgoCD so it exists before the first
+  # ACME order fires. k3s's manifest controller retries on apply failure, so
+  # this succeeds once the cert-manager Application creates its namespace.
+  - |
+    cat > /var/lib/rancher/k3s/server/manifests/cert-manager-webhook-hetzner-secret.yaml <<'HETZNERSECRET'
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: hetzner
+      namespace: cert-manager
+    type: Opaque
+    stringData:
+      token: "${hcloud_token}"
+    HETZNERSECRET
 %{ else ~}
   # Self-signed issuer published under the production name so the
   # cluster-issuer annotations on the Ingresses work unchanged

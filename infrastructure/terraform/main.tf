@@ -215,6 +215,7 @@ resource "hcloud_server" "smallworlds_pilot_node" {
     domain_name       = var.domain_name
     env_ext           = var.env_ext
     acme_email        = var.admin_email
+    hcloud_token      = var.hcloud_token
     root_app_git_url  = var.git_url
     persistent_volume = true
   })

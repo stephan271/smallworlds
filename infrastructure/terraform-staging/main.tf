@@ -79,6 +79,7 @@ resource "hcloud_server" "smallworlds_staging_node" {
     domain_name       = var.domain_name
     env_ext           = ""
     acme_email        = "" # self-signed issuer; no DNS, so ACME can't validate
+    hcloud_token      = "" # unused: self-signed branch never reaches the DNS01 secret
     root_app_git_url  = "" # test-pr-locally.sh applies the Applications itself
     persistent_volume = false
   })
