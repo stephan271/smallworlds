@@ -17,9 +17,13 @@
 #   ENV_EXT           subdomain-syntax env extension (".dev"); "" for prod
 #   ROOT_APP_GIT_URL  overlay repo for the ArgoCD root app; "" = no root app
 #   ACME_EMAIL        Let's Encrypt account email; "" = self-signed issuer.
-#                     Only set this if ports 80/443 of this machine are
-#                     reachable from the public internet — HTTP-01 fails
-#                     behind NAT and the cluster ends up with no certs at all.
+#                     Certificates are validated via DNS01 (Hetzner DNS
+#                     webhook), so this works from behind NAT with no port
+#                     forwarding — but it does need the `hetzner` Secret
+#                     (cert-manager namespace, key `token`) to exist, which
+#                     comes from the same Hetzner Cloud API token as
+#                     stalwart-dns-secrets/hetzner-dns-token, delivered via
+#                     SECRETS_MANIFEST.
 #   MANAGE_DNS        "true" = deploy a DDNS CronJob that keeps the domain's
 #                     A records in Hetzner DNS pointed at this connection's
 #                     public IP (for internet-exposed deployments; the token
@@ -180,9 +184,14 @@ spec:
     privateKeySecretRef:
       name: letsencrypt-prod
     solvers:
-    - http01:
-        ingress:
-          class: traefik
+    - dns01:
+        webhook:
+          groupName: acme.hetzner.com
+          solverName: hetzner
+          config:
+            tokenSecretKeyRef:
+              name: hetzner
+              key: token
 ISSUER
 else
     # Self-signed issuer published under the production name so the

@@ -257,6 +257,20 @@ stringData:
 apiVersion: v1
 kind: Namespace
 metadata:
+  name: cert-manager
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hetzner
+  namespace: cert-manager
+type: Opaque
+stringData:
+  token: "${SECRETS_HCLOUD_TOKEN}"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
   name: argocd
 ---
 apiVersion: v1
