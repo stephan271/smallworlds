@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: headscale-config
+  namespace: headscale
+data:
+  # Deliberately partial: only the keys that need a non-default value for a
+  # containerized, single-tenant deployment are listed here. Everything else
+  # (metrics/grpc listen addrs, unix_socket, log format, DNS/MagicDNS, ...)
+  # falls back to headscale's own built-in defaults — see
+  # https://github.com/juanfont/headscale/blob/main/config-example.yaml
+  config.yaml: |
+    server_url: https://vpn.smallworlds.network
+    listen_addr: 0.0.0.0:8080
+
+    prefixes:
+      v4: 100.64.0.0/10
+      allocation: sequential
+
+    derp:
+      server:
+        enabled: false
+      urls:
+        - https://controlplane.tailscale.com/derpmap/default
+      auto_update_enabled: true
+      update_frequency: 24h
+
+    database:
+      type: sqlite
+      sqlite:
+        path: /var/lib/headscale/db.sqlite
+        write_ahead_log: true
+
+    node:
+      # 0 = nodes never expire by default. Tailscale SaaS uses 180d, but for
+      # a handful of operator/infra devices the lockout risk of a silent
+      # expiry outweighs the security benefit of forcing periodic re-auth.
+      expiry: 0
+
+    noise:
+      private_key_path: /var/lib/headscale/noise_private.key

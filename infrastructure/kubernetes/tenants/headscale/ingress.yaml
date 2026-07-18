@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: headscale
+  namespace: headscale
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Headscale"
+    gethomepage.dev/description: "Private overlay network (Tailscale control server)"
+    gethomepage.dev/group: "Infrastructure"
+    gethomepage.dev/icon: "tailscale.png"
+    gethomepage.dev/pod-selector: "app.kubernetes.io/name=headscale"
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - vpn.smallworlds.network
+      secretName: headscale-tls
+  rules:
+    - host: vpn.smallworlds.network
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: headscale
+                port:
+                  number: 80

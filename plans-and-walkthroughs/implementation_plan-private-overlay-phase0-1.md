@@ -260,6 +260,54 @@ DDNS-fronted public IP for 80/443/10000 only) — see the Phase 0 section
 above — but per the resolution above, it is intentionally **not** a Phase 1
 target.
 
+**Implementation status (2026-07-18): Steps 1.1–1.2 done (repo-side, PR2
+scope), Steps 1.3–1.5 NOT done (need a live Hetzner node).** Concretely:
+
+- **Step 1.1 — DONE.** `infrastructure/kubernetes/tenants/headscale/`
+  (configmap, PVC, Deployment pinned to
+  `headscale/headscale:v0.29.2@sha256:d337f1be...`, Service, Ingress at
+  `vpn.smallworlds.network`) and `infrastructure/kubernetes/apps/headscale.yaml`
+  (wave `0`), registered in the root `kustomization.yaml` and
+  `namespaces.yaml`. Rendered and validated locally via `kubectl kustomize`
+  (both the tenant directory and the full root kustomization); not yet
+  deployed to any live cluster.
+- **Step 1.2 — split, repo-side half DONE.** `infrastructure/cloud-init/k3s-node.yaml.tpl`
+  now installs `tailscaled` unconditionally in `runcmd` (install only, no
+  join — validated by re-rendering the template standalone). The live-join
+  half is `admin-tools/setup-vpn.sh` (new script): creates a headscale
+  preauth key, runs `tailscale up` on the server, points
+  `admin.<domain>` at the resulting tailnet IP (same rrset-upsert pattern as
+  the DDNS CronJob), then — after an explicit confirmation prompt, since it
+  restarts the control plane — writes `tls-san` into
+  `/etc/rancher/k3s/config.yaml` and `systemctl restart k3s`. Prints
+  (does not automate) the operator-laptop enrollment command
+  (`tailscale up` + `headscale nodes register`). **Untested against a real
+  node** — there is no Hetzner cluster to run it against yet; only
+  `bash -n` syntax-checked.
+- **Steps 1.3, 1.4, 1.5 — NOT started.** `admin-tools/lib/cluster-env.sh`'s
+  `detect_server_ip`/`fetch_kubeconfig` still resolve/use the public IP
+  unconditionally; nothing repoints them at `admin.<domain>` yet. The
+  `hcloud_firewall` 22/6443 rules are untouched. **Deliberately** — see the
+  sequencing note below.
+- Added `"vpn"` to the `app_records` for_each list in
+  `infrastructure/terraform/main.tf` (validated via `terraform validate`).
+
+**Sequencing constraint discovered while implementing — do not skip this
+when picking Phase 1 back up:** the firewall lockdown (Step 1.4) must never
+be part of the *same* `terraform apply` that first provisions a node. On a
+brand-new node's very first apply, port 22 has to stay open — `smallworlds-init.sh`'s
+Hetzner flow itself depends on SSH (waiting for `/etc/rancher/k3s/k3s.yaml`,
+fetching the kubeconfig, reading the ArgoCD password) to finish bootstrapping
+in the first place. The correct order once a production node exists: (1) let
+it boot normally with 22 open, (2) `smallworlds-init.sh` completes, (3) wait
+for the `headscale` Application to sync, (4) run `setup-vpn.sh`, (5) verify
+tailnet SSH/kubectl actually work, (6) only then apply the firewall change
+from Step 1.4 as its own separate `terraform apply`. Similarly, Step 1.3's
+`cluster-env.sh` repoint should not unconditionally replace the public-IP
+path — every other admin-tool (including `smallworlds-init.sh`'s own
+bootstrap) still needs to reach a node before its tailnet identity exists,
+so this needs to become a fallback/opt-in, not a hard switch.
+
 ### Architecture in one paragraph
 Headscale (the coordination server) runs **in-cluster** as a normal GitOps
 tenant behind Traefik at `vpn.<domain>` — it must stay on a public hostname so
@@ -274,7 +322,7 @@ control plane is down (clients cache the netmap), so a broken cluster does not
 immediately lock the operator out — and the Hetzner console is the final
 break-glass.
 
-### Step 1.1 — Headscale tenant
+### Step 1.1 — Headscale tenant (IMPLEMENTED, not yet deployed live)
 New directory `infrastructure/kubernetes/tenants/headscale/`:
 
 - **`deployment.yaml`** — image `headscale/headscale:<pinned version>` (pin by
@@ -303,7 +351,7 @@ not on Keycloak. Register in `infrastructure/kubernetes/kustomization.yaml`
 and add `"vpn"` to the `app_records` for_each list in
 `infrastructure/terraform/main.tf`.
 
-### Step 1.2 — tailscaled on the host
+### Step 1.2 — tailscaled on the host (repo-side IMPLEMENTED; live join = admin-tools/setup-vpn.sh, UNTESTED)
 Two halves, matching the Phase 0 pattern (repo change for rebuilds + live
 operator step now):
 
@@ -329,7 +377,7 @@ operator step now):
   6. Enroll the operator laptop: `tailscale up --login-server=https://vpn.<domain>`
      + `headscale nodes register` with the printed machine key.
 
-### Step 1.3 — Repoint operator tooling
+### Step 1.3 — Repoint operator tooling (NOT STARTED)
 - `admin-tools/lib/cluster-env.sh`: `fetch_kubeconfig` rewrites the API
   endpoint to `$server` — for production/dev, `$server` must become
   `admin.<domain>` (or the tailnet IP) instead of the public IP. Add the
@@ -341,7 +389,7 @@ operator step now):
   `KUBECONFIG=~/.smallworlds/kubeconfigs/production.yaml kubectl get nodes`
   works with the endpoint rewritten to `admin.<domain>`.
 
-### Step 1.4 — Firewall lockdown (`infrastructure/terraform/main.tf`)
+### Step 1.4 — Firewall lockdown (`infrastructure/terraform/main.tf`) (NOT STARTED)
 Only after 1.3 is verified. In `hcloud_firewall.k8s_firewall`:
 
 - **Delete** the port `22` rule.
@@ -353,7 +401,7 @@ Only after 1.3 is verified. In `hcloud_firewall.k8s_firewall`:
 is under `ignore_changes` anyway). **Do not** mirror this in
 `terraform-staging/main.tf`; staging keeps 22/6443 open by design.
 
-### Step 1.5 — Post-lockdown verification
+### Step 1.5 — Post-lockdown verification (NOT STARTED)
 1. From a machine **on** the tailnet: SSH + kubectl work via `admin.<domain>`.
 2. From a machine **off** the tailnet: `nc -zv <public-ip> 22` and `:6443`
    time out; `https://<apps>` all still load; mail ports still open.

@@ -26,6 +26,7 @@ resources:
   - apps/trivy-operator.yaml
   - apps/trivy-dashboard.yaml
   - apps/renovate-cronjob.yaml
+  - apps/headscale.yaml
   # 2. Core Frontend Services
   - apps/dashboard.yaml
   - apps/keycloak.yaml

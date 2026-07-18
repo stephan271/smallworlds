@@ -249,3 +249,9 @@ runcmd:
   # 4. Apply ArgoCD Root App
   - kubectl apply -f /tmp/argocd-root-app.yaml
 %{ endif ~}
+
+  # 5. Install tailscaled (Phase 1: private overlay network). Install only —
+  # joining the tailnet needs a preauth key that only exists after ArgoCD has
+  # deployed Headscale, so that stays a deliberate admin-tools/setup-vpn.sh
+  # step, not something automated here.
+  - curl -fsSL https://tailscale.com/install.sh | sh
