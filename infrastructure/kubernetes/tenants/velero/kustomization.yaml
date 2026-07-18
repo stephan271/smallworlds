@@ -30,6 +30,18 @@ helmCharts:
         volumeSnapshotLocation: []
       credentials:
         existingSecret: velero-s3-creds
+      metrics:
+        enabled: true
+        serviceMonitor:
+          # Scraped cluster-wide (serviceMonitorSelectorNilUsesHelmValues is
+          # relaxed in apps/kube-prometheus-stack.yaml); feeds the
+          # VeleroBackupStale alert in apps/backup-alerts.yaml.
+          enabled: true
+          # autodetect gates rendering on .Capabilities.APIVersions, which is
+          # empty under Kustomize's `helm template` inflation — the
+          # ServiceMonitor would silently never render. ArgoCD retries cover
+          # the fresh-install window before the CRD exists.
+          autodetect: false
       schedules:
         daily-cluster-state:
           schedule: "0 2 * * *"

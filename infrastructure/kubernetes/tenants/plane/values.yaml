@@ -7,6 +7,12 @@ minio:
 rabbitmq:
   local_setup: true
 
+# Uploads/attachments go to the Garage bucket `plane`. The secret is composed
+# by doc-store-init-job.yaml from garage-secret (chart would otherwise want
+# the credentials as plaintext values here).
+external_secrets:
+  doc_store_existingSecret: "plane-doc-store"
+
 ingress:
   enabled: true
   appHost: "plan.smallworlds.network"

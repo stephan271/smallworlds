@@ -48,6 +48,23 @@ A specialized variant of the Garage init job dedicated to Velero.
 - **Runs as a `Sync` hook** ahead of Velero itself, and shares the same `alpine/k8s` image pinning history (`62aa15b`, `bf7535f`, `4bb426f`) as the other init jobs.
 - **`PreSync` → `Sync` hook** (`7755200`): as a `PreSync` hook the job ran before any of the sync's plain resources were applied — including the `setup-rbac` ServiceAccount it runs as — so it failed on fresh installs. A `Sync` hook at wave `-2` still precedes Velero itself but runs after the wave `-3` RBAC exists. This is the same PreSync-vs-ServiceAccount trap documented for `setup-rbac` below and for Plane's migrate Job (`doc/plane-architecture.md`).
 
+### 3c. PV Backup Job (`pv-backup-job`)
+A CronJob template for the filesystem→S3 direction: it mounts a tenant PVC read-only
+and `rclone sync`s it into the tenant's own Garage bucket under a `pv-backup/`
+prefix, from where the `backup-replicator` carries it offsite. Added in the
+2026-07-18 backup hardening pass for the file data that is *not* already object
+storage: the Immich library PV, Forgejo's git-repo PVC and Nextcloud's
+`/var/www/html` (`config.php`). See `doc/storage-and-backup.md` §4/§5.
+
+**Key Configuration Highlights:**
+- **Consumers must patch** the volume `claimName` and the `S3_DEST` env var
+  (first env entry), and should stagger `schedule` (current: immich 00:30,
+  forgejo 00:45, nextcloud 01:00 — all before the 04:00 replicator run).
+- **Credentials**: reads `garage-secret` (`accessKey`/`secretKey`) — the rclone
+  remote is defined purely via `RCLONE_CONFIG_GARAGE_*` env vars, no config file.
+- **RWO caveat**: mounting an RWO PVC alongside the app pod works because
+  everything runs on the single node; revisit when going multi-node.
+
 ### 4. Setup RBAC (`setup-rbac`)
 Provides the ServiceAccount and RoleBindings required by the initialization jobs.
 

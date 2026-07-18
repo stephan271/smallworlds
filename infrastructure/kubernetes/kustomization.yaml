@@ -21,6 +21,7 @@ resources:
   - apps/velero.yaml
   - apps/backup-replicator.yaml
   - apps/alertmanager-config.yaml
+  - apps/backup-alerts.yaml
   - apps/trivy-operator.yaml
   - apps/trivy-dashboard.yaml
   - apps/renovate-cronjob.yaml

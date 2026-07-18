@@ -15,10 +15,12 @@ Plane is deployed using the official community Helm chart (`plane-ce`), vendored
 By default, the Plane Helm chart provisions its own Redis, MinIO, RabbitMQ, and PostgreSQL. To ensure consistency, ease of backups, and resource efficiency within SmallWorlds, PostgreSQL and Redis are disabled in favor of dedicated resources provisioned alongside the application; RabbitMQ is left on the chart's bundled StatefulSet since there is no shared broker to point it at.
 
 1. **PostgreSQL Database**
-   A dedicated PostgreSQL cluster (`cnpg-cluster.yaml`) is spun up using CloudNativePG. It automatically inherits the `garage` S3 credentials to ensure automated backups of the Plane database.
-2. **Redis Cache**
+   A dedicated PostgreSQL cluster (`cnpg-cluster.yaml`) is spun up using CloudNativePG, backed up to Garage via `garage-secret-cnpg`. **Caution**: the `garage-init-job` base that *creates* that secret (and the `plane` bucket) was missing from `kustomization.yaml` until the 2026-07-18 backup hardening pass — before that, plane's CNPG backups silently had no credentials to authenticate with.
+2. **Object storage (uploads/attachments)**
+   The chart's bundled MinIO is disabled; uploads go to the Garage bucket `plane` instead. The chart's `external_secrets.doc_store_existingSecret` hook points at a `plane-doc-store` Secret composed at deploy time by `doc-store-init-job.yaml` (wave `-1`, after `garage-init` at `-2`) from `garage-secret` — the chart's own doc-store secret would have required the S3 credentials as plaintext Helm values. Limitation: the endpoint is cluster-internal, so server-side storage works but Plane's browser-facing presigned-URL flows need Garage exposed on a public hostname first (`doc/storage-and-backup.md` §5).
+3. **Redis Cache**
    A dedicated Redis deployment (`redis.yaml`) provides the caching layer Plane requires.
-3. **RabbitMQ (Celery broker)**
+4. **RabbitMQ (Celery broker)**
    `rabbitmq.local_setup: true` (the chart default) deploys the chart's own single-node RabbitMQ StatefulSet. This was initially disabled along with postgres/redis/minio, but unlike those, no replacement was ever wired up — `AMQP_URL` ended up empty and `plane-api`'s startup crashed publishing a Celery task (`register_instance` → `instance_traces.delay()` → `kombu.exceptions.OperationalError: Connection refused`).
 
 ### `DATABASE_URL` / `AMQP_URL` are injected directly on containers, not via the chart's secret

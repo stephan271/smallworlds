@@ -150,6 +150,21 @@ cd ../.. && ./admin-tools/restore-certs-from-laptop.sh
 ```
 The restore script waits for the new cluster's API, then applies the saved certificate secrets before cert-manager re-issues them; if no local backup exists it exits cleanly and certificates are issued fresh. You can also snapshot certificates at any time without a rebuild via `./admin-tools/backup-certs-to-laptop.sh`.
 
+### Backups & Storage
+
+Storage layout, the backup chain, restore procedures and scaling paths are all
+documented in [`doc/storage-and-backup.md`](doc/storage-and-backup.md). The chain is
+Garage-first: databases (CloudNativePG/barman), Velero's cluster-state dumps and
+nightly PV copies all land in the in-cluster Garage S3, and a single replicator
+CronJob mirrors every bucket offsite at 04:00.
+
+> [!IMPORTANT]
+> **The offsite leg requires one-time operator setup** — an S3 target (recommended:
+> a Backblaze B2 bucket with versioning) and the `replicator-config-secret`.
+> Until then, backups never leave the node and the nightly replicator job fails
+> (which the monitoring emails about). Follow
+> [`infrastructure/kubernetes/tenants/backup-replicator/README.md`](infrastructure/kubernetes/tenants/backup-replicator/README.md).
+
 ### Managing Updates — the two-repo model
 
 SmallWorlds runs on **two repositories**, and understanding their interplay is the key to safe day-2 operations:

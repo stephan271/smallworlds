@@ -1,0 +1,65 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: backup-alerts
+  namespace: monitoring
+  annotations:
+    # Apply after the kube-prometheus-stack CRDs exist (fresh-install ordering;
+    # ArgoCD retries anyway if the CRD isn't ready yet).
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  groups:
+    - name: backup.rules
+      rules:
+        # CNPG WAL archiving to Garage is failing. This is the alert that
+        # would have caught the serverName collision (doc/storage-and-backup.md
+        # §5 gap 1): a cluster whose destination is claimed by another server
+        # fails every archive attempt while the database itself stays healthy.
+        - alert: CNPGWALArchivingFailing
+          expr: |
+            (cnpg_pg_stat_archiver_last_failed_time - cnpg_pg_stat_archiver_last_archived_time) > 1
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: "WAL archiving failing for CNPG cluster in {{ $labels.namespace }}"
+            description: >-
+              PostgreSQL WAL archiving to the backup object store has been
+              failing for 15m (pod {{ $labels.pod }}). Point-in-time recovery
+              is degrading; check the barmanObjectStore config and Garage.
+
+        # No successful base backup within 36h despite a daily schedule.
+        # Also fires when a cluster has never completed a backup at all
+        # (the metric then reports 0).
+        - alert: CNPGBackupStale
+          expr: |
+            time() - cnpg_collector_last_available_backup_timestamp > 36 * 3600
+          for: 1h
+          labels:
+            severity: critical
+          annotations:
+            summary: "No recent base backup for CNPG cluster in {{ $labels.namespace }}"
+            description: >-
+              Last available CNPG base backup is older than 36h (daily
+              ScheduledBackup expected). Check `kubectl get backups -n
+              {{ $labels.namespace }}` and the Garage postgres-backups bucket.
+
+        # Velero's daily cluster-state backup hasn't succeeded within 36h.
+        # Velero failures don't produce failed Jobs, so the stock
+        # KubeJobFailed alert cannot see them.
+        - alert: VeleroBackupStale
+          expr: |
+            time() - velero_backup_last_successful_timestamp{schedule!=""} > 36 * 3600
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "Velero schedule {{ $labels.schedule }} has no recent successful backup"
+            description: >-
+              Velero's scheduled backup has not succeeded in 36h. Check
+              `velero backup get` / the velero pod logs and the velero-backups
+              bucket in Garage.
+
+      # Failed backup-replicator / pv-backup CronJob runs are already covered
+      # by kube-prometheus-stack's stock KubeJobFailed alert (kube-state-metrics
+      # sees the failed Job objects), so no duplicate rules for them here.

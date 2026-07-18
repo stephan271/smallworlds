@@ -6,6 +6,7 @@ bases:
   - ../../bases/setup-rbac
   - ../../bases/garage-init-job
   - ../../bases/keycloak-client-job
+  - ../../bases/pv-backup-job
 
 resources:
   - redis.yaml
@@ -21,6 +22,22 @@ patches:
       - op: replace
         path: /metadata/name
         value: setup-binding-forgejo
+  # Nightly copy of the git repositories (the S3 storage config only covers
+  # LFS/attachments/avatars — bare repos live on this PVC). Staggered after
+  # Immich's 00:30 run to be kind to the shared disk.
+  - target:
+      kind: CronJob
+      name: pv-backup
+    patch: |-
+      - op: replace
+        path: /spec/schedule
+        value: "45 0 * * *"
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/volumes/0/persistentVolumeClaim/claimName
+        value: gitea-shared-storage
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/containers/0/env/0/value
+        value: "forgejo/pv-backup/data"
   - target:
       kind: Job
       name: keycloak-client-init

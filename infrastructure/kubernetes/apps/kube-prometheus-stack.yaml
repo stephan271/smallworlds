@@ -53,6 +53,14 @@ spec:
             passwordKey: admin-password
         prometheus:
           prometheusSpec:
+            # Select monitors/rules cluster-wide instead of only those carrying
+            # the chart's release label (the *NilUsesHelmValues defaults).
+            # Needed for the CNPG operator-generated PodMonitors, Velero's
+            # ServiceMonitor and the backup-alerts PrometheusRule, none of
+            # which can carry the Helm release label.
+            podMonitorSelectorNilUsesHelmValues: false
+            serviceMonitorSelectorNilUsesHelmValues: false
+            ruleSelectorNilUsesHelmValues: false
             storageSpec:
               volumeClaimTemplate:
                 spec:

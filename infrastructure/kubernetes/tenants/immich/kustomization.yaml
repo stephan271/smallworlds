@@ -6,6 +6,7 @@ bases:
   - ../../bases/setup-rbac
   - ../../bases/garage-init-job
   - ../../bases/keycloak-client-job
+  - ../../bases/pv-backup-job
 
 resources:
   - redis.yaml
@@ -24,6 +25,19 @@ patches:
       - op: replace
         path: /metadata/name
         value: setup-binding-immich
+  # Nightly copy of the photo/video originals into the tenant bucket, where the
+  # backup-replicator picks them up for the offsite leg (the library PV is
+  # otherwise the only copy of the community's photos).
+  - target:
+      kind: CronJob
+      name: pv-backup
+    patch: |-
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/volumes/0/persistentVolumeClaim/claimName
+        value: immich-library-pvc
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/containers/0/env/0/value
+        value: "immich/pv-backup/library"
   - target:
       kind: Job
       name: keycloak-client-init

@@ -1,0 +1,51 @@
+# Composes the doc-store secret Plane's api/worker/migrator consume via
+# external_secrets.doc_store_existingSecret (values.yaml). The chart's own
+# doc-store secret would need the S3 credentials as plaintext Helm values;
+# instead this job copies them from garage-secret (created by the
+# garage-init-job base at wave -2) at deploy time.
+#
+# NOTE: the endpoint is cluster-internal. Server-side storage works (uploads
+# become durable and join the backup chain via the `plane` bucket), but
+# Plane's browser-facing presigned-URL flows need Garage exposed on a public
+# hostname before they resolve — see doc/storage-and-backup.md §5.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: plane-doc-store-init
+  namespace: plane
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  ttlSecondsAfterFinished: 60
+  template:
+    spec:
+      serviceAccountName: setup-sa
+      containers:
+        - name: secret-gen
+          image: docker.io/alpine/k8s:1.36.2
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              echo "Waiting for garage-secret..."
+              until kubectl get secret garage-secret -n plane >/dev/null 2>&1; do
+                sleep 5
+              done
+              ACCESS_KEY=$(kubectl get secret garage-secret -n plane -o jsonpath='{.data.accessKey}' | base64 -d)
+              SECRET_KEY=$(kubectl get secret garage-secret -n plane -o jsonpath='{.data.secretKey}' | base64 -d)
+
+              echo "Creating/updating plane-doc-store secret..."
+              kubectl create secret generic plane-doc-store -n plane \
+                --from-literal=USE_MINIO="0" \
+                --from-literal=FILE_SIZE_LIMIT="5242880" \
+                --from-literal=AWS_S3_BUCKET_NAME="plane" \
+                --from-literal=AWS_S3_ENDPOINT_URL="http://garage.garage-system.svc.cluster.local:3900" \
+                --from-literal=AWS_REGION="garage" \
+                --from-literal=AWS_ACCESS_KEY_ID="$ACCESS_KEY" \
+                --from-literal=AWS_SECRET_ACCESS_KEY="$SECRET_KEY" \
+                --dry-run=client -o yaml | kubectl apply -f -
+              echo "Done."
+      restartPolicy: OnFailure

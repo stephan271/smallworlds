@@ -1,0 +1,85 @@
+# ------------------------------------------------------------------------------
+# Generic PVC -> Garage S3 backup CronJob.
+#
+# Closes the gap for file data that lives on a PVC instead of in Garage
+# (Immich library, Forgejo git repos, Nextcloud config) — see
+# doc/storage-and-backup.md §5. Once the data is in a Garage bucket, the
+# backup-replicator carries it offsite for free (point-in-time protection is
+# the offsite destination's job, e.g. B2 bucket versioning).
+#
+# Consumers MUST patch:
+#   - the volume claimName (placeholder REPLACE_ME_IN_PATCH)
+#   - the S3_DEST env var, e.g. "immich/pv-backup/library" (bucket/prefix —
+#     use the tenant's own bucket so the existing key grants apply)
+# and SHOULD patch the schedule so tenants don't hammer the shared disk at
+# the same minute. Keep every schedule well before the 04:00 replicator run.
+#
+# Notes:
+#   - The PVC is mounted read-only; RWO is fine because all pods share the
+#     single node.
+#   - rclone sync mirrors deletions into the bucket — intentional; history
+#     lives offsite (versioned), not in Garage (single disk, rf=1).
+#   - Live git repos / config files are copied non-atomically. Acceptable for
+#     nightly disaster-recovery copies; not a consistent snapshot mechanism.
+# ------------------------------------------------------------------------------
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pv-backup
+spec:
+  schedule: "30 0 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: rclone
+              image: rclone/rclone:1.74@sha256:623378ad0ff3ebd5cebf77720843c0e02edfe46e2d5b5ac6bed54c6371780dfb
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  echo "Backing up /data -> garage:${S3_DEST}"
+                  rclone sync /data "garage:${S3_DEST}" -v --links
+                  rc=$?
+                  if [ $rc -ne 0 ]; then
+                    echo "PV backup failed (rc=$rc)!"
+                    exit $rc
+                  fi
+                  echo "PV backup completed successfully."
+              env:
+                - name: S3_DEST
+                  value: "REPLACE_ME_IN_PATCH"
+                # rclone remote "garage:" defined entirely via env — no config file
+                - name: RCLONE_CONFIG_GARAGE_TYPE
+                  value: "s3"
+                - name: RCLONE_CONFIG_GARAGE_PROVIDER
+                  value: "Other"
+                - name: RCLONE_CONFIG_GARAGE_ENDPOINT
+                  value: "http://garage.garage-system.svc.cluster.local:3900"
+                - name: RCLONE_CONFIG_GARAGE_REGION
+                  value: "garage"
+                - name: RCLONE_CONFIG_GARAGE_FORCE_PATH_STYLE
+                  value: "true"
+                - name: RCLONE_CONFIG_GARAGE_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: garage-secret
+                      key: accessKey
+                - name: RCLONE_CONFIG_GARAGE_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: garage-secret
+                      key: secretKey
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+                  readOnly: true
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: REPLACE_ME_IN_PATCH
+                readOnly: true

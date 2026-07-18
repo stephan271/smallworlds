@@ -39,7 +39,7 @@ So both storage classes ultimately share the same 200 GB volume:
 | **Nextcloud** | User files → Garage S3 bucket `nextcloud` (S3 is the *primary* object store). App code + `config.php` → chart PVC (8 Gi, local-path, `/var/www/html`) | CNPG `database` (nextcloud ns), 20 Gi ×2 | Redis Deployment, ephemeral |
 | **Immich** | Originals + thumbnails → `immich-library-pvc` → static 60 Gi PV on the data volume. **Not in Garage.** | CNPG `database` (immich ns, VectorChord image via ClusterImageCatalog), 20 Gi ×2 | Redis ephemeral; ML model cache emptyDir |
 | **Forgejo** | Git repositories → chart data PVC (50 Gi, local-path). LFS/attachments/avatars → Garage bucket `forgejo` | CNPG `database` (forgejo ns), 20 Gi ×2 | Redis ephemeral |
-| **Plane** | **No object storage configured** — chart MinIO disabled, no S3 replacement wired in (uploads/attachments have nowhere durable to go; see gaps) | CNPG `database` (plane ns), 20 Gi ×2 | RabbitMQ StatefulSet PVC (100 Mi, local-path); Redis ephemeral |
+| **Plane** | Uploads/attachments → Garage S3 bucket `plane` (chart MinIO disabled; `plane-doc-store` secret composed by `doc-store-init-job.yaml`; browser presigned-URL flows still need a public S3 endpoint, see §5) | CNPG `database` (plane ns), 20 Gi ×2 | RabbitMQ StatefulSet PVC (100 Mi, local-path); Redis ephemeral |
 | **Stalwart** | All mail data *and blobs* stored in PostgreSQL (`@type: PostgreSql` store in `stalwart-config`) | CNPG `database` (stalwart ns), 20 Gi ×2 | — |
 | **Keycloak** | — (realm/SPI mounted from ConfigMaps) | CNPG `keycloak-db` (pgvecto.rs image), 20 Gi ×2 | — |
 | **Bulwark** | Admin state → `bulwark-data` PVC (512 Mi, local-path) | — | — |
@@ -107,11 +107,19 @@ The design is a two-hop chain: **app data → in-cluster Garage S3 → offsite m
 
 | # | Data source | Mechanism | Destination | Schedule | Retention |
 |---|---|---|---|---|---|
-| 1 | 5 tenant CNPG DBs (`database` in nextcloud/immich/plane/forgejo/stalwart) | Barman object store (base backup + continuous WAL, gzip) via `ScheduledBackup` | `s3://postgres-backups/` on in-cluster Garage (shared bucket, credential `garage-secret-cnpg` per namespace) | daily 02:00 | 7 d |
+| 1 | 5 tenant CNPG DBs (`database` in nextcloud/immich/plane/forgejo/stalwart) | Barman object store (base backup + continuous WAL, gzip) via `ScheduledBackup`, per-tenant `serverName: <tenant>-database` | `s3://postgres-backups/<tenant>-database/` on in-cluster Garage (shared bucket, credential `garage-secret-cnpg` per namespace) | daily 02:00 | 7 d |
 | 2 | Keycloak DB (`keycloak-db`) | Same, but dedicated bucket + key (custom `garage-init-job.yaml`, credential `garage-secret`) | `s3://postgres-backups-keycloak/` | daily 03:00 | 7 d |
 | 3 | Kubernetes resources (all namespaces except `kube-system`) | Velero 12.x, AWS S3 plugin, `deployNodeAgent: false`, no volume snapshots | Garage bucket `velero-backups` | daily 02:00 | 720 h (30 d) |
-| 4 | **All** Garage buckets (1–3 above + `nextcloud`, `forgejo`, per-tenant buckets) | `backup-replicator` CronJob: `rclone sync source: dest:` | Offsite S3 — defined entirely by the operator-supplied `replicator-config-secret` (mounted `optional: true`); **no offsite target exists yet**, see §8 | daily 04:00 | Mirror only — no versioning |
-| 5 | Let's Encrypt certificates | `admin-tools/backup-certs-to-laptop.sh` / `restore-certs-from-laptop.sh` | Operator laptop `~/.smallworlds/cert-backups/<env>/` | manual (part of rebuild flow) | n/a |
+| 4 | PVC file data: Immich library, Forgejo git repos, Nextcloud `/var/www/html` | `bases/pv-backup-job` rclone CronJob per tenant (PVC mounted read-only, RWO is fine on a single node) | Tenant's own Garage bucket under `pv-backup/` (`immich/pv-backup/library`, `forgejo/pv-backup/data`, `nextcloud/pv-backup/html`) | daily 00:30 / 00:45 / 01:00 | Mirror in Garage; history via offsite versioning |
+| 5 | **All** Garage buckets (1–4 above + per-tenant buckets) | `backup-replicator` CronJob: `rclone sync source: dest:` | Offsite S3 — operator-provisioned per `tenants/backup-replicator/README.md` (recommended: B2 versioned bucket, §8) | daily 04:00 | Mirror; point-in-time via destination versioning |
+| 6 | Let's Encrypt certificates | `admin-tools/backup-certs-to-laptop.sh` / `restore-certs-from-laptop.sh` | Operator laptop `~/.smallworlds/cert-backups/<env>/` | manual (part of rebuild flow) | n/a |
+
+Backup health is monitored: the CNPG clusters expose metrics via PodMonitors and
+`apps/backup-alerts.yaml` alerts on WAL-archiving failures (`CNPGWALArchivingFailing`),
+stale base backups (`CNPGBackupStale`) and stale Velero schedules
+(`VeleroBackupStale`); failed replicator/pv-backup CronJob runs are caught by the
+stock `KubeJobFailed` alert. All of it routes through the Alertmanager email
+receiver like every other alert.
 
 What this chain **covers end-to-end** (once the offsite leg is configured):
 all PostgreSQL databases — and therefore Stalwart mail, Plane/Forgejo/Nextcloud/Immich
@@ -120,57 +128,46 @@ metadata, Keycloak identities — plus Nextcloud user files and Forgejo LFS/atta
 
 There is also an unused building block: `bases/backup-job` is a per-bucket rclone
 CronJob template (`S3_BUCKET` patched per consumer) that no tenant currently consumes;
-`backup-replicator` supersedes it with a whole-instance sync. It is the natural
-starting point for the PV-to-bucket jobs in §5.
+`backup-replicator` supersedes it with a whole-instance sync (and
+`bases/pv-backup-job` covers the filesystem→bucket direction).
 
-## 5. What is missing for a fully working backup operation
+## 5. Remaining gaps
 
-Ranked by severity:
+The 2026-07-18 hardening pass closed the worst of the original findings — for the
+record: the CNPG `serverName` collision (all five tenant clusters archived to the
+same `s3://postgres-backups/database/` path, so at most one had working backups),
+the completely unprotected PVC data (Immich originals, Forgejo git repos, Nextcloud
+`config.php` — now `bases/pv-backup-job`), the absent backup monitoring (now
+PodMonitors + `apps/backup-alerts.yaml`), Plane's missing object storage, and —
+found during that work — plane's kustomization never included the
+`garage-init-job` base, so `garage-secret-cnpg` didn't exist in the plane
+namespace and its CNPG backups could not authenticate at all.
 
-1. **CNPG backup destination collision (likely means only one tenant DB actually has
-   working backups).** All five tenant clusters are named `database` and share
-   `s3://postgres-backups/` with no `serverName` override, so they all target
-   `s3://postgres-backups/database/`. CNPG/Barman refuses to archive into a
-   non-empty destination belonging to another server — after the first cluster claims
-   the path, the other four fail WAL archiving and scheduled backups continuously.
-   Keycloak already demonstrates the fix (dedicated bucket); the cheaper repo-wide fix
-   is a distinct `spec.backup.barmanObjectStore.serverName` (e.g. `<tenant>-database`)
-   per cluster. *Verify on a live cluster with `kubectl get backups -A` and cluster
-   status conditions before/after.*
-2. **Immich originals have no backup at all.** The 60 Gi library PV is outside Garage,
-   Velero has no node agent, and the replicator only mirrors Garage buckets. The
-   community's photos are the single largest irreplaceable dataset and exist in
-   exactly one copy on one disk. Fix per §3: a filesystem→S3 rclone CronJob into a
-   Garage bucket, which the replicator then carries offsite.
-3. **Forgejo git repositories are not backed up.** Only LFS/attachments reach Garage;
-   the repos live in the 50 Gi local-path PVC. Same fix as Immich (or a scheduled
-   `forgejo dump` into a bucket).
-4. **Nextcloud `config.php` is not backed up.** User files are safe in S3, but
-   `instanceid`, `secret` and `passwordsalt` in the chart PVC are needed for a clean
-   restore (password-reset tokens, encryption, S3 object mapping sanity).
-5. **The offsite leg does not exist yet.** `replicator-config-secret` must be
-   hand-created (it is not part of `prepare-community-repo.sh` or any init job) and
-   is mounted `optional: true`, so its absence only shows up as a nightly Job
-   failure. No offsite storage target has been provisioned. See §8 for the plan.
-6. **No backup monitoring.** There are no PrometheusRules or Alertmanager routes for
-   CNPG backup/WAL-archive failures, failed `backup-replicator`/Velero runs, or
-   backup age. Every failure mode above is currently silent.
-7. **Mirror semantics propagate damage.** `rclone sync` mirrors deletions and
-   corruption to the offsite copy within 24 h; with 7 d CNPG retention inside the
-   mirrored bucket this is survivable for databases, but for the flat app buckets
-   (e.g. `nextcloud`) there is no point-in-time recovery. Per §3 the offsite leg must
-   provide versioning (destination-side bucket versioning, or `rclone sync
-   --backup-dir` if the destination cannot version).
-8. **Restore path is untested.** The procedures in §7 have never been exercised
+What still remains, ranked:
+
+1. **The offsite leg needs operator provisioning.** The repo now documents the
+   full setup (`tenants/backup-replicator/README.md`: B2 versioned bucket,
+   Garage `replicator-key` grants, `replicator-config-secret`), but until an
+   operator performs it, nothing leaves the node. Until then the nightly Job
+   fails and `KubeJobFailed` emails about it — by design.
+2. **Restore path is untested.** The procedures in §7 have never been exercised
    end-to-end; the `velero` CLI is not installed by bootstrap. A periodic restore
    drill (e.g. against a staging cluster) is the only way to know the chain works.
-9. **Garage `replicationFactor: 1`.** In-cluster S3 holds a single copy; disk
-   corruption on the data volume takes out both the primary data *and* hop 1 of every
-   backup chain simultaneously. The offsite mirror is the only real redundancy, which
-   raises the stakes on items 5–7.
-10. **Plane uploads are unconfigured** (MinIO disabled, no S3 substitute) — less a
-    backup gap than a data-loss-shaped functional bug; fixing it should include
-    pointing Plane at a Garage bucket so uploads join the backup chain automatically.
+   The serverName change also means pre-change barman archives (if any) live under
+   the old `database/` path — irrelevant once the first post-change backup lands.
+3. **Garage `replicationFactor: 1`.** In-cluster S3 holds a single copy; disk
+   corruption on the data volume takes out both the primary data *and* hop 1 of
+   every backup chain simultaneously. The offsite copy is the only real
+   redundancy, which makes item 1 the highest-stakes open task.
+4. **Plane presigned-URL flows need a public S3 endpoint.** Server-side upload
+   storage now lands in the `plane` Garage bucket (internal endpoint), but
+   Plane hands browsers presigned URLs pointing at that endpoint — full
+   upload/download UX needs Garage exposed on a public hostname
+   (`s3.<domain>` ingress + DNS + cert) and the endpoint URL in
+   `tenants/plane/doc-store-init-job.yaml` switched to it.
+5. **Verify against a live cluster** (§9): confirm each CNPG cluster reports a
+   first recoverability point after the serverName change, that the pv-backup
+   jobs succeed, and that the alerts stay green.
 
 ## 6. Scalability of each storage layer
 
@@ -243,8 +240,9 @@ CNPG restores by bootstrapping a *new* cluster from the object store of the old 
        - name: database
          barmanObjectStore:
            destinationPath: s3://postgres-backups/
-           # serverName must match what the original cluster archived under
-           # (see gap 1 in §5 — set per-tenant serverNames before relying on this)
+           # Must match what the original cluster archived under — every tenant
+           # cluster sets serverName: <tenant>-database in its cnpg-cluster.yaml
+           serverName: <tenant>-database
            endpointURL: http://garage.garage-system.svc.cluster.local:3900
            s3Credentials:
              accessKeyId:
@@ -305,17 +303,18 @@ keys to the restored buckets on the next sync retry.
 4. Restore databases from the recovered `postgres-backups*` buckets (§7.1).
 5. Let ArgoCD finish syncing; apps reconnect to restored data.
 
-**This sequence has never been drilled end-to-end** (§5 gap 8). Treat it as a plan,
+**This sequence has never been drilled end-to-end** (§5 item 2). Treat it as a plan,
 not a proven runbook, until a staging drill has validated it.
 
 ## 8. The offsite leg — target architecture
 
-Nothing exists offsite today (§5 gap 5). Requirements from §3: S3-compatible (so
+Nothing exists offsite today (§5 item 1). Requirements from §3: S3-compatible (so
 the existing rclone replicator works unchanged), point-in-time capable, cheap at
 the ~100–500 GB scale, and ideally on infrastructure independent of Hetzner.
 
 Recommended: **Backblaze B2** ($6/TB/month, pay-per-GB — ~$1–3/month at current
-data volumes). S3-compatible, native bucket versioning (solves gap 7 with zero
+data volumes). S3-compatible, native bucket versioning (turns the plain mirror
+into point-in-time recovery with zero
 rclone changes) plus optional object lock for ransomware-proof immutability, and a
 different provider/failure domain than the cluster. Setup: create a versioned
 bucket + application key, put an `rclone.conf` with `source:` (cluster Garage) and
@@ -342,9 +341,9 @@ same state, including the CNPG collision). What only a **long-lived** cluster
 
 ```bash
 export KUBECONFIG=~/.smallworlds/kubeconfigs/<env>.yaml
-kubectl get backups -A                                  # is the CNPG collision (gap 1) real? which clusters succeed?
+kubectl get backups -A                                  # every cluster backing up post-serverName fix?
 kubectl get cluster -A -o wide                          # WAL archiving / first-point-of-recoverability status
-kubectl get secret -n backup-replicator replicator-config-secret   # is offsite replication configured? (gap 5)
+kubectl get secret -n backup-replicator replicator-config-secret   # is offsite replication configured? (§5 item 1)
 kubectl get jobs -n backup-replicator                   # did last night's replication succeed?
 kubectl get backupstoragelocation,schedule,backup -n velero        # Velero health
 df -h /mnt/smallworlds-data                             # actual usage vs the 200 GB volume (on the node)

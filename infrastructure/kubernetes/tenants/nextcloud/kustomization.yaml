@@ -6,6 +6,7 @@ bases:
   - ../../bases/setup-rbac
   - ../../bases/garage-init-job
   - ../../bases/keycloak-client-job
+  - ../../bases/pv-backup-job
 
 resources:
   - redis.yaml
@@ -22,6 +23,22 @@ patches:
       - op: replace
         path: /metadata/name
         value: setup-binding-nextcloud
+  # Nightly copy of /var/www/html — user files are safe in the S3 primary
+  # store, but config.php (instanceid, secret, passwordsalt) only lives on
+  # this PVC and is required for a clean restore.
+  - target:
+      kind: CronJob
+      name: pv-backup
+    patch: |-
+      - op: replace
+        path: /spec/schedule
+        value: "0 1 * * *"
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/volumes/0/persistentVolumeClaim/claimName
+        value: nextcloud-nextcloud
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/containers/0/env/0/value
+        value: "nextcloud/pv-backup/html"
   - target:
       kind: Job
       name: keycloak-client-init

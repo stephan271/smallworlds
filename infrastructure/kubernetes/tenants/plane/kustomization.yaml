@@ -4,11 +4,16 @@ namespace: plane
 
 bases:
   - ../../bases/setup-rbac
+  # Creates the `plane` bucket + garage-secret AND garage-secret-cnpg. The
+  # latter was always referenced by cnpg-cluster.yaml but this base was
+  # missing, so CNPG backups had no credentials to authenticate with.
+  - ../../bases/garage-init-job
 
 resources:
   - redis.yaml
   - cnpg-cluster.yaml
   - admin-nginx-configmap.yaml
+  - doc-store-init-job.yaml
 
 helmCharts:
   - name: plane-ce

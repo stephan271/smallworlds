@@ -6,6 +6,8 @@ spec:
   instances: 2
   imageName: ghcr.io/cloudnative-pg/postgresql:16
   primaryUpdateStrategy: unsupervised
+  monitoring:
+    enablePodMonitor: true
   storage:
     size: 20Gi
   bootstrap:
@@ -15,6 +17,10 @@ spec:
   backup:
     retentionPolicy: "7d"
     barmanObjectStore:
+      # Distinct per-tenant serverName: all these clusters are named "database",
+      # and barman refuses (or corrupts) a destination already claimed by another
+      # server — without this, only the first tenant to sync gets working backups.
+      serverName: immich-database
       destinationPath: s3://postgres-backups/
       endpointURL: http://garage.garage-system.svc.cluster.local:3900
       s3Credentials:
