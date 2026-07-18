@@ -9,7 +9,7 @@
 > **Prototype — not production-ready.** SmallWorlds is still in an early prototyping state. It is intended for experimentation and evaluation only, and is **not yet suitable for production environments**. Expect breaking changes, incomplete hardening, and no stability or upgrade guarantees. Use at your own risk.
 
 > [!IMPORTANT]
-> **Hetzner Cloud only.** The current `smallworlds-init.sh` bootstrap script and the bundled Terraform assume deployment to **Hetzner Cloud** — they provision an `hcloud_server`, manage DNS through the Hetzner API, and rely on Hetzner-specific storage. Running it requires a Hetzner Cloud account and an API token. Other providers are not yet supported; targeting one would require replacing the Terraform in `infrastructure/terraform/` and the storage/DNS assumptions in the init script.
+> **Not Hetzner-only.** `smallworlds-init.sh` supports two deployment targets: **`hetzner`** (a Hetzner Cloud VM provisioned by Terraform) and **`local`** (an existing Linux machine in your LAN, bootstrapped in place over SSH — no cloud account needed). Hetzner is still required for **public DNS** — either via Terraform on the `hetzner` target, or via a free Hetzner DNS zone + API token on an **internet-exposed** `local` deployment. A LAN-only `local` deployment needs no Hetzner account, no domain registration, and no cloud resources at all. See the "Deployment Instructions" section below and `doc/local-deployment.md` for details.
 
 This document outlines the deployment process for a SmallWorlds GitOps cluster. The architecture relies on an upstream foundation repository and a private, user-controlled configuration repository.
 
@@ -24,7 +24,7 @@ This project is built upon several foundational open-source technologies, core i
 
 | Name | Source URL | Role in this Project |
 | :--- | :--- | :--- |
-| **Terraform** | [terraform.io](https://www.terraform.io/) | Infrastructure as Code tool used to provision the underlying cloud resources and bootstrap the cluster. |
+| **Terraform** | [terraform.io](https://www.terraform.io/) | Infrastructure as Code tool used on the `hetzner` target to provision the VM and DNS; on the `local` target only the (optional) DNS zone is Hetzner-managed, the node itself is bootstrapped over SSH without Terraform. |
 | **Kubernetes** | [kubernetes.io](https://kubernetes.io/) | Core container orchestration system that serves as the foundation for the cluster. |
 | **Argo CD** | [argoproj.github.io/cd](https://argoproj.github.io/cd/) | GitOps continuous delivery tool that synchronizes cluster state with the configuration repository (accessible at `deploy.<domain>`). |
 | **Velero** | [velero.io](https://velero.io/) | Cluster backup and disaster recovery solution. |

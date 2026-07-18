@@ -239,8 +239,8 @@
             <div class="grid-container">
                 <div>
                     <span class="tag">Persistent Storage</span>
-                    <h3>Hetzner Local Storage</h3>
-                    <p><code>persistent-storage.yaml</code> creates a <code>StorageClass</code> named <code>hetzner-local</code>. This maps Kubernetes PVCs directly to the physical Hetzner volume mounted at <code>/mnt/smallworlds-data</code>, ensuring data survives VM recreation.</p>
+                    <h3>Local Node Storage</h3>
+                    <p><code>persistent-storage.yaml</code> creates a <code>StorageClass</code> named <code>hetzner-local</code> (name kept for historical reasons; it is not Hetzner-specific). This maps Kubernetes PVCs to a local path at <code>/mnt/smallworlds-data</code> on the node, with PV node affinity covering both the Hetzner VM and a bootstrapped LAN machine, ensuring data survives VM recreation or a local reinstall.</p>
                 </div>
                 <div>
                     <span class="tag critical">Networking</span>
