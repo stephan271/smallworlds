@@ -144,6 +144,49 @@ deliberate rebuild. So the change must additionally be applied live, once:
    existing rate-limit protection (`admin-tools/restore-certs-from-laptop.sh`)
    is unaffected.
 
+### Step 0.5 — Local-target mirror (IMPLEMENTED)
+CLAUDE.md flags that `infrastructure/cloud-init/k3s-node.yaml.tpl` (Hetzner)
+and `infrastructure/local/bootstrap-local-node.sh` (LAN/local target)
+implement the same bootstrap contract independently and usually need mirrored
+changes — Steps 0.1–0.4 above only touched the Hetzner side. Mirrored:
+
+1. `infrastructure/local/bootstrap-local-node.sh`: same `dns01` webhook solver
+   swap on the `letsencrypt-prod` ClusterIssuer. Bonus over Hetzner: DNS-01
+   doesn't need port 80/443 reachability, so `ACME_EMAIL` can now be set on a
+   NAT'd LAN machine with no port forwarding — updated that variable's doc
+   comment accordingly (it used to warn HTTP-01 fails behind NAT).
+2. `smallworlds-init.sh`: the local target has no `templatefile()` call to
+   thread a token through — its bootstrap manifests come from the
+   `SECRETS_FILE` heredoc this script generates and hands to
+   `bootstrap-local-node.sh` (used for **both** deploy targets). Added a
+   `cert-manager` Namespace + `hetzner` Secret block there, right after the
+   existing `stalwart-dns-secrets` block, reusing the already-collected
+   `$SECRETS_HCLOUD_TOKEN` — which is already correctly gated (blanked for
+   LAN-only local installs, real value whenever `LOCAL_PUBLIC=yes` i.e.
+   whenever `ACME_EMAIL` is also set, so no broken configured-solver/no-token
+   state is reachable).
+
+**⚠️ Rollout mechanics differ sharply from Steps 0.1–0.4, and this is easy to
+get wrong:** `bootstrap-local-node.sh` and `smallworlds-init.sh` are **not**
+part of the GitOps loop at all — ArgoCD never fetches them. They run exactly
+once, standalone, over SSH, at initial node provisioning (or an explicit
+manual re-run). Consequently:
+
+- Bumping the pinned tag in a community overlay repo (`update-community-version.sh`)
+  has **zero effect** on this fix, no matter how new the tag is — there is
+  nothing here for ArgoCD to sync. Don't reach for that tool expecting it to
+  help.
+- The fix is **dormant on any already-running local-target cluster** (e.g. an
+  existing `.dev` install) until that node is rebuilt from scratch via a fresh
+  `smallworlds-init.sh` run. A live cluster bootstrapped before this commit
+  keeps its old HTTP-01 `letsencrypt-prod` ClusterIssuer indefinitely unless
+  either the node is reinstalled, or the operator manually reruns
+  `bootstrap-local-node.sh` against it, or applies the same
+  `kubectl apply` live-cutover documented in Step 0.4 by hand.
+- This is a real regression risk to watch for: if a local-target node is ever
+  rebuilt from a commit *older* than this one (e.g. a pinned older release
+  script cached somewhere), it silently reverts to HTTP-01.
+
 ### Rollback
 Re-apply the previous ClusterIssuer with the `http01` solver (ports 80/443 are
 still open). No cert is lost; issued certs live in Secrets regardless of
@@ -269,13 +312,16 @@ it yet.
 
 | PR | Content | Risk |
 |----|---------|------|
-| 1 | Phase 0: webhook Application, token plumbing (tfvars → cloud-init → Secret), ClusterIssuer solver switch in tpl | Low — HTTP-01 stays available for rollback |
+| 1 | Phase 0 (Hetzner): webhook Application, token plumbing (tfvars → cloud-init → Secret), ClusterIssuer solver switch in tpl (Steps 0.1–0.4) | Low — HTTP-01 stays available for rollback |
+| 1b | Phase 0 (local-target mirror): same solver switch in `bootstrap-local-node.sh` + token plumbing in `smallworlds-init.sh`'s `SECRETS_FILE` (Step 0.5) | Low, but **inert until the next fresh bootstrap** — see Step 0.5's rollout-mechanics warning; does not need an overlay version bump |
 | 2 | Phase 1a: headscale tenant + Application + `vpn` DNS record + tailscale install in cloud-init + `setup-vpn.sh` | Low — additive only |
 | 3 | Phase 1b: `cluster-env.sh` repoint + firewall lockdown (22/6443 out, 41641/udp in) + README break-glass docs | Medium — apply only after live tailnet verification |
 
-Each PR validates via `./admin-tools/test-pr-locally.sh <branch>` as usual;
-note that for PR 3 staging proves nothing about the lockdown itself (staging
-firewall unchanged) — its verification is the manual runbook in 1.3/1.5.
+Each PR validates via `./admin-tools/test-pr-locally.sh <branch>` as usual
+(test-pr-locally.sh only exercises the Hetzner path, so it cannot validate
+PR 1b — that needs a real local-target bootstrap run); note that for PR 3
+staging proves nothing about the lockdown itself (staging firewall
+unchanged) — its verification is the manual runbook in 1.3/1.5.
 
 ## Explicit non-goals (later phases)
 - No member onboarding, no Keycloak-OIDC join flow for Headscale (Phase 2).
