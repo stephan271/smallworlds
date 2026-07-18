@@ -3,10 +3,11 @@ set -e
 
 # Bumps the pinned smallworlds base tag in a community overlay repo.
 #
-# Environment (production vs .dev) is auto-detected — see lib/cluster-env.sh —
-# and picks the matching overlay repo dir, following the naming convention
-# prepare-community-repo.sh uses when it generates each repo
-# (my-community-config for production, my-community.dev-config for .dev).
+# Environment (production vs .dev) is auto-detected — see lib/cluster-env.sh.
+# The repo dir it guesses (my-community-config for production,
+# my-community-dev-config for .dev) is only a default — prepare-community-repo.sh
+# lets the operator type any path at setup time, so pass COMMUNITY_REPO_DIR
+# explicitly if your overlay repo lives somewhere else.
 #
 # Usage:
 #   ./admin-tools/update-community-version.sh                              # production, latest tag
@@ -20,7 +21,11 @@ source "$SCRIPT_DIR/lib/cluster-env.sh"
 
 CUR_ENV_EXT=$(detect_env_ext)
 CLUSTER=$(cluster_label "$CUR_ENV_EXT")
-DEFAULT_REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)/../my-community${CUR_ENV_EXT}-config"
+# Hetzner resource names (and, by convention, sibling overlay repo dirs) use
+# the dash form regardless of the DNS/env_ext dot syntax, e.g. "-dev".
+ENV_SUFFIX=""
+[ "$CLUSTER" != "production" ] && ENV_SUFFIX="-$CLUSTER"
+DEFAULT_REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)/../my-community${ENV_SUFFIX}-config"
 # Find the highest semantic version tag on the smallworlds repo
 DEFAULT_VERSION=$(git ls-remote --tags --sort=-v:refname https://github.com/stephan271/smallworlds.git | grep -Eo 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 2>/dev/null || echo "main")
 
