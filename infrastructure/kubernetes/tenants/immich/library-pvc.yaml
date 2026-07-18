@@ -4,7 +4,7 @@ metadata:
   name: immich-library-pvc
   namespace: immich
 spec:
-  storageClassName: hetzner-local
+  storageClassName: static-local
   volumeName: immich-library-pv    # binds to the Hetzner-backed PV defined in persistent-storage.yaml
   accessModes:
     - ReadWriteOnce

@@ -1,13 +1,14 @@
 # ------------------------------------------------------------------------------
-# StorageClass: hetzner-local
-# Points to paths on the persistent Hetzner network volume mounted at
-# /mnt/smallworlds-data. This path is created by the bootstrap provisioner.
-# The volume survives VM re-creation, ensuring data persistence.
+# StorageClass: static-local
+# Static (no-provisioner) binding for PVs on the persistent data mount at
+# /mnt/smallworlds-data — a Hetzner network volume on the cloud target, a
+# symlinked local directory on the LAN target. The path is created by the
+# bootstrap provisioner and survives VM re-creation / reinstall.
 # ------------------------------------------------------------------------------
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: hetzner-local
+  name: static-local
   annotations:
     argocd.argoproj.io/sync-wave: "-10"
 provisioner: kubernetes.io/no-provisioner  # manual / static provisioning
@@ -15,7 +16,7 @@ volumeBindingMode: WaitForFirstConsumer
 reclaimPolicy: Retain
 ---
 # PersistentVolume for Garage S3 storage
-# Garage's Helm chart PVC will bind to this when using storageClassName: hetzner-local
+# Garage's Helm chart PVC will bind to this when using storageClassName: static-local
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -28,7 +29,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: hetzner-local
+  storageClassName: static-local
   local:
     path: /mnt/smallworlds-data/garage
   nodeAffinity:
@@ -57,7 +58,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: hetzner-local
+  storageClassName: static-local
   volumeMode: Filesystem
   local:
     path: /mnt/smallworlds-data/immich-library

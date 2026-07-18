@@ -42,7 +42,7 @@ graph TD
 The foundation of the cluster relies on three main pillars working together: Storage, Routing, and Databases.
 
 **Persistent Storage — Local Node Storage**
-`persistent-storage.yaml` creates a `StorageClass` named `hetzner-local` (name kept for historical/compatibility reasons; it is not Hetzner-specific). This maps Kubernetes PVCs to a local path at `/mnt/smallworlds-data` on the node, with `PersistentVolume` node affinity covering both provisioning targets — the Hetzner VM (`cc-pilot-node-01`) and a bootstrapped LAN machine (`smallworlds-local-node`) — ensuring data survives VM recreation or a local reinstall.
+`persistent-storage.yaml` creates a `StorageClass` named `static-local` (formerly `hetzner-local`; renamed since it is not Hetzner-specific). This maps Kubernetes PVCs to a local path at `/mnt/smallworlds-data` on the node, with `PersistentVolume` node affinity covering both provisioning targets — the Hetzner VM (`cc-pilot-node-01`) and a bootstrapped LAN machine (`smallworlds-local-node`) — ensuring data survives VM recreation or a local reinstall.
 
 **Networking — Traefik & Cert-Manager**
 `traefik.yaml` and `cert-manager.yaml` manage routing and TLS. Cert-manager watches for Ingress resources and automatically negotiates Let's Encrypt certificates. Traefik serves as the unified entry point for all subdomains (identity, files, photos, etc.).

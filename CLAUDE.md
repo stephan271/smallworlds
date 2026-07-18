@@ -103,7 +103,7 @@ Cluster access for read-only inspection: kubeconfigs live in `~/.smallworlds/kub
 
 ## Documentation map (`doc/`)
 
-`argocd-apps.md` (sync waves) and `bases.md` (init job bases) are summarized above. `local-deployment.md` covers the LAN/local-server target (requirements, DNS/TLS differences, lifecycle). Also present: `bases.md`, `plane-architecture.md`, `tenant-dashboard.md`, `tenant-forgejo.md`, `tenant-hermes.md`, `tenant-immich.md`, `tenant-keycloak.md`, `tenant-nextcloud.md`, `tenant-other.md`, `tenant-stalwart.md` — check the relevant one before making non-trivial changes to that subsystem, as several encode hard-won fixes (version incompatibilities, ordering bugs) that aren't obvious from the manifests alone.
+`argocd-apps.md` (sync waves) and `bases.md` (init job bases) are summarized above. `local-deployment.md` covers the LAN/local-server target (requirements, DNS/TLS differences, lifecycle). `storage-and-backup.md` maps where every app's data lives (PVs/PVCs, databases, Garage buckets), the backup chain and its known gaps, and per-layer scale-up procedures — consult it before touching CNPG `backup:` blocks, PV sizes, or anything under `tenants/backup-replicator`/`velero`. Also present: `bases.md`, `plane-architecture.md`, `tenant-dashboard.md`, `tenant-forgejo.md`, `tenant-hermes.md`, `tenant-immich.md`, `tenant-keycloak.md`, `tenant-nextcloud.md`, `tenant-other.md`, `tenant-stalwart.md` — check the relevant one before making non-trivial changes to that subsystem, as several encode hard-won fixes (version incompatibilities, ordering bugs) that aren't obvious from the manifests alone.
 
 ## Project-wide contracts
 
