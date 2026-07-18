@@ -122,7 +122,28 @@
             object-fit: contain;
         }
 
-        /* Entry animations removed for stability */
+        /* Staged build-up on the intro slide only: it is the slide visible at
+           load, so plain on-load CSS animations are safe (no scroll observer).
+           Base styles are the final state; keyframes only describe the way in. */
+        @keyframes rise-in {
+            from { opacity: 0; transform: translateY(2vmin); }
+        }
+        #slide1 h1, #slide1 .glass-card > p { animation: rise-in 0.6s ease-out 0.15s both; }
+        #slide1 .infra-base { animation: rise-in 0.6s ease-out both; }
+        #slide1 .small-world-ellipse { animation: rise-in 0.5s ease-out 0.3s both; }
+        #slide1 .app-card { animation: rise-in 0.4s ease-out both; }
+        #slide1 .apps-grid .app-card:nth-child(1) { animation-delay: 0.65s; }
+        #slide1 .apps-grid .app-card:nth-child(2) { animation-delay: 0.77s; }
+        #slide1 .apps-grid .app-card:nth-child(3) { animation-delay: 0.89s; }
+        #slide1 .apps-grid .app-card:nth-child(4) { animation-delay: 1.01s; }
+        #slide1 .apps-grid .app-card:nth-child(5) { animation-delay: 1.13s; }
+        #slide1 .apps-grid .app-card:nth-child(6) { animation-delay: 1.25s; }
+        #slide1 .apps-grid .app-card:nth-child(7) { animation-delay: 1.37s; }
+        #slide1 .infra-pill { animation: rise-in 0.4s ease-out both; }
+        #slide1 .infra-components .infra-pill:nth-child(1) { animation-delay: 1.6s; }
+        #slide1 .infra-components .infra-pill:nth-child(2) { animation-delay: 1.7s; }
+        #slide1 .infra-components .infra-pill:nth-child(3) { animation-delay: 1.8s; }
+        #slide1 .infra-components .infra-pill:nth-child(4) { animation-delay: 1.9s; }
 
         .features {
             display: grid;
@@ -143,12 +164,29 @@
 
         .flow-step {
             position: relative;
-            min-height: 28vh;
+            min-height: 22vh;
             padding: 3vmin 2vmin;
             background: #fff;
             border: 0.15vmin solid rgba(109, 40, 217, 0.16);
             border-radius: 1.5vmin;
             box-shadow: 0 0.5vmin 1vmin -0.2vmin rgba(0, 0, 0, 0.05);
+            animation: step-pulse 8s ease-in-out infinite;
+        }
+
+        /* the four steps light up in reading order, guiding the eye */
+        .flow-step:nth-child(2) { animation-delay: 2s; }
+        .flow-step:nth-child(3) { animation-delay: 4s; }
+        .flow-step:nth-child(4) { animation-delay: 6s; }
+
+        @keyframes step-pulse {
+            0%, 25%, 100% {
+                border-color: rgba(109, 40, 217, 0.16);
+                box-shadow: 0 0.5vmin 1vmin -0.2vmin rgba(0, 0, 0, 0.05);
+            }
+            8%, 17% {
+                border-color: var(--accent-primary);
+                box-shadow: 0 1vmin 2.5vmin -0.3vmin rgba(109, 40, 217, 0.35);
+            }
         }
 
         .flow-step:not(:last-child)::after {
@@ -464,8 +502,105 @@
         @keyframes go-badgeB-k { 0%, 60% { opacity: 0; } 67%, 95% { opacity: 1; } 100% { opacity: 0; } }
         @keyframes go-podpulse-k { 0%, 58% { opacity: 0; } 63% { opacity: .45; } 69%, 100% { opacity: 0; } }
 
+        /* --- Bootstrap timeline (flow slide) --- */
+        .bt-stage {
+            width: 100%;
+            margin-top: 2vmin;
+        }
+        .bt-stage svg {
+            width: 100%;
+            height: auto;
+            max-height: 18vh;
+        }
+        .bt-casing { fill: none; stroke: #b9c7dd; stroke-width: 14; stroke-linecap: round; }
+        .bt-body   { fill: none; stroke: #eef2fa; stroke-width: 9;  stroke-linecap: round; }
+        /* base = final state (full bar); the animation replays the 20 minutes */
+        .bt-progress {
+            fill: none;
+            stroke: #7c3aed;
+            stroke-width: 9;
+            stroke-linecap: round;
+            stroke-dasharray: 100 100;
+            stroke-dashoffset: 0;
+            animation: bt-progress-k var(--bt-cycle, 14s) linear infinite;
+        }
+        @keyframes bt-progress-k { 0% { stroke-dashoffset: 100; } 80%, 100% { stroke-dashoffset: 0; } }
+        .bt-lit { opacity: 1; }
+        .bt-lit1 { animation: bt-l1-k var(--bt-cycle, 14s) linear infinite; }
+        .bt-lit2 { animation: bt-l2-k var(--bt-cycle, 14s) linear infinite; }
+        .bt-lit3 { animation: bt-l3-k var(--bt-cycle, 14s) linear infinite; }
+        .bt-lit4 { animation: bt-l4-k var(--bt-cycle, 14s) linear infinite; }
+        .bt-lit5 { animation: bt-l5-k var(--bt-cycle, 14s) linear infinite; }
+        .bt-lit6 { animation: bt-l6-k var(--bt-cycle, 14s) linear infinite; }
+        @keyframes bt-l1-k { 0% { opacity: 0; } 3%, 100% { opacity: 1; } }
+        @keyframes bt-l2-k { 0%, 16% { opacity: 0; } 19%, 100% { opacity: 1; } }
+        @keyframes bt-l3-k { 0%, 32% { opacity: 0; } 35%, 100% { opacity: 1; } }
+        @keyframes bt-l4-k { 0%, 48% { opacity: 0; } 51%, 100% { opacity: 1; } }
+        @keyframes bt-l5-k { 0%, 64% { opacity: 0; } 67%, 100% { opacity: 1; } }
+        @keyframes bt-l6-k { 0%, 80% { opacity: 0; } 83%, 100% { opacity: 1; } }
+
+        /* --- Single-sign-on fan-out (why slide) --- */
+        #slide-why .feature-item { min-height: 16vh; }
+        .sso-stage {
+            width: 100%;
+            margin-top: 2vmin;
+        }
+        .sso-stage svg {
+            width: 100%;
+            height: auto;
+            max-height: 16vh;
+        }
+        /* a single travelling dot: one tiny dash pushed along the path */
+        .sso-key, .sso-dot {
+            fill: none;
+            stroke-width: 13;
+            stroke-linecap: round;
+            stroke-dasharray: 0.1 199.9;
+            stroke-dashoffset: -100;
+            opacity: 0;
+        }
+        .sso-key { stroke: #7c3aed; animation: sso-key-k var(--sso-cycle, 9s) linear infinite; }
+        .sso-dot { stroke: #0284c7; animation: sso-dot-k var(--sso-cycle, 9s) linear infinite; }
+        /* fan pipes are the svg's 2nd–6th <g> children; stagger the dots and
+           keep each app's lock flip in step with its arriving dot */
+        .sso-stage svg > g:nth-of-type(3) .sso-dot { animation-delay: 0.15s; }
+        .sso-stage svg > g:nth-of-type(4) .sso-dot { animation-delay: 0.3s; }
+        .sso-stage svg > g:nth-of-type(5) .sso-dot { animation-delay: 0.45s; }
+        .sso-stage svg > g:nth-of-type(6) .sso-dot { animation-delay: 0.6s; }
+        .sso-glows rect:nth-of-type(2),
+        .sso-locks text:nth-of-type(3), .sso-locks text:nth-of-type(4) { animation-delay: 0.15s; }
+        .sso-glows rect:nth-of-type(3),
+        .sso-locks text:nth-of-type(5), .sso-locks text:nth-of-type(6) { animation-delay: 0.3s; }
+        .sso-glows rect:nth-of-type(4),
+        .sso-locks text:nth-of-type(7), .sso-locks text:nth-of-type(8) { animation-delay: 0.45s; }
+        .sso-glows rect:nth-of-type(5),
+        .sso-locks text:nth-of-type(9), .sso-locks text:nth-of-type(10) { animation-delay: 0.6s; }
+        @keyframes sso-key-k {
+            0%, 6%    { stroke-dashoffset: 0; opacity: 0; }
+            8%        { opacity: 1; }
+            24%       { stroke-dashoffset: -100; opacity: 1; }
+            26%, 100% { stroke-dashoffset: -100; opacity: 0; }
+        }
+        @keyframes sso-dot-k {
+            0%, 30%   { stroke-dashoffset: 0; opacity: 0; }
+            32%       { opacity: 1; }
+            50%       { stroke-dashoffset: -100; opacity: 1; }
+            52%, 100% { stroke-dashoffset: -100; opacity: 0; }
+        }
+        .sso-hubpulse { opacity: 0; animation: sso-hub-k var(--sso-cycle, 9s) linear infinite; }
+        @keyframes sso-hub-k { 0%, 23% { opacity: 0; } 27% { opacity: 1; } 34%, 100% { opacity: 0; } }
+        /* locks: base state is "unlocked" so a static render tells the story */
+        .sso-locked { opacity: 0; animation: sso-locked-k var(--sso-cycle, 9s) linear infinite; }
+        .sso-open   { opacity: 1; animation: sso-open-k   var(--sso-cycle, 9s) linear infinite; }
+        @keyframes sso-locked-k { 0%, 49% { opacity: 1; } 52%, 100% { opacity: 0; } }
+        @keyframes sso-open-k   { 0%, 49% { opacity: 0; } 52%, 100% { opacity: 1; } }
+        .sso-unlockglow { opacity: 0; animation: sso-glow-k var(--sso-cycle, 9s) linear infinite; }
+        @keyframes sso-glow-k { 0%, 49% { opacity: 0; } 53% { opacity: 1; } 64%, 100% { opacity: 0; } }
+
         @media (prefers-reduced-motion: reduce) {
-            .gitops-stage * { animation: none !important; }
+            /* every animation here is decorative and every base style is the
+               final state, so switching them all off leaves complete slides */
+            .slide * { animation: none !important; }
         }
     </style>
 </head>
@@ -541,7 +676,7 @@
             <div class="glass-card">
                 <img class="slide-logo" src="logos/smallworlds_logo.svg" alt="SmallWorlds logo">
                 <h2>Why SmallWorlds?</h2>
-                <p>Big Tech rents you access to your own digital life. SmallWorlds hands it back.</p>
+                <p>Big Tech rents you access to your own digital life. SmallWorlds hands it back — to you, your family, your community.</p>
                 <div class="features">
                     <div class="feature-item">
                         <h3>🔑 Own your apps &amp; your data</h3>
@@ -557,44 +692,83 @@
                     </div>
                     <div class="feature-item">
                         <h3>✨ One seamless suite</h3>
-                        <p>A full set of everyday apps behind a single sign-on and one dashboard — the convenience of Big Tech, minus the surveillance and the subscription creep.</p>
+                        <p>A full set of everyday apps behind a single sign-on with passkey support, private e-mail, and one dashboard — the convenience of Big Tech, minus the surveillance and the subscription creep.</p>
                     </div>
                 </div>
-                <img class="qr-code" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADIAQMAAACXljzdAAAABlBMVEXx9fkPERql9GgkAAAACXBIWXMAAA7EAAAOxAGVKw4bAAABiklEQVRYhdWYsZGEMAxFxThwuCW4FDpbuzSX4hIcEjDo9CXYnbubjfejwAM8BxZ8f8mIfIyqCEmbXWJcdfEnBwF5+gIX3R6430qvy45H5CSpDstEtcuRgtikdgeCfDo+yBC5DxHJc21Hwpe4BQnt7HlilNLlj6q+SGI3gmDVrpBf+5STvGNti+/G/07HR1zMGOZqOeQh9UjTOTNBFGQSfl0Ufj2gHWYC90A+5tdNoXjL5DEwn5rs2ZYPjXfMMgUhQfDvE3FPs7dsrhwKAdHGTeqOV2t+bB4Ss/RUCDMxFZtTq3u0P7OsUEuEm1g+UDT8GlXmzKeyk+w36EQV1w3OF/nwErOPWZriW6Czs32KfKxOEpCn5Kgl6n6sXrcHnISaJN988BCJDt81XsmJYPMFsd4zEhtrnKZoSYR3dtdJEFPJScgmuujIJDp8oSbR+/u5RHGJMboNAnKd9MI9tNeXdm5A4HzxB0PQbdyDeBXBuUTPEG7i2vF/AV5l3ucSZnLuRn05X7uqDDP5GD+B6CaBYlKg7QAAAABJRU5ErkJggg==" alt="GitHub Repo QR Code" title="Scan to visit the GitHub Repo">
-            </div>
-            <div class="scroll-indicator">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-            </div>
-        </section>
+                <div class="sso-stage">
+                    <svg viewBox="0 0 1400 190" role="img" aria-label="Diagram: you sign in once at Keycloak, and session tokens fan out to unlock every app">
+                        <!-- pipes first, so the nodes sit on top -->
+                        <g>
+                            <path class="go-pipe-casing" style="stroke-width:16" d="M120,95 H330"/>
+                            <path class="go-pipe-body" style="stroke-width:10" d="M120,95 H330"/>
+                            <path class="sso-key" pathLength="100" d="M120,95 H330"/>
+                        </g>
+                        <g>
+                            <path class="go-pipe-casing" style="stroke-width:16" d="M530,95 H675 Q695,95 695,76 Q695,56 715,56 H730"/>
+                            <path class="go-pipe-body" style="stroke-width:10" d="M530,95 H675 Q695,95 695,76 Q695,56 715,56 H730"/>
+                            <path class="sso-dot" pathLength="100" d="M530,95 H675 Q695,95 695,76 Q695,56 715,56 H730"/>
+                        </g>
+                        <g>
+                            <path class="go-pipe-casing" style="stroke-width:16" d="M530,95 H810 Q830,95 830,114 Q830,134 850,134 H865"/>
+                            <path class="go-pipe-body" style="stroke-width:10" d="M530,95 H810 Q830,95 830,114 Q830,134 850,134 H865"/>
+                            <path class="sso-dot" pathLength="100" d="M530,95 H810 Q830,95 830,114 Q830,134 850,134 H865"/>
+                        </g>
+                        <g>
+                            <path class="go-pipe-casing" style="stroke-width:16" d="M530,95 H945 Q965,95 965,76 Q965,56 985,56 H1000"/>
+                            <path class="go-pipe-body" style="stroke-width:10" d="M530,95 H945 Q965,95 965,76 Q965,56 985,56 H1000"/>
+                            <path class="sso-dot" pathLength="100" d="M530,95 H945 Q965,95 965,76 Q965,56 985,56 H1000"/>
+                        </g>
+                        <g>
+                            <path class="go-pipe-casing" style="stroke-width:16" d="M530,95 H1080 Q1100,95 1100,114 Q1100,134 1120,134 H1135"/>
+                            <path class="go-pipe-body" style="stroke-width:10" d="M530,95 H1080 Q1100,95 1100,114 Q1100,134 1120,134 H1135"/>
+                            <path class="sso-dot" pathLength="100" d="M530,95 H1080 Q1100,95 1100,114 Q1100,134 1120,134 H1135"/>
+                        </g>
+                        <g>
+                            <path class="go-pipe-casing" style="stroke-width:16" d="M530,95 H1215 Q1235,95 1235,76 Q1235,56 1255,56 H1270"/>
+                            <path class="go-pipe-body" style="stroke-width:10" d="M530,95 H1215 Q1235,95 1235,76 Q1235,56 1255,56 H1270"/>
+                            <path class="sso-dot" pathLength="100" d="M530,95 H1215 Q1235,95 1235,76 Q1235,56 1255,56 H1270"/>
+                        </g>
 
-        <!-- Slide 2: Purpose & Architecture -->
-        <section class="slide" id="slide2">
-            <div class="glass-card">
-                <img class="slide-logo" src="logos/smallworlds_logo.svg" alt="SmallWorlds logo">
-                <h2>The Vision: A small world...</h2>
-                <p>... that everyone can setup and operate. </p>
+                        <!-- you -->
+                        <circle cx="90" cy="95" r="30" fill="#f5f3ff" stroke="#7c3aed" stroke-width="3"/>
+                        <text x="90" y="101" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="700" font-size="17" fill="#4c1d95">You</text>
 
-                <p> Suitable for you, your family, your community, etc.</p>
-                
-                <div class="features">
-                    <div class="feature-item">
-                        <h3>Rapid Setup</h3>
-                        <p>Fully automated installation: from zero to fully operational multi-app infrastructure and DNS setup in ~20 minutes.</p>
-                    </div>
-                    <div class="feature-item">
-                        <h3>Central Identity Management</h3>
-                        <p>Single Sign On, Passkey Support, Private email.</p>
-                    </div>
-                    <div class="feature-item">
-                        <h3>Sovereign Cloud</h3>
-                        <p>You own the apps and data. The current automated bootstrap targets Hetzner Cloud; other providers and home hosting are future work.</p>
-                    </div>
-                    <div class="feature-item">
-                        <h3>Lifecycle Management</h3>
-                        <p>GitOps version control. ArgoCD synchronizes cluster. Automated updates and backups. Add your own Apps.</p>
-                    </div>
+                        <!-- keycloak hub -->
+                        <rect x="330" y="60" width="200" height="70" rx="14" fill="#f5f3ff" stroke="#a78bfa" stroke-width="2.5"/>
+                        <rect class="sso-hubpulse" x="323" y="53" width="214" height="84" rx="18" fill="none" stroke="#7c3aed" stroke-width="4"/>
+                        <text x="430" y="90" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="700" font-size="19" fill="#4c1d95">🔑 Keycloak</text>
+                        <text x="430" y="114" text-anchor="middle" font-size="14" fill="#64748b">one identity, passkey-ready</text>
+
+                        <!-- apps: two staggered rows so the fan stays readable -->
+                        <g font-family="Inter, sans-serif" font-size="16" fill="#334155" text-anchor="middle">
+                            <rect x="730" y="30" width="120" height="52" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+                            <text x="790" y="62">Photos</text>
+                            <rect x="865" y="108" width="120" height="52" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+                            <text x="925" y="140">Files</text>
+                            <rect x="1000" y="30" width="120" height="52" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+                            <text x="1060" y="62">Mail</text>
+                            <rect x="1135" y="108" width="120" height="52" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+                            <text x="1195" y="140">Code</text>
+                            <rect x="1270" y="30" width="120" height="52" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+                            <text x="1330" y="62">Meet</text>
+                        </g>
+                        <g class="sso-glows">
+                            <rect class="sso-unlockglow" x="730" y="30" width="120" height="52" rx="10" fill="none" stroke="#7c3aed" stroke-width="3.5"/>
+                            <rect class="sso-unlockglow" x="865" y="108" width="120" height="52" rx="10" fill="none" stroke="#7c3aed" stroke-width="3.5"/>
+                            <rect class="sso-unlockglow" x="1000" y="30" width="120" height="52" rx="10" fill="none" stroke="#7c3aed" stroke-width="3.5"/>
+                            <rect class="sso-unlockglow" x="1135" y="108" width="120" height="52" rx="10" fill="none" stroke="#7c3aed" stroke-width="3.5"/>
+                            <rect class="sso-unlockglow" x="1270" y="30" width="120" height="52" rx="10" fill="none" stroke="#7c3aed" stroke-width="3.5"/>
+                        </g>
+                        <g class="sso-locks" font-size="18" text-anchor="middle">
+                            <text class="sso-locked" x="838" y="27">🔒</text><text class="sso-open" x="838" y="27">🔓</text>
+                            <text class="sso-locked" x="973" y="105">🔒</text><text class="sso-open" x="973" y="105">🔓</text>
+                            <text class="sso-locked" x="1108" y="27">🔒</text><text class="sso-open" x="1108" y="27">🔓</text>
+                            <text class="sso-locked" x="1243" y="105">🔒</text><text class="sso-open" x="1243" y="105">🔓</text>
+                            <text class="sso-locked" x="1378" y="27">🔒</text><text class="sso-open" x="1378" y="27">🔓</text>
+                        </g>
+                    </svg>
                 </div>
-                <img class="qr-code" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADIAQMAAACXljzdAAAABlBMVEXx9fkPERql9GgkAAAACXBIWXMAAA7EAAAOxAGVKw4bAAABiklEQVRYhdWYsZGEMAxFxThwuCW4FDpbuzSX4hIcEjDo9CXYnbubjfejwAM8BxZ8f8mIfIyqCEmbXWJcdfEnBwF5+gIX3R6430qvy45H5CSpDstEtcuRgtikdgeCfDo+yBC5DxHJc21Hwpe4BQnt7HlilNLlj6q+SGI3gmDVrpBf+5STvGNti+/G/07HR1zMGOZqOeQh9UjTOTNBFGQSfl0Ufj2gHWYC90A+5tdNoXjL5DEwn5rs2ZYPjXfMMgUhQfDvE3FPs7dsrhwKAdHGTeqOV2t+bB4Ss/RUCDMxFZtTq3u0P7OsUEuEm1g+UDT8GlXmzKeyk+w36EQV1w3OF/nwErOPWZriW6Czs32KfKxOEpCn5Kgl6n6sXrcHnISaJN988BCJDt81XsmJYPMFsd4zEhtrnKZoSYR3dtdJEFPJScgmuujIJDp8oSbR+/u5RHGJMboNAnKd9MI9tNeXdm5A4HzxB0PQbdyDeBXBuUTPEG7i2vF/AV5l3ucSZnLuRn05X7uqDDP5GD+B6CaBYlKg7QAAAABJRU5ErkJggg==" alt="GitHub Repo QR Code" title="Scan to visit the GitHub Repo">
+                <p class="flow-note">Sign in once with your SmallWorlds ID — every app trusts the same identity.</p>
             </div>
             <div class="scroll-indicator">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
@@ -616,7 +790,7 @@
                     <div class="flow-step">
                         <div class="flow-number">2</div>
                         <h3>Bootstrap</h3>
-                        <p>Run one guided setup to provision the server, DNS and platform.</p>
+                        <p>Run one guided setup to provision the server, DNS and platform — about 20 minutes to fully operational.</p>
                     </div>
                     <div class="flow-step">
                         <div class="flow-number">3</div>
@@ -629,7 +803,52 @@
                         <p>Keep control with GitOps updates, backups and an auditable history.</p>
                     </div>
                 </div>
-                <p class="flow-note">Today’s automated path is Hetzner Cloud; the architecture is designed to grow beyond it.</p>
+                <div class="bt-stage">
+                    <svg viewBox="0 0 1400 155" role="img" aria-label="Animated timeline: one command installs the server, k3s, Argo CD, data services, identity and all apps in about 20 minutes">
+                        <text x="90" y="26" text-anchor="middle" font-size="15" fill="#94a3b8">0 min</text>
+                        <text x="1310" y="26" text-anchor="middle" font-size="15" fill="#94a3b8">≈ 20 min</text>
+
+                        <path class="bt-casing" d="M90,62 H1310"/>
+                        <path class="bt-body" d="M90,62 H1310"/>
+                        <path class="bt-progress" pathLength="100" d="M90,62 H1310"/>
+
+                        <g fill="#ffffff" stroke="#b9c7dd" stroke-width="3">
+                            <circle cx="90" cy="62" r="15"/>
+                            <circle cx="334" cy="62" r="15"/>
+                            <circle cx="578" cy="62" r="15"/>
+                            <circle cx="822" cy="62" r="15"/>
+                            <circle cx="1066" cy="62" r="15"/>
+                            <circle cx="1310" cy="62" r="15"/>
+                        </g>
+                        <g fill="#7c3aed">
+                            <circle class="bt-lit bt-lit1" cx="90" cy="62" r="15"/>
+                            <circle class="bt-lit bt-lit2" cx="334" cy="62" r="15"/>
+                            <circle class="bt-lit bt-lit3" cx="578" cy="62" r="15"/>
+                            <circle class="bt-lit bt-lit4" cx="822" cy="62" r="15"/>
+                            <circle class="bt-lit bt-lit5" cx="1066" cy="62" r="15"/>
+                            <circle class="bt-lit bt-lit6" cx="1310" cy="62" r="15"/>
+                        </g>
+                        <text class="bt-lit bt-lit6" x="1310" y="68" text-anchor="middle" font-weight="700" font-size="18" fill="#ffffff">✓</text>
+
+                        <g text-anchor="middle" font-family="Outfit, sans-serif" font-weight="700" font-size="19" fill="#334155">
+                            <text x="90" y="104">Server</text>
+                            <text x="334" y="104">k3s</text>
+                            <text x="578" y="104">Argo CD</text>
+                            <text x="822" y="104">Data &amp; TLS</text>
+                            <text x="1066" y="104">Identity</text>
+                            <text x="1310" y="104">Apps live</text>
+                        </g>
+                        <g text-anchor="middle" font-size="14" fill="#64748b">
+                            <text x="90" y="128">cloud VM or LAN box</text>
+                            <text x="334" y="128">lightweight Kubernetes</text>
+                            <text x="578" y="128">GitOps engine</text>
+                            <text x="822" y="128">databases · S3 · certs</text>
+                            <text x="1066" y="128">Keycloak SSO</text>
+                            <text x="1310" y="128">all services up</text>
+                        </g>
+                    </svg>
+                </div>
+                <p class="flow-note">Runs on a cheap cloud VM (Hetzner today) <strong>or on any Linux machine in your own LAN</strong> — same automation, same GitOps either way.</p>
             </div>
             <div class="scroll-indicator">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
@@ -776,24 +995,6 @@
             </div>
         </section>
 
-        <!-- Slide 3: Call to Action -->
-        <section class="slide" id="slide3">
-            <div class="glass-card">
-                <img class="slide-logo" src="logos/smallworlds_logo.svg" alt="SmallWorlds logo">
-                <h2>Your help is <strong>very welcome</strong>!</h2>
-                <p>Currently a single person effort. Working prototype available</p>
-                <p>More Apps, More testing, Improved operation automation, Federation.</p>
-                <p> See status and Roadmap files at </p>
-                <a href="https://github.com/stephan271/smallworlds" target="_blank" class="cta-button">https://github.com/stephan271/smallworlds</a>
-                <div style="margin-top: 2vmin;">
-                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADIAQMAAACXljzdAAAABlBMVEXx9fkPERql9GgkAAAACXBIWXMAAA7EAAAOxAGVKw4bAAABiklEQVRYhdWYsZGEMAxFxThwuCW4FDpbuzSX4hIcEjDo9CXYnbubjfejwAM8BxZ8f8mIfIyqCEmbXWJcdfEnBwF5+gIX3R6430qvy45H5CSpDstEtcuRgtikdgeCfDo+yBC5DxHJc21Hwpe4BQnt7HlilNLlj6q+SGI3gmDVrpBf+5STvGNti+/G/07HR1zMGOZqOeQh9UjTOTNBFGQSfl0Ufj2gHWYC90A+5tdNoXjL5DEwn5rs2ZYPjXfMMgUhQfDvE3FPs7dsrhwKAdHGTeqOV2t+bB4Ss/RUCDMxFZtTq3u0P7OsUEuEm1g+UDT8GlXmzKeyk+w36EQV1w3OF/nwErOPWZriW6Czs32KfKxOEpCn5Kgl6n6sXrcHnISaJN988BCJDt81XsmJYPMFsd4zEhtrnKZoSYR3dtdJEFPJScgmuujIJDp8oSbR+/u5RHGJMboNAnKd9MI9tNeXdm5A4HzxB0PQbdyDeBXBuUTPEG7i2vF/AV5l3ucSZnLuRn05X7uqDDP5GD+B6CaBYlKg7QAAAABJRU5ErkJggg==" alt="GitHub Repo QR Code" style="width: 25vmin; height: 25vmin; border-radius: 1vmin; border: 0.4vmin solid rgba(255,255,255,0.8); box-shadow: 0 1vmin 3vmin rgba(0,0,0,0.1); transition: transform 0.3s ease;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" title="Scan to visit the GitHub Repo">
-                </div>
-            </div>
-            <div class="scroll-indicator">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-            </div>
-        </section>
-
         <!-- Slide 4: Dashboard -->
         <section class="slide" id="slide4">
             <div class="glass-card">
@@ -801,7 +1002,6 @@
                 <h2>The Dashboard</h2>
                 <p>A unified interface for all your applications and services.</p>
                 <img class="screenshot-img" src="screenshots/screen_dashboard_4.png" alt="Dashboard Screenshot">
-                <img class="qr-code" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADIAQMAAACXljzdAAAABlBMVEXx9fkPERql9GgkAAAACXBIWXMAAA7EAAAOxAGVKw4bAAABiklEQVRYhdWYsZGEMAxFxThwuCW4FDpbuzSX4hIcEjDo9CXYnbubjfejwAM8BxZ8f8mIfIyqCEmbXWJcdfEnBwF5+gIX3R6430qvy45H5CSpDstEtcuRgtikdgeCfDo+yBC5DxHJc21Hwpe4BQnt7HlilNLlj6q+SGI3gmDVrpBf+5STvGNti+/G/07HR1zMGOZqOeQh9UjTOTNBFGQSfl0Ufj2gHWYC90A+5tdNoXjL5DEwn5rs2ZYPjXfMMgUhQfDvE3FPs7dsrhwKAdHGTeqOV2t+bB4Ss/RUCDMxFZtTq3u0P7OsUEuEm1g+UDT8GlXmzKeyk+w36EQV1w3OF/nwErOPWZriW6Czs32KfKxOEpCn5Kgl6n6sXrcHnISaJN988BCJDt81XsmJYPMFsd4zEhtrnKZoSYR3dtdJEFPJScgmuujIJDp8oSbR+/u5RHGJMboNAnKd9MI9tNeXdm5A4HzxB0PQbdyDeBXBuUTPEG7i2vF/AV5l3ucSZnLuRn05X7uqDDP5GD+B6CaBYlKg7QAAAABJRU5ErkJggg==" alt="GitHub Repo QR Code" title="Scan to visit the GitHub Repo">
             </div>
             <div class="scroll-indicator">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
@@ -832,7 +1032,6 @@
                         <p>Warning: side effects include strong opinions about Kubernetes and boring your friends at parties with the word "GitOps".</p>
                     </div>
                 </div>
-                <img class="qr-code" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADIAQMAAACXljzdAAAABlBMVEXx9fkPERql9GgkAAAACXBIWXMAAA7EAAAOxAGVKw4bAAABiklEQVRYhdWYsZGEMAxFxThwuCW4FDpbuzSX4hIcEjDo9CXYnbubjfejwAM8BxZ8f8mIfIyqCEmbXWJcdfEnBwF5+gIX3R6430qvy45H5CSpDstEtcuRgtikdgeCfDo+yBC5DxHJc21Hwpe4BQnt7HlilNLlj6q+SGI3gmDVrpBf+5STvGNti+/G/07HR1zMGOZqOeQh9UjTOTNBFGQSfl0Ufj2gHWYC90A+5tdNoXjL5DEwn5rs2ZYPjXfMMgUhQfDvE3FPs7dsrhwKAdHGTeqOV2t+bB4Ss/RUCDMxFZtTq3u0P7OsUEuEm1g+UDT8GlXmzKeyk+w36EQV1w3OF/nwErOPWZriW6Czs32KfKxOEpCn5Kgl6n6sXrcHnISaJN988BCJDt81XsmJYPMFsd4zEhtrnKZoSYR3dtdJEFPJScgmuujIJDp8oSbR+/u5RHGJMboNAnKd9MI9tNeXdm5A4HzxB0PQbdyDeBXBuUTPEG7i2vF/AV5l3ucSZnLuRn05X7uqDDP5GD+B6CaBYlKg7QAAAABJRU5ErkJggg==" alt="GitHub Repo QR Code" title="Scan to visit the GitHub Repo">
             </div>
             <div class="scroll-indicator">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
@@ -844,8 +1043,8 @@
             <div class="glass-card">
                 <img class="slide-logo" src="logos/smallworlds_logo.svg" alt="SmallWorlds logo">
                 <h2>What does it cost? </h2>
-                <p>Example numbers  for Hetzner shared-vCPU <strong>CX</strong> pricing for Germany/Finland, checked 10 July 2026</p>
-                <div class="features" style="grid-template-columns: repeat(3, 1fr);">
+                <p>Example numbers for Hetzner shared-vCPU <strong>CX</strong> pricing for Germany/Finland, checked 10 July 2026 — or skip the cloud entirely.</p>
+                <div class="features" style="grid-template-columns: repeat(4, 1fr);">
                     <div class="feature-item">
                         <h3>Family</h3>
                         <p><strong style="font-size:2.6vmin; color:var(--accent-primary);">ca. €19 / month</strong><br>CX43 · 8 vCPU · 16&nbsp;GB · 160&nbsp;GB SSD</p>
@@ -855,11 +1054,36 @@
                         <p><strong style="font-size:2.6vmin; color:var(--accent-primary);">ca. €35 / month</strong><br>CX53 · 16 vCPU · 32&nbsp;GB · 320&nbsp;GB SSD<br>Many users, room to grow.</p>
                     </div>
                     <div class="feature-item">
+                        <h3>Home Server</h3>
+                        <p><strong style="font-size:2.6vmin; color:var(--accent-primary);">€0 / month</strong><br>Any Linux box in your LAN — same installer, optional internet exposure.</p>
+                    </div>
+                    <div class="feature-item">
                         <h3>Your Data</h3>
-                        <p><strong style="font-size:2.6vmin; color:var(--accent-primary);">≈ €5 / TB / month</strong><br>Attached Hetzner Volume</p>
+                        <p><strong style="font-size:2.6vmin; color:var(--accent-primary);">≈ €5 / TB / month</strong><br>Attached Hetzner Volume — or your own disks at home.</p>
                     </div>
                 </div>
-                <img class="qr-code" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADIAQMAAACXljzdAAAABlBMVEXx9fkPERql9GgkAAAACXBIWXMAAA7EAAAOxAGVKw4bAAABiklEQVRYhdWYsZGEMAxFxThwuCW4FDpbuzSX4hIcEjDo9CXYnbubjfejwAM8BxZ8f8mIfIyqCEmbXWJcdfEnBwF5+gIX3R6430qvy45H5CSpDstEtcuRgtikdgeCfDo+yBC5DxHJc21Hwpe4BQnt7HlilNLlj6q+SGI3gmDVrpBf+5STvGNti+/G/07HR1zMGOZqOeQh9UjTOTNBFGQSfl0Ufj2gHWYC90A+5tdNoXjL5DEwn5rs2ZYPjXfMMgUhQfDvE3FPs7dsrhwKAdHGTeqOV2t+bB4Ss/RUCDMxFZtTq3u0P7OsUEuEm1g+UDT8GlXmzKeyk+w36EQV1w3OF/nwErOPWZriW6Czs32KfKxOEpCn5Kgl6n6sXrcHnISaJN988BCJDt81XsmJYPMFsd4zEhtrnKZoSYR3dtdJEFPJScgmuujIJDp8oSbR+/u5RHGJMboNAnKd9MI9tNeXdm5A4HzxB0PQbdyDeBXBuUTPEG7i2vF/AV5l3ucSZnLuRn05X7uqDDP5GD+B6CaBYlKg7QAAAABJRU5ErkJggg==" alt="GitHub Repo QR Code" title="Scan to visit the GitHub Repo">
+            </div>
+            <div class="scroll-indicator">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+        </section>
+
+        <!-- Slide 8: Call to Action — last on purpose: it lands hardest after
+             the proof, the caveats and the costs -->
+        <section class="slide" id="slide3">
+            <div class="glass-card">
+                <img class="slide-logo" src="logos/smallworlds_logo.svg" alt="SmallWorlds logo">
+                <h2>Your help is <strong>very welcome</strong>!</h2>
+                <p>Currently a single person effort. Working prototype available</p>
+                <p>More Apps, More testing, Improved operation automation, Federation.</p>
+                <p> See status and Roadmap files at </p>
+                <a href="https://github.com/stephan271/smallworlds" target="_blank" class="cta-button">https://github.com/stephan271/smallworlds</a>
+                <div style="margin-top: 2vmin;">
+                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADIAQMAAACXljzdAAAABlBMVEXx9fkPERql9GgkAAAACXBIWXMAAA7EAAAOxAGVKw4bAAABiklEQVRYhdWYsZGEMAxFxThwuCW4FDpbuzSX4hIcEjDo9CXYnbubjfejwAM8BxZ8f8mIfIyqCEmbXWJcdfEnBwF5+gIX3R6430qvy45H5CSpDstEtcuRgtikdgeCfDo+yBC5DxHJc21Hwpe4BQnt7HlilNLlj6q+SGI3gmDVrpBf+5STvGNti+/G/07HR1zMGOZqOeQh9UjTOTNBFGQSfl0Ufj2gHWYC90A+5tdNoXjL5DEwn5rs2ZYPjXfMMgUhQfDvE3FPs7dsrhwKAdHGTeqOV2t+bB4Ss/RUCDMxFZtTq3u0P7OsUEuEm1g+UDT8GlXmzKeyk+w36EQV1w3OF/nwErOPWZriW6Czs32KfKxOEpCn5Kgl6n6sXrcHnISaJN988BCJDt81XsmJYPMFsd4zEhtrnKZoSYR3dtdJEFPJScgmuujIJDp8oSbR+/u5RHGJMboNAnKd9MI9tNeXdm5A4HzxB0PQbdyDeBXBuUTPEG7i2vF/AV5l3ucSZnLuRn05X7uqDDP5GD+B6CaBYlKg7QAAAABJRU5ErkJggg==" alt="GitHub Repo QR Code" style="width: 25vmin; height: 25vmin; border-radius: 1vmin; border: 0.4vmin solid rgba(255,255,255,0.8); box-shadow: 0 1vmin 3vmin rgba(0,0,0,0.1); transition: transform 0.3s ease;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" title="Scan to visit the GitHub Repo">
+                </div>
+            </div>
+            <div class="scroll-indicator">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
             </div>
         </section>
 
@@ -883,12 +1107,6 @@
         // Keyboard and Arrow Navigation
         const scroller = document.querySelector('.scroller');
 
-        // Keep one QR code for the opening and one for the final call to action.
-        document.querySelectorAll('.slide:not(#slide1):not(#slide3) .qr-code').forEach((qrCode) => qrCode.remove());
-
-        // A call to action has the most impact after the proof, caveats and costs.
-        scroller.append(document.getElementById('slide3'));
-        
         document.addEventListener('keydown', (e) => {
             if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
                 e.preventDefault();
