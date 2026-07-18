@@ -219,6 +219,40 @@ solver.
 
 ## Phase 1 — Headscale + close 22/6443
 
+**Status: not started.** No Headscale tenant, ArgoCD Application, tailscaled
+install, or firewall change exists yet — everything below is still a plan,
+not a description of current state.
+
+**Scope gap discovered while doing Phase 0, applies here too:** this phase is
+written entirely against the Hetzner target — `hcloud_firewall`, `terraform
+apply`, `root@<ip>` SSH, "the Hetzner Cloud console" as break-glass. Phase 0
+looked the same way at first and turned out to need a full local-target
+mirror (Step 0.5) before it actually worked on `.dev`. Before implementing
+Phase 1, re-examine it against the local target the same way:
+
+- `admin-tools/lib/cluster-env.sh` already models `LOCAL_SSH_TARGET` (a
+  non-root user + sudo, not `root@<ip>`) — Step 1.3's `ssh root@admin.<domain>`
+  assumption and Step 1.4's `hcloud_firewall` resource don't exist for that
+  path at all; a local node's perimeter is the operator's own router/host
+  firewall, not a Hetzner Cloud Firewall.
+- "Hetzner Cloud console → VNC" break-glass (Step 1.5) has no local-target
+  equivalent — break-glass there is physical/direct LAN access.
+- The underlying motivation may be weaker for local-target installs in the
+  first place: `smallworlds-init.sh`'s local-target flow only asks the
+  operator to forward 80/tcp, 443/tcp and 10000/udp on their router (see its
+  `LOCAL_PUBLIC=yes` reminder message) — 22 and 6443 are not exposed to the
+  internet by default the way they are on a Hetzner node with an open
+  `hcloud_firewall`. Confirm this before assuming Phase 1 is equally needed
+  on both targets; it may turn out to be Hetzner/production-only.
+
+**Environment context as of 2026-07-18:** production does not currently exist
+(no Hetzner node has been provisioned), so there is nothing to lock down
+there yet. `.dev` was just rebuilt with Phase 0 verified (real DNS-01
+certs, DDNS-fronted public IP) — see the Phase 0 section above — so it is a
+valid target to prototype Phase 1 against once the local-target scope
+question above is resolved, but doing so now would need the design pass this
+note flags, not just running the steps below as written.
+
 ### Architecture in one paragraph
 Headscale (the coordination server) runs **in-cluster** as a normal GitOps
 tenant behind Traefik at `vpn.<domain>` — it must stay on a public hostname so
