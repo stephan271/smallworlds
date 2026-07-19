@@ -180,6 +180,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/generic-git/token/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["validateGenericGitCredentials"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/generic-git/overlay/establish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["establishGenericGitOverlay"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/generic-git/overlay/propose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["proposeGenericGitOverlay"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profiles": {
         parameters: {
             query?: never;
@@ -491,10 +539,32 @@ export interface components {
             planId: string;
             repositoryName: string;
         };
+        GenericGitCredentialInput: {
+            profileId: string;
+            /** Format: uri */
+            repositoryUrl: string;
+            username: string;
+            /** Format: password */
+            token: string;
+        };
+        GenericGitCredentialStatus: {
+            /** Format: uri */
+            repositoryUrl: string;
+            stored: boolean;
+        };
+        GenericGitOverlayEstablishInput: components["schemas"]["CapabilityPlanInput"] & {
+            planId: string;
+        };
+        GenericGitProposal: {
+            branch: string;
+            commit: string;
+            /** @constant */
+            mergeInstructionKey: "generic_git_manual_merge";
+        };
         OverlayIdentity: {
             profileId: string;
-            /** @constant */
-            provider: "github";
+            /** @enum {string} */
+            provider: "github" | "generic-https";
             repository: string;
             /** Format: uri */
             repositoryUrl: string;
@@ -924,6 +994,97 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OverlayIdentity"];
+                };
+            };
+            409: components["responses"]["Conflict"];
+        };
+    };
+    validateGenericGitCredentials: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GenericGitCredentialInput"];
+            };
+        };
+        responses: {
+            /** @description Validated, write-only generic Git credentials */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenericGitCredentialStatus"];
+                };
+            };
+            403: components["responses"]["Conflict"];
+            423: components["responses"]["Locked"];
+        };
+    };
+    establishGenericGitOverlay: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GenericGitOverlayEstablishInput"];
+            };
+        };
+        responses: {
+            /** @description Previously recorded remote commit verified; no duplicate push */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverlayIdentity"];
+                };
+            };
+            /** @description Existing empty HTTPS repository initialized from its exact approved plan */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverlayIdentity"];
+                };
+            };
+            409: components["responses"]["Conflict"];
+        };
+    };
+    proposeGenericGitOverlay: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GenericGitOverlayEstablishInput"];
+            };
+        };
+        responses: {
+            /** @description Exact reviewed change pushed to a named branch; merge it manually in the chosen provider */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenericGitProposal"];
                 };
             };
             409: components["responses"]["Conflict"];

@@ -3,6 +3,7 @@ package launcher
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
@@ -16,6 +17,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/stephan271/smallworlds/operator-console/internal/capability"
+	"github.com/stephan271/smallworlds/operator-console/internal/githttps"
 	"github.com/stephan271/smallworlds/operator-console/internal/github"
 	"github.com/stephan271/smallworlds/operator-console/internal/recovery"
 	"github.com/stephan271/smallworlds/operator-console/internal/state"
@@ -27,10 +29,20 @@ const sessionCookieName = "smallworlds_session"
 const sessionLifetime = 12 * time.Hour
 
 type Config struct {
-	DataDir       string
-	LaunchToken   string
-	WrappingStore vault.WrappingStore
-	GitHubClient  *github.Client
+	DataDir          string
+	LaunchToken      string
+	WrappingStore    vault.WrappingStore
+	GitHubClient     *github.Client
+	GenericGitClient GenericGitClient
+}
+
+// GenericGitClient permits deterministic Launcher contract tests while the
+// production client remains an embedded Go implementation with no git binary.
+type GenericGitClient interface {
+	ValidateAccess(context.Context, string, string, string) error
+	RemoteContainsCommit(context.Context, string, string, string, string) (bool, error)
+	InitializeEmptyRemote(context.Context, string, string, string, map[string]string) (githttps.Identity, error)
+	CreateProposalBranch(context.Context, string, string, string, string, map[string]string) (githttps.Proposal, error)
 }
 
 type session struct {
@@ -41,13 +53,14 @@ type session struct {
 type Server struct {
 	launchToken string
 
-	mu        sync.RWMutex
-	tokenUsed bool
-	sessions  map[string]session
-	store     *state.Store
-	vault     *vault.Vault
-	workflow  *workflow.Engine
-	github    *github.Client
+	mu         sync.RWMutex
+	tokenUsed  bool
+	sessions   map[string]session
+	store      *state.Store
+	vault      *vault.Vault
+	workflow   *workflow.Engine
+	github     *github.Client
+	genericGit GenericGitClient
 }
 
 func New(config Config) (*Server, error) {
@@ -71,6 +84,10 @@ func New(config Config) (*Server, error) {
 	if githubClient == nil {
 		githubClient = github.New("https://api.github.com", nil)
 	}
+	genericGitClient := config.GenericGitClient
+	if genericGitClient == nil {
+		genericGitClient = githttps.New()
+	}
 	return &Server{
 		launchToken: config.LaunchToken,
 		sessions:    make(map[string]session),
@@ -78,6 +95,7 @@ func New(config Config) (*Server, error) {
 		vault:       vault.New(config.DataDir, config.WrappingStore),
 		workflow:    workflowEngine,
 		github:      githubClient,
+		genericGit:  genericGitClient,
 	}, nil
 }
 
@@ -113,6 +131,12 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.validateGitHubToken(response, request)
 	case request.URL.Path == "/api/v1/github/overlay/establish":
 		server.establishGitHubOverlay(response, request)
+	case request.URL.Path == "/api/v1/generic-git/token/validate":
+		server.validateGenericGitCredentials(response, request)
+	case request.URL.Path == "/api/v1/generic-git/overlay/establish":
+		server.establishGenericGitOverlay(response, request)
+	case request.URL.Path == "/api/v1/generic-git/overlay/propose":
+		server.proposeGenericGitOverlay(response, request)
 	case request.URL.Path == "/api/v1/profiles":
 		server.profiles(response, request)
 	case strings.HasPrefix(request.URL.Path, "/api/v1/profiles/"):
@@ -751,6 +775,315 @@ func (server *Server) establishGitHubOverlay(response http.ResponseWriter, reque
 		return
 	}
 	writeJSON(response, http.StatusCreated, identity)
+}
+
+func (server *Server) validateGenericGitCredentials(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		ProfileID     string `json:"profileId"`
+		RepositoryURL string `json:"repositoryUrl"`
+		Username      string `json:"username"`
+		Token         string `json:"token"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 32*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" || input.Username == "" || input.Token == "" {
+		writeError(response, http.StatusBadRequest, "invalid_generic_git_credentials")
+		return
+	}
+	if _, err := githttps.ValidateRemoteURL(input.RepositoryURL); err != nil {
+		writeError(response, http.StatusBadRequest, "unsupported_git_remote")
+		return
+	}
+	if _, err := server.store.GetProfile(request.Context(), input.ProfileID); errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "profile_not_found")
+		return
+	} else if err != nil {
+		writeError(response, http.StatusInternalServerError, "generic_git_validation_failed")
+		return
+	}
+	if err := server.genericGit.ValidateAccess(request.Context(), input.RepositoryURL, input.Username, input.Token); errors.Is(err, githttps.ErrAuthentication) {
+		writeError(response, http.StatusForbidden, "generic_git_authentication_failed")
+		return
+	} else if err != nil {
+		writeError(response, http.StatusBadGateway, "generic_git_validation_failed")
+		return
+	}
+	usernameKey := input.ProfileID + "/generic-git-username"
+	tokenKey := input.ProfileID + "/generic-git-token"
+	if err := server.vault.Store(usernameKey, input.Username); errors.Is(err, vault.ErrLocked) {
+		writeError(response, http.StatusLocked, "vault_locked")
+		return
+	} else if err != nil {
+		writeError(response, http.StatusInternalServerError, "generic_git_storage_failed")
+		return
+	}
+	if err := server.vault.Store(tokenKey, input.Token); errors.Is(err, vault.ErrLocked) {
+		writeError(response, http.StatusLocked, "vault_locked")
+		return
+	} else if err != nil {
+		writeError(response, http.StatusInternalServerError, "generic_git_storage_failed")
+		return
+	}
+	expiresAt := time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC)
+	for _, reference := range []state.CredentialReference{
+		{ProfileID: input.ProfileID, Kind: "generic-git-username", VaultKey: usernameKey, Source: "operator", ExpiresAt: expiresAt, RotationStatus: "current"},
+		{ProfileID: input.ProfileID, Kind: "generic-git-token", VaultKey: tokenKey, Source: "operator", ExpiresAt: expiresAt, RotationStatus: "current"},
+	} {
+		if err := server.store.UpsertCredentialReference(request.Context(), reference); err != nil {
+			writeError(response, http.StatusInternalServerError, "generic_git_storage_failed")
+			return
+		}
+	}
+	writeJSON(response, http.StatusOK, map[string]any{"repositoryUrl": input.RepositoryURL, "stored": true})
+}
+
+func (server *Server) establishGenericGitOverlay(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		capabilityRequest
+		PlanID string `json:"planId"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 96*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" || input.PlanID == "" {
+		writeError(response, http.StatusBadRequest, "invalid_generic_git_overlay")
+		return
+	}
+	if _, err := githttps.ValidateRemoteURL(input.RepositoryURL); err != nil {
+		writeError(response, http.StatusBadRequest, "unsupported_git_remote")
+		return
+	}
+	plan, err := server.store.GetPlan(request.Context(), input.PlanID)
+	if errors.Is(err, state.ErrNotFound) || plan.ProfileID != input.ProfileID || plan.Intent != "ApplyCapabilities" || plan.Status != "approved" {
+		writeError(response, http.StatusConflict, "generic_git_overlay_plan_not_approved")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "generic_git_overlay_failed")
+		return
+	}
+	profile, err := server.store.GetProfile(request.Context(), input.ProfileID)
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "generic_git_overlay_failed")
+		return
+	}
+	overlay, err := capability.DefaultCatalog().RenderOverlay(capability.OverlayInput{Selection: capability.Selection{Mode: input.Mode, DeploymentMode: capability.DeploymentMode(profile.DeploymentMode), CommunityIDs: input.CommunityIDs}, Release: input.Release, RepositoryURL: input.RepositoryURL, Domain: input.Domain})
+	if err != nil {
+		writeError(response, http.StatusBadRequest, "invalid_generic_git_overlay")
+		return
+	}
+	if !matchesOverlayPlan(plan, profile, overlay.Diff) {
+		writeError(response, http.StatusConflict, "generic_git_overlay_plan_mismatch")
+		return
+	}
+	username, err := server.vault.Load(input.ProfileID + "/generic-git-username")
+	if errors.Is(err, vault.ErrLocked) {
+		writeError(response, http.StatusLocked, "vault_locked")
+		return
+	}
+	if errors.Is(err, vault.ErrSecretNotFound) {
+		writeError(response, http.StatusConflict, "generic_git_credentials_missing")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "generic_git_overlay_failed")
+		return
+	}
+	token, err := server.vault.Load(input.ProfileID + "/generic-git-token")
+	if errors.Is(err, vault.ErrLocked) {
+		writeError(response, http.StatusLocked, "vault_locked")
+		return
+	}
+	if errors.Is(err, vault.ErrSecretNotFound) {
+		writeError(response, http.StatusConflict, "generic_git_credentials_missing")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "generic_git_overlay_failed")
+		return
+	}
+	if recorded, err := server.store.GetOverlayIdentity(request.Context(), input.ProfileID); err == nil {
+		if recorded.Provider != "generic-https" || recorded.RepositoryURL != input.RepositoryURL {
+			writeError(response, http.StatusConflict, "generic_git_overlay_identity_conflict")
+			return
+		}
+		present, verifyErr := server.genericGit.RemoteContainsCommit(request.Context(), input.RepositoryURL, username, token, recorded.Commit)
+		if errors.Is(verifyErr, githttps.ErrAuthentication) {
+			writeError(response, http.StatusForbidden, "generic_git_authentication_failed")
+			return
+		}
+		if verifyErr != nil {
+			writeError(response, http.StatusBadGateway, "generic_git_resume_check_failed")
+			return
+		}
+		if !present {
+			writeError(response, http.StatusConflict, "generic_git_remote_state_changed")
+			return
+		}
+		writeJSON(response, http.StatusOK, recorded)
+		return
+	} else if !errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusInternalServerError, "generic_git_overlay_failed")
+		return
+	}
+	remoteIdentity, err := server.genericGit.InitializeEmptyRemote(request.Context(), input.RepositoryURL, username, token, overlay.Files)
+	if errors.Is(err, githttps.ErrAuthentication) {
+		writeError(response, http.StatusForbidden, "generic_git_authentication_failed")
+		return
+	}
+	if errors.Is(err, githttps.ErrRemoteNotEmpty) || errors.Is(err, githttps.ErrConcurrentChange) {
+		writeError(response, http.StatusConflict, "generic_git_remote_conflict")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusBadGateway, "generic_git_overlay_initialization_failed")
+		return
+	}
+	identity := state.OverlayIdentity{ProfileID: input.ProfileID, Provider: "generic-https", Repository: remoteIdentity.RepositoryURL, RepositoryURL: remoteIdentity.RepositoryURL, Release: input.Release, Commit: remoteIdentity.Commit, RecordedAt: time.Now().UTC()}
+	if err := server.store.RecordOverlayIdentity(request.Context(), identity); err != nil {
+		writeError(response, http.StatusInternalServerError, "generic_git_overlay_identity_failed")
+		return
+	}
+	writeJSON(response, http.StatusCreated, identity)
+}
+
+func (server *Server) proposeGenericGitOverlay(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		capabilityRequest
+		PlanID string `json:"planId"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 96*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" || input.PlanID == "" {
+		writeError(response, http.StatusBadRequest, "invalid_generic_git_proposal")
+		return
+	}
+	if _, err := githttps.ValidateRemoteURL(input.RepositoryURL); err != nil {
+		writeError(response, http.StatusBadRequest, "unsupported_git_remote")
+		return
+	}
+	plan, err := server.store.GetPlan(request.Context(), input.PlanID)
+	if errors.Is(err, state.ErrNotFound) || plan.ProfileID != input.ProfileID || plan.Intent != "ApplyCapabilities" || plan.Status != "approved" {
+		writeError(response, http.StatusConflict, "generic_git_proposal_plan_not_approved")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "generic_git_proposal_failed")
+		return
+	}
+	profile, err := server.store.GetProfile(request.Context(), input.ProfileID)
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "generic_git_proposal_failed")
+		return
+	}
+	overlay, err := capability.DefaultCatalog().RenderOverlay(capability.OverlayInput{Selection: capability.Selection{Mode: input.Mode, DeploymentMode: capability.DeploymentMode(profile.DeploymentMode), CommunityIDs: input.CommunityIDs}, Release: input.Release, RepositoryURL: input.RepositoryURL, Domain: input.Domain})
+	if err != nil {
+		writeError(response, http.StatusBadRequest, "invalid_generic_git_proposal")
+		return
+	}
+	if !matchesOverlayPlan(plan, profile, overlay.Diff) {
+		writeError(response, http.StatusConflict, "generic_git_proposal_plan_mismatch")
+		return
+	}
+	recorded, err := server.store.GetOverlayIdentity(request.Context(), input.ProfileID)
+	if errors.Is(err, state.ErrNotFound) || recorded.Provider != "generic-https" || recorded.RepositoryURL != input.RepositoryURL {
+		writeError(response, http.StatusConflict, "generic_git_overlay_identity_missing")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "generic_git_proposal_failed")
+		return
+	}
+	username, err := server.vault.Load(input.ProfileID + "/generic-git-username")
+	if errors.Is(err, vault.ErrLocked) {
+		writeError(response, http.StatusLocked, "vault_locked")
+		return
+	}
+	if errors.Is(err, vault.ErrSecretNotFound) {
+		writeError(response, http.StatusConflict, "generic_git_credentials_missing")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "generic_git_proposal_failed")
+		return
+	}
+	token, err := server.vault.Load(input.ProfileID + "/generic-git-token")
+	if errors.Is(err, vault.ErrLocked) {
+		writeError(response, http.StatusLocked, "vault_locked")
+		return
+	}
+	if errors.Is(err, vault.ErrSecretNotFound) {
+		writeError(response, http.StatusConflict, "generic_git_credentials_missing")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "generic_git_proposal_failed")
+		return
+	}
+	proposal, err := server.genericGit.CreateProposalBranch(request.Context(), input.RepositoryURL, username, token, githttps.ProposalBranchForDiff(overlay.Diff), overlay.Files)
+	if errors.Is(err, githttps.ErrAuthentication) {
+		writeError(response, http.StatusForbidden, "generic_git_authentication_failed")
+		return
+	}
+	if errors.Is(err, githttps.ErrConcurrentChange) {
+		writeError(response, http.StatusConflict, "generic_git_proposal_conflict")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusBadGateway, "generic_git_proposal_failed")
+		return
+	}
+	writeJSON(response, http.StatusCreated, map[string]string{
+		"branch":              proposal.Branch,
+		"commit":              proposal.Commit,
+		"mergeInstructionKey": "generic_git_manual_merge",
+	})
+}
+
+func matchesOverlayPlan(plan state.PlanRecord, profile state.Profile, overlayDiff string) bool {
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s\n%s\n%d\n%s", "ApplyCapabilities", profile.ID, profile.Revision, overlayDiff)))
+	return plan.Digest == fmt.Sprintf("%x", digest[:])
 }
 
 func (server *Server) capabilities(response http.ResponseWriter, request *http.Request) {

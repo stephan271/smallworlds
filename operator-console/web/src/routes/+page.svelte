@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { api, initializeSession, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type GitHubTokenStatus, type RecoveryBundlePreview, type SetupJourney, type VaultStatus, type WorkflowRun } from '$lib/api';
+  import { api, initializeSession, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type RecoveryBundlePreview, type SetupJourney, type VaultStatus, type WorkflowRun } from '$lib/api';
   import { translate, type Locale, type MessageKey } from '$lib/i18n';
 
   type ActivityEvent = {
@@ -53,6 +53,13 @@
   let gitHubError = $state('');
   let gitHubRepositoryName = $state('smallworlds-overlay');
   let gitHubOverlayNotice = $state('');
+  let genericGitUsername = $state('');
+  let genericGitToken = $state('');
+  let genericGitStatus: GenericGitCredentialStatus | null = $state(null);
+  let genericGitBusy = $state(false);
+  let genericGitError = $state('');
+  let genericGitOverlayNotice = $state('');
+  let genericGitProposal: GenericGitProposal | null = $state(null);
   let creating = $state(true);
   let editing = $state(false);
   let busy = $state(false);
@@ -283,6 +290,7 @@
     capabilityError = '';
     try {
       capabilityPlan = await api.planCapabilities({ profileId: activeProfile.id, mode: capabilityMode, communityIds: capabilityApps, release: capabilityRelease, repositoryUrl: capabilityRepositoryURL, domain: capabilityDomain });
+      plan = capabilityPlan.plan;
     } catch (reason) {
       capabilityPlan = null;
       capabilityError = reason instanceof Error ? reason.message : 'invalid_capability_selection';
@@ -318,6 +326,50 @@
       gitHubError = reason instanceof Error ? reason.message : 'github_overlay_failed';
     } finally {
       gitHubBusy = false;
+    }
+  }
+
+  async function validateGenericGitCredentials(): Promise<void> {
+    if (!activeProfile) return;
+    genericGitBusy = true;
+    genericGitError = '';
+    try {
+      genericGitStatus = await api.validateGenericGitCredentials(activeProfile.id, capabilityRepositoryURL, genericGitUsername, genericGitToken);
+      genericGitToken = '';
+    } catch (reason) {
+      genericGitStatus = null;
+      genericGitError = reason instanceof Error ? reason.message : 'generic_git_validation_failed';
+    } finally {
+      genericGitBusy = false;
+    }
+  }
+
+  async function establishGenericGitOverlay(): Promise<void> {
+    if (!activeProfile || !capabilityPlan) return;
+    genericGitBusy = true;
+    genericGitError = '';
+    genericGitOverlayNotice = '';
+    try {
+      const identity = await api.establishGenericGitOverlay({ profileId: activeProfile.id, planId: capabilityPlan.plan.id, repositoryUrl: capabilityRepositoryURL, mode: capabilityMode, communityIds: capabilityApps, release: capabilityRelease, domain: capabilityDomain });
+      genericGitOverlayNotice = `${identity.repositoryUrl} @ ${identity.commit}`;
+    } catch (reason) {
+      genericGitError = reason instanceof Error ? reason.message : 'generic_git_overlay_failed';
+    } finally {
+      genericGitBusy = false;
+    }
+  }
+
+  async function proposeGenericGitOverlay(): Promise<void> {
+    if (!activeProfile || !capabilityPlan) return;
+    genericGitBusy = true;
+    genericGitError = '';
+    genericGitProposal = null;
+    try {
+      genericGitProposal = await api.proposeGenericGitOverlay({ profileId: activeProfile.id, planId: capabilityPlan.plan.id, repositoryUrl: capabilityRepositoryURL, mode: capabilityMode, communityIds: capabilityApps, release: capabilityRelease, domain: capabilityDomain });
+    } catch (reason) {
+      genericGitError = reason instanceof Error ? reason.message : 'generic_git_proposal_failed';
+    } finally {
+      genericGitBusy = false;
     }
   }
 
@@ -632,6 +684,25 @@
             <form class="github-establish" onsubmit={(event) => { event.preventDefault(); void establishGitHubOverlay(); }}><label><span>{message('githubRepositoryName')}</span><input bind:value={gitHubRepositoryName} required pattern="[A-Za-z0-9._-]+" /></label><div class="actions"><button type="submit" disabled={gitHubBusy}>{message('githubEstablish')}</button></div></form>
           {/if}
           {#if gitHubOverlayNotice}<p class="inline-notice" aria-live="polite">{gitHubOverlayNotice}</p>{/if}
+        </section>
+
+        <section class="card generic-git-card" aria-labelledby="generic-git-title">
+          <p class="eyebrow">{message('genericGitEyebrow')}</p>
+          <h2 id="generic-git-title">{message('genericGitTitle')}</h2>
+          <p class="muted">{message('genericGitDescription')}</p>
+          {#if genericGitError}<p class="inline-error" role="alert">{genericGitError}</p>{/if}
+          <form onsubmit={(event) => { event.preventDefault(); void validateGenericGitCredentials(); }}>
+            <div class="form-grid"><label><span>{message('genericGitUsername')}</span><input bind:value={genericGitUsername} required autocomplete="username" /></label><label><span>{message('genericGitToken')}</span><input type="password" bind:value={genericGitToken} required autocomplete="off" /></label></div>
+            <div class="actions"><button type="submit" disabled={genericGitBusy}>{message('genericGitValidate')}</button></div>
+          </form>
+          {#if genericGitStatus}<p class="inline-notice">{genericGitStatus.repositoryUrl}</p>{/if}
+          {#if capabilityPlan && genericGitStatus}
+            <p class="muted">{message('genericGitApprovalHint')}</p>
+            <form class="github-establish" onsubmit={(event) => { event.preventDefault(); void establishGenericGitOverlay(); }}><div class="actions"><button type="submit" disabled={genericGitBusy}>{message('genericGitEstablish')}</button></div></form>
+            <form class="github-establish" onsubmit={(event) => { event.preventDefault(); void proposeGenericGitOverlay(); }}><div class="actions"><button class="secondary" type="submit" disabled={genericGitBusy}>{message('genericGitPropose')}</button></div></form>
+          {/if}
+          {#if genericGitOverlayNotice}<p class="inline-notice" aria-live="polite">{genericGitOverlayNotice}</p>{/if}
+          {#if genericGitProposal}<p class="inline-notice" aria-live="polite">{message('genericGitManualMerge')} <code>{genericGitProposal.branch}</code> · {genericGitProposal.commit}</p>{/if}
         </section>
 
 		<section class="card vault-card" aria-labelledby="vault-title">

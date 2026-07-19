@@ -14,6 +14,8 @@ export type CapabilityEntry = { id: string; displayKey: string; category: 'platf
 export type CapabilityCatalog = { version: number; capabilities: CapabilityEntry[] };
 export type CapabilityPlanResult = { plan: ChangePlan; overlay: { diff: string; assessment: { communityIds: string[]; resources: { memoryMi: number; storageGi: number }; exposure: string[]; protection: string[] } } };
 export type GitHubTokenStatus = components['schemas']['GitHubTokenStatus'];
+export type GenericGitCredentialStatus = components['schemas']['GenericGitCredentialStatus'];
+export type GenericGitProposal = components['schemas']['GenericGitProposal'];
 
 let csrfToken = '';
 
@@ -107,6 +109,12 @@ export const api = {
     request<GitHubTokenStatus>('/api/v1/github/token/validate', { method: 'POST', body: JSON.stringify({ profileId, token, authority }) }),
   establishGitHubOverlay: (input: { profileId: string; planId: string; repositoryName: string; mode: CapabilityMode; communityIds: string[]; release: string; domain: string }) =>
     request<{ repositoryUrl: string; commit: string }>('/api/v1/github/overlay/establish', { method: 'POST', body: JSON.stringify(input) }),
+  validateGenericGitCredentials: (profileId: string, repositoryUrl: string, username: string, token: string) =>
+    request<GenericGitCredentialStatus>('/api/v1/generic-git/token/validate', { method: 'POST', body: JSON.stringify({ profileId, repositoryUrl, username, token }) }),
+  establishGenericGitOverlay: (input: { profileId: string; planId: string; repositoryUrl: string; mode: CapabilityMode; communityIds: string[]; release: string; domain: string }) =>
+    request<{ repositoryUrl: string; commit: string }>('/api/v1/generic-git/overlay/establish', { method: 'POST', body: JSON.stringify(input) }),
+  proposeGenericGitOverlay: (input: { profileId: string; planId: string; repositoryUrl: string; mode: CapabilityMode; communityIds: string[]; release: string; domain: string }) =>
+    request<GenericGitProposal>('/api/v1/generic-git/overlay/propose', { method: 'POST', body: JSON.stringify(input) }),
   createVerificationPlan: (profileId: string) => request<ChangePlan>('/api/v1/plans', { method: 'POST', body: JSON.stringify({ profileId, intent: 'VerifyLauncher' }) }),
   approvePlan: (planId: string) => request<WorkflowRun>(`/api/v1/plans/${planId}/approve`, { method: 'POST' }),
   getRun: (runId: string) => request<WorkflowRun>(`/api/v1/runs/${runId}`)

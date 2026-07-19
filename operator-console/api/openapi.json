@@ -144,6 +144,30 @@
         "responses": { "201": { "description": "Private overlay initialized from an approved plan", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OverlayIdentity" } } } }, "409": { "$ref": "#/components/responses/Conflict" } }
       }
     },
+    "/api/v1/generic-git/token/validate": {
+      "post": {
+        "operationId": "validateGenericGitCredentials",
+        "parameters": [{ "$ref": "#/components/parameters/CSRFToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/GenericGitCredentialInput" } } } },
+        "responses": { "200": { "description": "Validated, write-only generic Git credentials", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/GenericGitCredentialStatus" } } } }, "403": { "$ref": "#/components/responses/Conflict" }, "423": { "$ref": "#/components/responses/Locked" } }
+      }
+    },
+    "/api/v1/generic-git/overlay/establish": {
+      "post": {
+        "operationId": "establishGenericGitOverlay",
+        "parameters": [{ "$ref": "#/components/parameters/CSRFToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/GenericGitOverlayEstablishInput" } } } },
+        "responses": { "201": { "description": "Existing empty HTTPS repository initialized from its exact approved plan", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OverlayIdentity" } } } }, "200": { "description": "Previously recorded remote commit verified; no duplicate push", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OverlayIdentity" } } } }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
+    "/api/v1/generic-git/overlay/propose": {
+      "post": {
+        "operationId": "proposeGenericGitOverlay",
+        "parameters": [{ "$ref": "#/components/parameters/CSRFToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/GenericGitOverlayEstablishInput" } } } },
+        "responses": { "201": { "description": "Exact reviewed change pushed to a named branch; merge it manually in the chosen provider", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/GenericGitProposal" } } } }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
     "/api/v1/profiles": {
       "get": {
         "operationId": "listProfiles",
@@ -535,7 +559,11 @@
       "GitHubTokenInput": { "type": "object", "required": ["profileId", "token", "authority"], "properties": { "profileId": { "type": "string" }, "token": { "type": "string", "format": "password", "writeOnly": true }, "authority": { "type": "string", "enum": ["creation", "ongoing"] } } },
       "GitHubTokenStatus": { "type": "object", "required": ["owner", "authority", "stored"], "properties": { "owner": { "type": "string" }, "expiresAt": { "type": "string", "format": "date-time" }, "authority": { "type": "string", "enum": ["creation", "ongoing"] }, "stored": { "type": "boolean" } } },
       "GitHubOverlayEstablishInput": { "allOf": [{ "$ref": "#/components/schemas/CapabilityPlanInput" }, { "type": "object", "required": ["planId", "repositoryName"], "properties": { "planId": { "type": "string" }, "repositoryName": { "type": "string", "pattern": "^[A-Za-z0-9._-]+$" } } }] },
-      "OverlayIdentity": { "type": "object", "required": ["profileId", "provider", "repository", "repositoryUrl", "release", "commit", "recordedAt"], "properties": { "profileId": { "type": "string" }, "provider": { "type": "string", "const": "github" }, "repository": { "type": "string" }, "repositoryUrl": { "type": "string", "format": "uri" }, "release": { "type": "string" }, "commit": { "type": "string" }, "recordedAt": { "type": "string", "format": "date-time" } } },
+      "GenericGitCredentialInput": { "type": "object", "required": ["profileId", "repositoryUrl", "username", "token"], "properties": { "profileId": { "type": "string" }, "repositoryUrl": { "type": "string", "format": "uri", "pattern": "^https://" }, "username": { "type": "string", "writeOnly": true }, "token": { "type": "string", "format": "password", "writeOnly": true } } },
+      "GenericGitCredentialStatus": { "type": "object", "required": ["repositoryUrl", "stored"], "properties": { "repositoryUrl": { "type": "string", "format": "uri" }, "stored": { "type": "boolean" } } },
+      "GenericGitOverlayEstablishInput": { "allOf": [{ "$ref": "#/components/schemas/CapabilityPlanInput" }, { "type": "object", "required": ["planId"], "properties": { "planId": { "type": "string" } } }] },
+      "GenericGitProposal": { "type": "object", "required": ["branch", "commit", "mergeInstructionKey"], "properties": { "branch": { "type": "string", "pattern": "^smallworlds/proposal-" }, "commit": { "type": "string" }, "mergeInstructionKey": { "type": "string", "const": "generic_git_manual_merge" } } },
+      "OverlayIdentity": { "type": "object", "required": ["profileId", "provider", "repository", "repositoryUrl", "release", "commit", "recordedAt"], "properties": { "profileId": { "type": "string" }, "provider": { "type": "string", "enum": ["github", "generic-https"] }, "repository": { "type": "string" }, "repositoryUrl": { "type": "string", "format": "uri" }, "release": { "type": "string" }, "commit": { "type": "string" }, "recordedAt": { "type": "string", "format": "date-time" } } },
       "ProfileInput": {
         "type": "object",
         "required": ["name", "language", "deploymentMode"],
