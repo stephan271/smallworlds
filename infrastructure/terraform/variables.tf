@@ -75,3 +75,8 @@ variable "use_golden_image" {
   type        = bool
   default     = false
 }
+
+variable "ssh_key_id" {
+  description = "Hetzner id of the shared 'SmallWorlds Admin Key', uploaded/looked-up by smallworlds-init.sh's ensure_ssh_key() before terraform apply (see main.tf locals for why this isn't a Terraform-managed resource)."
+  type        = number
+}

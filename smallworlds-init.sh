@@ -32,17 +32,19 @@ ask_with_default() {
     local is_secret="$3"
     
     local current_val="${!var_name}"
-    
+
     if [[ -n "$current_val" ]]; then
         if [[ "$is_secret" == "true" ]]; then
             read -s -p "$prompt_text [saved]: " input_val
             echo ""
         else
-            read -p "$prompt_text [$current_val]: " input_val
+            read -p "$prompt_text [$current_val] (enter - to clear): " input_val
         fi
-        
+
         if [[ -z "$input_val" ]]; then
             declare -g "$var_name"="$current_val"
+        elif [[ "$input_val" == "-" ]]; then
+            declare -g "$var_name"=""
         else
             declare -g "$var_name"="$input_val"
         fi
@@ -74,6 +76,37 @@ ensure_dns_zone() {
         fi
     else
         echo -e "${GREEN}Zone $DOMAIN already exists.${NC}"
+    fi
+}
+
+# Ensure the shared "SmallWorlds Admin Key" exists in Hetzner Cloud (uses
+# $HCLOUD_TOKEN) and set $SSH_KEY_ID to its id. Idempotent, same pattern as
+# ensure_dns_zone: whichever deployment (dev or prod, either order) runs
+# first uploads it; later ones just find and reuse it. Terraform itself
+# never creates/owns this key — see infrastructure/terraform/main.tf locals.
+ensure_ssh_key() {
+    local pubkey_path="${SSH_PUBLIC_KEY_PATH:-$HOME/.ssh/id_ed25519.pub}"
+    if [[ ! -f "$pubkey_path" ]]; then
+        echo -e "${RED}SSH public key not found at $pubkey_path — generate one with 'ssh-keygen -t ed25519' first.${NC}"
+        exit 1
+    fi
+
+    echo -e "${CYAN}Ensuring Hetzner SSH key 'SmallWorlds Admin Key' exists...${NC}"
+    SSH_KEY_ID=$(curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/ssh_keys?name=SmallWorlds%20Admin%20Key" | grep -o '"id":[0-9]*' | head -1 | grep -o '[0-9]*')
+
+    if [ -z "$SSH_KEY_ID" ]; then
+        echo -e "${YELLOW}Key not found. Uploading $pubkey_path...${NC}"
+        local pubkey_json api_response
+        pubkey_json=$(python3 -c 'import json,sys; print(json.dumps(open(sys.argv[1]).read().strip()))' "$pubkey_path")
+        api_response=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/ssh_keys" -d "{\"name\":\"SmallWorlds Admin Key\", \"public_key\": $pubkey_json}")
+        SSH_KEY_ID=$(echo "$api_response" | grep -o '"id":[0-9]*' | head -1 | grep -o '[0-9]*')
+        if [ -z "$SSH_KEY_ID" ]; then
+            echo -e "${RED}Failed to upload SSH key: $(echo "$api_response" | jq -r '.error.message' 2>/dev/null || echo "$api_response")${NC}"
+            exit 1
+        fi
+        echo -e "${GREEN}SSH key uploaded (id: $SSH_KEY_ID).${NC}"
+    else
+        echo -e "${GREEN}SSH key already exists in Hetzner (id: $SSH_KEY_ID).${NC}"
     fi
 }
 
@@ -329,6 +362,9 @@ if [[ "$DEPLOY_TARGET" == "hetzner" ]]; then
     # Ensure DNS Zone exists in Hetzner Cloud DNS
     ensure_dns_zone
 
+    # Ensure the shared admin SSH key exists (sets $SSH_KEY_ID)
+    ensure_ssh_key
+
     # Boot from the golden image (preloaded k3s + container images) if one exists
     GOLDEN_COUNT=$(curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" \
         "https://api.hetzner.cloud/v1/images?type=snapshot&label_selector=smallworlds-golden%3Dtrue" \
@@ -353,6 +389,7 @@ git_url        = "${GITOPS_REPO_URL}"
 git_username   = "${TF_GIT_USER}"
 git_password   = "${TF_GIT_TOKEN}"
 hcloud_token      = "${HCLOUD_TOKEN}"
+ssh_key_id        = ${SSH_KEY_ID}
 
 EOF
 

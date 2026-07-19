@@ -76,6 +76,12 @@ if [ "$DEPLOY_TARGET" = "local" ]; then
 else
     echo ""
     echo "2. Preparing Terraform variables..."
+    # ssh_key_id has no default (see main.tf locals) — terraform destroy
+    # still needs a value to evaluate it, though its correctness doesn't
+    # matter for a destroy. 0 is a harmless placeholder if the key was never
+    # found (e.g. destroying a cluster whose key was already removed).
+    SSH_KEY_ID=$(curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/ssh_keys?name=SmallWorlds%20Admin%20Key" | grep -o '"id":[0-9]*' | head -1 | grep -o '[0-9]*')
+    SSH_KEY_ID="${SSH_KEY_ID:-0}"
     TFVARS_FILE=$(mktemp)
     cat <<EOF > "$TFVARS_FILE"
 domain_name  = "${DOMAIN}"
@@ -84,6 +90,7 @@ git_url      = "${GITOPS_REPO_URL}"
 git_username = "${GITOPS_REPO_USER}"
 git_password = "${GITOPS_REPO_TOKEN}"
 hcloud_token = "${HCLOUD_TOKEN}"
+ssh_key_id   = ${SSH_KEY_ID}
 EOF
 
     echo ""

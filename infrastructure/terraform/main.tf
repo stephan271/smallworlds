@@ -10,26 +10,15 @@ terraform {
 # The Hetzner Cloud API Token must be provided via the HCLOUD_TOKEN environment variable.
 provider "hcloud" {}
 
-variable "ssh_public_key_path" {
-  description = "Path to the public SSH key used to access the instance"
-  type        = string
-  default     = "~/.ssh/id_ed25519.pub"
-}
-
-# Upload your local SSH key to Hetzner so it can be injected into the VM
-resource "hcloud_ssh_key" "smallworlds_admin" {
-  count      = var.env_ext == "" ? 1 : 0
-  name       = "SmallWorlds Admin Key"
-  public_key = file(var.ssh_public_key_path)
-}
-
-data "hcloud_ssh_key" "existing_admin" {
-  count = var.env_ext != "" ? 1 : 0
-  name  = "SmallWorlds Admin Key"
-}
-
 locals {
-  ssh_key_id = var.env_ext == "" ? hcloud_ssh_key.smallworlds_admin[0].id : data.hcloud_ssh_key.existing_admin[0].id
+  # The shared admin SSH key is uploaded to Hetzner once by
+  # smallworlds-init.sh's ensure_ssh_key() (idempotent, same pattern as
+  # ensure_dns_zone) and its id passed in as var.ssh_key_id. Terraform does
+  # not own/create this resource: dev and prod share no Terraform state, so
+  # whichever one is deployed first would otherwise "claim" the key via a
+  # create/lookup split — breaking the moment they're deployed in the other
+  # order. Resolving it outside Terraform makes it order-independent.
+  ssh_key_id = var.ssh_key_id
   # Hetzner resource names use a dash form of the extension (".dev" -> "-dev")
   # since dots belong to DNS, not resource naming. DNS names use var.env_ext
   # verbatim: env_ext=".dev" yields identity.dev.<domain> etc.
