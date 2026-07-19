@@ -81,7 +81,29 @@ spec:
               
               
               # 5. Configure System Settings and SenderAuth for Internal Relaying BEFORE domain creation
-              
+
+              # Exempt cluster-internal CIDRs from Stalwart's fail2ban. Without
+              # this, Stalwart WILL eventually ban them and 403 every request:
+              # all ingress HTTP arrives from Traefik's pod IP, and k3s's
+              # ServiceLB SNATs all external SMTP/IMAP to the node's flannel
+              # gateway (10.42.0.1) — so internet port-scanners probing port 25
+              # get 10.42.0.1 banned, and one banned proxy IP blocks EVERYONE
+              # (observed live 2026-07-19: Traefik + Alertmanager + 10.42.0.1
+              # all permanently banned; every JMAP call → 403 → Bulwark SSO
+              # dead). Idempotent: skip creation if the entry already exists.
+              echo "Allow-listing cluster-internal networks (fail2ban exemption)..."
+              EXISTING_ALLOWED=$($CLI query AllowedIp --json 2>/dev/null || true)
+              for NET in "10.42.0.0/16" "10.43.0.0/16" "127.0.0.0/8"; do
+                if ! echo "$EXISTING_ALLOWED" | grep -q "\"$NET\""; then
+                  $CLI create AllowedIp --json '{"address":"'"$NET"'","reason":"cluster-internal - never ban (see stalwart-init-job)"}' || true
+                fi
+              done
+              # Allowed/blocked IP lists are cached in memory — without an
+              # explicit reload the entries only apply after a restart
+              # (verified live: bans stayed effective until ReloadBlockedIps).
+              $CLI create Action --json '{"@type":"ReloadBlockedIps"}' || true
+              $CLI create Action --json '{"@type":"ReloadSettings"}' || true
+
               echo "Configuring DKIM signing for internal relays..."
               $CLI update SenderAuth singleton --json '{
                 "dkimSignDomain": {
