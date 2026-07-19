@@ -22,18 +22,35 @@ spec:
 
               TENANT_NAMESPACE=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
 
-              if kubectl get secret keycloak-secret -n $TENANT_NAMESPACE >/dev/null 2>&1; then
-                echo "keycloak-secret already exists, skipping."
-                exit 0
-              fi
-
               if [[ -z "$REDIRECT_URIS" ]]; then
                 echo "Error: REDIRECT_URIS environment variable is required."
                 exit 1
               fi
 
-              echo "Finding Keycloak pod..."
               POD=keycloak-keycloakx-0
+
+              if kubectl get secret keycloak-secret -n $TENANT_NAMESPACE >/dev/null 2>&1; then
+                # Client already provisioned on an earlier sync. Redirect URIs
+                # can still change across base releases (e.g. Bulwark v1.5.0
+                # moved its callback path), so reconcile them — but strictly
+                # best-effort: a tenant sync must never block or fail because
+                # Keycloak happens to be down/upgrading right now.
+                if kubectl get pods -n keycloak $POD -o jsonpath='{.status.containerStatuses[0].ready}' 2>/dev/null | grep -q 'true'; then
+                  echo "keycloak-secret exists — reconciling redirect URIs to: $REDIRECT_URIS"
+                  PASSWORD=$(kubectl get secret keycloak-admin-creds -n keycloak -o jsonpath="{.data.admin-password}" | base64 -d)
+                  kubectl exec -n keycloak $POD -- /opt/keycloak/bin/kcadm.sh config credentials --server http://localhost:8080 --realm master --user admin --password "$PASSWORD" --config /tmp/kcadm-$TENANT_NAMESPACE.config \
+                    && CLIENT_ID=$(kubectl exec -n keycloak $POD -- /opt/keycloak/bin/kcadm.sh get clients -r smallworlds -q clientId=$TENANT_NAMESPACE --fields id --config /tmp/kcadm-$TENANT_NAMESPACE.config | grep '"id"' | cut -d'"' -f4) \
+                    && [[ -n "$CLIENT_ID" ]] \
+                    && kubectl exec -n keycloak $POD -- /opt/keycloak/bin/kcadm.sh update clients/$CLIENT_ID -r smallworlds -s "redirectUris=$REDIRECT_URIS" --config /tmp/kcadm-$TENANT_NAMESPACE.config \
+                    && echo "Redirect URIs reconciled." \
+                    || echo "Warning: redirect URI reconciliation failed — leaving existing client untouched."
+                else
+                  echo "keycloak-secret exists and Keycloak is not ready — skipping reconciliation."
+                fi
+                exit 0
+              fi
+
+              echo "Finding Keycloak pod..."
 
               echo "Waiting for Keycloak pod to be fully ready..."
               while ! kubectl get pods -n keycloak $POD -o jsonpath='{.status.containerStatuses[0].ready}' 2>/dev/null | grep -q 'true'; do
@@ -55,7 +72,9 @@ spec:
                 echo "Creating $TENANT_NAMESPACE client with redirect URIs: $REDIRECT_URIS"
                 kubectl exec -n keycloak $POD -- /opt/keycloak/bin/kcadm.sh create clients -r smallworlds -s clientId=$TENANT_NAMESPACE -s enabled=true -s publicClient=false -s standardFlowEnabled=true -s "redirectUris=$REDIRECT_URIS" -s 'webOrigins=["+"]' -s 'attributes."post.logout.redirect.uris"="+"' --config /tmp/kcadm-$TENANT_NAMESPACE.config
               else
-                echo "Client already exists."
+                echo "Client already exists — reconciling redirect URIs to: $REDIRECT_URIS"
+                CLIENT_ID=$(kubectl exec -n keycloak $POD -- /opt/keycloak/bin/kcadm.sh get clients -r smallworlds -q clientId=$TENANT_NAMESPACE --fields id --config /tmp/kcadm-$TENANT_NAMESPACE.config | grep '"id"' | cut -d'"' -f4)
+                kubectl exec -n keycloak $POD -- /opt/keycloak/bin/kcadm.sh update clients/$CLIENT_ID -r smallworlds -s "redirectUris=$REDIRECT_URIS" --config /tmp/kcadm-$TENANT_NAMESPACE.config
               fi
 
               if [[ -n "$OIDC_AUDIENCE_MAPPER" ]]; then
