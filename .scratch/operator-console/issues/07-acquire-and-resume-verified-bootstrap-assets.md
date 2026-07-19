@@ -11,6 +11,15 @@ deliberately rejects acquisition rather than substituting an ambient tool or an
 arbitrary URL. Publishing that release-engineering material is still required
 before this issue can be marked complete.
 
+### 2026-07-19 — Release payload packaging foundation
+
+`admin-tools/build-bootstrap-assets.sh` now creates a deterministic Linux amd64
+release payload only from explicit, checksum-verified K3s and Argo CD inputs.
+It is tested for reproducible bytes and rejects mutable/credential-bearing URLs.
+It does not replace the required published signed archive manifest and trusted
+release public key, and the later Local Node bootstrap issue will consume the
+payload; this issue remains incomplete until the real release material exists.
+
 ## What to build
 
 Resolve the release-specific bootstrap asset decision and implement one managed acquisition journey through the Bootstrap Launcher. An Operator sees what internet resources are required, downloads a pinned asset through the selected internal asset source, safely resumes interruption, and receives evidence that its version and integrity match the selected SmallWorlds release. The design must leave a clean future seam for an Offline Bundle without claiming offline support now.
