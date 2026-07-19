@@ -41,6 +41,32 @@ test('Operator completes and reopens the launcher journey in English and German'
     await expect(page.getByText(journey.next)).toBeVisible();
     await expect(page.getByRole('heading', { name: journey.task })).toBeVisible();
 
+		const vault = page.getByRole('region', { name: /launcher vault|launcher-tresor/i });
+		await expect(vault).toBeVisible();
+		if (journey.language === 'en') {
+			await expect(vault.getByText('Passphrase fallback')).toBeVisible();
+			await vault.getByLabel('Vault passphrase').fill('playwright-vault-passphrase');
+			await vault.getByRole('button', { name: 'Unlock vault' }).focus();
+			await page.keyboard.press('Enter');
+			await expect(vault.getByText('Unlocked', { exact: true })).toBeVisible();
+			const secret = 'playwright-secret-must-not-render';
+			await vault.getByLabel('Git provider token').fill(secret);
+			await vault.getByLabel('Credential expiry').fill('2035-04-05T06:07:08Z');
+			await vault.getByRole('button', { name: 'Store credential' }).click();
+			await expect(vault.getByText('Current', { exact: true })).toBeVisible();
+			await expect(page.getByText(secret)).toHaveCount(0);
+		} else {
+			await expect(vault.getByText('Entsperrt', { exact: true })).toBeVisible();
+			await vault.getByLabel('Git-Anbieter-Token').fill('erstes-geheimnis-darf-nicht-erscheinen');
+			await vault.getByLabel('Ablaufdatum des Zugangsschlüssels').fill('2036-05-06T07:08:09Z');
+			await vault.getByRole('button', { name: 'Zugangsschlüssel speichern' }).click();
+			await vault.getByLabel('Git-Anbieter-Token').fill('ersatz-geheimnis-darf-nicht-erscheinen');
+			await vault.getByRole('button', { name: 'Zugangsschlüssel ersetzen' }).click();
+			await expect(vault.getByText('Aktuell', { exact: true })).toBeVisible();
+			await vault.getByRole('button', { name: 'Zugangsschlüssel entfernen' }).click();
+			await expect(vault.getByText('Kein Zugangsschlüssel gespeichert')).toBeVisible();
+		}
+
     const accessibility = await new AxeBuilder({ page }).analyze();
     expect(accessibility.violations).toEqual([]);
 

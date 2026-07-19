@@ -4,6 +4,8 @@ This directory contains the first Bootstrap Launcher tracer from the [Operator C
 
 The current fake `VerifyLauncher` Journey Task exercises the complete Inspect → Plan → Approve → Execute → Verify contract without mutating a cluster.
 
+The Setup Journey also includes the first Launcher Vault credential-custody flow. The launcher encrypts credential values in a separate age-encrypted file, stores only references and safe metadata in SQLite, and never returns a submitted value to the browser. It uses the native operating-system credential store for its random wrapping key when available, with a passphrase-unlocked fallback for headless Linux and other hosts where that facility cannot be used.
+
 ## Build
 
 ```bash
@@ -61,3 +63,10 @@ npm run generate:api
 ```
 
 The browser never receives provisioning authority or secret values. Go owns sessions, persistence, plans, approvals, execution, event streaming, and verification.
+
+## Launcher Vault custody
+
+- macOS uses Keychain, Windows uses Credential Manager, and Linux/BSD uses a Secret Service provider when one is available.
+- If the native credential store is unavailable, choose the passphrase fallback. Keep that passphrase outside the Launcher Host; it is required after every launcher restart and cannot currently be recovered by the product.
+- The launcher data directory is restricted to the current operating-system user (`0700`/`0600` on Unix and a protected current-user DACL on Windows).
+- Credential read endpoints expose only presence, source, expiry, and rotation status. Replacement is another write-only submission; removal is explicit.

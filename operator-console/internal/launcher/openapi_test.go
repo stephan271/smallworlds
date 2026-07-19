@@ -22,16 +22,20 @@ func TestOpenAPIContractDescribesLauncherWorkflow(t *testing.T) {
 		t.Fatalf("OpenAPI version = %q, want 3.1.0", contract.OpenAPI)
 	}
 	wanted := map[string][]string{
-		"/api/v1/session":               {"get"},
-		"/api/v1/session/exchange":      {"post"},
-		"/api/v1/profiles":              {"get", "post"},
-		"/api/v1/profiles/{id}":         {"put"},
-		"/api/v1/profiles/{id}/journey": {"get"},
-		"/api/v1/plans":                 {"post"},
-		"/api/v1/plans/{id}/approve":    {"post"},
-		"/api/v1/runs/{id}":             {"get"},
-		"/api/v1/runs/{id}/cancel":      {"post"},
-		"/api/v1/events":                {"get"},
+		"/api/v1/session":                          {"get"},
+		"/api/v1/session/exchange":                 {"post"},
+		"/api/v1/vault":                            {"get"},
+		"/api/v1/vault/unlock":                     {"post"},
+		"/api/v1/profiles":                         {"get", "post"},
+		"/api/v1/profiles/{id}":                    {"put"},
+		"/api/v1/profiles/{id}/journey":            {"get"},
+		"/api/v1/profiles/{id}/credentials":        {"get"},
+		"/api/v1/profiles/{id}/credentials/{kind}": {"put", "delete"},
+		"/api/v1/plans":                            {"post"},
+		"/api/v1/plans/{id}/approve":               {"post"},
+		"/api/v1/runs/{id}":                        {"get"},
+		"/api/v1/runs/{id}/cancel":                 {"post"},
+		"/api/v1/events":                           {"get"},
 	}
 	for path, methods := range wanted {
 		operations, ok := contract.Paths[path]

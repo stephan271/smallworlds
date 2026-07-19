@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { api, initializeSession, type ChangePlan, type ClusterProfile, type SetupJourney, type WorkflowRun } from '$lib/api';
+  import { api, initializeSession, type ChangePlan, type ClusterProfile, type CredentialMetadata, type SetupJourney, type VaultStatus, type WorkflowRun } from '$lib/api';
   import { translate, type Locale, type MessageKey } from '$lib/i18n';
 
   type ActivityEvent = {
@@ -20,6 +20,13 @@
   let plan: ChangePlan | null = $state(null);
   let run: WorkflowRun | null = $state(null);
   let activities: ActivityEvent[] = $state([]);
+  let vaultStatus: VaultStatus | null = $state(null);
+  let credentials: CredentialMetadata[] = $state([]);
+  let vaultError = $state('');
+  let vaultBusy = $state(false);
+  let vaultPassphrase = $state('');
+  let credentialValue = $state('');
+  let credentialExpiresAt = $state('');
   let creating = $state(true);
   let editing = $state(false);
   let busy = $state(false);
@@ -38,7 +45,7 @@
   onMount(async () => {
     try {
       await initializeSession();
-      profiles = await api.listProfiles();
+      [profiles, vaultStatus] = await Promise.all([api.listProfiles(), api.getVaultStatus()]);
       const remembered = window.localStorage.getItem('smallworlds.activeProfile');
       const selected = profiles.find((profile) => profile.id === remembered) ?? profiles[0];
       if (selected) {
@@ -65,6 +72,7 @@
     profileName = profile.name;
     window.localStorage.setItem('smallworlds.activeProfile', profile.id);
     journey = await api.getJourney(profile.id);
+    credentials = vaultStatus?.state === 'unlocked' ? await api.listCredentials(profile.id) : [];
     plan = null;
     activities = [];
     const runID = window.localStorage.getItem(`smallworlds.run.${profile.id}`);
@@ -80,6 +88,67 @@
     } else {
       run = null;
     }
+  }
+
+  function vaultErrorMessage(code: string): string {
+    switch (code) {
+      case 'os_credential_store_unavailable': return message('osCredentialStoreUnavailable');
+      case 'vault_passphrase_incorrect': return message('vaultPassphraseIncorrect');
+      case 'vault_passphrase_too_short': return message('vaultPassphraseTooShort');
+      case 'vault_wrapping_key_missing': return message('vaultWrappingKeyMissing');
+      case 'credential_storage_failed': return message('credentialStorageFailed');
+      case 'credential_removal_failed': return message('credentialRemovalFailed');
+      default: return message('vaultUnlockFailed');
+    }
+  }
+
+  async function unlockVault(method: 'operating-system' | 'passphrase'): Promise<void> {
+    vaultBusy = true;
+    vaultError = '';
+    try {
+      vaultStatus = await api.unlockVault(method, method === 'passphrase' ? vaultPassphrase : undefined);
+      vaultPassphrase = '';
+      credentials = activeProfile ? await api.listCredentials(activeProfile.id) : [];
+    } catch (reason) {
+      vaultError = vaultErrorMessage(reason instanceof Error ? reason.message : 'vault_unlock_failed');
+    } finally {
+      vaultBusy = false;
+    }
+  }
+
+  async function storeCredential(): Promise<void> {
+    if (!activeProfile) return;
+    vaultBusy = true;
+    vaultError = '';
+    try {
+      await api.storeCredential(activeProfile.id, credentialValue, credentialExpiresAt);
+      credentialValue = '';
+      credentials = await api.listCredentials(activeProfile.id);
+    } catch (reason) {
+      vaultError = vaultErrorMessage(reason instanceof Error ? reason.message : 'credential_storage_failed');
+    } finally {
+      vaultBusy = false;
+    }
+  }
+
+  async function removeCredential(): Promise<void> {
+    if (!activeProfile) return;
+    vaultBusy = true;
+    vaultError = '';
+    try {
+      await api.removeCredential(activeProfile.id);
+      credentials = await api.listCredentials(activeProfile.id);
+    } catch (reason) {
+      vaultError = vaultErrorMessage(reason instanceof Error ? reason.message : 'credential_removal_failed');
+    } finally {
+      vaultBusy = false;
+    }
+  }
+
+  function rotationLabel(status: string): string {
+    if (status === 'expired') return message('rotationExpired');
+    if (status === 'due-soon') return message('rotationDueSoon');
+    return message('rotationCurrent');
   }
 
   function showCreateProfile(): void {
@@ -276,6 +345,67 @@
           {#if run}<small>{run.currentCheckpoint}</small>{/if}
         </div>
 
+		<section class="card vault-card" aria-labelledby="vault-title">
+			<div class="vault-heading">
+				<div>
+					<p class="eyebrow">{message('vaultTitle')}</p>
+					<h2 id="vault-title">{message('vaultTitle')}</h2>
+				</div>
+				<span class:unlocked={vaultStatus?.state === 'unlocked'} class="badge">
+					{vaultStatus?.state === 'unlocked' ? message('vaultUnlocked') : message('vaultLocked')}
+				</span>
+			</div>
+			<p class="muted">{message('vaultDescription')}</p>
+			{#if vaultError}<p class="inline-error" role="alert">{vaultError}</p>{/if}
+			{#if vaultStatus?.state !== 'unlocked'}
+				<p class="facility-state">
+					<span aria-hidden="true">{vaultStatus?.osCredentialStoreAvailable ? '✓' : '!'}</span>
+					{vaultStatus?.osCredentialStoreAvailable ? message('osStoreAvailable') : message('osStoreUnavailable')}
+				</p>
+				{#if vaultStatus?.osCredentialStoreAvailable}
+					<button onclick={() => void unlockVault('operating-system')} disabled={vaultBusy}>{message('unlockWithOSStore')}</button>
+				{/if}
+				<div class="fallback">
+					<h3>{message('passphraseFallback')}</h3>
+					<p class="muted">{message('passphraseFallbackDescription')}</p>
+					<form onsubmit={(event) => { event.preventDefault(); void unlockVault('passphrase'); }}>
+						<label>
+							<span>{message('vaultPassphrase')}</span>
+							<input type="password" bind:value={vaultPassphrase} required minlength="12" autocomplete="current-password" />
+						</label>
+						<div class="actions"><button type="submit" disabled={vaultBusy}>{message('unlockVault')}</button></div>
+					</form>
+				</div>
+			{:else}
+				{#if credentials.length > 0}
+					{#each credentials as credential (credential.kind)}
+						<dl class="credential-metadata">
+							<div><dt>{message('gitProviderToken')}</dt><dd><span class="badge">{credential.present ? message('credentialPresent') : message('noCredential')}</span></dd></div>
+							<div><dt>{message('credentialSource')}</dt><dd>{credential.source === 'operator' ? message('sourceOperator') : credential.source}</dd></div>
+							<div><dt>{message('credentialExpires')}</dt><dd>{credential.expiresAt}</dd></div>
+							<div><dt>{message('rotationStatus')}</dt><dd>{rotationLabel(credential.rotationStatus)}</dd></div>
+						</dl>
+					{/each}
+				{:else}
+					<p class="muted">{message('noCredential')}</p>
+				{/if}
+				<form class="credential-form" onsubmit={(event) => { event.preventDefault(); void storeCredential(); }}>
+					<label>
+						<span>{message('gitProviderToken')}</span>
+						<input type="password" bind:value={credentialValue} required autocomplete="off" />
+					</label>
+					<label>
+						<span>{message('credentialExpiry')}</span>
+						<input bind:value={credentialExpiresAt} required placeholder="2030-01-02T03:04:05Z" />
+					</label>
+					<div class="actions">
+						{#if credentials.length > 0}<button type="button" class="danger" onclick={() => void removeCredential()} disabled={vaultBusy}>{message('removeCredential')}</button>{/if}
+						<button type="submit" disabled={vaultBusy}>{credentials.length > 0 ? message('replaceCredential') : message('storeCredential')}</button>
+					</div>
+				</form>
+			{/if}
+		</section>
+
         <section aria-labelledby="next-title">
           <p class="eyebrow">{message('next')}</p>
           <div class="card task-card">
@@ -373,6 +503,19 @@
   .status-icon { display: grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: currentColor; color: white; }
   .verified .status-icon { background: #176b45; }
   .plan-card { margin: 0 0 2rem; }
+	.vault-card { margin: 0 0 2rem; border-left: 5px solid #176b45; }
+	.vault-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+	.vault-heading h2 { margin-bottom: 0; }
+	.badge.unlocked { background: #daf1e1; color: #145f3d; }
+	.facility-state { display: flex; align-items: center; gap: .55rem; font-weight: 750; }
+	.facility-state span { display: grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: #e6eee8; }
+	.fallback { margin-top: 1.25rem; border-top: 1px solid #dce5de; padding-top: 1.25rem; }
+	.fallback h3 { margin: 0; }
+	.inline-error { padding: .8rem; border-radius: .65rem; background: #fff1ee; color: #78281f; }
+	.credential-form { margin-top: 1.25rem; border-top: 1px solid #dce5de; padding-top: 1.25rem; }
+	.credential-metadata { margin: 1.25rem 0 0; }
+	button.danger { background: transparent; border: 1px solid #b5473b; color: #78281f; }
+	button.danger:hover { background: #fff1ee; }
   dl { display: grid; gap: .8rem; }
   dl div { display: grid; grid-template-columns: minmax(8rem, 11rem) 1fr; gap: 1rem; border-top: 1px solid #e0e6e1; padding-top: .8rem; }
   dt { color: #617066; font-weight: 700; }
@@ -381,7 +524,7 @@
   .timeline { list-style: none; padding: 0; display: grid; gap: .65rem; }
   .timeline li { display: flex; align-items: center; gap: .7rem; }
   .timeline li span { width: .7rem; height: .7rem; border-radius: 50%; background: #176b45; }
-  .muted { color: #718077; }
+  .muted { color: #5f6c64; }
   .error { display: flex; gap: 1rem; padding: 1rem; margin-bottom: 1rem; border: 1px solid #b5473b; border-radius: .8rem; background: #fff1ee; color: #78281f; }
   @media (max-width: 760px) {
     .product-header { align-items: flex-start; }

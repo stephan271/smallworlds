@@ -5,10 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/stephan271/smallworlds/operator-console/internal/fileprotection"
 	_ "modernc.org/sqlite"
 )
 
@@ -60,6 +60,15 @@ type VerificationRecord struct {
 	ObservedAt      time.Time
 }
 
+type CredentialReference struct {
+	ProfileID      string
+	Kind           string
+	VaultKey       string
+	Source         string
+	ExpiresAt      time.Time
+	RotationStatus string
+}
+
 type Store struct {
 	database *sql.DB
 }
@@ -67,11 +76,8 @@ type Store struct {
 var ErrNotFound = errors.New("not found")
 
 func Open(dataDir string) (*Store, error) {
-	if err := os.MkdirAll(dataDir, 0o700); err != nil {
+	if err := fileprotection.SecureDirectory(dataDir); err != nil {
 		return nil, fmt.Errorf("create launcher data directory: %w", err)
-	}
-	if err := os.Chmod(dataDir, 0o700); err != nil {
-		return nil, fmt.Errorf("protect launcher data directory: %w", err)
 	}
 
 	databasePath := filepath.Join(dataDir, "launcher.db")
@@ -85,7 +91,7 @@ func Open(dataDir string) (*Store, error) {
 		database.Close()
 		return nil, err
 	}
-	if err := os.Chmod(databasePath, 0o600); err != nil {
+	if err := fileprotection.SecureFile(databasePath); err != nil {
 		database.Close()
 		return nil, fmt.Errorf("protect launcher database: %w", err)
 	}
@@ -178,6 +184,68 @@ func (store *Store) UpdateProfile(ctx context.Context, id, name, language, deplo
 		return Profile{}, ErrNotFound
 	}
 	return store.GetProfile(ctx, id)
+}
+
+func (store *Store) UpsertCredentialReference(ctx context.Context, reference CredentialReference) error {
+	_, err := store.database.ExecContext(ctx, `
+		INSERT INTO credential_references (profile_id, kind, vault_key, source, expires_at, rotation_status)
+		VALUES (?, ?, ?, ?, ?, ?)
+		ON CONFLICT(profile_id, kind) DO UPDATE SET
+			vault_key = excluded.vault_key,
+			source = excluded.source,
+			expires_at = excluded.expires_at,
+			rotation_status = excluded.rotation_status
+	`, reference.ProfileID, reference.Kind, reference.VaultKey, reference.Source,
+		reference.ExpiresAt.UTC().Format(time.RFC3339), reference.RotationStatus)
+	if err != nil {
+		return fmt.Errorf("store credential reference: %w", err)
+	}
+	return nil
+}
+
+func (store *Store) ListCredentialReferences(ctx context.Context, profileID string) ([]CredentialReference, error) {
+	rows, err := store.database.QueryContext(ctx, `
+		SELECT profile_id, kind, vault_key, source, expires_at, rotation_status
+		FROM credential_references
+		WHERE profile_id = ?
+		ORDER BY kind
+	`, profileID)
+	if err != nil {
+		return nil, fmt.Errorf("list credential references: %w", err)
+	}
+	defer rows.Close()
+	references := make([]CredentialReference, 0)
+	for rows.Next() {
+		var reference CredentialReference
+		var expiresAt string
+		if err := rows.Scan(&reference.ProfileID, &reference.Kind, &reference.VaultKey, &reference.Source, &expiresAt, &reference.RotationStatus); err != nil {
+			return nil, fmt.Errorf("scan credential reference: %w", err)
+		}
+		reference.ExpiresAt, err = time.Parse(time.RFC3339, expiresAt)
+		if err != nil {
+			return nil, fmt.Errorf("parse credential expiry: %w", err)
+		}
+		references = append(references, reference)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list credential references: %w", err)
+	}
+	return references, nil
+}
+
+func (store *Store) DeleteCredentialReference(ctx context.Context, profileID, kind string) error {
+	result, err := store.database.ExecContext(ctx, `DELETE FROM credential_references WHERE profile_id = ? AND kind = ?`, profileID, kind)
+	if err != nil {
+		return fmt.Errorf("delete credential reference: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read deleted credential reference count: %w", err)
+	}
+	if rows == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (store *Store) CreatePlan(ctx context.Context, plan PlanRecord) error {
@@ -574,6 +642,15 @@ func (store *Store) migrate(ctx context.Context) error {
 			message_key TEXT NOT NULL,
 			parameters TEXT NOT NULL,
 			occurred_at TEXT NOT NULL
+		)`},
+		{5, `CREATE TABLE credential_references (
+			profile_id TEXT NOT NULL REFERENCES profiles(id),
+			kind TEXT NOT NULL,
+			vault_key TEXT NOT NULL,
+			source TEXT NOT NULL,
+			expires_at TEXT NOT NULL,
+			rotation_status TEXT NOT NULL,
+			PRIMARY KEY (profile_id, kind)
 		)`},
 	}
 	for _, migration := range migrations {

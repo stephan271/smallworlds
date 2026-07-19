@@ -36,6 +36,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/vault": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getVaultStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vault/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["unlockVault"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profiles": {
         parameters: {
             query?: never;
@@ -79,6 +111,38 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{id}/credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listCredentialMetadata"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{id}/credentials/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["storeCredential"];
+        post?: never;
+        delete: operations["removeCredential"];
         options?: never;
         head?: never;
         patch?: never;
@@ -177,6 +241,35 @@ export interface components {
         Session: {
             authenticated?: boolean;
             csrfToken: string;
+        };
+        VaultStatus: {
+            /** @enum {string} */
+            state: "locked" | "unlocked";
+            osCredentialStoreAvailable: boolean;
+            passphraseFallbackAvailable: boolean;
+            /** @enum {string} */
+            unlockMethod?: "operating-system" | "passphrase";
+        };
+        VaultUnlockInput: {
+            /** @enum {string} */
+            method: "operating-system" | "passphrase";
+            /** Format: password */
+            passphrase?: string;
+        };
+        CredentialInput: {
+            /** Format: password */
+            value: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        CredentialMetadata: {
+            kind: string;
+            present: boolean;
+            source: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** @enum {string} */
+            rotationStatus: "current" | "due-soon" | "expired";
         };
         ProfileInput: {
             name: string;
@@ -288,12 +381,31 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
+        /** @description Launcher Vault is locked */
+        Locked: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Platform facility is unavailable */
+        Unavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
     };
     parameters: {
         CSRFToken: string;
         ProfileID: string;
         PlanID: string;
         RunID: string;
+        CredentialKind: "git-provider-token";
     };
     requestBodies: never;
     headers: never;
@@ -346,6 +458,55 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    getVaultStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Launcher Vault status and available unlock facilities */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VaultStatus"];
+                };
+            };
+        };
+    };
+    unlockVault: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VaultUnlockInput"];
+            };
+        };
+        responses: {
+            /** @description Unlocked Launcher Vault */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VaultStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            409: components["responses"]["Conflict"];
+            503: components["responses"]["Unavailable"];
         };
     };
     listProfiles: {
@@ -448,6 +609,84 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+        };
+    };
+    listCredentialMetadata: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProfileID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Credential metadata without secret values */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CredentialMetadata"][];
+                };
+            };
+            423: components["responses"]["Locked"];
+        };
+    };
+    storeCredential: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                id: components["parameters"]["ProfileID"];
+                kind: components["parameters"]["CredentialKind"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CredentialInput"];
+            };
+        };
+        responses: {
+            /** @description Stored credential metadata; the value is write-only */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CredentialMetadata"];
+                };
+            };
+            423: components["responses"]["Locked"];
+        };
+    };
+    removeCredential: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path: {
+                id: components["parameters"]["ProfileID"];
+                kind: components["parameters"]["CredentialKind"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Credential removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+            423: components["responses"]["Locked"];
         };
     };
     createPlan: {

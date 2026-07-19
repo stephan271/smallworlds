@@ -37,6 +37,36 @@
         }
       }
     },
+    "/api/v1/vault": {
+      "get": {
+        "operationId": "getVaultStatus",
+        "responses": {
+          "200": {
+            "description": "Launcher Vault status and available unlock facilities",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VaultStatus" } } }
+          }
+        }
+      }
+    },
+    "/api/v1/vault/unlock": {
+      "post": {
+        "operationId": "unlockVault",
+        "parameters": [{ "$ref": "#/components/parameters/CSRFToken" }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VaultUnlockInput" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Unlocked Launcher Vault",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VaultStatus" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "503": { "$ref": "#/components/responses/Unavailable" }
+        }
+      }
+    },
     "/api/v1/profiles": {
       "get": {
         "operationId": "listProfiles",
@@ -100,6 +130,57 @@
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SetupJourney" } } }
           },
           "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/profiles/{id}/credentials": {
+      "get": {
+        "operationId": "listCredentialMetadata",
+        "parameters": [{ "$ref": "#/components/parameters/ProfileID" }],
+        "responses": {
+          "200": {
+            "description": "Credential metadata without secret values",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/CredentialMetadata" } }
+              }
+            }
+          },
+          "423": { "$ref": "#/components/responses/Locked" }
+        }
+      }
+    },
+    "/api/v1/profiles/{id}/credentials/{kind}": {
+      "put": {
+        "operationId": "storeCredential",
+        "parameters": [
+          { "$ref": "#/components/parameters/ProfileID" },
+          { "$ref": "#/components/parameters/CredentialKind" },
+          { "$ref": "#/components/parameters/CSRFToken" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CredentialInput" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Stored credential metadata; the value is write-only",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CredentialMetadata" } } }
+          },
+          "423": { "$ref": "#/components/responses/Locked" }
+        }
+      },
+      "delete": {
+        "operationId": "removeCredential",
+        "parameters": [
+          { "$ref": "#/components/parameters/ProfileID" },
+          { "$ref": "#/components/parameters/CredentialKind" },
+          { "$ref": "#/components/parameters/CSRFToken" }
+        ],
+        "responses": {
+          "204": { "description": "Credential removed" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "423": { "$ref": "#/components/responses/Locked" }
         }
       }
     },
@@ -219,6 +300,12 @@
         "in": "path",
         "required": true,
         "schema": { "type": "string" }
+      },
+      "CredentialKind": {
+        "name": "kind",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "enum": ["git-provider-token"] }
       }
     },
     "responses": {
@@ -236,6 +323,14 @@
       },
       "Conflict": {
         "description": "Precondition conflict",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "Locked": {
+        "description": "Launcher Vault is locked",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "Unavailable": {
+        "description": "Platform facility is unavailable",
         "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
       }
     },
@@ -256,6 +351,43 @@
         "properties": {
           "authenticated": { "type": "boolean" },
           "csrfToken": { "type": "string" }
+        }
+      },
+      "VaultStatus": {
+        "type": "object",
+        "required": ["state", "osCredentialStoreAvailable", "passphraseFallbackAvailable"],
+        "properties": {
+          "state": { "type": "string", "enum": ["locked", "unlocked"] },
+          "osCredentialStoreAvailable": { "type": "boolean" },
+          "passphraseFallbackAvailable": { "type": "boolean" },
+          "unlockMethod": { "type": "string", "enum": ["operating-system", "passphrase"] }
+        }
+      },
+      "VaultUnlockInput": {
+        "type": "object",
+        "required": ["method"],
+        "properties": {
+          "method": { "type": "string", "enum": ["operating-system", "passphrase"] },
+          "passphrase": { "type": "string", "format": "password", "writeOnly": true, "minLength": 12 }
+        }
+      },
+      "CredentialInput": {
+        "type": "object",
+        "required": ["value", "expiresAt"],
+        "properties": {
+          "value": { "type": "string", "format": "password", "writeOnly": true, "minLength": 1 },
+          "expiresAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CredentialMetadata": {
+        "type": "object",
+        "required": ["kind", "present", "source", "expiresAt", "rotationStatus"],
+        "properties": {
+          "kind": { "type": "string" },
+          "present": { "type": "boolean" },
+          "source": { "type": "string" },
+          "expiresAt": { "type": "string", "format": "date-time" },
+          "rotationStatus": { "type": "string", "enum": ["current", "due-soon", "expired"] }
         }
       },
       "ProfileInput": {

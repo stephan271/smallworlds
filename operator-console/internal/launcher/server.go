@@ -13,8 +13,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/stephan271/smallworlds/operator-console/internal/state"
+	"github.com/stephan271/smallworlds/operator-console/internal/vault"
 	"github.com/stephan271/smallworlds/operator-console/internal/workflow"
 )
 
@@ -22,8 +24,9 @@ const sessionCookieName = "smallworlds_session"
 const sessionLifetime = 12 * time.Hour
 
 type Config struct {
-	DataDir     string
-	LaunchToken string
+	DataDir       string
+	LaunchToken   string
+	WrappingStore vault.WrappingStore
 }
 
 type session struct {
@@ -38,6 +41,7 @@ type Server struct {
 	tokenUsed bool
 	sessions  map[string]session
 	store     *state.Store
+	vault     *vault.Vault
 	workflow  *workflow.Engine
 }
 
@@ -62,11 +66,13 @@ func New(config Config) (*Server, error) {
 		launchToken: config.LaunchToken,
 		sessions:    make(map[string]session),
 		store:       store,
+		vault:       vault.New(config.DataDir, config.WrappingStore),
 		workflow:    workflowEngine,
 	}, nil
 }
 
 func (server *Server) Close() error {
+	server.vault.Lock()
 	return server.store.Close()
 }
 
@@ -79,6 +85,10 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.exchangeSession(response, request)
 	case request.Method == http.MethodGet && request.URL.Path == "/api/v1/session":
 		server.getSession(response, request)
+	case request.URL.Path == "/api/v1/vault/unlock":
+		server.unlockVault(response, request)
+	case request.URL.Path == "/api/v1/vault":
+		server.vaultStatus(response, request)
 	case request.URL.Path == "/api/v1/profiles":
 		server.profiles(response, request)
 	case strings.HasPrefix(request.URL.Path, "/api/v1/profiles/"):
@@ -94,6 +104,86 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 	default:
 		http.NotFound(response, request)
 	}
+}
+
+func (server *Server) unlockVault(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		Method     string `json:"method"`
+		Passphrase string `json:"passphrase"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 16*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil {
+		writeError(response, http.StatusBadRequest, "invalid_vault_unlock")
+		return
+	}
+	var status vault.Status
+	var err error
+	switch input.Method {
+	case "passphrase":
+		if input.Passphrase == "" {
+			writeError(response, http.StatusBadRequest, "invalid_vault_unlock")
+			return
+		}
+		if utf8.RuneCountInString(input.Passphrase) < 12 {
+			writeError(response, http.StatusBadRequest, "vault_passphrase_too_short")
+			return
+		}
+		status, err = server.vault.UnlockWithPassphrase(request.Context(), input.Passphrase)
+	case "operating-system":
+		if input.Passphrase != "" {
+			writeError(response, http.StatusBadRequest, "invalid_vault_unlock")
+			return
+		}
+		status, err = server.vault.UnlockWithOSCredentialStore(request.Context())
+	default:
+		writeError(response, http.StatusBadRequest, "invalid_vault_unlock")
+		return
+	}
+	if errors.Is(err, vault.ErrIncorrectPassphrase) {
+		writeError(response, http.StatusUnauthorized, "vault_passphrase_incorrect")
+		return
+	}
+	if errors.Is(err, vault.ErrCredentialStoreUnavailable) {
+		writeError(response, http.StatusServiceUnavailable, "os_credential_store_unavailable")
+		return
+	}
+	if errors.Is(err, vault.ErrWrappingKeyMissing) {
+		writeError(response, http.StatusConflict, "vault_wrapping_key_missing")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "vault_unlock_failed")
+		return
+	}
+	writeJSON(response, http.StatusOK, status)
+}
+
+func (server *Server) vaultStatus(response http.ResponseWriter, request *http.Request) {
+	if _, ok := server.authenticatedSession(request); !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodGet {
+		response.Header().Set("Allow", "GET")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	writeJSON(response, http.StatusOK, server.vault.Status(request.Context()))
 }
 
 type workflowEvent struct {
@@ -303,6 +393,10 @@ func (server *Server) profile(response http.ResponseWriter, request *http.Reques
 		writeJSON(response, http.StatusOK, journey)
 		return
 	}
+	if len(parts) >= 2 && parts[1] == "credentials" {
+		server.profileCredentials(response, request, current, profileID, parts[2:])
+		return
+	}
 
 	if len(parts) == 1 && request.Method == http.MethodPut {
 		if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
@@ -334,6 +428,141 @@ func (server *Server) profile(response http.ResponseWriter, request *http.Reques
 	}
 
 	http.NotFound(response, request)
+}
+
+type credentialMetadata struct {
+	Kind           string `json:"kind"`
+	Present        bool   `json:"present"`
+	Source         string `json:"source"`
+	ExpiresAt      string `json:"expiresAt"`
+	RotationStatus string `json:"rotationStatus"`
+}
+
+func (server *Server) profileCredentials(response http.ResponseWriter, request *http.Request, current session, profileID string, remainder []string) {
+	if _, err := server.store.GetProfile(request.Context(), profileID); errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "profile_not_found")
+		return
+	} else if err != nil {
+		writeError(response, http.StatusInternalServerError, "credentials_unavailable")
+		return
+	}
+	if len(remainder) == 0 && request.Method == http.MethodGet {
+		if server.vault.Status(request.Context()).State != "unlocked" {
+			writeError(response, http.StatusLocked, "vault_locked")
+			return
+		}
+		references, err := server.store.ListCredentialReferences(request.Context(), profileID)
+		if err != nil {
+			writeError(response, http.StatusInternalServerError, "credentials_unavailable")
+			return
+		}
+		metadata := make([]credentialMetadata, 0, len(references))
+		for _, reference := range references {
+			present, err := server.vault.Contains(reference.VaultKey)
+			if err != nil {
+				writeError(response, http.StatusLocked, "vault_locked")
+				return
+			}
+			metadata = append(metadata, credentialMetadata{
+				Kind:           reference.Kind,
+				Present:        present,
+				Source:         reference.Source,
+				ExpiresAt:      reference.ExpiresAt.UTC().Format(time.RFC3339),
+				RotationStatus: credentialRotationStatus(reference.ExpiresAt, time.Now()),
+			})
+		}
+		writeJSON(response, http.StatusOK, metadata)
+		return
+	}
+	if len(remainder) == 1 && request.Method == http.MethodPut {
+		if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+			writeError(response, http.StatusForbidden, "csrf_required")
+			return
+		}
+		kind := remainder[0]
+		if kind != "git-provider-token" {
+			writeError(response, http.StatusBadRequest, "unsupported_credential_kind")
+			return
+		}
+		var input struct {
+			Value     string `json:"value"`
+			ExpiresAt string `json:"expiresAt"`
+		}
+		decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 64*1024))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&input); err != nil || input.Value == "" {
+			writeError(response, http.StatusBadRequest, "invalid_credential")
+			return
+		}
+		expiresAt, err := time.Parse(time.RFC3339, input.ExpiresAt)
+		if err != nil {
+			writeError(response, http.StatusBadRequest, "invalid_credential_expiry")
+			return
+		}
+		vaultKey := profileID + "/" + kind
+		if err := server.vault.Store(vaultKey, input.Value); errors.Is(err, vault.ErrLocked) {
+			writeError(response, http.StatusLocked, "vault_locked")
+			return
+		} else if err != nil {
+			writeError(response, http.StatusInternalServerError, "credential_storage_failed")
+			return
+		}
+		rotationStatus := credentialRotationStatus(expiresAt, time.Now())
+		if err := server.store.UpsertCredentialReference(request.Context(), state.CredentialReference{
+			ProfileID:      profileID,
+			Kind:           kind,
+			VaultKey:       vaultKey,
+			Source:         "operator",
+			ExpiresAt:      expiresAt,
+			RotationStatus: rotationStatus,
+		}); err != nil {
+			writeError(response, http.StatusInternalServerError, "credential_storage_failed")
+			return
+		}
+		writeJSON(response, http.StatusOK, credentialMetadata{
+			Kind:           kind,
+			Present:        true,
+			Source:         "operator",
+			ExpiresAt:      expiresAt.UTC().Format(time.RFC3339),
+			RotationStatus: rotationStatus,
+		})
+		return
+	}
+	if len(remainder) == 1 && request.Method == http.MethodDelete {
+		if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+			writeError(response, http.StatusForbidden, "csrf_required")
+			return
+		}
+		kind := remainder[0]
+		vaultKey := profileID + "/" + kind
+		if err := server.vault.Delete(vaultKey); errors.Is(err, vault.ErrLocked) {
+			writeError(response, http.StatusLocked, "vault_locked")
+			return
+		} else if errors.Is(err, vault.ErrSecretNotFound) {
+			writeError(response, http.StatusNotFound, "credential_not_found")
+			return
+		} else if err != nil {
+			writeError(response, http.StatusInternalServerError, "credential_removal_failed")
+			return
+		}
+		if err := server.store.DeleteCredentialReference(request.Context(), profileID, kind); err != nil {
+			writeError(response, http.StatusInternalServerError, "credential_removal_failed")
+			return
+		}
+		response.WriteHeader(http.StatusNoContent)
+		return
+	}
+	http.NotFound(response, request)
+}
+
+func credentialRotationStatus(expiresAt, now time.Time) string {
+	if !expiresAt.After(now) {
+		return "expired"
+	}
+	if expiresAt.Before(now.Add(30 * 24 * time.Hour)) {
+		return "due-soon"
+	}
+	return "current"
 }
 
 func (server *Server) profiles(response http.ResponseWriter, request *http.Request) {
