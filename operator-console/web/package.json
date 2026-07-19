@@ -1,0 +1,23 @@
+{
+  "name": "smallworlds-operator-console-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "generate:api": "openapi-typescript ../api/openapi.json -o src/lib/generated/api.ts",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.12.1",
+    "@playwright/test": "1.61.1",
+    "@sveltejs/adapter-static": "3.0.10",
+    "@sveltejs/kit": "2.70.1",
+    "@sveltejs/vite-plugin-svelte": "7.2.0",
+    "openapi-typescript": "7.13.0",
+    "svelte": "5.56.6",
+    "svelte-check": "4.7.3",
+    "typescript": "5.9.3",
+    "vite": "8.1.5"
+  }
+}

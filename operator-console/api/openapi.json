@@ -1,0 +1,363 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SmallWorlds Bootstrap Launcher API",
+    "version": "0.1.0"
+  },
+  "servers": [{ "url": "/" }],
+  "security": [{ "launcherSession": [] }],
+  "paths": {
+    "/api/v1/session": {
+      "get": {
+        "operationId": "getSession",
+        "responses": {
+          "200": {
+            "description": "Authenticated launcher session",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Session" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/session/exchange": {
+      "post": {
+        "operationId": "exchangeSession",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SessionExchange" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Session established",
+            "headers": { "Set-Cookie": { "schema": { "type": "string" } } },
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Session" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/profiles": {
+      "get": {
+        "operationId": "listProfiles",
+        "responses": {
+          "200": {
+            "description": "Cluster Profiles",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ClusterProfile" } }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "operationId": "createProfile",
+        "parameters": [{ "$ref": "#/components/parameters/CSRFToken" }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProfileInput" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "Cluster Profile created",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ClusterProfile" } } }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/profiles/{id}": {
+      "put": {
+        "operationId": "updateProfile",
+        "parameters": [
+          { "$ref": "#/components/parameters/ProfileID" },
+          { "$ref": "#/components/parameters/CSRFToken" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProfileInput" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Cluster Profile revised",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ClusterProfile" } } }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/profiles/{id}/journey": {
+      "get": {
+        "operationId": "getJourney",
+        "parameters": [{ "$ref": "#/components/parameters/ProfileID" }],
+        "responses": {
+          "200": {
+            "description": "Setup Journey",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SetupJourney" } } }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/plans": {
+      "post": {
+        "operationId": "createPlan",
+        "parameters": [{ "$ref": "#/components/parameters/CSRFToken" }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PlanInput" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "Immutable Change Plan",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ChangePlan" } } }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/plans/{id}/approve": {
+      "post": {
+        "operationId": "approvePlan",
+        "parameters": [
+          { "$ref": "#/components/parameters/PlanID" },
+          { "$ref": "#/components/parameters/CSRFToken" }
+        ],
+        "responses": {
+          "202": {
+            "description": "Workflow Run started",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkflowRun" } } }
+          },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/runs/{id}": {
+      "get": {
+        "operationId": "getRun",
+        "parameters": [{ "$ref": "#/components/parameters/RunID" }],
+        "responses": {
+          "200": {
+            "description": "Workflow Run",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkflowRun" } } }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/runs/{id}/cancel": {
+      "post": {
+        "operationId": "cancelRun",
+        "parameters": [
+          { "$ref": "#/components/parameters/RunID" },
+          { "$ref": "#/components/parameters/CSRFToken" }
+        ],
+        "responses": {
+          "202": {
+            "description": "Cancellation requested",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkflowRun" } } }
+          },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/events": {
+      "get": {
+        "operationId": "streamEvents",
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "format": "int64", "minimum": 0 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cursor-aware workflow event stream",
+            "content": { "text/event-stream": { "schema": { "type": "string" } } }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "launcherSession": { "type": "apiKey", "in": "cookie", "name": "smallworlds_session" }
+    },
+    "parameters": {
+      "CSRFToken": {
+        "name": "X-CSRF-Token",
+        "in": "header",
+        "required": true,
+        "schema": { "type": "string" }
+      },
+      "ProfileID": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" }
+      },
+      "PlanID": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" }
+      },
+      "RunID": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid request",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "Unauthorized": {
+        "description": "Authentication required",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "NotFound": {
+        "description": "Resource not found",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "Conflict": {
+        "description": "Precondition conflict",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": ["code"],
+        "properties": { "code": { "type": "string" } }
+      },
+      "SessionExchange": {
+        "type": "object",
+        "required": ["token"],
+        "properties": { "token": { "type": "string" } }
+      },
+      "Session": {
+        "type": "object",
+        "required": ["csrfToken"],
+        "properties": {
+          "authenticated": { "type": "boolean" },
+          "csrfToken": { "type": "string" }
+        }
+      },
+      "ProfileInput": {
+        "type": "object",
+        "required": ["name", "language", "deploymentMode"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "language": { "type": "string", "enum": ["en", "de"] },
+          "deploymentMode": { "type": "string", "enum": ["hetzner", "local-lan", "local-public"] }
+        }
+      },
+      "ClusterProfile": {
+        "allOf": [
+          { "$ref": "#/components/schemas/ProfileInput" },
+          {
+            "type": "object",
+            "required": ["id", "revision", "createdAt"],
+            "properties": {
+              "id": { "type": "string" },
+              "revision": { "type": "integer", "format": "int64" },
+              "createdAt": { "type": "string", "format": "date-time" }
+            }
+          }
+        ]
+      },
+      "JourneyTask": {
+        "type": "object",
+        "required": ["id", "state", "recommended", "evidenceState"],
+        "properties": {
+          "id": { "type": "string" },
+          "state": { "type": "string", "enum": ["ready", "running", "completed"] },
+          "recommended": { "type": "boolean" },
+          "evidenceState": { "type": "string", "enum": ["missing", "current", "stale"] },
+          "evidenceCode": { "type": "string" },
+          "observedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "SetupJourney": {
+        "type": "object",
+        "required": ["profileId", "tasks"],
+        "properties": {
+          "profileId": { "type": "string" },
+          "tasks": { "type": "array", "items": { "$ref": "#/components/schemas/JourneyTask" } }
+        }
+      },
+      "PlanInput": {
+        "type": "object",
+        "required": ["profileId", "intent"],
+        "properties": {
+          "profileId": { "type": "string" },
+          "intent": { "type": "string", "enum": ["VerifyLauncher"] }
+        }
+      },
+      "PlanEffect": {
+        "type": "object",
+        "required": ["code", "messageKey"],
+        "properties": {
+          "code": { "type": "string" },
+          "messageKey": { "type": "string" }
+        }
+      },
+      "ChangePlan": {
+        "type": "object",
+        "required": ["id", "profileId", "intent", "digest", "status", "preconditions", "effects", "risks", "createdAt"],
+        "properties": {
+          "id": { "type": "string" },
+          "profileId": { "type": "string" },
+          "intent": { "type": "string" },
+          "digest": { "type": "string" },
+          "status": { "type": "string" },
+          "preconditions": {
+            "type": "object",
+            "required": ["profileRevision"],
+            "properties": { "profileRevision": { "type": "integer", "format": "int64" } }
+          },
+          "effects": { "type": "array", "items": { "$ref": "#/components/schemas/PlanEffect" } },
+          "risks": { "type": "array", "items": { "$ref": "#/components/schemas/PlanEffect" } },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "WorkflowRun": {
+        "type": "object",
+        "required": ["id", "planId", "profileId", "state", "currentCheckpoint", "cancellationState", "verification", "createdAt", "updatedAt"],
+        "properties": {
+          "id": { "type": "string" },
+          "planId": { "type": "string" },
+          "profileId": { "type": "string" },
+          "state": { "type": "string", "enum": ["running", "verified", "cancelled", "failed"] },
+          "currentCheckpoint": { "type": "string" },
+          "cancellationState": { "type": "string", "enum": ["not-requested", "requested", "completed"] },
+          "verification": {
+            "type": "object",
+            "required": ["code", "observedAt"],
+            "properties": {
+              "code": { "type": "string" },
+              "observedAt": { "type": "string", "format": "date-time" }
+            }
+          },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  }
+}

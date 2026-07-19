@@ -1,0 +1,7 @@
+.tmp/
+web/.svelte-kit/
+web/node_modules/
+web/playwright-report/
+web/test-results/
+internal/webui/dist/*
+!internal/webui/dist/.placeholder
