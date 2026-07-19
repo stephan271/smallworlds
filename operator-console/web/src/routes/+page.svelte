@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { api, initializeSession, type ChangePlan, type ClusterProfile, type CredentialMetadata, type SetupJourney, type VaultStatus, type WorkflowRun } from '$lib/api';
+  import { api, initializeSession, type ChangePlan, type ClusterProfile, type CredentialMetadata, type RecoveryBundlePreview, type SetupJourney, type VaultStatus, type WorkflowRun } from '$lib/api';
   import { translate, type Locale, type MessageKey } from '$lib/i18n';
 
   type ActivityEvent = {
@@ -27,6 +27,16 @@
   let vaultPassphrase = $state('');
   let credentialValue = $state('');
   let credentialExpiresAt = $state('');
+  let recoveryPassphrase = $state('');
+  let recoveryRecipients = $state('');
+  let recoveryIdentity = $state('');
+  let recoveryCredentialMode: 'passphrase' | 'identity' = $state('passphrase');
+  let recoveryBundle = $state('');
+  let recoveryFileName = $state('');
+  let recoveryPreview: RecoveryBundlePreview | null = $state(null);
+  let recoveryBusy = $state(false);
+  let recoveryError = $state('');
+  let recoveryNotice = $state('');
   let creating = $state(true);
   let editing = $state(false);
   let busy = $state(false);
@@ -142,6 +152,108 @@
       vaultError = vaultErrorMessage(reason instanceof Error ? reason.message : 'credential_removal_failed');
     } finally {
       vaultBusy = false;
+    }
+  }
+
+  function recoveryCredential(): { passphrase?: string; identity?: string } {
+    return recoveryCredentialMode === 'passphrase' ? { passphrase: recoveryPassphrase } : { identity: recoveryIdentity };
+  }
+
+  function recoveryErrorMessage(code: string): string {
+    switch (code) {
+      case 'recovery_bundle_credentials_incorrect': return message('recoveryCredentialsIncorrect');
+      case 'lifecycle_authority_already_exists': return message('recoveryAuthorityExists');
+      case 'recovery_bundle_identity_mismatch': return message('recoveryIdentityMismatch');
+      case 'vault_locked': return message('recoveryVaultLocked');
+      default: return message('recoveryFailed');
+    }
+  }
+
+  async function exportRecoveryBundle(): Promise<void> {
+    if (!activeProfile) return;
+    recoveryBusy = true;
+    recoveryError = '';
+    recoveryNotice = '';
+    try {
+      const recipients = recoveryRecipients.split(/\s+/).filter(Boolean);
+      const encryption = recipients.length > 0 ? { recipients } : { passphrase: recoveryPassphrase };
+      const bundle = await api.exportRecoveryBundle(activeProfile.id, encryption);
+      const url = URL.createObjectURL(bundle);
+      const download = document.createElement('a');
+      download.href = url;
+      download.download = `${activeProfile.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'smallworlds'}-recovery.bundle`;
+      download.click();
+      URL.revokeObjectURL(url);
+      recoveryPassphrase = '';
+      recoveryRecipients = '';
+      recoveryNotice = message('recoveryExported');
+    } catch (reason) {
+      recoveryError = recoveryErrorMessage(reason instanceof Error ? reason.message : 'recovery_failed');
+    } finally {
+      recoveryBusy = false;
+    }
+  }
+
+  async function readRecoveryBundle(event: Event): Promise<void> {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    recoveryPreview = null;
+    recoveryError = '';
+    recoveryNotice = '';
+    if (!file) {
+      recoveryBundle = '';
+      recoveryFileName = '';
+      return;
+    }
+    recoveryFileName = file.name;
+    const dataURL = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+    recoveryBundle = dataURL.slice(dataURL.indexOf(',') + 1);
+  }
+
+  async function previewRecoveryBundle(): Promise<void> {
+    if (!recoveryBundle) return;
+    recoveryBusy = true;
+    recoveryError = '';
+    recoveryNotice = '';
+    try {
+      recoveryPreview = await api.previewRecoveryBundle(recoveryBundle, recoveryCredential());
+    } catch (reason) {
+      recoveryPreview = null;
+      recoveryError = recoveryErrorMessage(reason instanceof Error ? reason.message : 'recovery_failed');
+    } finally {
+      recoveryBusy = false;
+    }
+  }
+
+  async function importRecoveryBundle(): Promise<void> {
+    if (!recoveryBundle || !recoveryPreview) return;
+    recoveryBusy = true;
+    recoveryError = '';
+    recoveryNotice = '';
+    try {
+      const imported = await api.importRecoveryBundle(recoveryBundle, recoveryPreview.profile.id, recoveryCredential());
+      profiles = await api.listProfiles();
+      const profile = profiles.find((candidate) => candidate.id === imported.profile.id);
+      if (profile) {
+        creating = false;
+        editing = false;
+        await selectProfile(profile);
+      }
+      recoveryPassphrase = '';
+      recoveryIdentity = '';
+      recoveryBundle = '';
+      recoveryFileName = '';
+      recoveryPreview = null;
+      recoveryNotice = message('recoveryImported');
+    } catch (reason) {
+      recoveryError = recoveryErrorMessage(reason instanceof Error ? reason.message : 'recovery_failed');
+    } finally {
+      recoveryBusy = false;
     }
   }
 
@@ -295,6 +407,78 @@
           <span>{error}</span>
         </div>
       {/if}
+
+      <section class="card recovery-card" aria-labelledby="recovery-title">
+        <div class="vault-heading">
+          <div>
+            <p class="eyebrow">{message('recoveryEyebrow')}</p>
+            <h2 id="recovery-title">{message('recoveryTitle')}</h2>
+          </div>
+        </div>
+        <p class="muted">{message('recoveryDescription')}</p>
+        {#if recoveryError}<p class="inline-error" role="alert">{recoveryError}</p>{/if}
+        {#if recoveryNotice}<p class="inline-notice" aria-live="polite">{recoveryNotice}</p>{/if}
+
+        {#if activeProfile}
+          <form class="recovery-form" onsubmit={(event) => { event.preventDefault(); void exportRecoveryBundle(); }}>
+            <h3>{message('recoveryExport')}</h3>
+            <p class="muted">{message('recoveryExportDescription')}</p>
+            <label>
+              <span>{message('recoveryPassphrase')}</span>
+              <input type="password" bind:value={recoveryPassphrase} minlength="12" autocomplete="new-password" placeholder={message('recoveryPassphraseHint')} />
+            </label>
+            <label>
+              <span>{message('recoveryRecipients')}</span>
+              <textarea bind:value={recoveryRecipients} rows="2" placeholder={message('recoveryRecipientsHint')}></textarea>
+            </label>
+            <p class="muted">{message('recoveryRecipientChoice')}</p>
+            <div class="actions"><button type="submit" disabled={recoveryBusy || (!recoveryPassphrase && !recoveryRecipients)}>{message('recoveryDownload')}</button></div>
+          </form>
+        {/if}
+
+        <form class="recovery-form" onsubmit={(event) => { event.preventDefault(); void previewRecoveryBundle(); }}>
+          <h3>{message('recoveryImport')}</h3>
+          <p class="muted">{message('recoveryImportDescription')}</p>
+          <label>
+            <span>{message('recoveryBundleFile')}</span>
+            <input type="file" accept=".bundle,application/octet-stream" onchange={(event) => void readRecoveryBundle(event)} />
+          </label>
+          {#if recoveryFileName}<p class="muted">{recoveryFileName}</p>{/if}
+          <label>
+            <span>{message('recoveryUnlockMethod')}</span>
+            <select bind:value={recoveryCredentialMode} onchange={() => { recoveryPreview = null; recoveryError = ''; }}>
+              <option value="passphrase">{message('recoveryPassphrase')}</option>
+              <option value="identity">{message('recoveryAgeIdentity')}</option>
+            </select>
+          </label>
+          {#if recoveryCredentialMode === 'passphrase'}
+            <label>
+              <span>{message('recoveryPassphrase')}</span>
+              <input type="password" bind:value={recoveryPassphrase} minlength="12" autocomplete="current-password" />
+            </label>
+          {:else}
+            <label>
+              <span>{message('recoveryAgeIdentity')}</span>
+              <textarea bind:value={recoveryIdentity} rows="3" autocomplete="off"></textarea>
+            </label>
+          {/if}
+          <div class="actions"><button type="submit" disabled={recoveryBusy || !recoveryBundle || (recoveryCredentialMode === 'passphrase' ? recoveryPassphrase.length < 12 : !recoveryIdentity)}>{message('recoveryPreview')}</button></div>
+        </form>
+
+        {#if recoveryPreview}
+          <section class="recovery-preview" aria-labelledby="recovery-preview-title">
+            <p class="eyebrow">{message('recoveryPreview')}</p>
+            <h3 id="recovery-preview-title">{recoveryPreview.profile.name}</h3>
+            <dl>
+              <div><dt>{message('recoveryClusterId')}</dt><dd><code>{recoveryPreview.profile.id}</code></dd></div>
+              <div><dt>{message('deploymentMode')}</dt><dd>{recoveryPreview.profile.deploymentMode}</dd></div>
+              <div><dt>{message('recoveryFormat')}</dt><dd>{recoveryPreview.format} v{recoveryPreview.version}</dd></div>
+            </dl>
+            <p class="muted">{message('recoveryConfirmDescription')}</p>
+            <div class="actions"><button type="button" onclick={() => void importRecoveryBundle()} disabled={recoveryBusy}>{message('recoveryConfirmImport')}</button></div>
+          </section>
+        {/if}
+      </section>
 
       {#if creating || editing}
         <section class="card form-card" aria-labelledby="profile-form-title">
@@ -457,10 +641,10 @@
   :global(*) { box-sizing: border-box; }
   :global(:root) { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #17211b; background: #f4f7f2; font-synthesis: none; }
   :global(body) { margin: 0; min-width: 320px; min-height: 100vh; }
-  :global(button), :global(input), :global(select) { font: inherit; }
+  :global(button), :global(input), :global(select), :global(textarea) { font: inherit; }
   :global(button) { border: 0; border-radius: .75rem; background: #176b45; color: white; padding: .72rem 1rem; font-weight: 700; cursor: pointer; }
   :global(button:hover) { background: #0f5737; }
-  :global(button:focus-visible), :global(input:focus-visible), :global(select:focus-visible), :global(a:focus-visible) { outline: 3px solid #ef9f27; outline-offset: 3px; }
+  :global(button:focus-visible), :global(input:focus-visible), :global(select:focus-visible), :global(textarea:focus-visible), :global(a:focus-visible) { outline: 3px solid #ef9f27; outline-offset: 3px; }
   :global(button:disabled) { opacity: .55; cursor: wait; }
   .product-header { min-height: 5rem; display: flex; align-items: center; justify-content: space-between; padding: 1rem clamp(1rem, 4vw, 3rem); background: #123b2a; color: white; border-bottom: 1px solid #275c46; }
   .brand { color: inherit; text-decoration: none; display: flex; align-items: center; gap: .85rem; }
@@ -488,7 +672,7 @@
   form, form label { display: grid; gap: .5rem; }
   form { gap: 1.25rem; }
   form label span { font-weight: 750; }
-  input, select { width: 100%; min-height: 2.8rem; border: 1px solid #9eb0a4; border-radius: .65rem; padding: .65rem .75rem; background: white; color: #17211b; }
+  input, select, textarea { width: 100%; min-height: 2.8rem; border: 1px solid #9eb0a4; border-radius: .65rem; padding: .65rem .75rem; background: white; color: #17211b; }
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
   .actions { display: flex; justify-content: flex-end; gap: .7rem; }
   button.secondary { background: transparent; border: 1px solid #8ca092; color: #244932; }
@@ -514,6 +698,11 @@
 	.inline-error { padding: .8rem; border-radius: .65rem; background: #fff1ee; color: #78281f; }
 	.credential-form { margin-top: 1.25rem; border-top: 1px solid #dce5de; padding-top: 1.25rem; }
 	.credential-metadata { margin: 1.25rem 0 0; }
+	.recovery-card { margin: 0 0 2rem; border-left: 5px solid #ef9f27; }
+	.recovery-form { margin-top: 1.25rem; border-top: 1px solid #dce5de; padding-top: 1.25rem; }
+	.recovery-form h3, .recovery-preview h3 { margin: 0; }
+	.recovery-preview { margin-top: 1.25rem; border-top: 1px solid #dce5de; padding-top: 1.25rem; }
+	.inline-notice { padding: .8rem; border-radius: .65rem; background: #e6f1e9; color: #145f3d; }
 	button.danger { background: transparent; border: 1px solid #b5473b; color: #78281f; }
 	button.danger:hover { background: #fff1ee; }
   dl { display: grid; gap: .8rem; }

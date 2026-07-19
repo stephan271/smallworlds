@@ -15,6 +15,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/stephan271/smallworlds/operator-console/internal/recovery"
 	"github.com/stephan271/smallworlds/operator-console/internal/state"
 	"github.com/stephan271/smallworlds/operator-console/internal/vault"
 	"github.com/stephan271/smallworlds/operator-console/internal/workflow"
@@ -89,6 +90,12 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.unlockVault(response, request)
 	case request.URL.Path == "/api/v1/vault":
 		server.vaultStatus(response, request)
+	case request.URL.Path == "/api/v1/recovery-bundles/export":
+		server.exportRecoveryBundle(response, request)
+	case request.URL.Path == "/api/v1/recovery-bundles/preview":
+		server.previewRecoveryBundle(response, request)
+	case request.URL.Path == "/api/v1/recovery-bundles/import":
+		server.importRecoveryBundle(response, request)
 	case request.URL.Path == "/api/v1/profiles":
 		server.profiles(response, request)
 	case strings.HasPrefix(request.URL.Path, "/api/v1/profiles/"):
@@ -104,6 +111,235 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 	default:
 		http.NotFound(response, request)
 	}
+}
+
+func (server *Server) previewRecoveryBundle(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		Bundle     string `json:"bundle"`
+		Passphrase string `json:"passphrase"`
+		Identity   string `json:"identity"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 24*1024*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.Bundle == "" || !validRecoveryCredential(input.Passphrase, input.Identity) {
+		writeError(response, http.StatusBadRequest, "invalid_recovery_bundle")
+		return
+	}
+	bundle, err := base64.StdEncoding.DecodeString(input.Bundle)
+	if err != nil {
+		writeError(response, http.StatusBadRequest, "invalid_recovery_bundle")
+		return
+	}
+	payload, err := openRecoveryBundle(bundle, input.Passphrase, input.Identity)
+	if errors.Is(err, recovery.ErrCannotDecrypt) {
+		writeError(response, http.StatusUnauthorized, "recovery_bundle_credentials_incorrect")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusBadRequest, "invalid_recovery_bundle")
+		return
+	}
+	writeJSON(response, http.StatusOK, map[string]any{
+		"format":  payload.Format,
+		"version": payload.Version,
+		"profile": map[string]string{
+			"id":             payload.Profile.ID,
+			"name":           payload.Profile.Name,
+			"deploymentMode": payload.Profile.DeploymentMode,
+		},
+	})
+}
+
+func (server *Server) exportRecoveryBundle(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		ProfileID  string   `json:"profileId"`
+		Passphrase string   `json:"passphrase"`
+		Recipients []string `json:"recipients"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 64*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" || !validRecoveryExportCredential(input.Passphrase, input.Recipients) {
+		writeError(response, http.StatusBadRequest, "invalid_recovery_bundle_export")
+		return
+	}
+	snapshot, err := server.store.ExportProfileSnapshot(request.Context(), input.ProfileID)
+	if errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "profile_not_found")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "recovery_bundle_export_failed")
+		return
+	}
+	vaultMaterial, err := server.vault.ExportPrefix(input.ProfileID + "/")
+	if errors.Is(err, vault.ErrLocked) {
+		writeError(response, http.StatusLocked, "vault_locked")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "recovery_bundle_export_failed")
+		return
+	}
+	payload := recovery.Payload{
+		Format:  "smallworlds-recovery-bundle",
+		Version: 1,
+		Profile: snapshot.Profile,
+		WorkflowSnapshot: recovery.WorkflowSnapshot{
+			Plans:  snapshot.Plans,
+			Runs:   snapshot.Runs,
+			Events: snapshot.Events,
+		},
+		InfrastructureState:  json.RawMessage(`{}`),
+		VaultMaterial:        vaultMaterial,
+		CredentialReferences: snapshot.CredentialReferences,
+	}
+	var bundle []byte
+	if input.Passphrase != "" {
+		bundle, err = recovery.ExportWithPassphrase(payload, input.Passphrase)
+	} else {
+		bundle, err = recovery.ExportWithRecipients(payload, input.Recipients)
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "recovery_bundle_export_failed")
+		return
+	}
+	response.Header().Set("Content-Type", "application/octet-stream")
+	response.Header().Set("Content-Disposition", `attachment; filename="smallworlds-recovery.bundle"`)
+	response.WriteHeader(http.StatusOK)
+	_, _ = response.Write(bundle)
+}
+
+func (server *Server) importRecoveryBundle(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		Bundle            string `json:"bundle"`
+		Passphrase        string `json:"passphrase"`
+		Identity          string `json:"identity"`
+		ExpectedProfileID string `json:"expectedProfileId"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 24*1024*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.Bundle == "" || input.ExpectedProfileID == "" || !validRecoveryCredential(input.Passphrase, input.Identity) {
+		writeError(response, http.StatusBadRequest, "invalid_recovery_bundle")
+		return
+	}
+	bundle, err := base64.StdEncoding.DecodeString(input.Bundle)
+	if err != nil {
+		writeError(response, http.StatusBadRequest, "invalid_recovery_bundle")
+		return
+	}
+	payload, err := openRecoveryBundle(bundle, input.Passphrase, input.Identity)
+	if errors.Is(err, recovery.ErrCannotDecrypt) {
+		writeError(response, http.StatusUnauthorized, "recovery_bundle_credentials_incorrect")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusBadRequest, "invalid_recovery_bundle")
+		return
+	}
+	if !sameToken(payload.Profile.ID, input.ExpectedProfileID) {
+		writeError(response, http.StatusConflict, "recovery_bundle_identity_mismatch")
+		return
+	}
+	snapshot := state.ProfileSnapshot{
+		Profile:              payload.Profile,
+		Plans:                payload.WorkflowSnapshot.Plans,
+		Runs:                 payload.WorkflowSnapshot.Runs,
+		Events:               payload.WorkflowSnapshot.Events,
+		CredentialReferences: payload.CredentialReferences,
+	}
+	if err := server.store.CanImportProfileSnapshot(request.Context(), snapshot); errors.Is(err, state.ErrConflict) {
+		writeError(response, http.StatusConflict, "lifecycle_authority_already_exists")
+		return
+	} else if err != nil {
+		writeError(response, http.StatusInternalServerError, "recovery_bundle_import_failed")
+		return
+	}
+	if err := server.vault.Import(payload.VaultMaterial); errors.Is(err, vault.ErrLocked) {
+		writeError(response, http.StatusLocked, "vault_locked")
+		return
+	} else if errors.Is(err, vault.ErrSecretConflict) {
+		writeError(response, http.StatusConflict, "recovery_bundle_vault_conflict")
+		return
+	} else if err != nil {
+		writeError(response, http.StatusInternalServerError, "recovery_bundle_import_failed")
+		return
+	}
+	if err := server.store.ImportProfileSnapshot(request.Context(), snapshot); err != nil {
+		_ = server.vault.RemoveImported(payload.VaultMaterial)
+		if errors.Is(err, state.ErrConflict) {
+			writeError(response, http.StatusConflict, "lifecycle_authority_already_exists")
+			return
+		}
+		writeError(response, http.StatusInternalServerError, "recovery_bundle_import_failed")
+		return
+	}
+	if err := server.workflow.ResumeActive(request.Context()); err != nil {
+		writeError(response, http.StatusInternalServerError, "recovery_bundle_import_failed")
+		return
+	}
+	writeJSON(response, http.StatusCreated, map[string]any{
+		"profile": map[string]string{
+			"id":   payload.Profile.ID,
+			"name": payload.Profile.Name,
+		},
+	})
+}
+
+func validRecoveryCredential(passphrase, identity string) bool {
+	return (utf8.RuneCountInString(passphrase) >= 12 && identity == "") || (passphrase == "" && identity != "")
+}
+
+func validRecoveryExportCredential(passphrase string, recipients []string) bool {
+	return (utf8.RuneCountInString(passphrase) >= 12 && len(recipients) == 0) || (passphrase == "" && len(recipients) > 0)
+}
+
+func openRecoveryBundle(bundle []byte, passphrase, identity string) (recovery.Payload, error) {
+	if passphrase != "" {
+		return recovery.OpenWithPassphrase(bundle, passphrase)
+	}
+	return recovery.OpenWithIdentity(bundle, identity)
 }
 
 func (server *Server) unlockVault(response http.ResponseWriter, request *http.Request) {

@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"filippo.io/age"
@@ -22,6 +23,7 @@ var ErrIncorrectPassphrase = errors.New("incorrect vault passphrase")
 var ErrLocked = errors.New("launcher vault is locked")
 var ErrSecretNotFound = errors.New("vault secret not found")
 var ErrWrappingKeyMissing = errors.New("vault wrapping key is missing")
+var ErrSecretConflict = errors.New("vault secret conflicts with existing material")
 
 type WrappingStore interface {
 	Available(context.Context) bool
@@ -194,6 +196,76 @@ func (vault *Vault) Contains(key string) (bool, error) {
 	}
 	_, present := vault.contents.Credentials[key]
 	return present, nil
+}
+
+func (vault *Vault) Export() (map[string]string, error) {
+	vault.mu.RLock()
+	defer vault.mu.RUnlock()
+	if !vault.unlocked {
+		return nil, ErrLocked
+	}
+	material := make(map[string]string, len(vault.contents.Credentials))
+	for key, value := range vault.contents.Credentials {
+		material[key] = value
+	}
+	return material, nil
+}
+
+func (vault *Vault) ExportPrefix(prefix string) (map[string]string, error) {
+	material, err := vault.Export()
+	if err != nil {
+		return nil, err
+	}
+	selected := make(map[string]string)
+	for key, value := range material {
+		if strings.HasPrefix(key, prefix) {
+			selected[key] = value
+		}
+	}
+	return selected, nil
+}
+
+func (vault *Vault) Import(material map[string]string) error {
+	vault.mu.Lock()
+	defer vault.mu.Unlock()
+	if !vault.unlocked {
+		return ErrLocked
+	}
+	updated := contents{Version: vault.contents.Version, Credentials: make(map[string]string, len(vault.contents.Credentials)+len(material))}
+	for key, value := range vault.contents.Credentials {
+		updated.Credentials[key] = value
+	}
+	for key, value := range material {
+		if existing, found := updated.Credentials[key]; found && existing != value {
+			return ErrSecretConflict
+		}
+		updated.Credentials[key] = value
+	}
+	if err := vault.write(string(vault.passphrase), updated); err != nil {
+		return err
+	}
+	vault.contents = updated
+	return nil
+}
+
+func (vault *Vault) RemoveImported(material map[string]string) error {
+	vault.mu.Lock()
+	defer vault.mu.Unlock()
+	if !vault.unlocked {
+		return ErrLocked
+	}
+	updated := contents{Version: vault.contents.Version, Credentials: make(map[string]string, len(vault.contents.Credentials))}
+	for key, value := range vault.contents.Credentials {
+		if imported, remove := material[key]; remove && imported == value {
+			continue
+		}
+		updated.Credentials[key] = value
+	}
+	if err := vault.write(string(vault.passphrase), updated); err != nil {
+		return err
+	}
+	vault.contents = updated
+	return nil
 }
 
 func (vault *Vault) Lock() {

@@ -7,6 +7,8 @@ export type ChangePlan = components['schemas']['ChangePlan'];
 export type WorkflowRun = components['schemas']['WorkflowRun'];
 export type VaultStatus = components['schemas']['VaultStatus'];
 export type CredentialMetadata = components['schemas']['CredentialMetadata'];
+export type RecoveryBundlePreview = components['schemas']['RecoveryBundlePreview'];
+export type RecoveryBundleImportResult = components['schemas']['RecoveryBundleImportResult'];
 
 let csrfToken = '';
 
@@ -31,6 +33,15 @@ async function requestVoid(path: string, init: RequestInit): Promise<void> {
   headers.set('X-CSRF-Token', csrfToken);
   const response = await fetch(path, { ...init, headers, credentials: 'same-origin' });
   if (!response.ok) await decode<never>(response);
+}
+
+async function requestBinary(path: string, init: RequestInit): Promise<Blob> {
+  const headers = new Headers(init.headers);
+  headers.set('Content-Type', 'application/json');
+  headers.set('X-CSRF-Token', csrfToken);
+  const response = await fetch(path, { ...init, headers, credentials: 'same-origin' });
+  if (!response.ok) await decode<never>(response);
+  return response.blob();
 }
 
 export async function initializeSession(): Promise<void> {
@@ -78,6 +89,12 @@ export const api = {
     }),
   removeCredential: (profileId: string) =>
     requestVoid(`/api/v1/profiles/${profileId}/credentials/git-provider-token`, { method: 'DELETE' }),
+  exportRecoveryBundle: (profileId: string, encryption: { passphrase?: string; recipients?: string[] }) =>
+    requestBinary('/api/v1/recovery-bundles/export', { method: 'POST', body: JSON.stringify({ profileId, ...encryption }) }),
+  previewRecoveryBundle: (bundle: string, credential: { passphrase?: string; identity?: string }) =>
+    request<RecoveryBundlePreview>('/api/v1/recovery-bundles/preview', { method: 'POST', body: JSON.stringify({ bundle, ...credential }) }),
+  importRecoveryBundle: (bundle: string, expectedProfileId: string, credential: { passphrase?: string; identity?: string }) =>
+    request<RecoveryBundleImportResult>('/api/v1/recovery-bundles/import', { method: 'POST', body: JSON.stringify({ bundle, expectedProfileId, ...credential }) }),
   createVerificationPlan: (profileId: string) => request<ChangePlan>('/api/v1/plans', { method: 'POST', body: JSON.stringify({ profileId, intent: 'VerifyLauncher' }) }),
   approvePlan: (planId: string) => request<WorkflowRun>(`/api/v1/plans/${planId}/approve`, { method: 'POST' }),
   getRun: (runId: string) => request<WorkflowRun>(`/api/v1/runs/${runId}`)

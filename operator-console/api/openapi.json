@@ -67,6 +67,53 @@
         }
       }
     },
+    "/api/v1/recovery-bundles/export": {
+      "post": {
+        "operationId": "exportRecoveryBundle",
+        "parameters": [{ "$ref": "#/components/parameters/CSRFToken" }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RecoveryBundleExportInput" } } }
+        },
+        "responses": {
+          "200": { "description": "Encrypted portable recovery bundle", "content": { "application/octet-stream": { "schema": { "type": "string", "format": "binary" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "423": { "$ref": "#/components/responses/Locked" }
+        }
+      }
+    },
+    "/api/v1/recovery-bundles/preview": {
+      "post": {
+        "operationId": "previewRecoveryBundle",
+        "parameters": [{ "$ref": "#/components/parameters/CSRFToken" }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RecoveryBundleOpenInput" } } }
+        },
+        "responses": {
+          "200": { "description": "Safe source identity, without protected material", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RecoveryBundlePreview" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/recovery-bundles/import": {
+      "post": {
+        "operationId": "importRecoveryBundle",
+        "parameters": [{ "$ref": "#/components/parameters/CSRFToken" }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RecoveryBundleImportInput" } } }
+        },
+        "responses": {
+          "201": { "description": "Lifecycle authority transferred after explicit confirmation", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RecoveryBundleImportResult" } } } },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "423": { "$ref": "#/components/responses/Locked" }
+        }
+      }
+    },
     "/api/v1/profiles": {
       "get": {
         "operationId": "listProfiles",
@@ -388,6 +435,64 @@
           "source": { "type": "string" },
           "expiresAt": { "type": "string", "format": "date-time" },
           "rotationStatus": { "type": "string", "enum": ["current", "due-soon", "expired"] }
+        }
+      },
+      "RecoveryBundleExportInput": {
+        "type": "object",
+        "required": ["profileId"],
+        "properties": {
+          "profileId": { "type": "string" },
+          "passphrase": { "type": "string", "format": "password", "writeOnly": true, "minLength": 12 },
+          "recipients": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+        },
+        "description": "Provide exactly one of passphrase or public age recipients."
+      },
+      "RecoveryBundleOpenInput": {
+        "type": "object",
+        "required": ["bundle"],
+        "properties": {
+          "bundle": { "type": "string", "format": "byte", "writeOnly": true },
+          "passphrase": { "type": "string", "format": "password", "writeOnly": true, "minLength": 12 },
+          "identity": { "type": "string", "format": "password", "writeOnly": true }
+        },
+        "description": "Provide exactly one of passphrase or private age identity."
+      },
+      "RecoveryBundleImportInput": {
+        "allOf": [
+          { "$ref": "#/components/schemas/RecoveryBundleOpenInput" },
+          {
+            "type": "object",
+            "required": ["expectedProfileId"],
+            "properties": { "expectedProfileId": { "type": "string" } }
+          }
+        ]
+      },
+      "RecoveryBundlePreview": {
+        "type": "object",
+        "required": ["format", "version", "profile"],
+        "properties": {
+          "format": { "type": "string", "const": "smallworlds-recovery-bundle" },
+          "version": { "type": "integer", "const": 1 },
+          "profile": {
+            "type": "object",
+            "required": ["id", "name", "deploymentMode"],
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "deploymentMode": { "type": "string", "enum": ["hetzner", "local-lan", "local-public"] }
+            }
+          }
+        }
+      },
+      "RecoveryBundleImportResult": {
+        "type": "object",
+        "required": ["profile"],
+        "properties": {
+          "profile": {
+            "type": "object",
+            "required": ["id", "name"],
+            "properties": { "id": { "type": "string" }, "name": { "type": "string" } }
+          }
         }
       },
       "ProfileInput": {

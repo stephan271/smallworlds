@@ -68,6 +68,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/recovery-bundles/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["exportRecoveryBundle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recovery-bundles/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["previewRecoveryBundle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recovery-bundles/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["importRecoveryBundle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profiles": {
         parameters: {
             query?: never;
@@ -270,6 +318,43 @@ export interface components {
             expiresAt: string;
             /** @enum {string} */
             rotationStatus: "current" | "due-soon" | "expired";
+        };
+        /** @description Provide exactly one of passphrase or public age recipients. */
+        RecoveryBundleExportInput: {
+            profileId: string;
+            /** Format: password */
+            passphrase?: string;
+            recipients?: string[];
+        };
+        /** @description Provide exactly one of passphrase or private age identity. */
+        RecoveryBundleOpenInput: {
+            /** Format: byte */
+            bundle: string;
+            /** Format: password */
+            passphrase?: string;
+            /** Format: password */
+            identity?: string;
+        };
+        RecoveryBundleImportInput: components["schemas"]["RecoveryBundleOpenInput"] & {
+            expectedProfileId: string;
+        };
+        RecoveryBundlePreview: {
+            /** @constant */
+            format: "smallworlds-recovery-bundle";
+            /** @constant */
+            version: 1;
+            profile: {
+                id: string;
+                name: string;
+                /** @enum {string} */
+                deploymentMode: "hetzner" | "local-lan" | "local-public";
+            };
+        };
+        RecoveryBundleImportResult: {
+            profile: {
+                id: string;
+                name: string;
+            };
         };
         ProfileInput: {
             name: string;
@@ -507,6 +592,92 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             409: components["responses"]["Conflict"];
             503: components["responses"]["Unavailable"];
+        };
+    };
+    exportRecoveryBundle: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecoveryBundleExportInput"];
+            };
+        };
+        responses: {
+            /** @description Encrypted portable recovery bundle */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            423: components["responses"]["Locked"];
+        };
+    };
+    previewRecoveryBundle: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecoveryBundleOpenInput"];
+            };
+        };
+        responses: {
+            /** @description Safe source identity, without protected material */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryBundlePreview"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    importRecoveryBundle: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecoveryBundleImportInput"];
+            };
+        };
+        responses: {
+            /** @description Lifecycle authority transferred after explicit confirmation */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryBundleImportResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            409: components["responses"]["Conflict"];
+            423: components["responses"]["Locked"];
         };
     };
     listProfiles: {

@@ -69,11 +69,20 @@ type CredentialReference struct {
 	RotationStatus string
 }
 
+type ProfileSnapshot struct {
+	Profile              Profile
+	Plans                []PlanRecord
+	Runs                 []RunRecord
+	Events               []EventRecord
+	CredentialReferences []CredentialReference
+}
+
 type Store struct {
 	database *sql.DB
 }
 
 var ErrNotFound = errors.New("not found")
+var ErrConflict = errors.New("conflict")
 
 func Open(dataDir string) (*Store, error) {
 	if err := fileprotection.SecureDirectory(dataDir); err != nil {
@@ -246,6 +255,202 @@ func (store *Store) DeleteCredentialReference(ctx context.Context, profileID, ki
 		return ErrNotFound
 	}
 	return nil
+}
+
+func (store *Store) ExportProfileSnapshot(ctx context.Context, profileID string) (ProfileSnapshot, error) {
+	profile, err := store.GetProfile(ctx, profileID)
+	if err != nil {
+		return ProfileSnapshot{}, err
+	}
+	plans, err := store.listPlansForProfile(ctx, profileID)
+	if err != nil {
+		return ProfileSnapshot{}, err
+	}
+	runs, err := store.listRunsForProfile(ctx, profileID)
+	if err != nil {
+		return ProfileSnapshot{}, err
+	}
+	events, err := store.ListEvents(ctx, profileID, 0)
+	if err != nil {
+		return ProfileSnapshot{}, err
+	}
+	references, err := store.ListCredentialReferences(ctx, profileID)
+	if err != nil {
+		return ProfileSnapshot{}, err
+	}
+	return ProfileSnapshot{Profile: profile, Plans: plans, Runs: runs, Events: events, CredentialReferences: references}, nil
+}
+
+func (store *Store) CanImportProfileSnapshot(ctx context.Context, snapshot ProfileSnapshot) error {
+	if err := validateProfileSnapshot(snapshot); err != nil {
+		return err
+	}
+	_, err := store.GetProfile(ctx, snapshot.Profile.ID)
+	if errors.Is(err, ErrNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return ErrConflict
+}
+
+func validateProfileSnapshot(snapshot ProfileSnapshot) error {
+	if snapshot.Profile.ID == "" || snapshot.Profile.Name == "" || snapshot.Profile.CreatedAt.IsZero() {
+		return fmt.Errorf("invalid profile snapshot")
+	}
+	plans := make(map[string]struct{}, len(snapshot.Plans))
+	for _, plan := range snapshot.Plans {
+		if plan.ID == "" || plan.ProfileID != snapshot.Profile.ID {
+			return fmt.Errorf("invalid recovery plan")
+		}
+		if _, duplicate := plans[plan.ID]; duplicate {
+			return fmt.Errorf("duplicate recovery plan")
+		}
+		plans[plan.ID] = struct{}{}
+	}
+	for _, run := range snapshot.Runs {
+		if run.ID == "" || run.ProfileID != snapshot.Profile.ID {
+			return fmt.Errorf("invalid recovery run")
+		}
+		if _, found := plans[run.PlanID]; !found {
+			return fmt.Errorf("recovery run references missing plan")
+		}
+	}
+	for _, event := range snapshot.Events {
+		if event.ProfileID != snapshot.Profile.ID {
+			return fmt.Errorf("invalid recovery event")
+		}
+	}
+	for _, reference := range snapshot.CredentialReferences {
+		if reference.ProfileID != snapshot.Profile.ID || reference.Kind == "" || reference.VaultKey == "" {
+			return fmt.Errorf("invalid recovery credential reference")
+		}
+	}
+	return nil
+}
+
+func (store *Store) ImportProfileSnapshot(ctx context.Context, snapshot ProfileSnapshot) error {
+	if err := store.CanImportProfileSnapshot(ctx, snapshot); err != nil {
+		return err
+	}
+	transaction, err := store.database.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin recovery import: %w", err)
+	}
+	defer transaction.Rollback()
+	if _, err := transaction.ExecContext(ctx, `
+		INSERT INTO profiles (id, name, language, deployment_mode, revision, created_at)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, snapshot.Profile.ID, snapshot.Profile.Name, snapshot.Profile.Language, snapshot.Profile.DeploymentMode, snapshot.Profile.Revision, snapshot.Profile.CreatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
+		return fmt.Errorf("restore recovery profile: %w", err)
+	}
+	for _, plan := range snapshot.Plans {
+		if plan.ProfileID != snapshot.Profile.ID {
+			return fmt.Errorf("invalid recovery plan profile")
+		}
+		if _, err := transaction.ExecContext(ctx, `
+			INSERT INTO plans (id, profile_id, intent, digest, status, profile_revision, created_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?)
+		`, plan.ID, plan.ProfileID, plan.Intent, plan.Digest, plan.Status, plan.ProfileRevision, plan.CreatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
+			return fmt.Errorf("restore recovery plan: %w", err)
+		}
+	}
+	for _, run := range snapshot.Runs {
+		if run.ProfileID != snapshot.Profile.ID {
+			return fmt.Errorf("invalid recovery run profile")
+		}
+		if _, err := transaction.ExecContext(ctx, `
+			INSERT INTO runs (id, plan_id, profile_id, state, current_checkpoint, cancellation_state, verification_code, verification_observed_at, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, run.ID, run.PlanID, run.ProfileID, run.State, run.CurrentCheckpoint, run.CancellationState, run.VerificationCode,
+			nullableTime(run.VerificationObservedAt), run.CreatedAt.UTC().Format(time.RFC3339Nano), run.UpdatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
+			return fmt.Errorf("restore recovery run: %w", err)
+		}
+	}
+	for _, event := range snapshot.Events {
+		if event.ProfileID != snapshot.Profile.ID {
+			return fmt.Errorf("invalid recovery event profile")
+		}
+		if _, err := transaction.ExecContext(ctx, `
+			INSERT INTO events (profile_id, run_id, type, message_key, parameters, occurred_at)
+			VALUES (?, ?, ?, ?, ?, ?)
+		`, event.ProfileID, event.RunID, event.Type, event.MessageKey, event.Parameters, event.OccurredAt.UTC().Format(time.RFC3339Nano)); err != nil {
+			return fmt.Errorf("restore recovery event: %w", err)
+		}
+	}
+	for _, reference := range snapshot.CredentialReferences {
+		if reference.ProfileID != snapshot.Profile.ID {
+			return fmt.Errorf("invalid recovery credential reference profile")
+		}
+		if _, err := transaction.ExecContext(ctx, `
+			INSERT INTO credential_references (profile_id, kind, vault_key, source, expires_at, rotation_status)
+			VALUES (?, ?, ?, ?, ?, ?)
+		`, reference.ProfileID, reference.Kind, reference.VaultKey, reference.Source, reference.ExpiresAt.UTC().Format(time.RFC3339), reference.RotationStatus); err != nil {
+			return fmt.Errorf("restore recovery credential reference: %w", err)
+		}
+	}
+	if err := transaction.Commit(); err != nil {
+		return fmt.Errorf("commit recovery import: %w", err)
+	}
+	return nil
+}
+
+func (store *Store) listPlansForProfile(ctx context.Context, profileID string) ([]PlanRecord, error) {
+	rows, err := store.database.QueryContext(ctx, `SELECT id, profile_id, intent, digest, status, profile_revision, created_at FROM plans WHERE profile_id = ? ORDER BY created_at`, profileID)
+	if err != nil {
+		return nil, fmt.Errorf("list recovery plans: %w", err)
+	}
+	defer rows.Close()
+	plans := make([]PlanRecord, 0)
+	for rows.Next() {
+		var plan PlanRecord
+		var createdAt string
+		if err := rows.Scan(&plan.ID, &plan.ProfileID, &plan.Intent, &plan.Digest, &plan.Status, &plan.ProfileRevision, &createdAt); err != nil {
+			return nil, fmt.Errorf("scan recovery plan: %w", err)
+		}
+		plan.CreatedAt, err = time.Parse(time.RFC3339Nano, createdAt)
+		if err != nil {
+			return nil, fmt.Errorf("parse recovery plan: %w", err)
+		}
+		plans = append(plans, plan)
+	}
+	return plans, rows.Err()
+}
+
+func (store *Store) listRunsForProfile(ctx context.Context, profileID string) ([]RunRecord, error) {
+	rows, err := store.database.QueryContext(ctx, `
+		SELECT id, plan_id, profile_id, state, current_checkpoint, cancellation_state, verification_code, verification_observed_at, created_at, updated_at
+		FROM runs WHERE profile_id = ? ORDER BY created_at
+	`, profileID)
+	if err != nil {
+		return nil, fmt.Errorf("list recovery runs: %w", err)
+	}
+	defer rows.Close()
+	runs := make([]RunRecord, 0)
+	for rows.Next() {
+		var run RunRecord
+		var verificationObservedAt sql.NullString
+		var createdAt, updatedAt string
+		if err := rows.Scan(&run.ID, &run.PlanID, &run.ProfileID, &run.State, &run.CurrentCheckpoint, &run.CancellationState, &run.VerificationCode, &verificationObservedAt, &createdAt, &updatedAt); err != nil {
+			return nil, fmt.Errorf("scan recovery run: %w", err)
+		}
+		if run.CreatedAt, err = time.Parse(time.RFC3339Nano, createdAt); err != nil {
+			return nil, fmt.Errorf("parse recovery run creation: %w", err)
+		}
+		if run.UpdatedAt, err = time.Parse(time.RFC3339Nano, updatedAt); err != nil {
+			return nil, fmt.Errorf("parse recovery run update: %w", err)
+		}
+		if verificationObservedAt.Valid {
+			parsed, err := time.Parse(time.RFC3339Nano, verificationObservedAt.String)
+			if err != nil {
+				return nil, fmt.Errorf("parse recovery run verification: %w", err)
+			}
+			run.VerificationObservedAt = &parsed
+		}
+		runs = append(runs, run)
+	}
+	return runs, rows.Err()
 }
 
 func (store *Store) CreatePlan(ctx context.Context, plan PlanRecord) error {

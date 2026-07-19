@@ -55,6 +55,12 @@ test('Operator completes and reopens the launcher journey in English and German'
 			await vault.getByRole('button', { name: 'Store credential' }).click();
 			await expect(vault.getByText('Current', { exact: true })).toBeVisible();
 			await expect(page.getByText(secret)).toHaveCount(0);
+			const recovery = page.getByRole('region', { name: 'Recovery Bundle' });
+			await expect(recovery).toBeVisible();
+			await recovery.getByLabel('Recovery passphrase').first().fill('playwright-recovery-passphrase');
+			const download = page.waitForEvent('download');
+			await recovery.getByRole('button', { name: 'Download encrypted bundle' }).click();
+			await expect((await download).suggestedFilename()).toMatch(/-recovery\.bundle$/);
 		} else {
 			await expect(vault.getByText('Entsperrt', { exact: true })).toBeVisible();
 			await vault.getByLabel('Git-Anbieter-Token').fill('erstes-geheimnis-darf-nicht-erscheinen');
