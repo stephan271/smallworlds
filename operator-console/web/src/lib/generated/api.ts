@@ -324,6 +324,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/nodes/ssh-key/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["planNodeSSHKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profiles": {
         parameters: {
             query?: never;
@@ -681,6 +697,9 @@ export interface components {
             host?: string;
             port?: number;
             username?: string;
+        };
+        ProfileReference: {
+            profileId: string;
         };
         NodeCapabilities: {
             sameHostSupported: boolean;
@@ -1419,6 +1438,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NodeInspectionResult"];
+                };
+            };
+            409: components["responses"]["Conflict"];
+        };
+    };
+    planNodeSSHKey: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileReference"];
+            };
+        };
+        responses: {
+            /** @description Reviewable plan to prepare a dedicated per-profile SSH key after trust */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangePlan"];
                 };
             };
             409: components["responses"]["Conflict"];

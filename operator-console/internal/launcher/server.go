@@ -163,6 +163,8 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.trustNode(response, request)
 	case request.URL.Path == "/api/v1/nodes/inspect":
 		server.inspectNode(response, request)
+	case request.URL.Path == "/api/v1/nodes/ssh-key/plan":
+		server.planNodeSSHKey(response, request)
 	case request.URL.Path == "/api/v1/profiles":
 		server.profiles(response, request)
 	case strings.HasPrefix(request.URL.Path, "/api/v1/profiles/"):
@@ -1409,6 +1411,51 @@ func (server *Server) inspectNode(response http.ResponseWriter, request *http.Re
 		return
 	}
 	writeJSON(response, http.StatusOK, map[string]any{"target": target, "report": report, "assessment": result})
+}
+
+func (server *Server) planNodeSSHKey(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		ProfileID string `json:"profileId"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 8*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" {
+		writeError(response, http.StatusBadRequest, "invalid_node_ssh_key_plan")
+		return
+	}
+	trust, err := server.store.GetNodeTrust(request.Context(), input.ProfileID)
+	if errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusConflict, "node_host_key_confirmation_required")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "node_ssh_key_plan_failed")
+		return
+	}
+	plan, err := server.workflow.PlanChange(request.Context(), input.ProfileID, "PrepareNodeSSHKey", "node-ssh-key\n"+trust.Host+"\n"+trust.Fingerprint, []workflow.Effect{{Code: "node.ssh_key.prepared", MessageKey: "plan.effect.node_ssh_key"}})
+	if errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "profile_not_found")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "node_ssh_key_plan_failed")
+		return
+	}
+	writeJSON(response, http.StatusCreated, plan)
 }
 
 func (server *Server) storeNodeCredentials(ctx context.Context, profileID string, input struct {

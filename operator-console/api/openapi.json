@@ -213,6 +213,14 @@
         "responses": { "200": { "description": "Read-only node report and explainable capacity/install assessment", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NodeInspectionResult" } } } }, "409": { "$ref": "#/components/responses/Conflict" } }
       }
     },
+    "/api/v1/nodes/ssh-key/plan": {
+      "post": {
+        "operationId": "planNodeSSHKey",
+        "parameters": [{ "$ref": "#/components/parameters/CSRFToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProfileReference" } } } },
+        "responses": { "201": { "description": "Reviewable plan to prepare a dedicated per-profile SSH key after trust", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ChangePlan" } } } }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
     "/api/v1/profiles": {
       "get": {
         "operationId": "listProfiles",
@@ -612,6 +620,7 @@
       "BootstrapAssetRequirements": { "type": "object", "required": ["release", "assets", "offlineBundleAvailability"], "properties": { "release": { "type": "string" }, "assets": { "type": "array", "items": { "$ref": "#/components/schemas/BootstrapAssetStatus" } }, "offlineBundleAvailability": { "type": "string", "const": "future" } } },
       "BootstrapAssetAcquireInput": { "type": "object", "required": ["release"], "properties": { "release": { "type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+" } } },
       "NodeTarget": { "type": "object", "required": ["kind"], "properties": { "kind": { "type": "string", "enum": ["remote", "same-host"] }, "host": { "type": "string" }, "port": { "type": "integer", "minimum": 1, "maximum": 65535 }, "username": { "type": "string" } } },
+      "ProfileReference": { "type": "object", "required": ["profileId"], "properties": { "profileId": { "type": "string" } } },
       "NodeCapabilities": { "type": "object", "required": ["sameHostSupported"], "properties": { "sameHostSupported": { "type": "boolean" } } },
       "NodeProbeInput": { "type": "object", "required": ["profileId", "target"], "properties": { "profileId": { "type": "string" }, "target": { "$ref": "#/components/schemas/NodeTarget" } } },
       "NodeProbeResult": { "type": "object", "required": ["target", "fingerprint"], "properties": { "target": { "$ref": "#/components/schemas/NodeTarget" }, "fingerprint": { "type": "string", "pattern": "^SHA256:" }, "requiresConfirmation": { "type": "boolean" } } },
