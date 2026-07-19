@@ -79,6 +79,15 @@ type OverlayIdentity struct {
 	RecordedAt    time.Time `json:"recordedAt"`
 }
 
+type NodeTrust struct {
+	ProfileID   string    `json:"profileId"`
+	Host        string    `json:"host"`
+	Port        int       `json:"port"`
+	Username    string    `json:"username"`
+	Fingerprint string    `json:"fingerprint"`
+	ConfirmedAt time.Time `json:"confirmedAt"`
+}
+
 type ProfileSnapshot struct {
 	Profile              Profile
 	Plans                []PlanRecord
@@ -290,6 +299,31 @@ func (store *Store) GetOverlayIdentity(ctx context.Context, profileID string) (O
 		return OverlayIdentity{}, fmt.Errorf("parse overlay record: %w", err)
 	}
 	return identity, nil
+}
+
+func (store *Store) RecordNodeTrust(ctx context.Context, trust NodeTrust) error {
+	_, err := store.database.ExecContext(ctx, `INSERT INTO node_trusts (profile_id, host, port, username, fingerprint, confirmed_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(profile_id) DO UPDATE SET host=excluded.host, port=excluded.port, username=excluded.username, fingerprint=excluded.fingerprint, confirmed_at=excluded.confirmed_at`, trust.ProfileID, trust.Host, trust.Port, trust.Username, trust.Fingerprint, trust.ConfirmedAt.UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return fmt.Errorf("record node trust: %w", err)
+	}
+	return nil
+}
+
+func (store *Store) GetNodeTrust(ctx context.Context, profileID string) (NodeTrust, error) {
+	var trust NodeTrust
+	var confirmedAt string
+	err := store.database.QueryRowContext(ctx, `SELECT profile_id, host, port, username, fingerprint, confirmed_at FROM node_trusts WHERE profile_id = ?`, profileID).Scan(&trust.ProfileID, &trust.Host, &trust.Port, &trust.Username, &trust.Fingerprint, &confirmedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return NodeTrust{}, ErrNotFound
+	}
+	if err != nil {
+		return NodeTrust{}, fmt.Errorf("get node trust: %w", err)
+	}
+	trust.ConfirmedAt, err = time.Parse(time.RFC3339Nano, confirmedAt)
+	if err != nil {
+		return NodeTrust{}, fmt.Errorf("parse node trust: %w", err)
+	}
+	return trust, nil
 }
 
 func (store *Store) ExportProfileSnapshot(ctx context.Context, profileID string) (ProfileSnapshot, error) {
@@ -900,6 +934,14 @@ func (store *Store) migrate(ctx context.Context) error {
 			release TEXT NOT NULL,
 			commit_sha TEXT NOT NULL,
 			recorded_at TEXT NOT NULL
+		)`},
+		{7, `CREATE TABLE node_trusts (
+			profile_id TEXT PRIMARY KEY REFERENCES profiles(id),
+			host TEXT NOT NULL,
+			port INTEGER NOT NULL,
+			username TEXT NOT NULL,
+			fingerprint TEXT NOT NULL,
+			confirmed_at TEXT NOT NULL
 		)`},
 	}
 	for _, migration := range migrations {
