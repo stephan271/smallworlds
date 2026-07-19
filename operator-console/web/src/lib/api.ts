@@ -126,6 +126,7 @@ export const api = {
   probeNode: (profileId: string, target: NodeTarget) => request<NodeProbeResult>('/api/v1/nodes/probe', { method: 'POST', body: JSON.stringify({ profileId, target }) }),
   trustNode: (profileId: string, target: NodeTarget, fingerprint: string) => request<NodeProbeResult>('/api/v1/nodes/trust', { method: 'POST', body: JSON.stringify({ profileId, target, fingerprint, confirmed: true }) }),
   inspectNode: (profileId: string, target: NodeTarget, authentication: { kind: 'agent' | 'private-key' | 'password'; password?: string; privateKey?: string; keyPassphrase?: string; sudoPassword?: string }) => request<NodeInspectionResult>('/api/v1/nodes/inspect', { method: 'POST', body: JSON.stringify({ profileId, target, authentication }) }),
+  planNodeSSHKey: (profileId: string) => request<ChangePlan>('/api/v1/nodes/ssh-key/plan', { method: 'POST', body: JSON.stringify({ profileId }) }),
   createVerificationPlan: (profileId: string) => request<ChangePlan>('/api/v1/plans', { method: 'POST', body: JSON.stringify({ profileId, intent: 'VerifyLauncher' }) }),
   approvePlan: (planId: string) => request<WorkflowRun>(`/api/v1/plans/${planId}/approve`, { method: 'POST' }),
   getRun: (runId: string) => request<WorkflowRun>(`/api/v1/runs/${runId}`)

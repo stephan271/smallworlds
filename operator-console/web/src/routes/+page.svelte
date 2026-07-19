@@ -466,6 +466,19 @@
     }
   }
 
+  async function planNodeSSHKey(): Promise<void> {
+    if (!activeProfile) return;
+    nodeBusy = true;
+    nodeError = '';
+    try {
+      plan = await api.planNodeSSHKey(activeProfile.id);
+    } catch (reason) {
+      nodeError = reason instanceof Error ? reason.message : 'node_ssh_key_plan_failed';
+    } finally {
+      nodeBusy = false;
+    }
+  }
+
   function rotationLabel(status: string): string {
     if (status === 'expired') return message('rotationExpired');
     if (status === 'due-soon') return message('rotationDueSoon');
@@ -794,7 +807,7 @@
             {#if nodeProbe}<p class="inline-notice">{message('nodeFingerprint')}: <code>{nodeProbe.fingerprint}</code> <button type="button" onclick={() => void trustNode()} disabled={nodeBusy}>{message('nodeTrust')}</button></p>{/if}
             <div class="actions"><button type="submit" disabled={nodeBusy}>{message('nodeInspect')}</button></div>
           </form>
-          {#if nodeInspection}<dl class="credential-metadata"><div><dt>{message('nodeOperatingSystem')}</dt><dd>{nodeInspection.report.operatingSystem} / {nodeInspection.report.architecture}</dd></div><div><dt>{message('nodeCapacity')}</dt><dd>{nodeInspection.report.capacity.memoryMi} MiB · {nodeInspection.report.capacity.diskGi} GiB</dd></div><div><dt>{message('nodeAssessment')}</dt><dd>{nodeInspection.assessment.ready ? message('nodeReady') : nodeInspection.assessment.blockers.map((blocker) => blocker.code).join(', ')}</dd></div></dl>{/if}
+          {#if nodeInspection}<dl class="credential-metadata"><div><dt>{message('nodeOperatingSystem')}</dt><dd>{nodeInspection.report.operatingSystem} / {nodeInspection.report.architecture}</dd></div><div><dt>{message('nodeCapacity')}</dt><dd>{nodeInspection.report.capacity.memoryMi} MiB · {nodeInspection.report.capacity.diskGi} GiB</dd></div><div><dt>{message('nodeAssessment')}</dt><dd>{nodeInspection.assessment.ready ? message('nodeReady') : nodeInspection.assessment.blockers.map((blocker) => blocker.code).join(', ')}</dd></div></dl>{#if nodeTargetKind === 'remote'}<div class="actions"><button class="secondary" onclick={() => void planNodeSSHKey()} disabled={nodeBusy}>{message('nodePlanSSHKey')}</button></div>{/if}{/if}
         </section>
 
         <section class="card github-card" aria-labelledby="github-title">

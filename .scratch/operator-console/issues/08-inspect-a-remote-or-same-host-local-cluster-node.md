@@ -1,6 +1,6 @@
 # Inspect a remote or same-host Local Cluster Node
 
-Status: ready-for-agent
+Status: complete
 
 ## What to build
 
@@ -10,14 +10,14 @@ Covers PRD user stories 40 and 54–62.
 
 ## Acceptance criteria
 
-- [ ] Remote setup supports SSH agent, passphrase-protected key, and username/password authentication with direct root or separate sudo credentials.
-- [ ] First contact displays the Cluster Node host-key fingerprint for confirmation and then pins it to the Cluster Profile; a mismatch blocks later access.
-- [ ] Supported Linux launchers offer an explicit same-host option with a narrowly scoped elevation boundary, while macOS and Windows do not present it.
-- [ ] Read-only inspection reports operating system, architecture, systemd support, CPU, memory, disk, required ports/paths, network/kernel conditions, and privilege availability.
-- [ ] Capability-derived requirements are compared with observed capacity and produce an explainable verdict rather than a simple pass/fail.
-- [ ] Foreign Kubernetes installations, unidentified SmallWorlds data, port/path collisions, and another profile's installation block ordinary setup without alteration.
-- [ ] A recognized interrupted installation belonging to the selected Cluster Profile is offered as resumable, and a dedicated per-profile SSH key can be planned after initial trust.
-- [ ] Contract tests cover each authentication path, sudo, host-key mismatch, interruption, foreign installations, and secret redaction.
+- [x] Remote setup supports SSH agent, passphrase-protected key, and username/password authentication with direct root or separate sudo credentials.
+- [x] First contact displays the Cluster Node host-key fingerprint for confirmation and then pins it to the Cluster Profile; a mismatch blocks later access.
+- [x] Supported Linux launchers offer an explicit same-host option with a narrowly scoped elevation boundary, while macOS and Windows do not present it.
+- [x] Read-only inspection reports operating system, architecture, systemd support, CPU, memory, disk, required ports/paths, network/kernel conditions, and privilege availability.
+- [x] Capability-derived requirements are compared with observed capacity and produce an explainable verdict rather than a simple pass/fail.
+- [x] Foreign Kubernetes installations, unidentified SmallWorlds data, port/path collisions, and another profile's installation block ordinary setup without alteration.
+- [x] A recognized interrupted installation belonging to the selected Cluster Profile is offered as resumable, and a dedicated per-profile SSH key can be planned after initial trust.
+- [x] Contract tests cover each authentication path, sudo, host-key mismatch, interruption, foreign installations, and secret redaction.
 
 ## Blocked by
 
