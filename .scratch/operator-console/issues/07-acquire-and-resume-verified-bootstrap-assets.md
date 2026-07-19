@@ -2,6 +2,15 @@
 
 Status: ready-for-agent
 
+## Implementation note
+
+OD-001 is accepted in ADR 0046 and the Launcher now has the closed, signed,
+resumable asset-source boundary. The repository does not yet publish a signed
+release artifact manifest and trusted release key, so the production catalog
+deliberately rejects acquisition rather than substituting an ambient tool or an
+arbitrary URL. Publishing that release-engineering material is still required
+before this issue can be marked complete.
+
 ## What to build
 
 Resolve the release-specific bootstrap asset decision and implement one managed acquisition journey through the Bootstrap Launcher. An Operator sees what internet resources are required, downloads a pinned asset through the selected internal asset source, safely resumes interruption, and receives evidence that its version and integrity match the selected SmallWorlds release. The design must leave a clean future seam for an Offline Bundle without claiming offline support now.

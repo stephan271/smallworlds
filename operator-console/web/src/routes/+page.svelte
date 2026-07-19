@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { api, initializeSession, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type RecoveryBundlePreview, type SetupJourney, type VaultStatus, type WorkflowRun } from '$lib/api';
+  import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type RecoveryBundlePreview, type SetupJourney, type VaultStatus, type WorkflowRun } from '$lib/api';
   import { translate, type Locale, type MessageKey } from '$lib/i18n';
 
   type ActivityEvent = {
@@ -60,6 +60,10 @@
   let genericGitError = $state('');
   let genericGitOverlayNotice = $state('');
   let genericGitProposal: GenericGitProposal | null = $state(null);
+  let bootstrapAssets: BootstrapAssetRequirements | null = $state(null);
+  let bootstrapAssetRelease = $state('v1.2.3');
+  let bootstrapAssetError = $state('');
+  let bootstrapAssetBusy = $state(false);
   let creating = $state(true);
   let editing = $state(false);
   let busy = $state(false);
@@ -373,6 +377,31 @@
     }
   }
 
+  async function inspectBootstrapAssets(): Promise<void> {
+    bootstrapAssetBusy = true;
+    bootstrapAssetError = '';
+    try {
+      bootstrapAssets = await api.getBootstrapAssetRequirements(bootstrapAssetRelease);
+    } catch (reason) {
+      bootstrapAssets = null;
+      bootstrapAssetError = reason instanceof Error ? reason.message : 'bootstrap_asset_status_failed';
+    } finally {
+      bootstrapAssetBusy = false;
+    }
+  }
+
+  async function acquireBootstrapAssets(): Promise<void> {
+    bootstrapAssetBusy = true;
+    bootstrapAssetError = '';
+    try {
+      bootstrapAssets = await api.acquireBootstrapAssets(bootstrapAssetRelease);
+    } catch (reason) {
+      bootstrapAssetError = reason instanceof Error ? reason.message : 'bootstrap_asset_acquisition_failed';
+    } finally {
+      bootstrapAssetBusy = false;
+    }
+  }
+
   function rotationLabel(status: string): string {
     if (status === 'expired') return message('rotationExpired');
     if (status === 'due-soon') return message('rotationDueSoon');
@@ -630,6 +659,7 @@
             </div>
           </form>
         </section>
+
       {:else if activeProfile}
         <section class="profile-heading">
           <div>
@@ -666,6 +696,19 @@
           </form>
           {#if capabilityPlan}
             <section class="capability-preview" aria-labelledby="capability-preview-title"><p class="eyebrow">{message('capabilityPreview')}</p><h3 id="capability-preview-title">{message('capabilityPlanReady')}</h3><dl><div><dt>{message('capabilityMemory')}</dt><dd>{capabilityPlan.overlay.assessment.resources.memoryMi} MiB</dd></div><div><dt>{message('capabilityStorage')}</dt><dd>{capabilityPlan.overlay.assessment.resources.storageGi} GiB</dd></div><div><dt>{message('capabilityExposure')}</dt><dd>{capabilityPlan.overlay.assessment.exposure.join(', ')}</dd></div><div><dt>{message('capabilityProtection')}</dt><dd>{capabilityPlan.overlay.assessment.protection.join(', ')}</dd></div></dl><div data-testid="overlay-diff" class="overlay-diff" role="textbox" aria-readonly="true" tabindex="0" aria-label={message('capabilityOverlayDiff')}>{capabilityPlan.overlay.diff}</div></section>
+          {/if}
+        </section>
+
+        <section class="card asset-card" aria-labelledby="asset-title">
+          <p class="eyebrow">{message('bootstrapAssetEyebrow')}</p>
+          <h2 id="asset-title">{message('bootstrapAssetTitle')}</h2>
+          <p class="muted">{message('bootstrapAssetDescription')}</p>
+          <p class="muted">{message('offlineBundleFuture')}</p>
+          {#if bootstrapAssetError}<p class="inline-error" role="alert">{bootstrapAssetError === 'bootstrap_asset_release_unavailable' ? message('bootstrapAssetUnavailable') : bootstrapAssetError}</p>{/if}
+          <form onsubmit={(event) => { event.preventDefault(); void inspectBootstrapAssets(); }}><label><span>{message('capabilityRelease')}</span><input bind:value={bootstrapAssetRelease} required pattern="v[0-9]+\.[0-9]+\.[0-9]+.*" /></label><div class="actions"><button type="submit" disabled={bootstrapAssetBusy}>{message('bootstrapAssetInspect')}</button></div></form>
+          {#if bootstrapAssets}
+            <dl class="credential-metadata">{#each bootstrapAssets.assets as asset (asset.id)}<div><dt>{asset.id}</dt><dd>{asset.destination} · {asset.state} · <code>{asset.sha256.slice(0, 16)}…</code></dd></div>{/each}</dl>
+            <div class="actions"><button onclick={() => void acquireBootstrapAssets()} disabled={bootstrapAssetBusy || bootstrapAssets.assets.every((asset) => asset.state === 'ready')}>{message('bootstrapAssetAcquire')}</button></div>
           {/if}
         </section>
 

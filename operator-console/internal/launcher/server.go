@@ -16,6 +16,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/stephan271/smallworlds/operator-console/internal/bootstrapassets"
 	"github.com/stephan271/smallworlds/operator-console/internal/capability"
 	"github.com/stephan271/smallworlds/operator-console/internal/githttps"
 	"github.com/stephan271/smallworlds/operator-console/internal/github"
@@ -34,6 +35,7 @@ type Config struct {
 	WrappingStore    vault.WrappingStore
 	GitHubClient     *github.Client
 	GenericGitClient GenericGitClient
+	BootstrapAssets  *bootstrapassets.Manager
 }
 
 // GenericGitClient permits deterministic Launcher contract tests while the
@@ -61,6 +63,7 @@ type Server struct {
 	workflow   *workflow.Engine
 	github     *github.Client
 	genericGit GenericGitClient
+	assets     *bootstrapassets.Manager
 }
 
 func New(config Config) (*Server, error) {
@@ -88,6 +91,14 @@ func New(config Config) (*Server, error) {
 	if genericGitClient == nil {
 		genericGitClient = githttps.New()
 	}
+	assetManager := config.BootstrapAssets
+	if assetManager == nil {
+		assetManager, err = bootstrapassets.NewManager(config.DataDir, bootstrapassets.DefaultCatalog(), nil)
+		if err != nil {
+			store.Close()
+			return nil, err
+		}
+	}
 	return &Server{
 		launchToken: config.LaunchToken,
 		sessions:    make(map[string]session),
@@ -96,6 +107,7 @@ func New(config Config) (*Server, error) {
 		workflow:    workflowEngine,
 		github:      githubClient,
 		genericGit:  genericGitClient,
+		assets:      assetManager,
 	}, nil
 }
 
@@ -137,6 +149,10 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.establishGenericGitOverlay(response, request)
 	case request.URL.Path == "/api/v1/generic-git/overlay/propose":
 		server.proposeGenericGitOverlay(response, request)
+	case request.URL.Path == "/api/v1/bootstrap-assets":
+		server.bootstrapAssets(response, request)
+	case request.URL.Path == "/api/v1/bootstrap-assets/acquire":
+		server.acquireBootstrapAssets(response, request)
 	case request.URL.Path == "/api/v1/profiles":
 		server.profiles(response, request)
 	case strings.HasPrefix(request.URL.Path, "/api/v1/profiles/"):
@@ -1084,6 +1100,81 @@ func (server *Server) proposeGenericGitOverlay(response http.ResponseWriter, req
 func matchesOverlayPlan(plan state.PlanRecord, profile state.Profile, overlayDiff string) bool {
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s\n%s\n%d\n%s", "ApplyCapabilities", profile.ID, profile.Revision, overlayDiff)))
 	return plan.Digest == fmt.Sprintf("%x", digest[:])
+}
+
+func (server *Server) bootstrapAssets(response http.ResponseWriter, request *http.Request) {
+	if _, ok := server.authenticatedSession(request); !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodGet {
+		response.Header().Set("Allow", "GET")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	release := request.URL.Query().Get("release")
+	if release == "" {
+		writeError(response, http.StatusBadRequest, "bootstrap_asset_release_required")
+		return
+	}
+	assets, err := server.assets.Requirements(release)
+	if errors.Is(err, bootstrapassets.ErrUnknownRelease) {
+		writeError(response, http.StatusConflict, "bootstrap_asset_release_unavailable")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "bootstrap_asset_status_failed")
+		return
+	}
+	writeJSON(response, http.StatusOK, map[string]any{
+		"release":                   release,
+		"assets":                    assets,
+		"offlineBundleAvailability": "future",
+	})
+}
+
+func (server *Server) acquireBootstrapAssets(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		Release string `json:"release"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 8*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.Release == "" {
+		writeError(response, http.StatusBadRequest, "invalid_bootstrap_asset_request")
+		return
+	}
+	assets, err := server.assets.Acquire(request.Context(), input.Release)
+	if errors.Is(err, bootstrapassets.ErrUnknownRelease) {
+		writeError(response, http.StatusConflict, "bootstrap_asset_release_unavailable")
+		return
+	}
+	if errors.Is(err, bootstrapassets.ErrIntegrity) {
+		writeError(response, http.StatusBadGateway, "bootstrap_asset_integrity_failed")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusBadGateway, "bootstrap_asset_acquisition_failed")
+		return
+	}
+	writeJSON(response, http.StatusCreated, map[string]any{
+		"release":                   input.Release,
+		"assets":                    assets,
+		"offlineBundleAvailability": "future",
+	})
 }
 
 func (server *Server) capabilities(response http.ResponseWriter, request *http.Request) {

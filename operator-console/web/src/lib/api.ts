@@ -16,6 +16,7 @@ export type CapabilityPlanResult = { plan: ChangePlan; overlay: { diff: string; 
 export type GitHubTokenStatus = components['schemas']['GitHubTokenStatus'];
 export type GenericGitCredentialStatus = components['schemas']['GenericGitCredentialStatus'];
 export type GenericGitProposal = components['schemas']['GenericGitProposal'];
+export type BootstrapAssetRequirements = components['schemas']['BootstrapAssetRequirements'];
 
 let csrfToken = '';
 
@@ -115,6 +116,8 @@ export const api = {
     request<{ repositoryUrl: string; commit: string }>('/api/v1/generic-git/overlay/establish', { method: 'POST', body: JSON.stringify(input) }),
   proposeGenericGitOverlay: (input: { profileId: string; planId: string; repositoryUrl: string; mode: CapabilityMode; communityIds: string[]; release: string; domain: string }) =>
     request<GenericGitProposal>('/api/v1/generic-git/overlay/propose', { method: 'POST', body: JSON.stringify(input) }),
+  getBootstrapAssetRequirements: (release: string) => request<BootstrapAssetRequirements>(`/api/v1/bootstrap-assets?release=${encodeURIComponent(release)}`),
+  acquireBootstrapAssets: (release: string) => request<BootstrapAssetRequirements>('/api/v1/bootstrap-assets/acquire', { method: 'POST', body: JSON.stringify({ release }) }),
   createVerificationPlan: (profileId: string) => request<ChangePlan>('/api/v1/plans', { method: 'POST', body: JSON.stringify({ profileId, intent: 'VerifyLauncher' }) }),
   approvePlan: (planId: string) => request<WorkflowRun>(`/api/v1/plans/${planId}/approve`, { method: 'POST' }),
   getRun: (runId: string) => request<WorkflowRun>(`/api/v1/runs/${runId}`)

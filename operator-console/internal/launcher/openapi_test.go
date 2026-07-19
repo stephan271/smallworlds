@@ -36,6 +36,8 @@ func TestOpenAPIContractDescribesLauncherWorkflow(t *testing.T) {
 		"/api/v1/generic-git/token/validate":       {"post"},
 		"/api/v1/generic-git/overlay/establish":    {"post"},
 		"/api/v1/generic-git/overlay/propose":      {"post"},
+		"/api/v1/bootstrap-assets":                 {"get"},
+		"/api/v1/bootstrap-assets/acquire":         {"post"},
 		"/api/v1/profiles":                         {"get", "post"},
 		"/api/v1/profiles/{id}":                    {"put"},
 		"/api/v1/profiles/{id}/journey":            {"get"},

@@ -228,6 +228,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/bootstrap-assets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getBootstrapAssetRequirements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bootstrap-assets/acquire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["acquireBootstrapAssets"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profiles": {
         parameters: {
             query?: never;
@@ -560,6 +592,24 @@ export interface components {
             commit: string;
             /** @constant */
             mergeInstructionKey: "generic_git_manual_merge";
+        };
+        BootstrapAssetStatus: {
+            id: string;
+            release: string;
+            destination: string;
+            sha256: string;
+            /** @enum {string} */
+            state: "missing" | "partial" | "ready";
+            bytes: number;
+        };
+        BootstrapAssetRequirements: {
+            release: string;
+            assets: components["schemas"]["BootstrapAssetStatus"][];
+            /** @constant */
+            offlineBundleAvailability: "future";
+        };
+        BootstrapAssetAcquireInput: {
+            release: string;
         };
         OverlayIdentity: {
             profileId: string;
@@ -1088,6 +1138,57 @@ export interface operations {
                 };
             };
             409: components["responses"]["Conflict"];
+        };
+    };
+    getBootstrapAssetRequirements: {
+        parameters: {
+            query: {
+                release: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Safe release-pinned bootstrap asset requirements and cache state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BootstrapAssetRequirements"];
+                };
+            };
+            409: components["responses"]["Conflict"];
+        };
+    };
+    acquireBootstrapAssets: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BootstrapAssetAcquireInput"];
+            };
+        };
+        responses: {
+            /** @description Catalogued signed assets acquired into private cache */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BootstrapAssetRequirements"];
+                };
+            };
+            409: components["responses"]["Conflict"];
+            502: components["responses"]["Unavailable"];
         };
     };
     listProfiles: {

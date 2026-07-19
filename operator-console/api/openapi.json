@@ -168,6 +168,21 @@
         "responses": { "201": { "description": "Exact reviewed change pushed to a named branch; merge it manually in the chosen provider", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/GenericGitProposal" } } } }, "409": { "$ref": "#/components/responses/Conflict" } }
       }
     },
+    "/api/v1/bootstrap-assets": {
+      "get": {
+        "operationId": "getBootstrapAssetRequirements",
+        "parameters": [{ "name": "release", "in": "query", "required": true, "schema": { "type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+" } }],
+        "responses": { "200": { "description": "Safe release-pinned bootstrap asset requirements and cache state", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BootstrapAssetRequirements" } } } }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
+    "/api/v1/bootstrap-assets/acquire": {
+      "post": {
+        "operationId": "acquireBootstrapAssets",
+        "parameters": [{ "$ref": "#/components/parameters/CSRFToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BootstrapAssetAcquireInput" } } } },
+        "responses": { "201": { "description": "Catalogued signed assets acquired into private cache", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BootstrapAssetRequirements" } } } }, "409": { "$ref": "#/components/responses/Conflict" }, "502": { "$ref": "#/components/responses/Unavailable" } }
+      }
+    },
     "/api/v1/profiles": {
       "get": {
         "operationId": "listProfiles",
@@ -563,6 +578,9 @@
       "GenericGitCredentialStatus": { "type": "object", "required": ["repositoryUrl", "stored"], "properties": { "repositoryUrl": { "type": "string", "format": "uri" }, "stored": { "type": "boolean" } } },
       "GenericGitOverlayEstablishInput": { "allOf": [{ "$ref": "#/components/schemas/CapabilityPlanInput" }, { "type": "object", "required": ["planId"], "properties": { "planId": { "type": "string" } } }] },
       "GenericGitProposal": { "type": "object", "required": ["branch", "commit", "mergeInstructionKey"], "properties": { "branch": { "type": "string", "pattern": "^smallworlds/proposal-" }, "commit": { "type": "string" }, "mergeInstructionKey": { "type": "string", "const": "generic_git_manual_merge" } } },
+      "BootstrapAssetStatus": { "type": "object", "required": ["id", "release", "destination", "sha256", "state", "bytes"], "properties": { "id": { "type": "string" }, "release": { "type": "string" }, "destination": { "type": "string" }, "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "state": { "type": "string", "enum": ["missing", "partial", "ready"] }, "bytes": { "type": "integer", "minimum": 0 } } },
+      "BootstrapAssetRequirements": { "type": "object", "required": ["release", "assets", "offlineBundleAvailability"], "properties": { "release": { "type": "string" }, "assets": { "type": "array", "items": { "$ref": "#/components/schemas/BootstrapAssetStatus" } }, "offlineBundleAvailability": { "type": "string", "const": "future" } } },
+      "BootstrapAssetAcquireInput": { "type": "object", "required": ["release"], "properties": { "release": { "type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+" } } },
       "OverlayIdentity": { "type": "object", "required": ["profileId", "provider", "repository", "repositoryUrl", "release", "commit", "recordedAt"], "properties": { "profileId": { "type": "string" }, "provider": { "type": "string", "enum": ["github", "generic-https"] }, "repository": { "type": "string" }, "repositoryUrl": { "type": "string", "format": "uri" }, "release": { "type": "string" }, "commit": { "type": "string" }, "recordedAt": { "type": "string", "format": "date-time" } } },
       "ProfileInput": {
         "type": "object",
