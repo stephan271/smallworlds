@@ -183,6 +183,36 @@
         "responses": { "201": { "description": "Catalogued signed assets acquired into private cache", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BootstrapAssetRequirements" } } } }, "409": { "$ref": "#/components/responses/Conflict" }, "502": { "$ref": "#/components/responses/Unavailable" } }
       }
     },
+    "/api/v1/nodes/probe": {
+      "post": {
+        "operationId": "probeNodeHostKey",
+        "parameters": [{ "$ref": "#/components/parameters/CSRFToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NodeProbeInput" } } } },
+        "responses": { "200": { "description": "Untrusted first-contact SSH fingerprint for explicit confirmation", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NodeProbeResult" } } } }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
+    "/api/v1/nodes/capabilities": {
+      "get": {
+        "operationId": "getNodeCapabilities",
+        "responses": { "200": { "description": "Launcher platform capabilities for safe node target choices", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NodeCapabilities" } } } } }
+      }
+    },
+    "/api/v1/nodes/trust": {
+      "post": {
+        "operationId": "confirmNodeHostKey",
+        "parameters": [{ "$ref": "#/components/parameters/CSRFToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NodeTrustInput" } } } },
+        "responses": { "201": { "description": "Previously probed host key pinned to the profile", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NodeProbeResult" } } } }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
+    "/api/v1/nodes/inspect": {
+      "post": {
+        "operationId": "inspectNode",
+        "parameters": [{ "$ref": "#/components/parameters/CSRFToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NodeInspectionInput" } } } },
+        "responses": { "200": { "description": "Read-only node report and explainable capacity/install assessment", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NodeInspectionResult" } } } }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
     "/api/v1/profiles": {
       "get": {
         "operationId": "listProfiles",
@@ -581,6 +611,17 @@
       "BootstrapAssetStatus": { "type": "object", "required": ["id", "release", "destination", "sha256", "state", "bytes"], "properties": { "id": { "type": "string" }, "release": { "type": "string" }, "destination": { "type": "string" }, "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "state": { "type": "string", "enum": ["missing", "partial", "ready"] }, "bytes": { "type": "integer", "minimum": 0 } } },
       "BootstrapAssetRequirements": { "type": "object", "required": ["release", "assets", "offlineBundleAvailability"], "properties": { "release": { "type": "string" }, "assets": { "type": "array", "items": { "$ref": "#/components/schemas/BootstrapAssetStatus" } }, "offlineBundleAvailability": { "type": "string", "const": "future" } } },
       "BootstrapAssetAcquireInput": { "type": "object", "required": ["release"], "properties": { "release": { "type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+" } } },
+      "NodeTarget": { "type": "object", "required": ["kind"], "properties": { "kind": { "type": "string", "enum": ["remote", "same-host"] }, "host": { "type": "string" }, "port": { "type": "integer", "minimum": 1, "maximum": 65535 }, "username": { "type": "string" } } },
+      "NodeCapabilities": { "type": "object", "required": ["sameHostSupported"], "properties": { "sameHostSupported": { "type": "boolean" } } },
+      "NodeProbeInput": { "type": "object", "required": ["profileId", "target"], "properties": { "profileId": { "type": "string" }, "target": { "$ref": "#/components/schemas/NodeTarget" } } },
+      "NodeProbeResult": { "type": "object", "required": ["target", "fingerprint"], "properties": { "target": { "$ref": "#/components/schemas/NodeTarget" }, "fingerprint": { "type": "string", "pattern": "^SHA256:" }, "requiresConfirmation": { "type": "boolean" } } },
+      "NodeTrustInput": { "allOf": [{ "$ref": "#/components/schemas/NodeProbeInput" }, { "type": "object", "required": ["fingerprint", "confirmed"], "properties": { "fingerprint": { "type": "string", "pattern": "^SHA256:" }, "confirmed": { "type": "boolean", "const": true } } }] },
+      "NodeAuthentication": { "type": "object", "required": ["kind"], "properties": { "kind": { "type": "string", "enum": ["agent", "private-key", "password"] }, "password": { "type": "string", "format": "password", "writeOnly": true }, "privateKey": { "type": "string", "format": "password", "writeOnly": true }, "keyPassphrase": { "type": "string", "format": "password", "writeOnly": true }, "sudoPassword": { "type": "string", "format": "password", "writeOnly": true } } },
+      "NodeInspectionInput": { "type": "object", "required": ["profileId", "target", "authentication"], "properties": { "profileId": { "type": "string" }, "target": { "$ref": "#/components/schemas/NodeTarget" }, "authentication": { "$ref": "#/components/schemas/NodeAuthentication" } } },
+      "NodeAssessment": { "type": "object", "required": ["ready", "resumable", "blockers"], "properties": { "ready": { "type": "boolean" }, "resumable": { "type": "boolean" }, "blockers": { "type": "array", "items": { "type": "object", "required": ["code"], "properties": { "code": { "type": "string" } } } } } },
+      "NodeCapacity": { "type": "object", "required": ["cpuCores", "memoryMi", "diskGi"], "properties": { "cpuCores": { "type": "integer", "minimum": 0 }, "memoryMi": { "type": "integer", "minimum": 0 }, "diskGi": { "type": "integer", "minimum": 0 } } },
+      "NodeReport": { "type": "object", "required": ["operatingSystem", "architecture", "systemd", "capacity", "ports", "kernelReady", "privilege", "installation"], "properties": { "operatingSystem": { "type": "string" }, "architecture": { "type": "string" }, "systemd": { "type": "boolean" }, "capacity": { "$ref": "#/components/schemas/NodeCapacity" }, "ports": { "type": "array", "items": { "type": "integer" } }, "kernelReady": { "type": "boolean" }, "privilege": { "type": "string" }, "installation": { "type": "object" } } },
+      "NodeInspectionResult": { "type": "object", "required": ["target", "report", "assessment"], "properties": { "target": { "$ref": "#/components/schemas/NodeTarget" }, "report": { "$ref": "#/components/schemas/NodeReport" }, "assessment": { "$ref": "#/components/schemas/NodeAssessment" } } },
       "OverlayIdentity": { "type": "object", "required": ["profileId", "provider", "repository", "repositoryUrl", "release", "commit", "recordedAt"], "properties": { "profileId": { "type": "string" }, "provider": { "type": "string", "enum": ["github", "generic-https"] }, "repository": { "type": "string" }, "repositoryUrl": { "type": "string", "format": "uri" }, "release": { "type": "string" }, "commit": { "type": "string" }, "recordedAt": { "type": "string", "format": "date-time" } } },
       "ProfileInput": {
         "type": "object",

@@ -17,6 +17,10 @@ export type GitHubTokenStatus = components['schemas']['GitHubTokenStatus'];
 export type GenericGitCredentialStatus = components['schemas']['GenericGitCredentialStatus'];
 export type GenericGitProposal = components['schemas']['GenericGitProposal'];
 export type BootstrapAssetRequirements = components['schemas']['BootstrapAssetRequirements'];
+export type NodeCapabilities = components['schemas']['NodeCapabilities'];
+export type NodeTarget = components['schemas']['NodeTarget'];
+export type NodeProbeResult = components['schemas']['NodeProbeResult'];
+export type NodeInspectionResult = components['schemas']['NodeInspectionResult'];
 
 let csrfToken = '';
 
@@ -118,6 +122,10 @@ export const api = {
     request<GenericGitProposal>('/api/v1/generic-git/overlay/propose', { method: 'POST', body: JSON.stringify(input) }),
   getBootstrapAssetRequirements: (release: string) => request<BootstrapAssetRequirements>(`/api/v1/bootstrap-assets?release=${encodeURIComponent(release)}`),
   acquireBootstrapAssets: (release: string) => request<BootstrapAssetRequirements>('/api/v1/bootstrap-assets/acquire', { method: 'POST', body: JSON.stringify({ release }) }),
+  getNodeCapabilities: () => request<NodeCapabilities>('/api/v1/nodes/capabilities'),
+  probeNode: (profileId: string, target: NodeTarget) => request<NodeProbeResult>('/api/v1/nodes/probe', { method: 'POST', body: JSON.stringify({ profileId, target }) }),
+  trustNode: (profileId: string, target: NodeTarget, fingerprint: string) => request<NodeProbeResult>('/api/v1/nodes/trust', { method: 'POST', body: JSON.stringify({ profileId, target, fingerprint, confirmed: true }) }),
+  inspectNode: (profileId: string, target: NodeTarget, authentication: { kind: 'agent' | 'private-key' | 'password'; password?: string; privateKey?: string; keyPassphrase?: string; sudoPassword?: string }) => request<NodeInspectionResult>('/api/v1/nodes/inspect', { method: 'POST', body: JSON.stringify({ profileId, target, authentication }) }),
   createVerificationPlan: (profileId: string) => request<ChangePlan>('/api/v1/plans', { method: 'POST', body: JSON.stringify({ profileId, intent: 'VerifyLauncher' }) }),
   approvePlan: (planId: string) => request<WorkflowRun>(`/api/v1/plans/${planId}/approve`, { method: 'POST' }),
   getRun: (runId: string) => request<WorkflowRun>(`/api/v1/runs/${runId}`)

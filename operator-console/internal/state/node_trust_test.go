@@ -36,3 +36,29 @@ func TestNodeTrustIsPinnedPerProfileAndCanBeReplacedDeliberately(t *testing.T) {
 		t.Fatalf("replacement = %#v, err = %v", loaded, err)
 	}
 }
+
+func TestPendingNodeTrustMustExistBeforeConfirmation(t *testing.T) {
+	store, err := state.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	profile, err := store.CreateProfile(context.Background(), state.Profile{ID: "profile", Name: "Node", Language: "en", DeploymentMode: "local-lan"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pending := state.PendingNodeTrust{ProfileID: profile.ID, Host: "node.example", Port: 22, Username: "operator", Fingerprint: "SHA256:observed", ObservedAt: time.Now().UTC()}
+	if err := store.RecordPendingNodeTrust(context.Background(), pending); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := store.GetPendingNodeTrust(context.Background(), profile.ID)
+	if err != nil || loaded.Fingerprint != pending.Fingerprint {
+		t.Fatalf("loaded pending = %#v, err = %v", loaded, err)
+	}
+	if err := store.DeletePendingNodeTrust(context.Background(), profile.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.GetPendingNodeTrust(context.Background(), profile.ID); err != state.ErrNotFound {
+		t.Fatalf("deleted pending err = %v", err)
+	}
+}

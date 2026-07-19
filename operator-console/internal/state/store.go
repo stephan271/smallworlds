@@ -88,6 +88,15 @@ type NodeTrust struct {
 	ConfirmedAt time.Time `json:"confirmedAt"`
 }
 
+type PendingNodeTrust struct {
+	ProfileID   string
+	Host        string
+	Port        int
+	Username    string
+	Fingerprint string
+	ObservedAt  time.Time
+}
+
 type ProfileSnapshot struct {
 	Profile              Profile
 	Plans                []PlanRecord
@@ -324,6 +333,39 @@ func (store *Store) GetNodeTrust(ctx context.Context, profileID string) (NodeTru
 		return NodeTrust{}, fmt.Errorf("parse node trust: %w", err)
 	}
 	return trust, nil
+}
+
+func (store *Store) RecordPendingNodeTrust(ctx context.Context, pending PendingNodeTrust) error {
+	_, err := store.database.ExecContext(ctx, `INSERT INTO pending_node_trusts (profile_id, host, port, username, fingerprint, observed_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(profile_id) DO UPDATE SET host=excluded.host, port=excluded.port, username=excluded.username, fingerprint=excluded.fingerprint, observed_at=excluded.observed_at`, pending.ProfileID, pending.Host, pending.Port, pending.Username, pending.Fingerprint, pending.ObservedAt.UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return fmt.Errorf("record pending node trust: %w", err)
+	}
+	return nil
+}
+
+func (store *Store) GetPendingNodeTrust(ctx context.Context, profileID string) (PendingNodeTrust, error) {
+	var pending PendingNodeTrust
+	var observedAt string
+	err := store.database.QueryRowContext(ctx, `SELECT profile_id, host, port, username, fingerprint, observed_at FROM pending_node_trusts WHERE profile_id = ?`, profileID).Scan(&pending.ProfileID, &pending.Host, &pending.Port, &pending.Username, &pending.Fingerprint, &observedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return PendingNodeTrust{}, ErrNotFound
+	}
+	if err != nil {
+		return PendingNodeTrust{}, fmt.Errorf("get pending node trust: %w", err)
+	}
+	pending.ObservedAt, err = time.Parse(time.RFC3339Nano, observedAt)
+	if err != nil {
+		return PendingNodeTrust{}, fmt.Errorf("parse pending node trust: %w", err)
+	}
+	return pending, nil
+}
+
+func (store *Store) DeletePendingNodeTrust(ctx context.Context, profileID string) error {
+	_, err := store.database.ExecContext(ctx, `DELETE FROM pending_node_trusts WHERE profile_id = ?`, profileID)
+	if err != nil {
+		return fmt.Errorf("delete pending node trust: %w", err)
+	}
+	return nil
 }
 
 func (store *Store) ExportProfileSnapshot(ctx context.Context, profileID string) (ProfileSnapshot, error) {
@@ -942,6 +984,14 @@ func (store *Store) migrate(ctx context.Context) error {
 			username TEXT NOT NULL,
 			fingerprint TEXT NOT NULL,
 			confirmed_at TEXT NOT NULL
+		)`},
+		{8, `CREATE TABLE pending_node_trusts (
+			profile_id TEXT PRIMARY KEY REFERENCES profiles(id),
+			host TEXT NOT NULL,
+			port INTEGER NOT NULL,
+			username TEXT NOT NULL,
+			fingerprint TEXT NOT NULL,
+			observed_at TEXT NOT NULL
 		)`},
 	}
 	for _, migration := range migrations {

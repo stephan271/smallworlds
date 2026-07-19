@@ -260,6 +260,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/nodes/probe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["probeNodeHostKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/nodes/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getNodeCapabilities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/nodes/trust": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirmNodeHostKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/nodes/inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["inspectNode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profiles": {
         parameters: {
             query?: never;
@@ -610,6 +674,74 @@ export interface components {
         };
         BootstrapAssetAcquireInput: {
             release: string;
+        };
+        NodeTarget: {
+            /** @enum {string} */
+            kind: "remote" | "same-host";
+            host?: string;
+            port?: number;
+            username?: string;
+        };
+        NodeCapabilities: {
+            sameHostSupported: boolean;
+        };
+        NodeProbeInput: {
+            profileId: string;
+            target: components["schemas"]["NodeTarget"];
+        };
+        NodeProbeResult: {
+            target: components["schemas"]["NodeTarget"];
+            fingerprint: string;
+            requiresConfirmation?: boolean;
+        };
+        NodeTrustInput: components["schemas"]["NodeProbeInput"] & {
+            fingerprint: string;
+            /** @constant */
+            confirmed: true;
+        };
+        NodeAuthentication: {
+            /** @enum {string} */
+            kind: "agent" | "private-key" | "password";
+            /** Format: password */
+            password?: string;
+            /** Format: password */
+            privateKey?: string;
+            /** Format: password */
+            keyPassphrase?: string;
+            /** Format: password */
+            sudoPassword?: string;
+        };
+        NodeInspectionInput: {
+            profileId: string;
+            target: components["schemas"]["NodeTarget"];
+            authentication: components["schemas"]["NodeAuthentication"];
+        };
+        NodeAssessment: {
+            ready: boolean;
+            resumable: boolean;
+            blockers: {
+                code: string;
+            }[];
+        };
+        NodeCapacity: {
+            cpuCores: number;
+            memoryMi: number;
+            diskGi: number;
+        };
+        NodeReport: {
+            operatingSystem: string;
+            architecture: string;
+            systemd: boolean;
+            capacity: components["schemas"]["NodeCapacity"];
+            ports: number[];
+            kernelReady: boolean;
+            privilege: string;
+            installation: Record<string, never>;
+        };
+        NodeInspectionResult: {
+            target: components["schemas"]["NodeTarget"];
+            report: components["schemas"]["NodeReport"];
+            assessment: components["schemas"]["NodeAssessment"];
         };
         OverlayIdentity: {
             profileId: string;
@@ -1189,6 +1321,107 @@ export interface operations {
             };
             409: components["responses"]["Conflict"];
             502: components["responses"]["Unavailable"];
+        };
+    };
+    probeNodeHostKey: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NodeProbeInput"];
+            };
+        };
+        responses: {
+            /** @description Untrusted first-contact SSH fingerprint for explicit confirmation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NodeProbeResult"];
+                };
+            };
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getNodeCapabilities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Launcher platform capabilities for safe node target choices */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NodeCapabilities"];
+                };
+            };
+        };
+    };
+    confirmNodeHostKey: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NodeTrustInput"];
+            };
+        };
+        responses: {
+            /** @description Previously probed host key pinned to the profile */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NodeProbeResult"];
+                };
+            };
+            409: components["responses"]["Conflict"];
+        };
+    };
+    inspectNode: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NodeInspectionInput"];
+            };
+        };
+        responses: {
+            /** @description Read-only node report and explainable capacity/install assessment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NodeInspectionResult"];
+                };
+            };
+            409: components["responses"]["Conflict"];
         };
     };
     listProfiles: {

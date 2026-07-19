@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type RecoveryBundlePreview, type SetupJourney, type VaultStatus, type WorkflowRun } from '$lib/api';
+  import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type NodeCapabilities, type NodeInspectionResult, type NodeProbeResult, type NodeTarget, type RecoveryBundlePreview, type SetupJourney, type VaultStatus, type WorkflowRun } from '$lib/api';
   import { translate, type Locale, type MessageKey } from '$lib/i18n';
 
   type ActivityEvent = {
@@ -64,6 +64,20 @@
   let bootstrapAssetRelease = $state('v1.2.3');
   let bootstrapAssetError = $state('');
   let bootstrapAssetBusy = $state(false);
+  let nodeCapabilities: NodeCapabilities | null = $state(null);
+  let nodeTargetKind: 'remote' | 'same-host' = $state('remote');
+  let nodeHost = $state('');
+  let nodePort = $state(22);
+  let nodeUsername = $state('root');
+  let nodeAuthentication: 'agent' | 'private-key' | 'password' = $state('agent');
+  let nodePassword = $state('');
+  let nodePrivateKey = $state('');
+  let nodeKeyPassphrase = $state('');
+  let nodeSudoPassword = $state('');
+  let nodeProbe: NodeProbeResult | null = $state(null);
+  let nodeInspection: NodeInspectionResult | null = $state(null);
+  let nodeError = $state('');
+  let nodeBusy = $state(false);
   let creating = $state(true);
   let editing = $state(false);
   let busy = $state(false);
@@ -82,7 +96,7 @@
   onMount(async () => {
     try {
       await initializeSession();
-      [profiles, vaultStatus, capabilityCatalog] = await Promise.all([api.listProfiles(), api.getVaultStatus(), api.getCapabilities()]);
+      [profiles, vaultStatus, capabilityCatalog, nodeCapabilities] = await Promise.all([api.listProfiles(), api.getVaultStatus(), api.getCapabilities(), api.getNodeCapabilities()]);
       const remembered = window.localStorage.getItem('smallworlds.activeProfile');
       const selected = profiles.find((profile) => profile.id === remembered) ?? profiles[0];
       if (selected) {
@@ -402,6 +416,56 @@
     }
   }
 
+  function currentNodeTarget(): NodeTarget {
+    return nodeTargetKind === 'same-host' ? { kind: 'same-host' } : { kind: 'remote', host: nodeHost, port: nodePort, username: nodeUsername };
+  }
+
+  async function probeNode(): Promise<void> {
+    if (!activeProfile || nodeTargetKind !== 'remote') return;
+    nodeBusy = true;
+    nodeError = '';
+    nodeProbe = null;
+    try {
+      nodeProbe = await api.probeNode(activeProfile.id, currentNodeTarget());
+    } catch (reason) {
+      nodeError = reason instanceof Error ? reason.message : 'node_host_key_probe_failed';
+    } finally {
+      nodeBusy = false;
+    }
+  }
+
+  async function trustNode(): Promise<void> {
+    if (!activeProfile || !nodeProbe) return;
+    nodeBusy = true;
+    nodeError = '';
+    try {
+      await api.trustNode(activeProfile.id, currentNodeTarget(), nodeProbe.fingerprint);
+      nodeProbe = null;
+    } catch (reason) {
+      nodeError = reason instanceof Error ? reason.message : 'node_host_key_confirmation_required';
+    } finally {
+      nodeBusy = false;
+    }
+  }
+
+  async function inspectNode(): Promise<void> {
+    if (!activeProfile) return;
+    nodeBusy = true;
+    nodeError = '';
+    nodeInspection = null;
+    try {
+      nodeInspection = await api.inspectNode(activeProfile.id, currentNodeTarget(), { kind: nodeAuthentication, ...(nodePassword ? { password: nodePassword } : {}), ...(nodePrivateKey ? { privateKey: nodePrivateKey } : {}), ...(nodeKeyPassphrase ? { keyPassphrase: nodeKeyPassphrase } : {}), ...(nodeSudoPassword ? { sudoPassword: nodeSudoPassword } : {}) });
+      nodePassword = '';
+      nodePrivateKey = '';
+      nodeKeyPassphrase = '';
+      nodeSudoPassword = '';
+    } catch (reason) {
+      nodeError = reason instanceof Error ? reason.message : 'node_inspection_failed';
+    } finally {
+      nodeBusy = false;
+    }
+  }
+
   function rotationLabel(status: string): string {
     if (status === 'expired') return message('rotationExpired');
     if (status === 'due-soon') return message('rotationDueSoon');
@@ -710,6 +774,27 @@
             <dl class="credential-metadata">{#each bootstrapAssets.assets as asset (asset.id)}<div><dt>{asset.id}</dt><dd>{asset.destination} · {asset.state} · <code>{asset.sha256.slice(0, 16)}…</code></dd></div>{/each}</dl>
             <div class="actions"><button onclick={() => void acquireBootstrapAssets()} disabled={bootstrapAssetBusy || bootstrapAssets.assets.every((asset) => asset.state === 'ready')}>{message('bootstrapAssetAcquire')}</button></div>
           {/if}
+        </section>
+
+        <section class="card node-card" aria-labelledby="node-title">
+          <p class="eyebrow">{message('nodeEyebrow')}</p>
+          <h2 id="node-title">{message('nodeTitle')}</h2>
+          <p class="muted">{message('nodeDescription')}</p>
+          {#if nodeError}<p class="inline-error" role="alert">{nodeError}</p>{/if}
+          <form onsubmit={(event) => { event.preventDefault(); void inspectNode(); }}>
+            <label><span>{message('nodeTarget')}</span><select bind:value={nodeTargetKind}><option value="remote">{message('nodeRemote')}</option>{#if nodeCapabilities?.sameHostSupported}<option value="same-host">{message('nodeSameHost')}</option>{/if}</select></label>
+            {#if nodeTargetKind === 'remote'}
+              <div class="form-grid"><label><span>{message('nodeHost')}</span><input bind:value={nodeHost} required autocomplete="off" /></label><label><span>{message('nodePort')}</span><input type="number" bind:value={nodePort} min="1" max="65535" required /></label></div>
+              <label><span>{message('nodeUsername')}</span><input bind:value={nodeUsername} required autocomplete="username" /></label>
+              <label><span>{message('nodeAuthentication')}</span><select bind:value={nodeAuthentication}><option value="agent">{message('nodeAgent')}</option><option value="private-key">{message('nodePrivateKey')}</option><option value="password">{message('nodePassword')}</option></select></label>
+              {#if nodeAuthentication === 'password'}<label><span>{message('nodePassword')}</span><input type="password" bind:value={nodePassword} required autocomplete="current-password" /></label>{:else if nodeAuthentication === 'private-key'}<label><span>{message('nodePrivateKey')}</span><textarea bind:value={nodePrivateKey} required autocomplete="off"></textarea></label><label><span>{message('nodeKeyPassphrase')}</span><input type="password" bind:value={nodeKeyPassphrase} autocomplete="off" /></label>{/if}
+              <label><span>{message('nodeSudoPassword')}</span><input type="password" bind:value={nodeSudoPassword} autocomplete="off" /></label>
+              <div class="actions"><button type="button" onclick={() => void probeNode()} disabled={nodeBusy}>{message('nodeProbe')}</button></div>
+            {/if}
+            {#if nodeProbe}<p class="inline-notice">{message('nodeFingerprint')}: <code>{nodeProbe.fingerprint}</code> <button type="button" onclick={() => void trustNode()} disabled={nodeBusy}>{message('nodeTrust')}</button></p>{/if}
+            <div class="actions"><button type="submit" disabled={nodeBusy}>{message('nodeInspect')}</button></div>
+          </form>
+          {#if nodeInspection}<dl class="credential-metadata"><div><dt>{message('nodeOperatingSystem')}</dt><dd>{nodeInspection.report.operatingSystem} / {nodeInspection.report.architecture}</dd></div><div><dt>{message('nodeCapacity')}</dt><dd>{nodeInspection.report.capacity.memoryMi} MiB · {nodeInspection.report.capacity.diskGi} GiB</dd></div><div><dt>{message('nodeAssessment')}</dt><dd>{nodeInspection.assessment.ready ? message('nodeReady') : nodeInspection.assessment.blockers.map((blocker) => blocker.code).join(', ')}</dd></div></dl>{/if}
         </section>
 
         <section class="card github-card" aria-labelledby="github-title">

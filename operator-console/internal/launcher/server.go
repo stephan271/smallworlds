@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,6 +21,7 @@ import (
 	"github.com/stephan271/smallworlds/operator-console/internal/capability"
 	"github.com/stephan271/smallworlds/operator-console/internal/githttps"
 	"github.com/stephan271/smallworlds/operator-console/internal/github"
+	"github.com/stephan271/smallworlds/operator-console/internal/nodeinspect"
 	"github.com/stephan271/smallworlds/operator-console/internal/recovery"
 	"github.com/stephan271/smallworlds/operator-console/internal/state"
 	"github.com/stephan271/smallworlds/operator-console/internal/vault"
@@ -153,6 +155,14 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.bootstrapAssets(response, request)
 	case request.URL.Path == "/api/v1/bootstrap-assets/acquire":
 		server.acquireBootstrapAssets(response, request)
+	case request.URL.Path == "/api/v1/nodes/probe":
+		server.probeNode(response, request)
+	case request.URL.Path == "/api/v1/nodes/capabilities":
+		server.nodeCapabilities(response, request)
+	case request.URL.Path == "/api/v1/nodes/trust":
+		server.trustNode(response, request)
+	case request.URL.Path == "/api/v1/nodes/inspect":
+		server.inspectNode(response, request)
 	case request.URL.Path == "/api/v1/profiles":
 		server.profiles(response, request)
 	case strings.HasPrefix(request.URL.Path, "/api/v1/profiles/"):
@@ -1175,6 +1185,255 @@ func (server *Server) acquireBootstrapAssets(response http.ResponseWriter, reque
 		"assets":                    assets,
 		"offlineBundleAvailability": "future",
 	})
+}
+
+type nodeTargetRequest struct {
+	Kind     nodeinspect.TargetKind `json:"kind"`
+	Host     string                 `json:"host"`
+	Port     int                    `json:"port"`
+	Username string                 `json:"username"`
+}
+
+func (server *Server) nodeCapabilities(response http.ResponseWriter, request *http.Request) {
+	if _, ok := server.authenticatedSession(request); !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodGet {
+		response.Header().Set("Allow", "GET")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	writeJSON(response, http.StatusOK, map[string]bool{"sameHostSupported": runtime.GOOS == "linux"})
+}
+
+func (input nodeTargetRequest) target() nodeinspect.Target {
+	return nodeinspect.Target{Kind: input.Kind, Host: input.Host, Port: input.Port, Username: input.Username}
+}
+
+func (server *Server) probeNode(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		ProfileID string            `json:"profileId"`
+		Target    nodeTargetRequest `json:"target"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 8*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" {
+		writeError(response, http.StatusBadRequest, "invalid_node_target")
+		return
+	}
+	target := input.Target.target()
+	if err := target.Validate(runtime.GOOS); err != nil || target.Kind != nodeinspect.RemoteTarget {
+		writeError(response, http.StatusBadRequest, "invalid_node_target")
+		return
+	}
+	if _, err := server.store.GetProfile(request.Context(), input.ProfileID); errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "profile_not_found")
+		return
+	}
+	fingerprint, err := nodeinspect.ProbeHostKey(request.Context(), target)
+	if err != nil {
+		writeError(response, http.StatusBadGateway, "node_host_key_probe_failed")
+		return
+	}
+	if trust, err := server.store.GetNodeTrust(request.Context(), input.ProfileID); err == nil && (trust.Host != target.Host || trust.Port != target.Port || trust.Username != target.Username || trust.Fingerprint != fingerprint) {
+		writeError(response, http.StatusConflict, "node_host_key_mismatch")
+		return
+	} else if err != nil && !errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusInternalServerError, "node_host_key_probe_failed")
+		return
+	}
+	if err := server.store.RecordPendingNodeTrust(request.Context(), state.PendingNodeTrust{ProfileID: input.ProfileID, Host: target.Host, Port: target.Port, Username: target.Username, Fingerprint: fingerprint, ObservedAt: time.Now().UTC()}); err != nil {
+		writeError(response, http.StatusInternalServerError, "node_host_key_probe_failed")
+		return
+	}
+	writeJSON(response, http.StatusOK, map[string]any{"target": target, "fingerprint": fingerprint, "requiresConfirmation": true})
+}
+
+func (server *Server) trustNode(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		ProfileID   string            `json:"profileId"`
+		Target      nodeTargetRequest `json:"target"`
+		Fingerprint string            `json:"fingerprint"`
+		Confirmed   bool              `json:"confirmed"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 8*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" || !input.Confirmed || !strings.HasPrefix(input.Fingerprint, "SHA256:") {
+		writeError(response, http.StatusBadRequest, "invalid_node_trust_confirmation")
+		return
+	}
+	target := input.Target.target()
+	if err := target.Validate(runtime.GOOS); err != nil || target.Kind != nodeinspect.RemoteTarget {
+		writeError(response, http.StatusBadRequest, "invalid_node_target")
+		return
+	}
+	if _, err := server.store.GetProfile(request.Context(), input.ProfileID); errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "profile_not_found")
+		return
+	}
+	pending, err := server.store.GetPendingNodeTrust(request.Context(), input.ProfileID)
+	if errors.Is(err, state.ErrNotFound) || pending.Host != target.Host || pending.Port != target.Port || pending.Username != target.Username || pending.Fingerprint != input.Fingerprint || time.Since(pending.ObservedAt) > 10*time.Minute {
+		writeError(response, http.StatusConflict, "node_host_key_confirmation_required")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "node_trust_storage_failed")
+		return
+	}
+	if err := server.store.RecordNodeTrust(request.Context(), state.NodeTrust{ProfileID: input.ProfileID, Host: target.Host, Port: target.Port, Username: target.Username, Fingerprint: input.Fingerprint, ConfirmedAt: time.Now().UTC()}); err != nil {
+		writeError(response, http.StatusInternalServerError, "node_trust_storage_failed")
+		return
+	}
+	if err := server.store.DeletePendingNodeTrust(request.Context(), input.ProfileID); err != nil {
+		writeError(response, http.StatusInternalServerError, "node_trust_storage_failed")
+		return
+	}
+	writeJSON(response, http.StatusCreated, map[string]any{"target": target, "fingerprint": input.Fingerprint})
+}
+
+func (server *Server) inspectNode(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		ProfileID      string            `json:"profileId"`
+		Target         nodeTargetRequest `json:"target"`
+		Authentication struct {
+			Kind          nodeinspect.AuthenticationKind `json:"kind"`
+			Password      string                         `json:"password"`
+			PrivateKey    string                         `json:"privateKey"`
+			KeyPassphrase string                         `json:"keyPassphrase"`
+			SudoPassword  string                         `json:"sudoPassword"`
+		} `json:"authentication"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 512*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" {
+		writeError(response, http.StatusBadRequest, "invalid_node_inspection")
+		return
+	}
+	target := input.Target.target()
+	if err := target.Validate(runtime.GOOS); err != nil {
+		writeError(response, http.StatusBadRequest, "invalid_node_target")
+		return
+	}
+	profile, err := server.store.GetProfile(request.Context(), input.ProfileID)
+	if errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "profile_not_found")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "node_inspection_failed")
+		return
+	}
+	assessment, err := capability.DefaultCatalog().Assess(capability.Selection{Mode: capability.Minimal, DeploymentMode: capability.DeploymentMode(profile.DeploymentMode)})
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "node_requirements_failed")
+		return
+	}
+	requirements := nodeinspect.Requirements{ProfileID: profile.ID, MemoryMi: assessment.Resources.MemoryMi, DiskGi: assessment.Resources.StorageGi, RequiredPorts: []int{80, 443, 6443}}
+	if target.Kind == nodeinspect.SameHostTarget {
+		report, err := nodeinspect.InspectSameHost(profile.ID)
+		if err != nil {
+			writeError(response, http.StatusConflict, "same_host_inspection_unsupported")
+			return
+		}
+		writeJSON(response, http.StatusOK, map[string]any{"target": target, "report": report, "assessment": nodeinspect.Assess(report, requirements)})
+		return
+	}
+	trust, err := server.store.GetNodeTrust(request.Context(), input.ProfileID)
+	if errors.Is(err, state.ErrNotFound) || trust.Host != target.Host || trust.Port != target.Port || trust.Username != target.Username {
+		writeError(response, http.StatusConflict, "node_host_key_confirmation_required")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "node_inspection_failed")
+		return
+	}
+	credentials, err := server.storeNodeCredentials(input.ProfileID, input.Authentication)
+	if errors.Is(err, vault.ErrLocked) {
+		writeError(response, http.StatusLocked, "vault_locked")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusBadRequest, "invalid_node_credentials")
+		return
+	}
+	report, result, err := nodeinspect.InspectRemote(request.Context(), target, credentials, trust.Fingerprint, profile.ID, requirements)
+	if errors.Is(err, nodeinspect.ErrHostKeyMismatch) {
+		writeError(response, http.StatusConflict, "node_host_key_mismatch")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusBadGateway, "node_inspection_failed")
+		return
+	}
+	writeJSON(response, http.StatusOK, map[string]any{"target": target, "report": report, "assessment": result})
+}
+
+func (server *Server) storeNodeCredentials(profileID string, input struct {
+	Kind          nodeinspect.AuthenticationKind `json:"kind"`
+	Password      string                         `json:"password"`
+	PrivateKey    string                         `json:"privateKey"`
+	KeyPassphrase string                         `json:"keyPassphrase"`
+	SudoPassword  string                         `json:"sudoPassword"`
+}) (nodeinspect.Credentials, error) {
+	credentials := nodeinspect.Credentials{Kind: input.Kind, Password: input.Password, PrivateKey: []byte(input.PrivateKey), KeyPassphrase: input.KeyPassphrase, SudoPassword: input.SudoPassword}
+	if input.Kind != nodeinspect.AgentAuthentication && input.Kind != nodeinspect.PrivateKeyAuthentication && input.Kind != nodeinspect.PasswordAuthentication {
+		return nodeinspect.Credentials{}, fmt.Errorf("unsupported node authentication")
+	}
+	if input.Kind == nodeinspect.PasswordAuthentication && input.Password == "" || input.Kind == nodeinspect.PrivateKeyAuthentication && input.PrivateKey == "" {
+		return nodeinspect.Credentials{}, fmt.Errorf("missing node authentication material")
+	}
+	for _, secret := range []struct{ key, value string }{{"password", input.Password}, {"private-key", input.PrivateKey}, {"key-passphrase", input.KeyPassphrase}, {"sudo-password", input.SudoPassword}} {
+		if secret.value == "" {
+			continue
+		}
+		if err := server.vault.Store(profileID+"/node-"+secret.key, secret.value); err != nil {
+			return nodeinspect.Credentials{}, err
+		}
+	}
+	return credentials, nil
 }
 
 func (server *Server) capabilities(response http.ResponseWriter, request *http.Request) {
