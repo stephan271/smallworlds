@@ -1,10 +1,12 @@
 package nodeinspect
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -79,4 +81,63 @@ func PinnedHostKeyCallback(expectedFingerprint string) ssh.HostKeyCallback {
 		}
 		return nil
 	}
+}
+
+// ProbeHostKey performs only the SSH transport handshake. It deliberately
+// does not authenticate, execute a command, or trust the observed key; the
+// caller must present the returned fingerprint for explicit confirmation.
+func ProbeHostKey(ctx context.Context, target Target) (string, error) {
+	if err := target.Validate("linux"); err != nil {
+		return "", fmt.Errorf("invalid remote target: %w", err)
+	}
+	if target.Kind != RemoteTarget {
+		return "", fmt.Errorf("invalid remote target: target is not remote")
+	}
+	dialer := net.Dialer{Timeout: 10 * time.Second}
+	connection, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(target.Host, strconv.Itoa(target.Port)))
+	if err != nil {
+		return "", fmt.Errorf("dial remote SSH target: %w", err)
+	}
+	defer connection.Close()
+	fingerprint := ""
+	config := &ssh.ClientConfig{User: target.Username, HostKeyCallback: func(_ string, _ net.Addr, key ssh.PublicKey) error {
+		fingerprint = HostKeyFingerprint(key)
+		return ErrHostKeyUntrusted
+	}}
+	_, _, _, handshakeErr := ssh.NewClientConn(connection, net.JoinHostPort(target.Host, strconv.Itoa(target.Port)), config)
+	if fingerprint != "" {
+		return fingerprint, nil
+	}
+	if handshakeErr == nil {
+		return "", fmt.Errorf("SSH server did not offer a host key")
+	}
+	return "", fmt.Errorf("read remote SSH host key: %w", handshakeErr)
+}
+
+// DialTrusted creates an authenticated SSH client only after the server's key
+// matches the durable profile pin. It is intentionally narrower than a generic
+// remote command API; inspection supplies its own fixed command contract.
+func DialTrusted(ctx context.Context, target Target, credentials Credentials, fingerprint string) (*ssh.Client, error) {
+	if err := target.Validate("linux"); err != nil {
+		return nil, fmt.Errorf("invalid remote target: %w", err)
+	}
+	if target.Kind != RemoteTarget {
+		return nil, fmt.Errorf("invalid remote target: target is not remote")
+	}
+	auth, err := credentials.AuthMethod()
+	if err != nil {
+		return nil, err
+	}
+	dialer := net.Dialer{Timeout: 10 * time.Second}
+	connection, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(target.Host, strconv.Itoa(target.Port)))
+	if err != nil {
+		return nil, fmt.Errorf("dial trusted SSH target: %w", err)
+	}
+	config := &ssh.ClientConfig{User: target.Username, Auth: []ssh.AuthMethod{auth}, HostKeyCallback: PinnedHostKeyCallback(fingerprint), Timeout: 15 * time.Second}
+	clientConnection, channels, requests, err := ssh.NewClientConn(connection, net.JoinHostPort(target.Host, strconv.Itoa(target.Port)), config)
+	if err != nil {
+		connection.Close()
+		return nil, fmt.Errorf("establish trusted SSH connection: %w", err)
+	}
+	return ssh.NewClient(clientConnection, channels, requests), nil
 }
