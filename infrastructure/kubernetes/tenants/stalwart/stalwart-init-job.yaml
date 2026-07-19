@@ -67,7 +67,7 @@ spec:
               
               # 2. Install stalwart-cli, jq and python3
               echo "Installing stalwart-cli, jq and python3..."
-              apk add --no-cache curl jq python3
+              apk add --no-cache curl jq python3 bind-tools
               curl --proto '=https' --tlsv1.2 -LsSf https://github.com/stalwartlabs/cli/releases/download/v1.0.10/stalwart-cli-installer.sh | sh
               CLI="/root/.cargo/bin/stalwart-cli"
               
@@ -200,7 +200,11 @@ spec:
               # If defaultDomainId wasn't set because the domain didn't exist, set it now
               if [ -n "$DOMAIN_ID" ]; then
                 echo "Configuring System Settings (defaultDomainId and defaultHostname)..."
-                $CLI update SystemSettings singleton --field defaultDomainId="$DOMAIN_ID" --field defaultHostname="$MAIL_HOSTNAME" || true
+                # No "|| true" here: a silently-swallowed failure previously let
+                # the DNS push below run with a stale hostname (Stalwart fell
+                # back to its own pod hostname), pushing an unresolvable MX
+                # record to production DNS with no visible error (2026-07-19).
+                $CLI update SystemSettings singleton --field defaultDomainId="$DOMAIN_ID" --field defaultHostname="$MAIL_HOSTNAME"
                 $CLI update Domain "$DOMAIN_ID" --field allowRelaying=true || true
               fi
               
@@ -499,6 +503,28 @@ spec:
                 print("DNS Automation sync completed successfully!")
               EOF
               $CLI get Domain "$DOMAIN_ID" --json | jq -r '.dnsZoneFile' | python3 /tmp/push_dns.py
+
+              # Verify the pushed MX record actually resolves to the intended
+              # mail hostname. Catches the class of bug above even if some
+              # other race slips through: fail the job loudly (retried via
+              # backoffLimit, surfaced as a Degraded ArgoCD hook) instead of
+              # leaving inbound mail silently broken with no error anywhere.
+              echo "Verifying public MX record for $MAIL_DOMAIN resolves to $MAIL_HOSTNAME..."
+              MX_OK=""
+              for i in 1 2 3 4 5 6; do
+                MX_TARGET=$(dig +short MX "$MAIL_DOMAIN" | awk '{print $2}' | sed 's/\.$//')
+                if [ "$MX_TARGET" = "$MAIL_HOSTNAME" ]; then
+                  MX_OK="1"
+                  break
+                fi
+                echo "MX record not yet correct (got '$MX_TARGET', want '$MAIL_HOSTNAME'), retrying..."
+                sleep 5
+              done
+              if [ -z "$MX_OK" ]; then
+                echo "ERROR: public MX record for $MAIL_DOMAIN does not point to $MAIL_HOSTNAME after DNS push. Failing job."
+                exit 1
+              fi
+              echo "MX record verified OK."
               else
                 echo "No valid Hetzner DNS API Token found (or using default/empty token). Skipping DNS automation."
               fi
