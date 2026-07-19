@@ -108,3 +108,17 @@ Cluster access for read-only inspection: kubeconfigs live in `~/.smallworlds/kub
 ## Project-wide contracts
 
 - **OIDC client secrets**: any tenant using `bases/keycloak-client-job` must read `keycloak-secret` (`clientId`, `client-secret`) — never define a custom secret name for this (`.agents/AGENTS.md`).
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs are tracked as local Markdown under `.scratch/`; external PRs are not a triage surface. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The tracker uses the five default triage labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repository using root `CONTEXT.md` and `docs/adr/`. See `docs/agents/domain.md`.
