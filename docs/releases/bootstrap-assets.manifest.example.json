@@ -1,0 +1,14 @@
+{
+  "format": "smallworlds-bootstrap-assets/v1",
+  "release": "v1.2.24",
+  "assets": [
+    {
+      "id": "bootstrap-contract-linux-amd64",
+      "url": "https://releases.example.invalid/smallworlds/v1.2.24/bootstrap-contract-linux-amd64.tar.gz",
+      "sha256": "REPLACE_WITH_64_LOWERCASE_HEX_DIGEST",
+      "signature": "REPLACE_WITH_BASE64_ED25519_SIGNATURE_OF_SHA256_TEXT",
+      "destination": "releases.example.invalid"
+    }
+  ],
+  "signingPublicKey": "REPLACE_WITH_BASE64_ED25519_PUBLIC_KEY"
+}
