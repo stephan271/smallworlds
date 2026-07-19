@@ -14,6 +14,8 @@
             --accent-primary: #6d28d9;
             --accent-secondary: #0284c7;
             --accent-gradient: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            --preview-accent: #f97316;
+            --preview-accent-soft: rgba(249, 115, 22, 0.14);
         }
 
         * {
@@ -144,6 +146,155 @@
         #slide1 .infra-components .infra-pill:nth-child(2) { animation-delay: 1.7s; }
         #slide1 .infra-components .infra-pill:nth-child(3) { animation-delay: 1.8s; }
         #slide1 .infra-components .infra-pill:nth-child(4) { animation-delay: 1.9s; }
+
+        @keyframes lifecycle-label-pulse {
+            0%, 16%, 32%, 100% {
+                color: var(--accent-secondary);
+                background: #e0e7ff;
+                box-shadow: none;
+                border-color: transparent;
+                transform: scale(1);
+            }
+            8%, 24% {
+                color: #075985;
+                background: #bae6fd;
+                box-shadow: 0 0 0 0.35vmin rgba(14, 165, 233, 0.12),
+                            0 0 2vmin rgba(2, 132, 199, 0.42);
+                border-color: rgba(2, 132, 199, 0.45);
+                transform: scale(1.035);
+            }
+        }
+
+        /* A gentle double pulse repeats with a long quiet tail, remaining
+           noticeable during a talk without flickering continuously. */
+        #slide1 .infra-label {
+            border: 0.15vmin solid transparent;
+            animation: lifecycle-label-pulse 7s ease-in-out 2s infinite;
+        }
+
+        /* First-slide story: compact system diagram on the left, one large
+           screenshot on the right. */
+        #slide1 .abstract-graphic {
+            display: grid;
+            grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+            gap: 3vmin;
+            align-items: center;
+            padding-right: 12vmin;
+        }
+
+        #slide1 .infra-base {
+            width: 100%;
+            min-width: 0;
+            padding: 3vmin 2.5vmin;
+            gap: 1.5vmin;
+        }
+
+        #slide1 .small-world-ellipse {
+            width: 100%;
+            padding: 3vmin 3.5vmin;
+        }
+
+        #slide1 .world-label {
+            margin-bottom: 1.5vmin;
+            font-size: 2.4vmin;
+        }
+
+        #slide1 .apps-grid {
+            gap: 1.2vmin;
+        }
+
+        #slide1 .app-card {
+            width: 11.5vmin;
+            padding: 1.2vmin 0.8vmin;
+        }
+
+        #slide1 .app-purpose { font-size: 1.5vmin; }
+        #slide1 .app-name { font-size: 1.2vmin; }
+
+        #slide1 .infra-components {
+            gap: 0.7vmin;
+        }
+
+        #slide1 .infra-pill {
+            padding: 0.65vmin 1.1vmin;
+            font-size: 1.3vmin;
+        }
+
+        .intro-preview {
+            --preview-color: var(--preview-accent);
+            --preview-shadow: rgba(249, 115, 22, 0.5);
+            position: relative;
+            width: 100%;
+            min-width: 0;
+            margin: 0;
+            padding: 1.2vmin;
+            border: 0.25vmin solid var(--preview-color);
+            border-radius: 1.6vmin;
+            background: rgba(255, 255, 255, 0.98);
+            box-shadow: 0 1.5vmin 3vmin -0.8vmin var(--preview-shadow);
+            opacity: 0;
+            visibility: hidden;
+            transform: scale(0.97);
+            transition: opacity 180ms ease, transform 180ms ease, visibility 180ms;
+            pointer-events: none;
+        }
+
+        .intro-preview.is-visible {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1);
+        }
+
+        .intro-preview figcaption {
+            display: flex;
+            align-items: center;
+            gap: 0.7vmin;
+            min-width: 0;
+            margin-bottom: 0.8vmin;
+            color: var(--preview-color);
+            font: 700 1.45vmin/1.2 'Outfit', sans-serif;
+            text-align: left;
+        }
+
+        .intro-preview figcaption::before {
+            content: '';
+            flex: 0 0 auto;
+            width: 0.9vmin;
+            height: 0.9vmin;
+            border-radius: 50%;
+            background: var(--preview-color);
+            box-shadow: 0 0 0 0.35vmin var(--preview-shadow);
+        }
+
+        .intro-preview figcaption span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .intro-preview__frame {
+            display: grid;
+            place-items: center;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            overflow: hidden;
+            border-radius: 0.8vmin;
+            background: #eef2f7;
+        }
+
+        .intro-preview img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        #slide1 .app-card.is-preview-active {
+            border-color: var(--preview-accent);
+            background: #fff7ed;
+            box-shadow: 0 0 0 0.45vmin var(--preview-accent-soft),
+                        0 1.2vmin 2.4vmin -0.6vmin rgba(249, 115, 22, 0.6);
+        }
 
         .features {
             display: grid;
@@ -601,6 +752,7 @@
             /* every animation here is decorative and every base style is the
                final state, so switching them all off leaves complete slides */
             .slide * { animation: none !important; }
+            .intro-preview { transition: none; }
         }
     </style>
 </head>
@@ -623,27 +775,27 @@
                         <div class="small-world-ellipse">
                             <div class="world-label">Your Small World</div>
                             <div class="apps-grid">
-                                <div class="app-card">
+                                <div class="app-card" data-app="photos">
                                     <span class="app-purpose">Photos</span>
                                     <span class="app-name">Immich</span>
                                 </div>
-                                <div class="app-card">
+                                <div class="app-card" data-app="files">
                                     <span class="app-purpose">Files</span>
                                     <span class="app-name">Nextcloud</span>
                                 </div>
-                                <div class="app-card">
+                                <div class="app-card" data-app="code">
                                     <span class="app-purpose">Code</span>
                                     <span class="app-name">Forgejo</span>
                                 </div>
-                                <div class="app-card">
+                                <div class="app-card" data-app="mail">
                                     <span class="app-purpose">Mail</span>
                                     <span class="app-name">Bulwark</span>
                                 </div>
-                                <div class="app-card">
+                                <div class="app-card" data-app="whiteboard">
                                     <span class="app-purpose">Whiteboard</span>
                                     <span class="app-name">Excalidraw</span>
                                 </div>
-                                <div class="app-card">
+                                <div class="app-card" data-app="meet">
                                     <span class="app-purpose">Meet</span>
                                     <span class="app-name">Jitsi</span>
                                 </div>
@@ -661,6 +813,12 @@
                             <div class="infra-pill">ArgoCD</div>
                         </div>
                     </div>
+                    <figure class="intro-preview" data-preview-panel aria-hidden="true">
+                        <figcaption><span data-preview-title></span></figcaption>
+                        <div class="intro-preview__frame">
+                            <img data-preview-image alt="">
+                        </div>
+                    </figure>
                 </div>
                 <h1>SmallWorlds: Sovereignty Now</h1>
                 <p>Everyone can build and operate their own suite of privacy-respecting, everyday software applications.</p>
@@ -1122,6 +1280,74 @@
                 scroller.scrollBy({ top: window.innerHeight, behavior: 'auto' });
             });
         });
+
+        // First-slide screenshot tour, matching the app-card reading order.
+        const introPreviewSequence = [
+            { app: 'photos', title: 'Photos · Immich', src: 'screenshots/screen_photos.png' },
+            { app: 'files', title: 'Files · Nextcloud', src: 'screenshots/screen_files.png' },
+            { app: 'code', title: 'Code · Forgejo', src: 'screenshots/screen_code.png' },
+            { app: 'mail', title: 'Mail · Bulwark', src: 'screenshots/screen_mail.png' },
+            { app: 'whiteboard', title: 'Whiteboard · Excalidraw', src: 'screenshots/screen_whiteboard.png' },
+            { app: 'meet', title: 'Meet · Jitsi', src: 'screenshots/screen_meet.png' }
+        ];
+        const introPreviewDuration = 4000;
+        const introPreviewDelay = 2200;
+        let introPreviewStartTimer;
+        let introPreviewInterval;
+
+        introPreviewSequence.forEach(({ src }) => {
+            const preload = new Image();
+            preload.src = src;
+        });
+
+        function clearIntroPreview() {
+            const panel = document.querySelector('[data-preview-panel]');
+            panel.classList.remove('is-visible');
+            document.querySelectorAll('#slide1 .is-preview-active').forEach(card => {
+                card.classList.remove('is-preview-active');
+            });
+        }
+
+        function showIntroPreview(preview) {
+            const panel = document.querySelector('[data-preview-panel]');
+            const card = document.querySelector(`#slide1 [data-app="${preview.app}"]`);
+
+            document.querySelectorAll('#slide1 .is-preview-active').forEach(activeCard => {
+                activeCard.classList.remove('is-preview-active');
+            });
+            panel.querySelector('[data-preview-title]').textContent = preview.title;
+            panel.querySelector('[data-preview-image]').src = preview.src;
+            card.classList.add('is-preview-active');
+            panel.classList.add('is-visible');
+        }
+
+        function stopIntroPreviewTour() {
+            clearTimeout(introPreviewStartTimer);
+            clearInterval(introPreviewInterval);
+            clearIntroPreview();
+        }
+
+        function startIntroPreviewTour() {
+            stopIntroPreviewTour();
+            introPreviewStartTimer = setTimeout(() => {
+                let previewIndex = 0;
+                showIntroPreview(introPreviewSequence[previewIndex]);
+                introPreviewInterval = setInterval(() => {
+                    previewIndex = (previewIndex + 1) % introPreviewSequence.length;
+                    showIntroPreview(introPreviewSequence[previewIndex]);
+                }, introPreviewDuration);
+            }, introPreviewDelay);
+        }
+
+        const introSlideObserver = new IntersectionObserver(([entry]) => {
+            if (entry.isIntersecting) {
+                startIntroPreviewTour();
+            } else {
+                stopIntroPreviewTour();
+            }
+        }, { root: scroller, threshold: 0.7 });
+
+        introSlideObserver.observe(document.getElementById('slide1'));
     </script>
 </body>
 </html>
