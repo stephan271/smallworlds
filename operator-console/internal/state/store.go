@@ -69,6 +69,16 @@ type CredentialReference struct {
 	RotationStatus string
 }
 
+type OverlayIdentity struct {
+	ProfileID     string    `json:"profileId"`
+	Provider      string    `json:"provider"`
+	Repository    string    `json:"repository"`
+	RepositoryURL string    `json:"repositoryUrl"`
+	Release       string    `json:"release"`
+	Commit        string    `json:"commit"`
+	RecordedAt    time.Time `json:"recordedAt"`
+}
+
 type ProfileSnapshot struct {
 	Profile              Profile
 	Plans                []PlanRecord
@@ -255,6 +265,31 @@ func (store *Store) DeleteCredentialReference(ctx context.Context, profileID, ki
 		return ErrNotFound
 	}
 	return nil
+}
+
+func (store *Store) RecordOverlayIdentity(ctx context.Context, identity OverlayIdentity) error {
+	_, err := store.database.ExecContext(ctx, `INSERT INTO overlay_identities (profile_id, provider, repository, repository_url, release, commit_sha, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(profile_id) DO UPDATE SET provider=excluded.provider, repository=excluded.repository, repository_url=excluded.repository_url, release=excluded.release, commit_sha=excluded.commit_sha, recorded_at=excluded.recorded_at`, identity.ProfileID, identity.Provider, identity.Repository, identity.RepositoryURL, identity.Release, identity.Commit, identity.RecordedAt.UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return fmt.Errorf("record overlay identity: %w", err)
+	}
+	return nil
+}
+
+func (store *Store) GetOverlayIdentity(ctx context.Context, profileID string) (OverlayIdentity, error) {
+	var identity OverlayIdentity
+	var recordedAt string
+	err := store.database.QueryRowContext(ctx, `SELECT profile_id, provider, repository, repository_url, release, commit_sha, recorded_at FROM overlay_identities WHERE profile_id = ?`, profileID).Scan(&identity.ProfileID, &identity.Provider, &identity.Repository, &identity.RepositoryURL, &identity.Release, &identity.Commit, &recordedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return OverlayIdentity{}, ErrNotFound
+	}
+	if err != nil {
+		return OverlayIdentity{}, fmt.Errorf("get overlay identity: %w", err)
+	}
+	identity.RecordedAt, err = time.Parse(time.RFC3339Nano, recordedAt)
+	if err != nil {
+		return OverlayIdentity{}, fmt.Errorf("parse overlay record: %w", err)
+	}
+	return identity, nil
 }
 
 func (store *Store) ExportProfileSnapshot(ctx context.Context, profileID string) (ProfileSnapshot, error) {
@@ -856,6 +891,15 @@ func (store *Store) migrate(ctx context.Context) error {
 			expires_at TEXT NOT NULL,
 			rotation_status TEXT NOT NULL,
 			PRIMARY KEY (profile_id, kind)
+		)`},
+		{6, `CREATE TABLE overlay_identities (
+			profile_id TEXT PRIMARY KEY REFERENCES profiles(id),
+			provider TEXT NOT NULL,
+			repository TEXT NOT NULL,
+			repository_url TEXT NOT NULL,
+			release TEXT NOT NULL,
+			commit_sha TEXT NOT NULL,
+			recorded_at TEXT NOT NULL
 		)`},
 	}
 	for _, migration := range migrations {

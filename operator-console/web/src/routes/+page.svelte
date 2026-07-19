@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { api, initializeSession, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type RecoveryBundlePreview, type SetupJourney, type VaultStatus, type WorkflowRun } from '$lib/api';
+  import { api, initializeSession, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type GitHubTokenStatus, type RecoveryBundlePreview, type SetupJourney, type VaultStatus, type WorkflowRun } from '$lib/api';
   import { translate, type Locale, type MessageKey } from '$lib/i18n';
 
   type ActivityEvent = {
@@ -46,6 +46,13 @@
   let capabilityPlan: CapabilityPlanResult | null = $state(null);
   let capabilityError = $state('');
   let capabilityBusy = $state(false);
+  let gitHubToken = $state('');
+  let gitHubAuthority: 'creation' | 'ongoing' = $state('creation');
+  let gitHubStatus: GitHubTokenStatus | null = $state(null);
+  let gitHubBusy = $state(false);
+  let gitHubError = $state('');
+  let gitHubRepositoryName = $state('smallworlds-overlay');
+  let gitHubOverlayNotice = $state('');
   let creating = $state(true);
   let editing = $state(false);
   let busy = $state(false);
@@ -281,6 +288,36 @@
       capabilityError = reason instanceof Error ? reason.message : 'invalid_capability_selection';
     } finally {
       capabilityBusy = false;
+    }
+  }
+
+  async function validateGitHubToken(): Promise<void> {
+    if (!activeProfile) return;
+    gitHubBusy = true;
+    gitHubError = '';
+    try {
+      gitHubStatus = await api.validateGitHubToken(activeProfile.id, gitHubToken, gitHubAuthority);
+      gitHubToken = '';
+    } catch (reason) {
+      gitHubStatus = null;
+      gitHubError = reason instanceof Error ? reason.message : 'github_token_validation_failed';
+    } finally {
+      gitHubBusy = false;
+    }
+  }
+
+  async function establishGitHubOverlay(): Promise<void> {
+    if (!activeProfile || !capabilityPlan) return;
+    gitHubBusy = true;
+    gitHubError = '';
+    gitHubOverlayNotice = '';
+    try {
+      const identity = await api.establishGitHubOverlay({ profileId: activeProfile.id, planId: capabilityPlan.plan.id, repositoryName: gitHubRepositoryName, mode: capabilityMode, communityIds: capabilityApps, release: capabilityRelease, domain: capabilityDomain });
+      gitHubOverlayNotice = `${identity.repositoryUrl} @ ${identity.commit}`;
+    } catch (reason) {
+      gitHubError = reason instanceof Error ? reason.message : 'github_overlay_failed';
+    } finally {
+      gitHubBusy = false;
     }
   }
 
@@ -578,6 +615,23 @@
           {#if capabilityPlan}
             <section class="capability-preview" aria-labelledby="capability-preview-title"><p class="eyebrow">{message('capabilityPreview')}</p><h3 id="capability-preview-title">{message('capabilityPlanReady')}</h3><dl><div><dt>{message('capabilityMemory')}</dt><dd>{capabilityPlan.overlay.assessment.resources.memoryMi} MiB</dd></div><div><dt>{message('capabilityStorage')}</dt><dd>{capabilityPlan.overlay.assessment.resources.storageGi} GiB</dd></div><div><dt>{message('capabilityExposure')}</dt><dd>{capabilityPlan.overlay.assessment.exposure.join(', ')}</dd></div><div><dt>{message('capabilityProtection')}</dt><dd>{capabilityPlan.overlay.assessment.protection.join(', ')}</dd></div></dl><div data-testid="overlay-diff" class="overlay-diff" role="textbox" aria-readonly="true" tabindex="0" aria-label={message('capabilityOverlayDiff')}>{capabilityPlan.overlay.diff}</div></section>
           {/if}
+        </section>
+
+        <section class="card github-card" aria-labelledby="github-title">
+          <p class="eyebrow">{message('githubEyebrow')}</p>
+          <h2 id="github-title">{message('githubTitle')}</h2>
+          <p class="muted">{message('githubDescription')} <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">{message('githubTokenGuide')}</a></p>
+          {#if gitHubError}<p class="inline-error" role="alert">{gitHubError}</p>{/if}
+          <form onsubmit={(event) => { event.preventDefault(); void validateGitHubToken(); }}>
+            <label><span>{message('githubAuthority')}</span><select bind:value={gitHubAuthority}><option value="creation">{message('githubCreationAuthority')}</option><option value="ongoing">{message('githubOngoingAuthority')}</option></select></label>
+            <label><span>{message('githubToken')}</span><input type="password" bind:value={gitHubToken} required autocomplete="off" /></label>
+            <div class="actions"><button type="submit" disabled={gitHubBusy}>{message('githubValidate')}</button></div>
+          </form>
+          {#if gitHubStatus}<dl class="credential-metadata"><div><dt>{message('githubOwner')}</dt><dd>{gitHubStatus.owner}</dd></div><div><dt>{message('credentialExpires')}</dt><dd>{gitHubStatus.expiresAt || message('githubNoExpiry')}</dd></div><div><dt>{message('githubAuthority')}</dt><dd>{gitHubStatus.authority === 'creation' ? message('githubCreationAuthority') : message('githubOngoingAuthority')}</dd></div></dl>{/if}
+          {#if capabilityPlan && gitHubStatus?.authority === 'creation'}
+            <form class="github-establish" onsubmit={(event) => { event.preventDefault(); void establishGitHubOverlay(); }}><label><span>{message('githubRepositoryName')}</span><input bind:value={gitHubRepositoryName} required pattern="[A-Za-z0-9._-]+" /></label><div class="actions"><button type="submit" disabled={gitHubBusy}>{message('githubEstablish')}</button></div></form>
+          {/if}
+          {#if gitHubOverlayNotice}<p class="inline-notice" aria-live="polite">{gitHubOverlayNotice}</p>{/if}
         </section>
 
 		<section class="card vault-card" aria-labelledby="vault-title">

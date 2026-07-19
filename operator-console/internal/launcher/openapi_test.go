@@ -31,6 +31,8 @@ func TestOpenAPIContractDescribesLauncherWorkflow(t *testing.T) {
 		"/api/v1/recovery-bundles/import":          {"post"},
 		"/api/v1/capabilities":                     {"get"},
 		"/api/v1/capabilities/plan":                {"post"},
+		"/api/v1/github/token/validate":            {"post"},
+		"/api/v1/github/overlay/establish":         {"post"},
 		"/api/v1/profiles":                         {"get", "post"},
 		"/api/v1/profiles/{id}":                    {"put"},
 		"/api/v1/profiles/{id}/journey":            {"get"},

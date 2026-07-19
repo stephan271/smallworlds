@@ -1,6 +1,6 @@
 # Establish a GitHub-hosted GitOps Overlay
 
-Status: ready-for-agent
+Status: complete
 
 ## What to build
 
@@ -10,13 +10,20 @@ Covers PRD user stories 24–28 and 31–35, plus credential representation from
 
 ## Acceptance criteria
 
-- [ ] The journey explains and deep-links to the required fine-grained token settings and validates owner, permissions, repository scope, and expiry before planning mutation.
-- [ ] The token is stored through the Launcher Vault and no secret value reaches Git, browser read responses, logs, plans, or Activity Records.
-- [ ] An approved plan creates a private repository when requested and pushes a deterministic initial GitOps Overlay without invoking globally installed `git` or `gh`.
-- [ ] The resulting repository pins an exact compatible SmallWorlds release and records stable remote repository and commit identities in the Cluster Profile.
-- [ ] A Journey Task requires rotation to repository-scoped ongoing authority and verifies the replacement before retiring temporary creation authority.
-- [ ] A subsequent configuration change displays the exact diff, creates a branch and pull request, never force-pushes or merges automatically, and reports the remote commit and proposal URL.
-- [ ] Contract tests cover permission failures, expiry, pagination, conflicts, rate limiting, ambiguous partial completion, and safe retry/reinspection.
+- [x] The journey explains and deep-links to the required fine-grained token settings and validates owner, permissions, repository scope, and expiry before planning mutation.
+- [x] The token is stored through the Launcher Vault and no secret value reaches Git, browser read responses, logs, plans, or Activity Records.
+- [x] An approved plan creates a private repository when requested and pushes a deterministic initial GitOps Overlay without invoking globally installed `git` or `gh`.
+- [x] The resulting repository pins an exact compatible SmallWorlds release and records stable remote repository and commit identities in the Cluster Profile.
+- [x] A Journey Task requires rotation to repository-scoped ongoing authority and verifies the replacement before retiring temporary creation authority.
+- [x] A subsequent configuration change displays the exact diff, creates a branch and pull request, never force-pushes or merges automatically, and reports the remote commit and proposal URL.
+- [x] Contract tests cover permission failures, expiry, pagination, conflicts, rate limiting, ambiguous partial completion, and safe retry/reinspection.
+
+## Implementation notes
+
+- The GitHub adapter uses HTTPS REST and Git Data APIs only; it never invokes `git` or `gh`.
+- Initial files form one deterministic commit. Later reviewed files are committed on a proposal branch with `force: false`, followed by a pull request and no automatic merge.
+- Token values are write-only API input, encrypted in the Launcher Vault, and replaced by safe owner/expiry/authority metadata at the browser boundary.
+- A verified ongoing token removes the temporary creation token only after its replacement has been stored successfully.
 
 ## Blocked by
 

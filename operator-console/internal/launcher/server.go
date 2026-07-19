@@ -16,6 +16,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/stephan271/smallworlds/operator-console/internal/capability"
+	"github.com/stephan271/smallworlds/operator-console/internal/github"
 	"github.com/stephan271/smallworlds/operator-console/internal/recovery"
 	"github.com/stephan271/smallworlds/operator-console/internal/state"
 	"github.com/stephan271/smallworlds/operator-console/internal/vault"
@@ -29,6 +30,7 @@ type Config struct {
 	DataDir       string
 	LaunchToken   string
 	WrappingStore vault.WrappingStore
+	GitHubClient  *github.Client
 }
 
 type session struct {
@@ -45,6 +47,7 @@ type Server struct {
 	store     *state.Store
 	vault     *vault.Vault
 	workflow  *workflow.Engine
+	github    *github.Client
 }
 
 func New(config Config) (*Server, error) {
@@ -64,12 +67,17 @@ func New(config Config) (*Server, error) {
 		store.Close()
 		return nil, err
 	}
+	githubClient := config.GitHubClient
+	if githubClient == nil {
+		githubClient = github.New("https://api.github.com", nil)
+	}
 	return &Server{
 		launchToken: config.LaunchToken,
 		sessions:    make(map[string]session),
 		store:       store,
 		vault:       vault.New(config.DataDir, config.WrappingStore),
 		workflow:    workflowEngine,
+		github:      githubClient,
 	}, nil
 }
 
@@ -101,6 +109,10 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.capabilities(response, request)
 	case request.URL.Path == "/api/v1/capabilities/plan":
 		server.capabilityPlan(response, request)
+	case request.URL.Path == "/api/v1/github/token/validate":
+		server.validateGitHubToken(response, request)
+	case request.URL.Path == "/api/v1/github/overlay/establish":
+		server.establishGitHubOverlay(response, request)
 	case request.URL.Path == "/api/v1/profiles":
 		server.profiles(response, request)
 	case strings.HasPrefix(request.URL.Path, "/api/v1/profiles/"):
@@ -584,6 +596,161 @@ type capabilityRequest struct {
 	Release       string                   `json:"release"`
 	RepositoryURL string                   `json:"repositoryUrl"`
 	Domain        string                   `json:"domain"`
+}
+
+func (server *Server) validateGitHubToken(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		ProfileID string           `json:"profileId"`
+		Token     string           `json:"token"`
+		Authority github.Authority `json:"authority"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 32*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" || input.Token == "" || (input.Authority != github.CreationAuthority && input.Authority != github.OngoingAuthority) {
+		writeError(response, http.StatusBadRequest, "invalid_github_token")
+		return
+	}
+	if _, err := server.store.GetProfile(request.Context(), input.ProfileID); errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "profile_not_found")
+		return
+	} else if err != nil {
+		writeError(response, http.StatusInternalServerError, "github_token_validation_failed")
+		return
+	}
+	status, err := server.github.ValidateToken(request.Context(), input.Token, input.Authority)
+	if errors.Is(err, github.ErrRateLimited) {
+		writeError(response, http.StatusTooManyRequests, "github_rate_limited")
+		return
+	}
+	if errors.Is(err, github.ErrUnauthorized) || errors.Is(err, github.ErrInsufficientAuthority) {
+		writeError(response, http.StatusForbidden, "github_token_insufficient_authority")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusBadGateway, "github_token_validation_failed")
+		return
+	}
+	vaultKey := input.ProfileID + "/github-" + string(input.Authority) + "-token"
+	if err := server.vault.Store(vaultKey, input.Token); errors.Is(err, vault.ErrLocked) {
+		writeError(response, http.StatusLocked, "vault_locked")
+		return
+	} else if err != nil {
+		writeError(response, http.StatusInternalServerError, "github_token_storage_failed")
+		return
+	}
+	expiresAt := status.ExpiresAt
+	if expiresAt.IsZero() {
+		expiresAt = time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC)
+	}
+	if err := server.store.UpsertCredentialReference(request.Context(), state.CredentialReference{ProfileID: input.ProfileID, Kind: "github-" + string(input.Authority) + "-token", VaultKey: vaultKey, Source: "operator", ExpiresAt: expiresAt, RotationStatus: credentialRotationStatus(expiresAt, time.Now())}); err != nil {
+		writeError(response, http.StatusInternalServerError, "github_token_storage_failed")
+		return
+	}
+	if input.Authority == github.OngoingAuthority {
+		creationKey := input.ProfileID + "/github-creation-token"
+		if err := server.vault.Delete(creationKey); err != nil && !errors.Is(err, vault.ErrSecretNotFound) {
+			writeError(response, http.StatusInternalServerError, "github_token_rotation_failed")
+			return
+		}
+		if err := server.store.DeleteCredentialReference(request.Context(), input.ProfileID, "github-creation-token"); err != nil && !errors.Is(err, state.ErrNotFound) {
+			writeError(response, http.StatusInternalServerError, "github_token_rotation_failed")
+			return
+		}
+	}
+	writeJSON(response, http.StatusOK, map[string]any{"owner": status.Owner, "expiresAt": status.ExpiresAt, "authority": input.Authority, "stored": true})
+}
+
+func (server *Server) establishGitHubOverlay(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		capabilityRequest
+		PlanID         string `json:"planId"`
+		RepositoryName string `json:"repositoryName"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 96*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" || input.PlanID == "" || input.RepositoryName == "" {
+		writeError(response, http.StatusBadRequest, "invalid_github_overlay")
+		return
+	}
+	plan, err := server.store.GetPlan(request.Context(), input.PlanID)
+	if errors.Is(err, state.ErrNotFound) || plan.ProfileID != input.ProfileID || plan.Intent != "ApplyCapabilities" || plan.Status != "approved" {
+		writeError(response, http.StatusConflict, "github_overlay_plan_not_approved")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "github_overlay_failed")
+		return
+	}
+	profile, err := server.store.GetProfile(request.Context(), input.ProfileID)
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "github_overlay_failed")
+		return
+	}
+	overlay, err := capability.DefaultCatalog().RenderOverlay(capability.OverlayInput{Selection: capability.Selection{Mode: input.Mode, DeploymentMode: capability.DeploymentMode(profile.DeploymentMode), CommunityIDs: input.CommunityIDs}, Release: input.Release, RepositoryURL: "https://github.com/placeholder/" + input.RepositoryName + ".git", Domain: input.Domain})
+	if err != nil {
+		writeError(response, http.StatusBadRequest, "invalid_github_overlay")
+		return
+	}
+	token, err := server.vault.Load(input.ProfileID + "/github-creation-token")
+	if errors.Is(err, vault.ErrLocked) {
+		writeError(response, http.StatusLocked, "vault_locked")
+		return
+	}
+	if errors.Is(err, vault.ErrSecretNotFound) {
+		writeError(response, http.StatusConflict, "github_creation_token_missing")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "github_overlay_failed")
+		return
+	}
+	repository, err := server.github.CreatePrivateRepository(request.Context(), token, input.RepositoryName)
+	if err != nil {
+		writeError(response, http.StatusBadGateway, "github_repository_creation_failed")
+		return
+	}
+	for path, contents := range overlay.Files {
+		overlay.Files[path] = strings.ReplaceAll(contents, "https://github.com/placeholder/"+input.RepositoryName+".git", repository.HTMLURL+".git")
+	}
+	commit, err := server.github.WriteInitialFiles(request.Context(), token, repository, overlay.Files)
+	if err != nil {
+		writeError(response, http.StatusBadGateway, "github_overlay_initialization_failed")
+		return
+	}
+	identity := state.OverlayIdentity{ProfileID: input.ProfileID, Provider: "github", Repository: repository.FullName, RepositoryURL: repository.HTMLURL, Release: input.Release, Commit: commit, RecordedAt: time.Now().UTC()}
+	if err := server.store.RecordOverlayIdentity(request.Context(), identity); err != nil {
+		writeError(response, http.StatusInternalServerError, "github_overlay_identity_failed")
+		return
+	}
+	writeJSON(response, http.StatusCreated, identity)
 }
 
 func (server *Server) capabilities(response http.ResponseWriter, request *http.Request) {

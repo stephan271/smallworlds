@@ -148,6 +148,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/github/token/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["validateGitHubToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/github/overlay/establish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["establishGitHubOverlay"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profiles": {
         parameters: {
             query?: never;
@@ -439,6 +471,37 @@ export interface components {
             resources: components["schemas"]["CapabilityResources"];
             exposure: string[];
             protection: string[];
+        };
+        GitHubTokenInput: {
+            profileId: string;
+            /** Format: password */
+            token: string;
+            /** @enum {string} */
+            authority: "creation" | "ongoing";
+        };
+        GitHubTokenStatus: {
+            owner: string;
+            /** Format: date-time */
+            expiresAt?: string;
+            /** @enum {string} */
+            authority: "creation" | "ongoing";
+            stored: boolean;
+        };
+        GitHubOverlayEstablishInput: components["schemas"]["CapabilityPlanInput"] & {
+            planId: string;
+            repositoryName: string;
+        };
+        OverlayIdentity: {
+            profileId: string;
+            /** @constant */
+            provider: "github";
+            repository: string;
+            /** Format: uri */
+            repositoryUrl: string;
+            release: string;
+            commit: string;
+            /** Format: date-time */
+            recordedAt: string;
         };
         ProfileInput: {
             name: string;
@@ -809,6 +872,61 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+        };
+    };
+    validateGitHubToken: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GitHubTokenInput"];
+            };
+        };
+        responses: {
+            /** @description Validated token metadata without token value */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GitHubTokenStatus"];
+                };
+            };
+            403: components["responses"]["Conflict"];
+            423: components["responses"]["Locked"];
+        };
+    };
+    establishGitHubOverlay: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GitHubOverlayEstablishInput"];
+            };
+        };
+        responses: {
+            /** @description Private overlay initialized from an approved plan */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverlayIdentity"];
+                };
+            };
+            409: components["responses"]["Conflict"];
         };
     };
     listProfiles: {

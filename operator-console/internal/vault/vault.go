@@ -198,6 +198,20 @@ func (vault *Vault) Contains(key string) (bool, error) {
 	return present, nil
 }
 
+// Load is for Launcher-internal provider adapters only. HTTP handlers must never return its value.
+func (vault *Vault) Load(key string) (string, error) {
+	vault.mu.RLock()
+	defer vault.mu.RUnlock()
+	if !vault.unlocked {
+		return "", ErrLocked
+	}
+	value, found := vault.contents.Credentials[key]
+	if !found {
+		return "", ErrSecretNotFound
+	}
+	return value, nil
+}
+
 func (vault *Vault) Export() (map[string]string, error) {
 	vault.mu.RLock()
 	defer vault.mu.RUnlock()

@@ -128,6 +128,22 @@
         "responses": { "201": { "description": "Reviewed deterministic GitOps Overlay change plan", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CapabilityPlanResult" } } } }, "400": { "$ref": "#/components/responses/BadRequest" } }
       }
     },
+    "/api/v1/github/token/validate": {
+      "post": {
+        "operationId": "validateGitHubToken",
+        "parameters": [{ "$ref": "#/components/parameters/CSRFToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/GitHubTokenInput" } } } },
+        "responses": { "200": { "description": "Validated token metadata without token value", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/GitHubTokenStatus" } } } }, "403": { "$ref": "#/components/responses/Conflict" }, "423": { "$ref": "#/components/responses/Locked" } }
+      }
+    },
+    "/api/v1/github/overlay/establish": {
+      "post": {
+        "operationId": "establishGitHubOverlay",
+        "parameters": [{ "$ref": "#/components/parameters/CSRFToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/GitHubOverlayEstablishInput" } } } },
+        "responses": { "201": { "description": "Private overlay initialized from an approved plan", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OverlayIdentity" } } } }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
     "/api/v1/profiles": {
       "get": {
         "operationId": "listProfiles",
@@ -516,6 +532,10 @@
       "CapabilityPlanResult": { "type": "object", "required": ["plan", "overlay"], "properties": { "plan": { "$ref": "#/components/schemas/ChangePlan" }, "overlay": { "$ref": "#/components/schemas/RenderedOverlay" } } },
       "RenderedOverlay": { "type": "object", "required": ["files", "diff", "assessment"], "properties": { "files": { "type": "object", "additionalProperties": { "type": "string" } }, "diff": { "type": "string" }, "assessment": { "$ref": "#/components/schemas/CapabilityAssessment" } } },
       "CapabilityAssessment": { "type": "object", "required": ["selected", "communityIds", "resources", "exposure", "protection"], "properties": { "selected": { "type": "object", "additionalProperties": { "type": "boolean" } }, "communityIds": { "type": "array", "items": { "type": "string" } }, "resources": { "$ref": "#/components/schemas/CapabilityResources" }, "exposure": { "type": "array", "items": { "type": "string" } }, "protection": { "type": "array", "items": { "type": "string" } } } },
+      "GitHubTokenInput": { "type": "object", "required": ["profileId", "token", "authority"], "properties": { "profileId": { "type": "string" }, "token": { "type": "string", "format": "password", "writeOnly": true }, "authority": { "type": "string", "enum": ["creation", "ongoing"] } } },
+      "GitHubTokenStatus": { "type": "object", "required": ["owner", "authority", "stored"], "properties": { "owner": { "type": "string" }, "expiresAt": { "type": "string", "format": "date-time" }, "authority": { "type": "string", "enum": ["creation", "ongoing"] }, "stored": { "type": "boolean" } } },
+      "GitHubOverlayEstablishInput": { "allOf": [{ "$ref": "#/components/schemas/CapabilityPlanInput" }, { "type": "object", "required": ["planId", "repositoryName"], "properties": { "planId": { "type": "string" }, "repositoryName": { "type": "string", "pattern": "^[A-Za-z0-9._-]+$" } } }] },
+      "OverlayIdentity": { "type": "object", "required": ["profileId", "provider", "repository", "repositoryUrl", "release", "commit", "recordedAt"], "properties": { "profileId": { "type": "string" }, "provider": { "type": "string", "const": "github" }, "repository": { "type": "string" }, "repositoryUrl": { "type": "string", "format": "uri" }, "release": { "type": "string" }, "commit": { "type": "string" }, "recordedAt": { "type": "string", "format": "date-time" } } },
       "ProfileInput": {
         "type": "object",
         "required": ["name", "language", "deploymentMode"],

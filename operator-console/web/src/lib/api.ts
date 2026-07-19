@@ -13,6 +13,7 @@ export type CapabilityMode = 'minimal' | 'collaboration' | 'full' | 'custom';
 export type CapabilityEntry = { id: string; displayKey: string; category: 'platform-service' | 'community-application'; required: boolean; dependencies: string[]; resources: { memoryMi: number; storageGi: number }; exposure: string; protection: string };
 export type CapabilityCatalog = { version: number; capabilities: CapabilityEntry[] };
 export type CapabilityPlanResult = { plan: ChangePlan; overlay: { diff: string; assessment: { communityIds: string[]; resources: { memoryMi: number; storageGi: number }; exposure: string[]; protection: string[] } } };
+export type GitHubTokenStatus = components['schemas']['GitHubTokenStatus'];
 
 let csrfToken = '';
 
@@ -102,6 +103,10 @@ export const api = {
   getCapabilities: () => request<CapabilityCatalog>('/api/v1/capabilities'),
   planCapabilities: (input: { profileId: string; mode: CapabilityMode; communityIds: string[]; release: string; repositoryUrl: string; domain: string }) =>
     request<CapabilityPlanResult>('/api/v1/capabilities/plan', { method: 'POST', body: JSON.stringify(input) }),
+  validateGitHubToken: (profileId: string, token: string, authority: 'creation' | 'ongoing') =>
+    request<GitHubTokenStatus>('/api/v1/github/token/validate', { method: 'POST', body: JSON.stringify({ profileId, token, authority }) }),
+  establishGitHubOverlay: (input: { profileId: string; planId: string; repositoryName: string; mode: CapabilityMode; communityIds: string[]; release: string; domain: string }) =>
+    request<{ repositoryUrl: string; commit: string }>('/api/v1/github/overlay/establish', { method: 'POST', body: JSON.stringify(input) }),
   createVerificationPlan: (profileId: string) => request<ChangePlan>('/api/v1/plans', { method: 'POST', body: JSON.stringify({ profileId, intent: 'VerifyLauncher' }) }),
   approvePlan: (planId: string) => request<WorkflowRun>(`/api/v1/plans/${planId}/approve`, { method: 'POST' }),
   getRun: (runId: string) => request<WorkflowRun>(`/api/v1/runs/${runId}`)
