@@ -18,7 +18,10 @@ spec:
           # v1.4.8 shipped a broken build (v1.4.7 UI with mismatched Next.js
           # server actions — the login page's auto-SSO action 404s and users
           # are stuck on "Sign in with SSO")
-          image: ghcr.io/bulwarkmail/webmail:v1.5.0@sha256:4a784a5d9574d2996ac42e395c685c90a66a4691eefc5ab77bb61fe78e397e51
+          # v1.5.0's composer had no sender-identity support at all (empty
+          # From when composing); the From dropdown / identity handling
+          # arrived in v1.7.x.
+          image: ghcr.io/bulwarkmail/webmail:v1.7.7@sha256:8c93a6af6abf1b0e6595015dd8236ad83c4cbb2a1dce51966deaecb4d93ffeea
           ports:
             - containerPort: 3000
           env:
