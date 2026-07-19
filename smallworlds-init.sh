@@ -38,7 +38,7 @@ ask_with_default() {
             read -s -p "$prompt_text [saved]: " input_val
             echo ""
         else
-            read -p "$prompt_text [$current_val] (enter - to clear): " input_val
+            read -p "$prompt_text [$current_val] (blank=keep, type - to clear): " input_val
         fi
 
         if [[ -z "$input_val" ]]; then
@@ -63,19 +63,38 @@ ask_with_default() {
 # Used by the hetzner target and by internet-exposed local deployments.
 ensure_dns_zone() {
     echo -e "${CYAN}Ensuring DNS Zone '$DOMAIN' exists in Hetzner...${NC}"
-    local zone_exists api_response
-    zone_exists=$(curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/zones" | grep -o "\"name\":\"$DOMAIN\"" || true)
+    local existing_id api_response
+    # A raw grep for "name":"$DOMAIN" against the list response is fragile
+    # (trailing dot, key order, whitespace, pagination all cause false
+    # negatives — confirmed in practice: it missed an already-existing
+    # zone and then double-created it). Filter server-side by name and
+    # parse the JSON properly instead.
+    existing_id=$(curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" \
+        "https://api.hetzner.cloud/v1/zones?name=$DOMAIN" \
+        | python3 -c "
+import json, sys
+domain = sys.argv[1].rstrip('.')
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+for z in data.get('zones', []):
+    if z.get('name', '').rstrip('.') == domain:
+        print(z['id'])
+        break
+" "$DOMAIN")
 
-    if [ -z "$zone_exists" ]; then
+    if [ -z "$existing_id" ]; then
         echo -e "${YELLOW}Zone $DOMAIN not found. Creating it...${NC}"
         api_response=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/zones" -d '{"name":"'"$DOMAIN"'", "mode": "primary", "ttl": 3600}')
         if echo "$api_response" | grep -q "\"error\""; then
-            echo -e "${RED}Failed to create zone: $(echo "$api_response" | jq -r '.error.message' || echo "$api_response")${NC}"
+            echo -e "${RED}Failed to create zone: $(echo "$api_response" | jq -r '.error.message' 2>/dev/null || echo "$api_response")${NC}"
+            exit 1
         else
             echo -e "${GREEN}Zone created successfully.${NC}"
         fi
     else
-        echo -e "${GREEN}Zone $DOMAIN already exists.${NC}"
+        echo -e "${GREEN}Zone $DOMAIN already exists (id: $existing_id).${NC}"
     fi
 }
 
@@ -92,14 +111,33 @@ ensure_ssh_key() {
     fi
 
     echo -e "${CYAN}Ensuring Hetzner SSH key 'SmallWorlds Admin Key' exists...${NC}"
-    SSH_KEY_ID=$(curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/ssh_keys?name=SmallWorlds%20Admin%20Key" | grep -o '"id":[0-9]*' | head -1 | grep -o '[0-9]*')
+    SSH_KEY_ID=$(curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/ssh_keys?name=SmallWorlds%20Admin%20Key" \
+        | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+keys = data.get('ssh_keys') or []
+if keys:
+    print(keys[0]['id'])
+")
 
     if [ -z "$SSH_KEY_ID" ]; then
         echo -e "${YELLOW}Key not found. Uploading $pubkey_path...${NC}"
         local pubkey_json api_response
         pubkey_json=$(python3 -c 'import json,sys; print(json.dumps(open(sys.argv[1]).read().strip()))' "$pubkey_path")
         api_response=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/ssh_keys" -d "{\"name\":\"SmallWorlds Admin Key\", \"public_key\": $pubkey_json}")
-        SSH_KEY_ID=$(echo "$api_response" | grep -o '"id":[0-9]*' | head -1 | grep -o '[0-9]*')
+        SSH_KEY_ID=$(echo "$api_response" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+key = data.get('ssh_key')
+if key:
+    print(key['id'])
+")
         if [ -z "$SSH_KEY_ID" ]; then
             echo -e "${RED}Failed to upload SSH key: $(echo "$api_response" | jq -r '.error.message' 2>/dev/null || echo "$api_response")${NC}"
             exit 1
