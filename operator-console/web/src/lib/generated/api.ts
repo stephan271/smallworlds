@@ -116,6 +116,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getCapabilityCatalog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/capabilities/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["planCapabilitySelection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profiles": {
         parameters: {
             query?: never;
@@ -355,6 +387,58 @@ export interface components {
                 id: string;
                 name: string;
             };
+        };
+        CapabilityCatalog: {
+            /** @constant */
+            version: 1;
+            capabilities: components["schemas"]["CapabilityEntry"][];
+        };
+        CapabilityEntry: {
+            id: string;
+            displayKey: string;
+            /** @enum {string} */
+            category: "platform-service" | "community-application";
+            required: boolean;
+            dependencies: string[];
+            supportedDeploymentModes: ("hetzner" | "local-lan" | "local-public")[];
+            resources: components["schemas"]["CapabilityResources"];
+            exposure: string;
+            protection: string;
+            observer: string;
+        };
+        CapabilityResources: {
+            memoryMi: number;
+            storageGi: number;
+        };
+        CapabilityPlanInput: {
+            profileId: string;
+            /** @enum {string} */
+            mode: "minimal" | "collaboration" | "full" | "custom";
+            communityIds?: string[];
+            release: string;
+            /** Format: uri */
+            repositoryUrl: string;
+            domain: string;
+        };
+        CapabilityPlanResult: {
+            plan: components["schemas"]["ChangePlan"];
+            overlay: components["schemas"]["RenderedOverlay"];
+        };
+        RenderedOverlay: {
+            files: {
+                [key: string]: string;
+            };
+            diff: string;
+            assessment: components["schemas"]["CapabilityAssessment"];
+        };
+        CapabilityAssessment: {
+            selected: {
+                [key: string]: boolean;
+            };
+            communityIds: string[];
+            resources: components["schemas"]["CapabilityResources"];
+            exposure: string[];
+            protection: string[];
         };
         ProfileInput: {
             name: string;
@@ -678,6 +762,53 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             409: components["responses"]["Conflict"];
             423: components["responses"]["Locked"];
+        };
+    };
+    getCapabilityCatalog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Versioned capability catalog */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CapabilityCatalog"];
+                };
+            };
+        };
+    };
+    planCapabilitySelection: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CapabilityPlanInput"];
+            };
+        };
+        responses: {
+            /** @description Reviewed deterministic GitOps Overlay change plan */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CapabilityPlanResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
         };
     };
     listProfiles: {

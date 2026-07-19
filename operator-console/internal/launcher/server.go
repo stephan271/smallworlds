@@ -15,6 +15,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/stephan271/smallworlds/operator-console/internal/capability"
 	"github.com/stephan271/smallworlds/operator-console/internal/recovery"
 	"github.com/stephan271/smallworlds/operator-console/internal/state"
 	"github.com/stephan271/smallworlds/operator-console/internal/vault"
@@ -96,6 +97,10 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.previewRecoveryBundle(response, request)
 	case request.URL.Path == "/api/v1/recovery-bundles/import":
 		server.importRecoveryBundle(response, request)
+	case request.URL.Path == "/api/v1/capabilities":
+		server.capabilities(response, request)
+	case request.URL.Path == "/api/v1/capabilities/plan":
+		server.capabilityPlan(response, request)
 	case request.URL.Path == "/api/v1/profiles":
 		server.profiles(response, request)
 	case strings.HasPrefix(request.URL.Path, "/api/v1/profiles/"):
@@ -570,6 +575,72 @@ func (server *Server) plans(response http.ResponseWriter, request *http.Request)
 		return
 	}
 	writeJSON(response, http.StatusCreated, plan)
+}
+
+type capabilityRequest struct {
+	ProfileID     string                   `json:"profileId"`
+	Mode          capability.SelectionMode `json:"mode"`
+	CommunityIDs  []string                 `json:"communityIds"`
+	Release       string                   `json:"release"`
+	RepositoryURL string                   `json:"repositoryUrl"`
+	Domain        string                   `json:"domain"`
+}
+
+func (server *Server) capabilities(response http.ResponseWriter, request *http.Request) {
+	if _, ok := server.authenticatedSession(request); !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodGet {
+		response.Header().Set("Allow", "GET")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	writeJSON(response, http.StatusOK, capability.DefaultCatalog())
+}
+
+func (server *Server) capabilityPlan(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input capabilityRequest
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 64*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" {
+		writeError(response, http.StatusBadRequest, "invalid_capability_selection")
+		return
+	}
+	profile, err := server.store.GetProfile(request.Context(), input.ProfileID)
+	if errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "profile_not_found")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "capability_unavailable")
+		return
+	}
+	overlay, err := capability.DefaultCatalog().RenderOverlay(capability.OverlayInput{Selection: capability.Selection{Mode: input.Mode, DeploymentMode: capability.DeploymentMode(profile.DeploymentMode), CommunityIDs: input.CommunityIDs}, Release: input.Release, RepositoryURL: input.RepositoryURL, Domain: input.Domain})
+	if err != nil {
+		writeError(response, http.StatusBadRequest, "invalid_capability_selection")
+		return
+	}
+	plan, err := server.workflow.PlanChange(request.Context(), profile.ID, "ApplyCapabilities", overlay.Diff, []workflow.Effect{{Code: "gitops.overlay.previewed", MessageKey: "plan.effect.gitops_overlay"}})
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "plan_creation_failed")
+		return
+	}
+	writeJSON(response, http.StatusCreated, map[string]any{"plan": plan, "overlay": overlay})
 }
 
 func (server *Server) plan(response http.ResponseWriter, request *http.Request) {

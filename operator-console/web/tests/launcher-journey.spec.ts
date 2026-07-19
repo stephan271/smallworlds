@@ -41,6 +41,18 @@ test('Operator completes and reopens the launcher journey in English and German'
     await expect(page.getByText(journey.next)).toBeVisible();
     await expect(page.getByRole('heading', { name: journey.task })).toBeVisible();
 
+    if (journey.language === 'en') {
+      const capabilities = page.getByRole('region', { name: 'Cluster Capabilities' });
+      await capabilities.getByLabel('Pinned SmallWorlds release').fill('v1.2.3');
+      await capabilities.getByLabel('Private overlay repository').fill('https://github.com/example/private-overlay.git');
+      await capabilities.getByLabel('Base domain').fill('home.example');
+      const capabilityResponse = page.waitForResponse('/api/v1/capabilities/plan');
+      await capabilities.getByRole('button', { name: 'Review GitOps overlay' }).click();
+      expect((await capabilityResponse).status()).toBe(201);
+      await expect(capabilities.getByTestId('overlay-diff')).toContainText('v1.2.3');
+      await expect(capabilities.getByTestId('overlay-diff')).not.toContainText('secret');
+    }
+
 		const vault = page.getByRole('region', { name: /launcher vault|launcher-tresor/i });
 		await expect(vault).toBeVisible();
 		if (journey.language === 'en') {

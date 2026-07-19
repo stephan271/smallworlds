@@ -94,6 +94,7 @@ const messages = {
     recoveryIdentityMismatch: 'The confirmed cluster identity does not match the bundle preview.',
     recoveryVaultLocked: 'Unlock the Launcher Vault before importing protected material.',
     recoveryFailed: 'The Recovery Bundle could not be processed safely.'
+    ,capabilityEyebrow: 'Cluster design', capabilityTitle: 'Cluster Capabilities', capabilityDescription: 'Required platform services stay enabled. Choose community applications and review the exact secret-free GitOps change before it is proposed.', capabilityMode: 'Selection mode', capabilityMinimal: 'Minimal', capabilityCollaboration: 'Collaboration', capabilityFull: 'Full', capabilityCustom: 'Custom', capabilityRelease: 'Pinned SmallWorlds release', capabilityRepository: 'Private overlay repository', capabilityDomain: 'Base domain', capabilityCommunityApps: 'Community applications', capabilityReview: 'Review GitOps overlay', capabilityPreview: 'Change plan', capabilityPlanReady: 'Deterministic overlay preview', capabilityMemory: 'Estimated memory', capabilityStorage: 'Estimated storage', capabilityExposure: 'Exposure', capabilityProtection: 'Protection expectations', capabilityOverlayDiff: 'GitOps overlay diff'
   },
   de: {
     product: 'SmallWorlds Operator Console',
@@ -188,6 +189,7 @@ const messages = {
     recoveryIdentityMismatch: 'Die bestätigte Cluster-ID stimmt nicht mit der Paketvorschau überein.',
     recoveryVaultLocked: 'Entsperren Sie den Launcher-Tresor, bevor Sie geschütztes Material importieren.',
     recoveryFailed: 'Das Wiederherstellungspaket konnte nicht sicher verarbeitet werden.'
+    ,capabilityEyebrow: 'Cluster-Entwurf', capabilityTitle: 'Cluster-Fähigkeiten', capabilityDescription: 'Erforderliche Plattformdienste bleiben aktiviert. Wählen Sie Community-Anwendungen und prüfen Sie die genaue geheimnisfreie GitOps-Änderung, bevor sie vorgeschlagen wird.', capabilityMode: 'Auswahlmodus', capabilityMinimal: 'Minimal', capabilityCollaboration: 'Zusammenarbeit', capabilityFull: 'Vollständig', capabilityCustom: 'Benutzerdefiniert', capabilityRelease: 'Fixierte SmallWorlds-Version', capabilityRepository: 'Privates Overlay-Repository', capabilityDomain: 'Basis-Domain', capabilityCommunityApps: 'Community-Anwendungen', capabilityReview: 'GitOps-Overlay prüfen', capabilityPreview: 'Änderungsplan', capabilityPlanReady: 'Deterministische Overlay-Vorschau', capabilityMemory: 'Geschätzter Arbeitsspeicher', capabilityStorage: 'Geschätzter Speicher', capabilityExposure: 'Freigabe', capabilityProtection: 'Schutzerwartungen', capabilityOverlayDiff: 'GitOps-Overlay-Diff'
   }
 } as const;
 

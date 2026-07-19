@@ -9,6 +9,10 @@ export type VaultStatus = components['schemas']['VaultStatus'];
 export type CredentialMetadata = components['schemas']['CredentialMetadata'];
 export type RecoveryBundlePreview = components['schemas']['RecoveryBundlePreview'];
 export type RecoveryBundleImportResult = components['schemas']['RecoveryBundleImportResult'];
+export type CapabilityMode = 'minimal' | 'collaboration' | 'full' | 'custom';
+export type CapabilityEntry = { id: string; displayKey: string; category: 'platform-service' | 'community-application'; required: boolean; dependencies: string[]; resources: { memoryMi: number; storageGi: number }; exposure: string; protection: string };
+export type CapabilityCatalog = { version: number; capabilities: CapabilityEntry[] };
+export type CapabilityPlanResult = { plan: ChangePlan; overlay: { diff: string; assessment: { communityIds: string[]; resources: { memoryMi: number; storageGi: number }; exposure: string[]; protection: string[] } } };
 
 let csrfToken = '';
 
@@ -95,6 +99,9 @@ export const api = {
     request<RecoveryBundlePreview>('/api/v1/recovery-bundles/preview', { method: 'POST', body: JSON.stringify({ bundle, ...credential }) }),
   importRecoveryBundle: (bundle: string, expectedProfileId: string, credential: { passphrase?: string; identity?: string }) =>
     request<RecoveryBundleImportResult>('/api/v1/recovery-bundles/import', { method: 'POST', body: JSON.stringify({ bundle, expectedProfileId, ...credential }) }),
+  getCapabilities: () => request<CapabilityCatalog>('/api/v1/capabilities'),
+  planCapabilities: (input: { profileId: string; mode: CapabilityMode; communityIds: string[]; release: string; repositoryUrl: string; domain: string }) =>
+    request<CapabilityPlanResult>('/api/v1/capabilities/plan', { method: 'POST', body: JSON.stringify(input) }),
   createVerificationPlan: (profileId: string) => request<ChangePlan>('/api/v1/plans', { method: 'POST', body: JSON.stringify({ profileId, intent: 'VerifyLauncher' }) }),
   approvePlan: (planId: string) => request<WorkflowRun>(`/api/v1/plans/${planId}/approve`, { method: 'POST' }),
   getRun: (runId: string) => request<WorkflowRun>(`/api/v1/runs/${runId}`)

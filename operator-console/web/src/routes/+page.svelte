@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { api, initializeSession, type ChangePlan, type ClusterProfile, type CredentialMetadata, type RecoveryBundlePreview, type SetupJourney, type VaultStatus, type WorkflowRun } from '$lib/api';
+  import { api, initializeSession, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type RecoveryBundlePreview, type SetupJourney, type VaultStatus, type WorkflowRun } from '$lib/api';
   import { translate, type Locale, type MessageKey } from '$lib/i18n';
 
   type ActivityEvent = {
@@ -37,6 +37,15 @@
   let recoveryBusy = $state(false);
   let recoveryError = $state('');
   let recoveryNotice = $state('');
+  let capabilityCatalog: CapabilityCatalog | null = $state(null);
+  let capabilityMode: CapabilityMode = $state('minimal');
+  let capabilityApps: string[] = $state([]);
+  let capabilityRelease = $state('v1.0.0');
+  let capabilityRepositoryURL = $state('');
+  let capabilityDomain = $state('');
+  let capabilityPlan: CapabilityPlanResult | null = $state(null);
+  let capabilityError = $state('');
+  let capabilityBusy = $state(false);
   let creating = $state(true);
   let editing = $state(false);
   let busy = $state(false);
@@ -55,7 +64,7 @@
   onMount(async () => {
     try {
       await initializeSession();
-      [profiles, vaultStatus] = await Promise.all([api.listProfiles(), api.getVaultStatus()]);
+      [profiles, vaultStatus, capabilityCatalog] = await Promise.all([api.listProfiles(), api.getVaultStatus(), api.getCapabilities()]);
       const remembered = window.localStorage.getItem('smallworlds.activeProfile');
       const selected = profiles.find((profile) => profile.id === remembered) ?? profiles[0];
       if (selected) {
@@ -254,6 +263,24 @@
       recoveryError = recoveryErrorMessage(reason instanceof Error ? reason.message : 'recovery_failed');
     } finally {
       recoveryBusy = false;
+    }
+  }
+
+  function toggleCapability(id: string, checked: boolean): void {
+    capabilityApps = checked ? [...new Set([...capabilityApps, id])].sort() : capabilityApps.filter((app) => app !== id);
+  }
+
+  async function planCapabilities(): Promise<void> {
+    if (!activeProfile) return;
+    capabilityBusy = true;
+    capabilityError = '';
+    try {
+      capabilityPlan = await api.planCapabilities({ profileId: activeProfile.id, mode: capabilityMode, communityIds: capabilityApps, release: capabilityRelease, repositoryUrl: capabilityRepositoryURL, domain: capabilityDomain });
+    } catch (reason) {
+      capabilityPlan = null;
+      capabilityError = reason instanceof Error ? reason.message : 'invalid_capability_selection';
+    } finally {
+      capabilityBusy = false;
     }
   }
 
@@ -529,6 +556,30 @@
           {#if run}<small>{run.currentCheckpoint}</small>{/if}
         </div>
 
+        <section class="card capability-card" aria-labelledby="capability-title">
+          <p class="eyebrow">{message('capabilityEyebrow')}</p>
+          <h2 id="capability-title">{message('capabilityTitle')}</h2>
+          <p class="muted">{message('capabilityDescription')}</p>
+          {#if capabilityError}<p class="inline-error" role="alert">{capabilityError}</p>{/if}
+          <form onsubmit={(event) => { event.preventDefault(); void planCapabilities(); }}>
+            <div class="form-grid">
+              <label><span>{message('capabilityMode')}</span><select bind:value={capabilityMode} onchange={() => capabilityPlan = null}><option value="minimal">{message('capabilityMinimal')}</option><option value="collaboration">{message('capabilityCollaboration')}</option><option value="full">{message('capabilityFull')}</option><option value="custom">{message('capabilityCustom')}</option></select></label>
+              <label><span>{message('capabilityRelease')}</span><input bind:value={capabilityRelease} required pattern="v[0-9]+\.[0-9]+\.[0-9]+.*" /></label>
+            </div>
+            <div class="form-grid">
+              <label><span>{message('capabilityRepository')}</span><input type="url" bind:value={capabilityRepositoryURL} required placeholder="https://github.com/example/private-overlay.git" /></label>
+              <label><span>{message('capabilityDomain')}</span><input bind:value={capabilityDomain} required placeholder="home.example" /></label>
+            </div>
+            {#if capabilityMode === 'custom'}
+              <fieldset><legend>{message('capabilityCommunityApps')}</legend>{#each capabilityCatalog?.capabilities.filter((entry) => entry.category === 'community-application') ?? [] as entry (entry.id)}<label class="check"><input type="checkbox" checked={capabilityApps.includes(entry.id)} onchange={(event) => toggleCapability(entry.id, (event.currentTarget as HTMLInputElement).checked)} /><span>{entry.id} · {entry.resources.memoryMi} MiB / {entry.resources.storageGi} GiB</span></label>{/each}</fieldset>
+            {/if}
+            <div class="actions"><button type="submit" disabled={capabilityBusy}>{message('capabilityReview')}</button></div>
+          </form>
+          {#if capabilityPlan}
+            <section class="capability-preview" aria-labelledby="capability-preview-title"><p class="eyebrow">{message('capabilityPreview')}</p><h3 id="capability-preview-title">{message('capabilityPlanReady')}</h3><dl><div><dt>{message('capabilityMemory')}</dt><dd>{capabilityPlan.overlay.assessment.resources.memoryMi} MiB</dd></div><div><dt>{message('capabilityStorage')}</dt><dd>{capabilityPlan.overlay.assessment.resources.storageGi} GiB</dd></div><div><dt>{message('capabilityExposure')}</dt><dd>{capabilityPlan.overlay.assessment.exposure.join(', ')}</dd></div><div><dt>{message('capabilityProtection')}</dt><dd>{capabilityPlan.overlay.assessment.protection.join(', ')}</dd></div></dl><div data-testid="overlay-diff" class="overlay-diff" role="textbox" aria-readonly="true" tabindex="0" aria-label={message('capabilityOverlayDiff')}>{capabilityPlan.overlay.diff}</div></section>
+          {/if}
+        </section>
+
 		<section class="card vault-card" aria-labelledby="vault-title">
 			<div class="vault-heading">
 				<div>
@@ -699,6 +750,13 @@
 	.credential-form { margin-top: 1.25rem; border-top: 1px solid #dce5de; padding-top: 1.25rem; }
 	.credential-metadata { margin: 1.25rem 0 0; }
 	.recovery-card { margin: 0 0 2rem; border-left: 5px solid #ef9f27; }
+	.capability-card { margin: 0 0 2rem; border-left: 5px solid #315c9a; }
+	.capability-card fieldset { display: grid; gap: .6rem; border: 1px solid #dce5de; border-radius: .65rem; padding: 1rem; }
+	.capability-card legend { font-weight: 750; }
+	.capability-card .check { display: flex; align-items: center; gap: .65rem; font-weight: 600; }
+	.capability-card .check input { width: 1.1rem; min-height: 1.1rem; }
+	.capability-preview { margin-top: 1.25rem; border-top: 1px solid #dce5de; padding-top: 1.25rem; }
+	.overlay-diff { overflow: auto; max-height: 22rem; padding: 1rem; border-radius: .65rem; background: #14241b; color: #e9f4eb; white-space: pre; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 	.recovery-form { margin-top: 1.25rem; border-top: 1px solid #dce5de; padding-top: 1.25rem; }
 	.recovery-form h3, .recovery-preview h3 { margin: 0; }
 	.recovery-preview { margin-top: 1.25rem; border-top: 1px solid #dce5de; padding-top: 1.25rem; }

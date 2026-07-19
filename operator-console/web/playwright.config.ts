@@ -9,7 +9,7 @@ export default defineConfig({
     trace: 'retain-on-failure'
   },
   webServer: {
-    command: 'npm run build && cd .. && go run ./cmd/smallworlds-admin --port 4174 --data-dir .tmp/e2e --token e2e-token --no-browser',
+    command: 'npm run build && cd .. && go run ./cmd/smallworlds-admin --port 4174 --data-dir .tmp/e2e-capabilities --token e2e-token --no-browser',
     url: 'http://127.0.0.1:4174',
     reuseExistingServer: false,
     timeout: 120_000

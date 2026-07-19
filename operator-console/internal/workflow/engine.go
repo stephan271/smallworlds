@@ -92,6 +92,10 @@ func (engine *Engine) ResumeActive(ctx context.Context) error {
 }
 
 func (engine *Engine) PlanVerification(ctx context.Context, profileID string) (Plan, error) {
+	return engine.PlanChange(ctx, profileID, "VerifyLauncher", "launcher.verification.recorded", []Effect{{Code: "launcher.verification.recorded", MessageKey: "plan.effect.verification"}})
+}
+
+func (engine *Engine) PlanChange(ctx context.Context, profileID, intent, detail string, effects []Effect) (Plan, error) {
 	profile, err := engine.store.GetProfile(ctx, profileID)
 	if err != nil {
 		return Plan{}, err
@@ -101,18 +105,18 @@ func (engine *Engine) PlanVerification(ctx context.Context, profileID string) (P
 		return Plan{}, err
 	}
 	createdAt := time.Now().UTC()
-	digestInput := fmt.Sprintf("VerifyLauncher\n%s\n%d\nlauncher.verification.recorded", profile.ID, profile.Revision)
+	digestInput := fmt.Sprintf("%s\n%s\n%d\n%s", intent, profile.ID, profile.Revision, detail)
 	digestBytes := sha256.Sum256([]byte(digestInput))
 	plan := Plan{
 		ID:        id,
 		ProfileID: profile.ID,
-		Intent:    "VerifyLauncher",
+		Intent:    intent,
 		Digest:    hex.EncodeToString(digestBytes[:]),
 		Status:    "planned",
 		Preconditions: Preconditions{
 			ProfileRevision: profile.Revision,
 		},
-		Effects:   []Effect{{Code: "launcher.verification.recorded", MessageKey: "plan.effect.verification"}},
+		Effects:   effects,
 		Risks:     []Risk{},
 		CreatedAt: createdAt,
 	}
