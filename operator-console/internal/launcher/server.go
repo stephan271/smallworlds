@@ -1390,7 +1390,7 @@ func (server *Server) inspectNode(response http.ResponseWriter, request *http.Re
 		writeError(response, http.StatusInternalServerError, "node_inspection_failed")
 		return
 	}
-	credentials, err := server.storeNodeCredentials(input.ProfileID, input.Authentication)
+	credentials, err := server.storeNodeCredentials(request.Context(), input.ProfileID, input.Authentication)
 	if errors.Is(err, vault.ErrLocked) {
 		writeError(response, http.StatusLocked, "vault_locked")
 		return
@@ -1411,7 +1411,7 @@ func (server *Server) inspectNode(response http.ResponseWriter, request *http.Re
 	writeJSON(response, http.StatusOK, map[string]any{"target": target, "report": report, "assessment": result})
 }
 
-func (server *Server) storeNodeCredentials(profileID string, input struct {
+func (server *Server) storeNodeCredentials(ctx context.Context, profileID string, input struct {
 	Kind          nodeinspect.AuthenticationKind `json:"kind"`
 	Password      string                         `json:"password"`
 	PrivateKey    string                         `json:"privateKey"`
@@ -1430,6 +1430,10 @@ func (server *Server) storeNodeCredentials(profileID string, input struct {
 			continue
 		}
 		if err := server.vault.Store(profileID+"/node-"+secret.key, secret.value); err != nil {
+			return nodeinspect.Credentials{}, err
+		}
+		expiresAt := time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC)
+		if err := server.store.UpsertCredentialReference(ctx, state.CredentialReference{ProfileID: profileID, Kind: "node-" + secret.key, VaultKey: profileID + "/node-" + secret.key, Source: "operator", ExpiresAt: expiresAt, RotationStatus: credentialRotationStatus(expiresAt, time.Now())}); err != nil {
 			return nodeinspect.Credentials{}, err
 		}
 	}

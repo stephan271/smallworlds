@@ -32,6 +32,9 @@ func InspectRemote(ctx context.Context, target Target, credentials Credentials, 
 		return Report{}, Assessment{}, err
 	}
 	defer client.Close()
+	if err := ValidateSudoCredential(client, credentials.SudoPassword); err != nil {
+		return Report{}, Assessment{}, err
+	}
 	session, err := client.NewSession()
 	if err != nil {
 		return Report{}, Assessment{}, fmt.Errorf("start fixed SSH inspection session: %w", err)

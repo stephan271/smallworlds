@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -140,4 +141,23 @@ func DialTrusted(ctx context.Context, target Target, credentials Credentials, fi
 		return nil, fmt.Errorf("establish trusted SSH connection: %w", err)
 	}
 	return ssh.NewClient(clientConnection, channels, requests), nil
+}
+
+// ValidateSudoCredential tests only sudo authorization when the SSH account is
+// not root and an explicit separate sudo password was supplied. It never runs
+// a privileged provisioning command.
+func ValidateSudoCredential(client *ssh.Client, password string) error {
+	if password == "" {
+		return nil
+	}
+	session, err := client.NewSession()
+	if err != nil {
+		return fmt.Errorf("start sudo validation: %w", err)
+	}
+	defer session.Close()
+	session.Stdin = strings.NewReader(password + "\n")
+	if err := session.Run("sudo -S -p '' -v"); err != nil {
+		return fmt.Errorf("validate sudo credential: %w", err)
+	}
+	return nil
 }
