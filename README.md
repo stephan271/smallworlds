@@ -95,6 +95,10 @@ For the **hetzner** target, these steps are required:
 3. In the Hetzner Cloud Console, navigate to **Primary IPs** and click **Create Primary IP**. Select IPv4, choose your target location (e.g., Helsinki/hel1), and name it exactly `smallworlds-ip` (or `smallworlds-ip-dev` if deploying a `.dev` environment — Hetzner resource names always use the dash form, regardless of the DNS syntax). Leave it unassigned. Terraform will attach it during provisioning.
 
 ### 4. Cluster Provisioning
+
+> [!WARNING]
+> Before your **first** run against a fresh `hetzner` node (or a first-time internet-exposed `local` node), make sure your overlay repo (`my-community-config`, from step 2) is pinned to the **latest** `smallworlds` release tag — see "Managing Updates" below. Some infrastructure-level changes (cloud-init) take effect immediately on a brand-new node, while their corresponding ArgoCD-managed component only appears once your overlay's pinned tag includes it. If those are out of sync at first boot, the result isn't a degraded app or two — it can be a total outage (e.g. every TLS certificate stuck, no app reachable) with nothing obviously pointing at the cause. A newly created overlay may not have caught up via the weekly Renovate PR yet, so check/bump it manually first.
+
 Execute the bootstrap script to provision the server and install Kubernetes/ArgoCD. On the `hetzner` target it provisions the VM and DNS via Terraform; on the `local` target it bootstraps your LAN machine over SSH (asking for its SSH target, e.g. `root@192.168.1.50`, or `localhost` to install on the machine you are running the script on).
 
 ```bash
