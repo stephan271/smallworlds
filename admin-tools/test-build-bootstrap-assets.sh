@@ -55,11 +55,13 @@ archive_two="$output_two/smallworlds-bootstrap-v1.2.24-linux-amd64.tar.gz"
 [ -f "$archive_one" ]
 [ "$(sha256sum "$archive_one" | awk '{print $1}')" = "$(sha256sum "$archive_two" | awk '{print $1}')" ]
 
-expected_entries=$'./\n./VERSION\n./bootstrap-local-node.sh\n./metadata.json\n./run-local-node-bootstrap.sh\n./third-party/\n./third-party/argocd-install.yaml\n./third-party/k3s-install.sh'
+expected_entries=$'./\n./VERSION\n./bootstrap-local-node.sh\n./metadata.json\n./run-local-node-bootstrap.sh\n./third-party/\n./third-party/argocd-install.yaml\n./third-party/argocd-version\n./third-party/k3s-install.sh\n./third-party/k3s-version'
 [ "$(tar -tzf "$archive_one")" = "$expected_entries" ]
 [ "$(tar -xOzf "$archive_one" ./VERSION)" = 'v1.2.24' ]
 tar -xOzf "$archive_one" ./metadata.json | grep -F '"release": "v1.2.24"' >/dev/null
 tar -xOzf "$archive_one" ./metadata.json | grep -F '"version": "v1.31.5+k3s1"' >/dev/null
+[ "$(tar -xOzf "$archive_one" ./third-party/k3s-version)" = 'v1.31.5+k3s1' ]
+[ "$(tar -xOzf "$archive_one" ./third-party/argocd-version)" = 'v2.14.5' ]
 
 if PATH="$mock_bin:$PATH" FIXTURE_DIRECTORY="$fixture_directory" "$builder" \
     --release v1.2.24 \

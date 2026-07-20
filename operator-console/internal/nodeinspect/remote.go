@@ -24,7 +24,12 @@ if test "$(id -u 2>/dev/null)" = 0; then echo privilege=root; elif sudo -n true 
 echo kubernetes="$(test -d /etc/rancher/k3s && echo present || echo absent)"
 echo data="$(test -d /mnt/smallworlds-data && echo present || echo absent)"
 echo profile_marker="$(cat /etc/smallworlds/profile-id 2>/dev/null | head -n 1 || true)"
-echo interrupted="$(test -f /etc/smallworlds/bootstrap-interrupted && echo 1 || echo 0)"`
+echo interrupted="$(test -f /etc/smallworlds/bootstrap-interrupted && echo 1 || echo 0)"
+echo bootstrap_run_id="$(cat /etc/smallworlds/bootstrap-run-id 2>/dev/null | head -n 1 || true)"
+echo k3s_ready="$(test -f /etc/smallworlds/k3s-ready && echo 1 || echo 0)"
+echo argocd_ready="$(test -f /etc/smallworlds/argocd-ready && echo 1 || echo 0)"
+echo overlay_applied="$(test -f /etc/smallworlds/overlay-applied && echo 1 || echo 0)"
+echo bootstrap_complete="$(test -f /etc/smallworlds/bootstrap-complete && echo 1 || echo 0)"`
 
 func InspectRemote(ctx context.Context, target Target, credentials Credentials, fingerprint, profileID string, requirements Requirements) (Report, Assessment, error) {
 	client, err := DialTrusted(ctx, target, credentials, fingerprint)
@@ -59,7 +64,7 @@ func ParseRemoteReport(output, profileID string) (Report, error) {
 		if len(parts) != 2 {
 			continue
 		}
-		if _, known := map[string]bool{"os": true, "arch": true, "systemd": true, "cpu": true, "memory_mi": true, "disk_gi": true, "ports": true, "kernel_ready": true, "privilege": true, "kubernetes": true, "data": true, "profile_marker": true, "interrupted": true}[parts[0]]; known {
+		if _, known := map[string]bool{"os": true, "arch": true, "systemd": true, "cpu": true, "memory_mi": true, "disk_gi": true, "ports": true, "kernel_ready": true, "privilege": true, "kubernetes": true, "data": true, "profile_marker": true, "interrupted": true, "bootstrap_run_id": true, "k3s_ready": true, "argocd_ready": true, "overlay_applied": true, "bootstrap_complete": true}[parts[0]]; known {
 			values[parts[0]] = strings.TrimSpace(parts[1])
 		}
 	}
@@ -98,7 +103,7 @@ func ParseRemoteReport(output, profileID string) (Report, error) {
 	}
 	marker := values["profile_marker"]
 	owned := marker != "" && marker == profileID
-	installation := Installation{Kubernetes: ownership(values["kubernetes"], owned), SmallWorldsData: ownership(values["data"], owned), Interrupted: values["interrupted"] == "1"}
+	installation := Installation{Kubernetes: ownership(values["kubernetes"], owned), SmallWorldsData: ownership(values["data"], owned), Interrupted: values["interrupted"] == "1", BootstrapRunID: values["bootstrap_run_id"], K3SReady: values["k3s_ready"] == "1", ArgoCDReady: values["argocd_ready"] == "1", OverlayApplied: values["overlay_applied"] == "1", Complete: values["bootstrap_complete"] == "1"}
 	if owned {
 		installation.ProfileID = marker
 	}

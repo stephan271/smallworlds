@@ -73,6 +73,11 @@ type Installation struct {
 	SmallWorldsData Ownership `json:"smallworldsData"`
 	ProfileID       string    `json:"profileId,omitempty"`
 	Interrupted     bool      `json:"interrupted"`
+	BootstrapRunID  string    `json:"bootstrapRunId,omitempty"`
+	K3SReady        bool      `json:"k3sReady"`
+	ArgoCDReady     bool      `json:"argoCdReady"`
+	OverlayApplied  bool      `json:"overlayApplied"`
+	Complete        bool      `json:"complete"`
 }
 
 type Report struct {

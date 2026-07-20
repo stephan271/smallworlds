@@ -231,6 +231,34 @@ func (manager *Manager) Acquire(ctx context.Context, release string) ([]Status, 
 	return statuses, nil
 }
 
+// OpenVerified returns a read-only handle to one already verified asset. It
+// keeps cache paths private while giving Launcher-owned executors a streaming
+// input; callers cannot select an arbitrary local executable or URL.
+func (manager *Manager) OpenVerified(release, id string) (*os.File, Descriptor, error) {
+	descriptors, err := manager.catalog.Resolve(release)
+	if err != nil {
+		return nil, Descriptor{}, err
+	}
+	for _, descriptor := range descriptors {
+		if descriptor.ID != id {
+			continue
+		}
+		status, err := manager.status(descriptor)
+		if err != nil {
+			return nil, Descriptor{}, err
+		}
+		if status.State != StateReady {
+			return nil, Descriptor{}, fmt.Errorf("%w: asset %s is not ready", ErrIntegrity, id)
+		}
+		file, err := os.Open(manager.finalPath(descriptor))
+		if err != nil {
+			return nil, Descriptor{}, fmt.Errorf("open verified bootstrap asset: %w", err)
+		}
+		return file, descriptor, nil
+	}
+	return nil, Descriptor{}, ErrUnknownRelease
+}
+
 func (manager *Manager) status(descriptor Descriptor) (Status, error) {
 	finalPath := manager.finalPath(descriptor)
 	if info, err := os.Stat(finalPath); err == nil {

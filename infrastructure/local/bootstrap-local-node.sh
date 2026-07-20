@@ -16,6 +16,9 @@
 #   DOMAIN            root domain for the cluster (e.g. smallworlds.network)
 #   ENV_EXT           subdomain-syntax env extension (".dev"); "" for prod
 #   ROOT_APP_GIT_URL  overlay repo for the ArgoCD root app; "" = no root app
+#   ROOT_APP_GIT_REVISION exact reviewed overlay commit for the ArgoCD root
+#                     app. Required whenever ROOT_APP_GIT_URL is set; HEAD
+#                     must never change a deployment after approval.
 #   ACME_EMAIL        Let's Encrypt account email; "" = self-signed issuer.
 #                     Certificates are validated via DNS01 (Hetzner DNS
 #                     webhook), so this works from behind NAT with no port
@@ -33,6 +36,11 @@
 #                     /var/lib/smallworlds-data); symlinked to
 #                     /mnt/smallworlds-data, which the manifests expect
 #   NODE_NAME         stable k3s node name (default smallworlds-local-node)
+#   PROFILE_ID        Launcher profile that owns this installation. Required
+#                     for safe resume; never use a node already owned by a
+#                     different profile.
+#   BOOTSTRAP_RUN_ID  Launcher-generated identifier recorded in durable
+#                     checkpoints (required).
 #   SECRETS_MANIFEST  optional path to a pre-generated secrets manifest that
 #                     is moved into the k3s auto-apply manifests dir
 set -euo pipefail
@@ -88,22 +96,71 @@ source "$CONFIG_FILE"
 DOMAIN="${DOMAIN:?DOMAIN must be set in $CONFIG_FILE}"
 ENV_EXT="${ENV_EXT:-}"
 ROOT_APP_GIT_URL="${ROOT_APP_GIT_URL:-}"
+ROOT_APP_GIT_REVISION="${ROOT_APP_GIT_REVISION:-}"
 ACME_EMAIL="${ACME_EMAIL:-}"
 MANAGE_DNS="${MANAGE_DNS:-}"
 DATA_DIR="${DATA_DIR:-/var/lib/smallworlds-data}"
 NODE_NAME="${NODE_NAME:-smallworlds-local-node}"
+PROFILE_ID="${PROFILE_ID:?PROFILE_ID must be set in $CONFIG_FILE}"
+BOOTSTRAP_RUN_ID="${BOOTSTRAP_RUN_ID:?BOOTSTRAP_RUN_ID must be set in $CONFIG_FILE}"
 SECRETS_MANIFEST="${SECRETS_MANIFEST:-}"
+
+# This script is an execution payload, not an ambient-upstream installer. The
+# Launcher obtains this directory from a signed release archive before opening
+# SSH, so all executable and manifest inputs are already verified.
+BOOTSTRAP_ASSET_DIR="${SMALLWORLDS_BOOTSTRAP_ASSET_DIR:-}"
+if [ -z "$BOOTSTRAP_ASSET_DIR" ]; then
+    echo -e "${RED}This bootstrap must be run from a verified SmallWorlds release archive.${NC}" >&2
+    exit 1
+fi
+K3S_INSTALLER="$BOOTSTRAP_ASSET_DIR/third-party/k3s-install.sh"
+K3S_VERSION_FILE="$BOOTSTRAP_ASSET_DIR/third-party/k3s-version"
+ARGOCD_MANIFEST="$BOOTSTRAP_ASSET_DIR/third-party/argocd-install.yaml"
+for asset in "$K3S_INSTALLER" "$K3S_VERSION_FILE" "$ARGOCD_MANIFEST"; do
+    if [ ! -r "$asset" ]; then
+        echo -e "${RED}Verified bootstrap archive is incomplete: $asset${NC}" >&2
+        exit 1
+    fi
+done
+K3S_VERSION="$(tr -d '\r\n' < "$K3S_VERSION_FILE")"
+if ! [[ "$K3S_VERSION" =~ ^[A-Za-z0-9][A-Za-z0-9._+~-]*$ ]]; then
+    echo -e "${RED}Verified bootstrap archive has an invalid k3s version.${NC}" >&2
+    exit 1
+fi
+
+MARKER_DIR=/etc/smallworlds
+EXISTING_PROFILE_ID=""
+if [ -f "$MARKER_DIR/profile-id" ]; then
+    EXISTING_PROFILE_ID="$(cat "$MARKER_DIR/profile-id")"
+fi
+if [ -n "$EXISTING_PROFILE_ID" ] && [ "$EXISTING_PROFILE_ID" != "$PROFILE_ID" ]; then
+    echo -e "${RED}This node belongs to a different SmallWorlds profile and will not be adopted.${NC}" >&2
+    exit 1
+fi
 
 # ------------------------------------------------------------------
 # Preflight checks
 # ------------------------------------------------------------------
-if command -v k3s >/dev/null 2>&1 || systemctl is-active --quiet k3s 2>/dev/null; then
+if { command -v k3s >/dev/null 2>&1 || systemctl is-active --quiet k3s 2>/dev/null; } && { [ "$EXISTING_PROFILE_ID" != "$PROFILE_ID" ] || [ ! -f "$MARKER_DIR/k3s-ready" ]; }; then
     echo -e "${RED}k3s is already installed on this machine.${NC}" >&2
     echo "A stale cluster must never be adopted silently. If this machine previously" >&2
     echo "ran SmallWorlds (or anything else on k3s), remove it first:" >&2
     echo "    sudo $0 --uninstall" >&2
     exit 1
 fi
+
+# A node is only claimed after the foreign-installation guard above. Markers
+# are deliberately small, durable evidence used by the Launcher to resume at
+# safe boundaries after an SSH or process interruption.
+mkdir -p "$MARKER_DIR"
+chmod 700 "$MARKER_DIR"
+printf '%s\n' "$PROFILE_ID" > "$MARKER_DIR/profile-id"
+printf '%s\n' "$BOOTSTRAP_RUN_ID" > "$MARKER_DIR/bootstrap-run-id"
+touch "$MARKER_DIR/bootstrap-started"
+on_bootstrap_failure() {
+    touch "$MARKER_DIR/bootstrap-interrupted"
+}
+trap on_bootstrap_failure ERR INT TERM
 
 MEM_GB=$(awk '/MemTotal/ {printf "%d", $2/1024/1024}' /proc/meminfo)
 if [ "$MEM_GB" -lt 16 ]; then
@@ -165,6 +222,7 @@ if [ -d /var/lib/rancher/k3s ] && [ ! -L /var/lib/rancher/k3s ]; then
     rm -rf /var/lib/rancher/k3s
 fi
 ln -sfn "$DATA_DIR/k3s" /var/lib/rancher/k3s
+touch "$MARKER_DIR/data-ready"
 
 # ------------------------------------------------------------------
 # 3. Bootstrap manifests (auto-applied by k3s on startup)
@@ -351,11 +409,14 @@ fi
 #    installer pulls in k3s-selinux automatically.
 # ------------------------------------------------------------------
 echo -e "${CYAN}Installing k3s...${NC}"
-curl -sfL https://get.k3s.io | sh -s - server --cluster-init --node-ip="$NODE_IP" --node-name="$NODE_NAME" --disable traefik --kubelet-arg=registry-qps=50 --kubelet-arg=registry-burst=100
+if [ ! -f "$MARKER_DIR/k3s-ready" ]; then
+    INSTALL_K3S_VERSION="$K3S_VERSION" sh "$K3S_INSTALLER" server --cluster-init --node-ip="$NODE_IP" --node-name="$NODE_NAME" --disable traefik --kubelet-arg=registry-qps=50 --kubelet-arg=registry-burst=100
+fi
 
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 echo -e "${CYAN}Waiting for the node to become Ready...${NC}"
 until kubectl get nodes 2>/dev/null | grep -v NotReady | grep -q Ready; do sleep 5; done
+touch "$MARKER_DIR/k3s-ready"
 
 # Export a kubeconfig for retrieval by the installer (world-unreadable, but
 # owned by the invoking sudo user so a non-root scp can pick it up).
@@ -370,7 +431,7 @@ if [ -n "${SUDO_USER:-}" ]; then chown "$SUDO_USER" "$EXPORT_KUBECONFIG"; fi
 # ------------------------------------------------------------------
 echo -e "${CYAN}Installing ArgoCD...${NC}"
 kubectl create namespace argocd 2>/dev/null || true
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml --server-side --force-conflicts
+kubectl apply -n argocd -f "$ARGOCD_MANIFEST" --server-side --force-conflicts
 cat > /tmp/argocd-cm-patch.yaml <<'EOF'
 data:
   kustomize.buildOptions: "--enable-helm"
@@ -395,11 +456,16 @@ kubectl patch cm/argocd-cm -n argocd --type=merge --patch-file /tmp/argocd-cm-pa
 # traffic back to https forever and the deploy.<domain> UI never loads
 kubectl patch cm/argocd-cmd-params-cm -n argocd --type=merge -p '{"data":{"server.insecure":"true"}}'
 kubectl -n argocd rollout restart deployment argocd-server
+touch "$MARKER_DIR/argocd-ready"
 
 # ------------------------------------------------------------------
 # 6. ArgoCD root app (app-of-apps pointing at the community overlay repo)
 # ------------------------------------------------------------------
 if [ -n "$ROOT_APP_GIT_URL" ]; then
+    if ! [[ "$ROOT_APP_GIT_REVISION" =~ ^[0-9a-f]{40,64}$ ]]; then
+        echo -e "${RED}ROOT_APP_GIT_REVISION must be the reviewed overlay commit.${NC}" >&2
+        exit 1
+    fi
     cat > /tmp/argocd-root-app.yaml <<ROOTAPP
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -412,7 +478,7 @@ spec:
   project: default
   source:
     repoURL: '${ROOT_APP_GIT_URL}'
-    targetRevision: HEAD
+    targetRevision: '${ROOT_APP_GIT_REVISION}'
     path: .
   destination:
     server: 'https://kubernetes.default.svc'
@@ -435,10 +501,14 @@ spec:
       - SkipDryRunOnMissingResource=true
 ROOTAPP
     kubectl apply -f /tmp/argocd-root-app.yaml
+    touch "$MARKER_DIR/overlay-applied"
 fi
 
 # The config file may sit in /tmp next to the secrets — remove both traces.
 rm -f "$CONFIG_FILE"
+rm -f "$MARKER_DIR/bootstrap-interrupted"
+touch "$MARKER_DIR/bootstrap-complete"
+trap - ERR INT TERM
 
 echo -e "${GREEN}Local node bootstrap complete. Node IP: ${NODE_IP}${NC}"
 echo -e "${GREEN}Kubeconfig exported to ${EXPORT_KUBECONFIG} (retrieved and deleted by the installer).${NC}"

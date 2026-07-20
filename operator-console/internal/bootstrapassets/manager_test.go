@@ -104,6 +104,36 @@ func TestAcquireRejectsUnknownReleaseAndInvalidIntegrityBeforeCaching(t *testing
 	}
 }
 
+func TestOpenVerifiedExposesOnlyAnAlreadyVerifiedAssetStream(t *testing.T) {
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	contents := []byte("verified archive")
+	digest := sha256.Sum256(contents)
+	digestText := fmt.Sprintf("%x", digest[:])
+	descriptor := bootstrapassets.Descriptor{ID: "bootstrap-contract", Release: "v1.2.3", URL: "https://assets.example.invalid/bootstrap-contract.tar.gz", SHA256: digestText, Signature: base64.StdEncoding.EncodeToString(ed25519.Sign(privateKey, []byte(digestText))), PublicKey: publicKey, Destination: "assets.example.invalid"}
+	manager, err := bootstrapassets.NewManager(t.TempDir(), bootstrapassets.Catalog{Descriptors: []bootstrapassets.Descriptor{descriptor}}, &memoryFetcher{contents: map[string][]byte{descriptor.URL: contents}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := manager.OpenVerified(descriptor.Release, descriptor.ID); err == nil {
+		t.Fatal("opened an asset before verification")
+	}
+	if _, err := manager.Acquire(context.Background(), descriptor.Release); err != nil {
+		t.Fatal(err)
+	}
+	file, opened, err := manager.OpenVerified(descriptor.Release, descriptor.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	actual, err := io.ReadAll(file)
+	if err != nil || string(actual) != string(contents) || opened.URL != descriptor.URL {
+		t.Fatalf("opened asset = %q, descriptor = %#v, err = %v", actual, opened, err)
+	}
+}
+
 func TestCatalogRejectsNonHTTPSAndUnsafeAssetDescriptors(t *testing.T) {
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {

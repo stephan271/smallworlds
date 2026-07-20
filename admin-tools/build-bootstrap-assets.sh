@@ -111,6 +111,8 @@ mkdir -p "$stage/third-party"
 
 download_verified "$k3s_installer_url" "$k3s_installer_sha256" "$stage/third-party/k3s-install.sh"
 download_verified "$argocd_manifest_url" "$argocd_manifest_sha256" "$stage/third-party/argocd-install.yaml"
+printf '%s\n' "$k3s_version" > "$stage/third-party/k3s-version"
+printf '%s\n' "$argocd_version" > "$stage/third-party/argocd-version"
 install -m 0755 "$bootstrap_script" "$stage/bootstrap-local-node.sh"
 install -m 0755 /dev/stdin "$stage/run-local-node-bootstrap.sh" <<'RUNNER'
 #!/usr/bin/env sh
