@@ -4,6 +4,7 @@ package nodeinspect
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,7 +16,7 @@ import (
 
 // InspectSameHost performs only local reads. It does not elevate privileges,
 // create paths, install packages, or modify network/kernel configuration.
-func InspectSameHost(profileID string) (Report, error) {
+func InspectSameHost(profileID, dataDirectory string) (Report, error) {
 	machineID, err := os.ReadFile("/etc/machine-id")
 	if err != nil {
 		return Report{}, fmt.Errorf("read same-host machine identity: %w", err)
@@ -27,7 +28,7 @@ func InspectSameHost(profileID string) (Report, error) {
 	if err != nil {
 		return Report{}, err
 	}
-	disk, err := localDiskGi()
+	disk, err := localDiskGi(dataDirectory)
 	if err != nil {
 		return Report{}, err
 	}
@@ -78,12 +79,20 @@ func localMemoryMi() (int, error) {
 	return 0, fmt.Errorf("MemAvailable is absent from /proc/meminfo")
 }
 
-func localDiskGi() (int, error) {
-	var filesystem syscall.Statfs_t
-	if err := syscall.Statfs("/", &filesystem); err != nil {
+func localDiskGi(dataDirectory string) (int, error) {
+	candidate, err := normalizeDataDirectory(dataDirectory)
+	if err != nil {
 		return 0, err
 	}
-	return int((filesystem.Bavail * uint64(filesystem.Bsize)) / (1024 * 1024 * 1024)), nil
+	for {
+		var filesystem syscall.Statfs_t
+		if err := syscall.Statfs(candidate, &filesystem); err == nil {
+			return int((filesystem.Bavail * uint64(filesystem.Bsize)) / (1024 * 1024 * 1024)), nil
+		} else if !errors.Is(err, syscall.ENOENT) || candidate == "/" {
+			return 0, err
+		}
+		candidate = filepath.Dir(candidate)
+	}
 }
 
 func listeningPorts() ([]int, error) {

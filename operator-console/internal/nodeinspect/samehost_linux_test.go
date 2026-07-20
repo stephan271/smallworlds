@@ -10,7 +10,7 @@ import (
 )
 
 func TestInspectSameHostIsReadOnlyAndReturnsLinuxEvidence(t *testing.T) {
-	report, err := nodeinspect.InspectSameHost("not-this-host-profile")
+	report, err := nodeinspect.InspectSameHost("not-this-host-profile", t.TempDir()+"/not-created-yet")
 	if err != nil {
 		t.Fatal(err)
 	}

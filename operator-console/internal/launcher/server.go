@@ -60,7 +60,7 @@ type NodeInspector interface {
 type productionNodeInspector struct{}
 
 func (productionNodeInspector) InspectSameHost(profileID string, requirements nodeinspect.Requirements) (nodeinspect.Report, nodeinspect.Assessment, error) {
-	report, err := nodeinspect.InspectSameHost(profileID)
+	report, err := nodeinspect.InspectSameHost(profileID, requirements.DataDirectory)
 	if err != nil {
 		return nodeinspect.Report{}, nodeinspect.Assessment{}, err
 	}
@@ -1551,6 +1551,10 @@ func (server *Server) planLocalBootstrap(response http.ResponseWriter, request *
 	if input.Configuration.NodeName == "" {
 		input.Configuration.NodeName = "smallworlds-local-node"
 	}
+	if err := input.Configuration.Validate(); err != nil {
+		writeError(response, http.StatusBadRequest, "invalid_local_bootstrap_plan")
+		return
+	}
 	profile, err := server.store.GetProfile(request.Context(), input.ProfileID)
 	if errors.Is(err, state.ErrNotFound) {
 		writeError(response, http.StatusNotFound, "profile_not_found")
@@ -1607,7 +1611,7 @@ func (server *Server) planLocalBootstrap(response http.ResponseWriter, request *
 		writeError(response, http.StatusInternalServerError, "node_requirements_failed")
 		return
 	}
-	requirements := nodeinspect.Requirements{ProfileID: profile.ID, MemoryMi: assessment.Resources.MemoryMi, DiskGi: assessment.Resources.StorageGi, RequiredPorts: []int{80, 443, 6443}}
+	requirements := nodeinspect.Requirements{ProfileID: profile.ID, MemoryMi: assessment.Resources.MemoryMi, DiskGi: assessment.Resources.StorageGi, DataDirectory: input.Configuration.DataDirectory, RequiredPorts: []int{80, 443, 6443}}
 	if overlay.MemoryMi > 0 {
 		requirements.MemoryMi = overlay.MemoryMi
 	}

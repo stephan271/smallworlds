@@ -19,7 +19,7 @@ import (
 type ProductionRunner struct {
 	ConvergenceTimeout time.Duration
 	PollInterval       time.Duration
-	SameHostInspector  func(string) (nodeinspect.Report, error)
+	SameHostInspector  func(string, string) (nodeinspect.Report, error)
 }
 
 func (runner ProductionRunner) Run(ctx context.Context, request RunRequest) (Observation, error) {
@@ -100,7 +100,7 @@ func (runner ProductionRunner) runSameHost(ctx context.Context, request RunReque
 	if inspect == nil {
 		inspect = nodeinspect.InspectSameHost
 	}
-	report, err := inspect(request.Binding.ProfileID)
+	report, err := inspect(request.Binding.ProfileID, request.Binding.Configuration.DataDirectory)
 	if err != nil || report.NodeIdentity != request.Binding.NodeIdentity {
 		return Observation{}, fmt.Errorf("%w: same-host node identity changed", ErrExecutionPrecondition)
 	}

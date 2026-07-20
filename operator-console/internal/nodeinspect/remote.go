@@ -8,17 +8,23 @@ import (
 	"strings"
 )
 
-// inspectionCommand is fixed in the Launcher binary. It contains no browser
-// input and emits a deliberately small key/value contract rather than shell
-// output or logs. Profile ownership is evaluated by Go after parsing markers.
+// inspectionCommand emits a deliberately small key/value contract rather than
+// shell output or logs. Its only varying value is a separately validated,
+// absolute data path selected by the Operator.
 const inspectionCommand = `LANG=C
+disk_path='%s'
+while ! test -e "$disk_path"; do
+  test "$disk_path" = / && break
+  disk_path="${disk_path%%/*}"
+  test -n "$disk_path" || disk_path=/
+done
 echo os="$(uname -s 2>/dev/null || true)"
 echo arch="$(uname -m 2>/dev/null || true)"
 echo machine_id="$(cat /etc/machine-id 2>/dev/null | head -n 1 || true)"
 echo systemd="$(test -d /run/systemd/system && echo 1 || echo 0)"
 echo cpu="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 0)"
 echo memory_mi="$(awk '/MemAvailable:/ {print int($2/1024)}' /proc/meminfo 2>/dev/null || echo 0)"
-echo disk_gi="$(df -Pk / 2>/dev/null | awk 'NR==2 {print int($4/1048576)}' || echo 0)"
+echo disk_gi="$(df -Pk "$disk_path" 2>/dev/null | awk 'NR==2 {print int($4/1048576)}' || echo 0)"
 echo ports="$(ss -H -ltn 2>/dev/null | awk '{sub(/^.*:/,"",$4); print $4}' | tr '\n' ',' || true)"
 echo kernel_ready="$(test -e /proc/sys/net/ipv4/ip_forward && echo 1 || echo 0)"
 if test "$(id -u 2>/dev/null)" = 0; then echo privilege=root; elif sudo -n true >/dev/null 2>&1; then echo privilege=sudo; else echo privilege=none; fi
@@ -33,6 +39,10 @@ echo overlay_applied="$(test -f /etc/smallworlds/overlay-applied && echo 1 || ec
 echo bootstrap_complete="$(test -f /etc/smallworlds/bootstrap-complete && echo 1 || echo 0)"`
 
 func InspectRemote(ctx context.Context, target Target, credentials Credentials, fingerprint, profileID string, requirements Requirements) (Report, Assessment, error) {
+	command, err := renderInspectionCommand(requirements.DataDirectory)
+	if err != nil {
+		return Report{}, Assessment{}, err
+	}
 	client, err := DialTrusted(ctx, target, credentials, fingerprint)
 	if err != nil {
 		return Report{}, Assessment{}, err
@@ -46,7 +56,7 @@ func InspectRemote(ctx context.Context, target Target, credentials Credentials, 
 		return Report{}, Assessment{}, fmt.Errorf("start fixed SSH inspection session: %w", err)
 	}
 	defer session.Close()
-	output, err := session.Output(inspectionCommand)
+	output, err := session.Output(command)
 	if err != nil {
 		return Report{}, Assessment{}, fmt.Errorf("run fixed SSH inspection: %w", err)
 	}
@@ -55,6 +65,14 @@ func InspectRemote(ctx context.Context, target Target, credentials Credentials, 
 		return Report{}, Assessment{}, err
 	}
 	return report, Assess(report, requirements), nil
+}
+
+func renderInspectionCommand(dataDirectory string) (string, error) {
+	validated, err := normalizeDataDirectory(dataDirectory)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf(inspectionCommand, validated), nil
 }
 
 func ParseRemoteReport(output, profileID string) (Report, error) {

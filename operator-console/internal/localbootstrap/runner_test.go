@@ -21,9 +21,12 @@ func TestSameHostExecutionRejectsChangedNodeIdentityBeforePrivilegeUse(t *testin
 		OverlayRepositoryURL: "https://github.com/example/config", OverlayCommit: strings.Repeat("c", 40), OverlayRelease: "v1.2.26", AuthenticationKind: "same-host",
 		Configuration: Configuration{Domain: "example.internal", DataDirectory: "/var/lib/smallworlds-data", NodeName: "node-1"},
 	}
-	runner := ProductionRunner{SameHostInspector: func(profileID string) (nodeinspect.Report, error) {
+	runner := ProductionRunner{SameHostInspector: func(profileID, dataDirectory string) (nodeinspect.Report, error) {
 		if profileID != binding.ProfileID {
 			t.Fatalf("profile ID = %q", profileID)
+		}
+		if dataDirectory != binding.Configuration.DataDirectory {
+			t.Fatalf("data directory = %q", dataDirectory)
 		}
 		return nodeinspect.Report{NodeIdentity: "sha256:different"}, nil
 	}}

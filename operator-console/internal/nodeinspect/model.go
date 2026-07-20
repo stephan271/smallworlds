@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"path"
 	"regexp"
 	"sort"
 	"strings"
@@ -98,7 +99,20 @@ type Requirements struct {
 	ProfileID     string
 	MemoryMi      int
 	DiskGi        int
+	DataDirectory string
 	RequiredPorts []int
+}
+
+var safeDataDirectory = regexp.MustCompile(`^/[A-Za-z0-9._/-]*$`)
+
+func normalizeDataDirectory(value string) (string, error) {
+	if value == "" {
+		return "/", nil
+	}
+	if !safeDataDirectory.MatchString(value) || path.Clean(value) != value {
+		return "", fmt.Errorf("data directory is invalid")
+	}
+	return value, nil
 }
 
 type Blocker struct {

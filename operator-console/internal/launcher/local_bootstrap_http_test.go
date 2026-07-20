@@ -21,10 +21,14 @@ import (
 	"github.com/stephan271/smallworlds/operator-console/internal/nodeinspect"
 )
 
-type readyNodeInspector struct{ calls int }
+type readyNodeInspector struct {
+	calls         int
+	dataDirectory string
+}
 
 func (inspector *readyNodeInspector) InspectSameHost(profileID string, requirements nodeinspect.Requirements) (nodeinspect.Report, nodeinspect.Assessment, error) {
 	inspector.calls++
+	inspector.dataDirectory = requirements.DataDirectory
 	report := nodeinspect.Report{NodeIdentity: nodeinspect.HashNodeIdentity("test-machine"), OperatingSystem: "linux", Architecture: "amd64", Systemd: true, Capacity: nodeinspect.Capacity{CPUCores: 8, MemoryMi: requirements.MemoryMi + 1024, DiskGi: requirements.DiskGi + 100}, KernelReady: true, Privilege: "sudo", Installation: nodeinspect.Installation{Kubernetes: nodeinspect.Absent, SmallWorldsData: nodeinspect.Absent}}
 	return report, nodeinspect.Assess(report, requirements), nil
 }
@@ -98,13 +102,13 @@ func TestLocalBootstrapPlanReinspectsBindsAndExecutesWithoutSecretLeakage(t *tes
 		t.Fatalf("overlay status = %d: %s", response.StatusCode, readAll(t, response))
 	}
 	response.Body.Close()
-	planBody, _ := json.Marshal(map[string]any{"profileId": profile.ID, "target": map[string]any{"kind": "same-host"}, "authentication": map[string]any{"kind": "agent"}, "release": descriptor.Release, "configuration": map[string]any{"domain": "home.example", "environmentExtension": ".dev", "dataDirectory": "/var/lib/smallworlds-data", "nodeName": "home-node", "manageDns": false}, "secretsManifest": "apiVersion: v1\nkind: Secret\ndata:\n  token: cluster-secret-value\n"})
+	planBody, _ := json.Marshal(map[string]any{"profileId": profile.ID, "target": map[string]any{"kind": "same-host"}, "authentication": map[string]any{"kind": "agent"}, "release": descriptor.Release, "configuration": map[string]any{"domain": "home.example", "environmentExtension": ".dev", "dataDirectory": "/data/smallworlds-acceptance", "nodeName": "home-node", "manageDns": false}, "secretsManifest": "apiVersion: v1\nkind: Secret\ndata:\n  token: cluster-secret-value\n"})
 	response = request(t, handler, http.MethodPost, "/api/v1/local-bootstrap/plan", planBody, cookie, map[string]string{"X-CSRF-Token": csrf})
 	if response.StatusCode != http.StatusCreated {
 		t.Fatalf("bootstrap plan status = %d: %s", response.StatusCode, readAll(t, response))
 	}
 	planResponse := readAll(t, response)
-	if bytes.Contains(planResponse, []byte("cluster-secret-value")) || !bytes.Contains(planResponse, []byte(`"bootstrapRelease":"v1.2.26"`)) || !bytes.Contains(planResponse, []byte(`"overlayCommit":"`+strings.Repeat("c", 40)+`"`)) || !bytes.Contains(planResponse, []byte(`"dataDirectory":"/var/lib/smallworlds-data"`)) || !bytes.Contains(planResponse, []byte(`"code":"node.services.may_restart"`)) {
+	if bytes.Contains(planResponse, []byte("cluster-secret-value")) || !bytes.Contains(planResponse, []byte(`"bootstrapRelease":"v1.2.26"`)) || !bytes.Contains(planResponse, []byte(`"overlayCommit":"`+strings.Repeat("c", 40)+`"`)) || !bytes.Contains(planResponse, []byte(`"dataDirectory":"/data/smallworlds-acceptance"`)) || !bytes.Contains(planResponse, []byte(`"code":"node.services.may_restart"`)) {
 		t.Fatalf("unsafe or incomplete plan: %s", planResponse)
 	}
 	var planned struct {
@@ -117,6 +121,9 @@ func TestLocalBootstrapPlanReinspectsBindsAndExecutesWithoutSecretLeakage(t *tes
 	}
 	if inspector.calls != 1 {
 		t.Fatalf("fresh inspection calls = %d", inspector.calls)
+	}
+	if inspector.dataDirectory != "/data/smallworlds-acceptance" {
+		t.Fatalf("inspected data directory = %q", inspector.dataDirectory)
 	}
 	response = request(t, handler, http.MethodPost, "/api/v1/plans/"+planned.Plan.ID+"/approve", nil, cookie, map[string]string{"X-CSRF-Token": csrf})
 	if response.StatusCode != http.StatusAccepted {
