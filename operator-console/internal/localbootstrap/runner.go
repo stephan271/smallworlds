@@ -32,6 +32,69 @@ func (runner ProductionRunner) Run(ctx context.Context, request RunRequest) (Obs
 	return runner.runSameHost(ctx, request)
 }
 
+func (runner ProductionRunner) Observe(ctx context.Context, request RunRequest) (Observation, error) {
+	if err := request.Binding.Validate(); err != nil {
+		return Observation{}, err
+	}
+	if request.Binding.Target.Kind == nodeinspect.RemoteTarget {
+		return runner.observeRemote(ctx, request)
+	}
+	return runner.observeSameHost(ctx, request)
+}
+
+func (runner ProductionRunner) observeRemote(ctx context.Context, request RunRequest) (Observation, error) {
+	client, err := nodeinspect.DialTrusted(ctx, request.Binding.Target, request.Credentials, request.Binding.HostFingerprint)
+	if err != nil {
+		return Observation{}, fmt.Errorf("%w: connect trusted node", ErrInterrupted)
+	}
+	defer client.Close()
+	if err := nodeinspect.ValidateSudoCredential(client, request.Credentials.SudoPassword); err != nil {
+		return Observation{}, fmt.Errorf("%w: sudo authorization", ErrExecutionPrecondition)
+	}
+	identity, err := readRemoteNodeIdentity(client)
+	if err != nil || identity != request.Binding.NodeIdentity {
+		return Observation{}, fmt.Errorf("%w: remote node identity changed", ErrExecutionPrecondition)
+	}
+	privileged := func(command string) error {
+		if request.Binding.Target.Username != "root" {
+			command = "sudo -n sh -c " + shellQuote(command)
+		} else {
+			command = "sh -c " + shellQuote(command)
+		}
+		return runSSHSession(client, command, nil)
+	}
+	return runner.observe(ctx, privileged, request.Cancelled)
+}
+
+func (runner ProductionRunner) observeSameHost(ctx context.Context, request RunRequest) (Observation, error) {
+	inspect := runner.SameHostInspector
+	if inspect == nil {
+		inspect = nodeinspect.InspectSameHost
+	}
+	report, err := inspect(request.Binding.ProfileID, request.Binding.Configuration.DataDirectory)
+	if err != nil || report.NodeIdentity != request.Binding.NodeIdentity {
+		return Observation{}, fmt.Errorf("%w: same-host node identity changed", ErrExecutionPrecondition)
+	}
+	if os.Geteuid() != 0 {
+		if err := validateLocalSudo(ctx, request.Credentials.SudoPassword); err != nil {
+			return Observation{}, fmt.Errorf("%w: sudo authorization", ErrExecutionPrecondition)
+		}
+	}
+	privileged := func(command string) error {
+		arguments := []string{"-c", command}
+		name := "sh"
+		if os.Geteuid() != 0 {
+			name = "sudo"
+			arguments = []string{"-n", "sh", "-c", command}
+		}
+		process := exec.CommandContext(ctx, name, arguments...)
+		process.Stdout = io.Discard
+		process.Stderr = io.Discard
+		return process.Run()
+	}
+	return runner.observe(ctx, privileged, request.Cancelled)
+}
+
 func (runner ProductionRunner) runRemote(ctx context.Context, request RunRequest) (Observation, error) {
 	client, err := nodeinspect.DialTrusted(ctx, request.Binding.Target, request.Credentials, request.Binding.HostFingerprint)
 	if err != nil {

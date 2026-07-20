@@ -37,6 +37,7 @@ type RunRequest struct {
 
 type Runner interface {
 	Run(context.Context, RunRequest) (Observation, error)
+	Observe(context.Context, RunRequest) (Observation, error)
 }
 
 type AssetOpener func(release, id string) (io.ReadCloser, bootstrapassets.Descriptor, error)
@@ -84,6 +85,43 @@ func (service *Service) Execute(runID string) {
 		service.fail(ctx, run, "precondition-changed", "local_bootstrap.precondition_changed")
 		return
 	}
+	executionCompleted := completedExecutionCheckpoint(run.CurrentCheckpoint)
+	credentials, err := service.loadCredentials(binding)
+	if errors.Is(err, vault.ErrLocked) {
+		if !executionCompleted {
+			_ = service.checkpoint(ctx, run, "waiting-for-vault")
+		}
+		return
+	}
+	if err != nil {
+		service.fail(ctx, run, "credentials-unavailable", "local_bootstrap.credentials_unavailable")
+		return
+	}
+	if executionCompleted {
+		if service.cancelled(ctx, run.ID) {
+			_ = service.store.CompleteRunCancellation(ctx, run.ID, run.CurrentCheckpoint)
+			return
+		}
+		observation, observeErr := service.runner.Observe(ctx, RunRequest{
+			Binding: binding, RunID: run.ID, Credentials: credentials,
+			Cancelled: func() bool { return service.cancelled(ctx, run.ID) },
+		})
+		if observeErr != nil {
+			if service.cancelled(ctx, run.ID) {
+				_ = service.store.CompleteRunCancellation(ctx, run.ID, run.CurrentCheckpoint)
+				return
+			}
+			if errors.Is(observeErr, ErrExecutionPrecondition) {
+				service.fail(ctx, run, "execution-precondition-changed", "local_bootstrap.precondition_changed")
+				return
+			}
+			_ = service.checkpoint(ctx, run, "awaiting-convergence")
+			service.scheduleRetry(run.ID)
+			return
+		}
+		service.completeOrRetryConvergence(ctx, run, observation)
+		return
+	}
 	archive, descriptor, err := service.openAsset(binding.Release, binding.AssetID)
 	if err != nil {
 		_ = service.checkpoint(ctx, run, "waiting-for-assets")
@@ -94,15 +132,6 @@ func (service *Service) Execute(runID string) {
 		return
 	}
 	defer archive.Close()
-	credentials, err := service.loadCredentials(binding)
-	if errors.Is(err, vault.ErrLocked) {
-		_ = service.checkpoint(ctx, run, "waiting-for-vault")
-		return
-	}
-	if err != nil {
-		service.fail(ctx, run, "credentials-unavailable", "local_bootstrap.credentials_unavailable")
-		return
-	}
 	secrets := ""
 	if binding.SecretsVaultKey != "" {
 		secrets, err = service.loadSecret(binding.SecretsVaultKey)
@@ -140,7 +169,7 @@ func (service *Service) Execute(runID string) {
 			return
 		}
 		_ = service.checkpoint(ctx, run, "interrupted")
-		time.AfterFunc(service.retryDelay, func() { service.Execute(run.ID) })
+		service.scheduleRetry(run.ID)
 		return
 	}
 	if !observation.CommandCompleted {
@@ -154,9 +183,17 @@ func (service *Service) Execute(runID string) {
 		_ = service.store.CompleteRunCancellation(ctx, run.ID, "execution-complete")
 		return
 	}
+	service.completeOrRetryConvergence(ctx, run, observation)
+}
+
+func completedExecutionCheckpoint(checkpoint string) bool {
+	return checkpoint == "bootstrap-command-complete" || checkpoint == "execution-complete" || checkpoint == "awaiting-convergence"
+}
+
+func (service *Service) completeOrRetryConvergence(ctx context.Context, run state.RunRecord, observation Observation) {
 	if !observation.K3SReady || !observation.ArgoCDReady || !observation.OverlaySynced {
 		_ = service.checkpoint(ctx, run, "awaiting-convergence")
-		time.AfterFunc(service.retryDelay, func() { service.Execute(run.ID) })
+		service.scheduleRetry(run.ID)
 		return
 	}
 	observedAt := observation.ObservedAt.UTC()
@@ -164,6 +201,10 @@ func (service *Service) Execute(runID string) {
 		observedAt = time.Now().UTC()
 	}
 	_ = service.store.CompleteRunVerification(ctx, run.ID, "verification-complete", "cluster.gitops.converged", observedAt)
+}
+
+func (service *Service) scheduleRetry(runID string) {
+	time.AfterFunc(service.retryDelay, func() { service.Execute(runID) })
 }
 
 func (service *Service) validateExternalPreconditions(ctx context.Context, binding Binding) error {

@@ -46,7 +46,6 @@ test('browser bootstrap survives a Launcher interruption after a durable node ma
   const launchToken = required('SMALLWORLDS_ACCEPTANCE_LAUNCH_TOKEN');
   const launcherBinary = required('SMALLWORLDS_ACCEPTANCE_LAUNCHER_BINARY');
   const launcherDataDirectory = required('SMALLWORLDS_ACCEPTANCE_LAUNCHER_DATA_DIR');
-  const initialLauncherPID = requiredPID('SMALLWORLDS_ACCEPTANCE_LAUNCHER_PID');
   const sshTarget = required('SMALLWORLDS_ACCEPTANCE_SSH_TARGET');
   const sshHost = required('SMALLWORLDS_ACCEPTANCE_SSH_HOST');
   const sshUser = required('SMALLWORLDS_ACCEPTANCE_SSH_USER');
@@ -64,6 +63,11 @@ test('browser bootstrap survives a Launcher interruption after a durable node ma
   const grafanaPassword = required('SMALLWORLDS_ACCEPTANCE_GRAFANA_PASSWORD');
   const resumeSetup = process.env.SMALLWORLDS_ACCEPTANCE_RESUME_SETUP === '1';
   const cancelRunID = process.env.SMALLWORLDS_ACCEPTANCE_CANCEL_RUN_ID;
+  const recoverRunID = process.env.SMALLWORLDS_ACCEPTANCE_RECOVER_RUN_ID;
+  const convergenceTimeout = Number(process.env.SMALLWORLDS_ACCEPTANCE_CONVERGENCE_TIMEOUT_MS ?? 60 * 60_000);
+  if (!Number.isSafeInteger(convergenceTimeout) || convergenceTimeout < 60_000) {
+    throw new Error('SMALLWORLDS_ACCEPTANCE_CONVERGENCE_TIMEOUT_MS must be at least 60000');
+  }
   const port = new URL(baseURL).port;
   let restartedLauncher: ChildProcess | undefined;
 
@@ -71,20 +75,32 @@ test('browser bootstrap survives a Launcher interruption after a durable node ma
     await page.goto(`${baseURL}/?token=${encodeURIComponent(launchToken)}`);
     await expect(page.getByRole('heading', { name: 'SmallWorlds Operator Console' })).toBeVisible();
 
-    if (cancelRunID) {
+    if (cancelRunID || recoverRunID) {
+      const selectedRunID = cancelRunID ?? recoverRunID;
       await page.evaluate(async (runID) => {
         const response = await fetch('/api/v1/profiles');
         const profiles = await response.json() as Array<{ id: string }>;
         if (!profiles[0]) throw new Error('acceptance profile is missing');
         window.localStorage.setItem('smallworlds.activeProfile', profiles[0].id);
         window.localStorage.setItem(`smallworlds.run.${profiles[0].id}`, runID);
-      }, cancelRunID);
+      }, selectedRunID);
       await page.reload();
       await expect(page.getByRole('status')).toContainText('Running');
-      await page.getByRole('button', { name: 'Cancel' }).click();
       const cancellationVault = page.getByRole('region', { name: 'Launcher Vault' });
       await cancellationVault.getByLabel('Vault passphrase').fill(vaultPassphrase);
       await cancellationVault.getByRole('button', { name: 'Unlock vault' }).click();
+      if (recoverRunID) {
+        await expect(cancellationVault.getByText('Unlocked', { exact: true })).toBeVisible();
+        await expect(page.getByRole('status')).toContainText('Verified', { timeout: convergenceTimeout });
+        await expect(page.getByRole('status')).toContainText('verification-complete');
+        const recoveredMarkers = execFileSync('ssh', sshArguments(sshTarget, "sudo -n find /etc/smallworlds -maxdepth 1 -type f -printf '%f\\n' | sort"), { encoding: 'utf8' });
+        for (const marker of ['bootstrap-complete', 'k3s-ready', 'argocd-ready', 'overlay-applied']) {
+          expect(recoveredMarkers).toContain(marker);
+        }
+        expect(recoveredMarkers).not.toContain('bootstrap-interrupted');
+        return;
+      }
+      await page.getByRole('button', { name: 'Cancel' }).click();
       await expect(page.getByRole('status')).toContainText('Cancelled', { timeout: 60_000 });
       return;
     }
@@ -227,6 +243,7 @@ test('browser bootstrap survives a Launcher interruption after a durable node ma
     await expect(page.getByRole('status')).toContainText('bootstrap-atomic-operation', { timeout: 120_000 });
     await markerObserved;
 
+    const initialLauncherPID = requiredPID('SMALLWORLDS_ACCEPTANCE_LAUNCHER_PID');
     const expectedLauncherExecutable = realpathSync(launcherBinary);
     const actualLauncherExecutable = readlinkSync(`/proc/${initialLauncherPID}/exe`).replace(/ \(deleted\)$/, '');
     expect(actualLauncherExecutable).toBe(expectedLauncherExecutable);
@@ -264,7 +281,7 @@ test('browser bootstrap survives a Launcher interruption after a durable node ma
     await restartedVault.getByLabel('Vault passphrase').fill(vaultPassphrase);
     await restartedVault.getByRole('button', { name: 'Unlock vault' }).click();
     await expect(restartedVault.getByText('Unlocked', { exact: true })).toBeVisible();
-    await expect(page.getByRole('status')).toContainText('Verified', { timeout: 30 * 60_000 });
+    await expect(page.getByRole('status')).toContainText('Verified', { timeout: convergenceTimeout });
     await expect(page.getByRole('status')).toContainText('verification-complete');
 
     const finalMarkers = execFileSync('ssh', sshArguments(sshTarget, "sudo -n find /etc/smallworlds -maxdepth 1 -type f -printf '%f\\n' | sort"), { encoding: 'utf8' });

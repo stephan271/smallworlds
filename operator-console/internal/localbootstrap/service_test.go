@@ -16,7 +16,8 @@ import (
 )
 
 type resumableRunner struct {
-	calls int
+	calls        int
+	observations int
 }
 
 type cancellationRunner struct {
@@ -33,6 +34,10 @@ func (runner cancellationRunner) Run(ctx context.Context, request localbootstrap
 	return localbootstrap.Observation{}, localbootstrap.ErrInterrupted
 }
 
+func (runner cancellationRunner) Observe(context.Context, localbootstrap.RunRequest) (localbootstrap.Observation, error) {
+	return localbootstrap.Observation{}, errors.New("unexpected observation")
+}
+
 func (runner *resumableRunner) Run(_ context.Context, request localbootstrap.RunRequest) (localbootstrap.Observation, error) {
 	runner.calls++
 	if strings.Contains(request.Secrets, "cluster-secret-value") == false || request.Credentials.Password != "node-password-value" {
@@ -43,6 +48,14 @@ func (runner *resumableRunner) Run(_ context.Context, request localbootstrap.Run
 			return localbootstrap.Observation{}, err
 		}
 		return localbootstrap.Observation{}, localbootstrap.ErrInterrupted
+	}
+	return localbootstrap.Observation{CommandCompleted: true, K3SReady: true, ArgoCDReady: true, OverlaySynced: true, ObservedAt: time.Now().UTC()}, nil
+}
+
+func (runner *resumableRunner) Observe(_ context.Context, _ localbootstrap.RunRequest) (localbootstrap.Observation, error) {
+	runner.observations++
+	if runner.observations == 1 {
+		return localbootstrap.Observation{CommandCompleted: true, K3SReady: true, ArgoCDReady: true, OverlaySynced: false, ObservedAt: time.Now().UTC()}, nil
 	}
 	return localbootstrap.Observation{CommandCompleted: true, K3SReady: true, ArgoCDReady: true, OverlaySynced: true, ObservedAt: time.Now().UTC()}, nil
 }
@@ -85,7 +98,11 @@ func TestServiceResumesAnInterruptedRunWithoutLeakingSecretsToActivity(t *testin
 		t.Fatal(err)
 	}
 	secrets := map[string]string{profile.ID + "/node-password": "node-password-value", profile.ID + "/cluster-secrets-manifest": "apiVersion: v1\nkind: Secret\ndata:\n  token: cluster-secret-value"}
+	vaultLocked := false
 	loader := func(key string) (string, error) {
+		if vaultLocked {
+			return "", vault.ErrLocked
+		}
 		value, ok := secrets[key]
 		if !ok {
 			return "", vault.ErrSecretNotFound
@@ -114,6 +131,30 @@ func TestServiceResumesAnInterruptedRunWithoutLeakingSecretsToActivity(t *testin
 		if strings.Contains(event.Parameters, "cluster-secret-value") || strings.Contains(event.Parameters, "node-password-value") {
 			t.Fatalf("activity leaked secret: %#v", event)
 		}
+	}
+
+	// A Launcher restart while GitOps is still converging must only observe the
+	// completed installation. Re-entering Runner.Run can restart k3s and prevent
+	// the external evidence from ever becoming healthy.
+	if err := store.UpdateRun(ctx, run.ID, "running", "awaiting-convergence", "", nil); err != nil {
+		t.Fatal(err)
+	}
+	vaultLocked = true
+	service.Execute(run.ID)
+	locked, err := store.GetRun(ctx, run.ID)
+	if err != nil || locked.State != "running" || locked.CurrentCheckpoint != "awaiting-convergence" || runner.calls != 2 || runner.observations != 0 {
+		t.Fatalf("locked converging run = %#v, mutating calls = %d, observations = %d, err = %v", locked, runner.calls, runner.observations, err)
+	}
+	vaultLocked = false
+	service.Execute(run.ID)
+	converging, err := store.GetRun(ctx, run.ID)
+	if err != nil || converging.State != "running" || converging.CurrentCheckpoint != "awaiting-convergence" || runner.calls != 2 || runner.observations != 1 {
+		t.Fatalf("converging run = %#v, mutating calls = %d, observations = %d, err = %v", converging, runner.calls, runner.observations, err)
+	}
+	service.Execute(run.ID)
+	reverified, err := store.GetRun(ctx, run.ID)
+	if err != nil || reverified.State != "verified" || runner.calls != 2 || runner.observations != 2 {
+		t.Fatalf("reverified run = %#v, mutating calls = %d, observations = %d, err = %v", reverified, runner.calls, runner.observations, err)
 	}
 }
 
