@@ -1401,10 +1401,11 @@ func (server *Server) inspectNode(response http.ResponseWriter, request *http.Re
 		ProfileID      string                    `json:"profileId"`
 		Target         nodeTargetRequest         `json:"target"`
 		Authentication nodeAuthenticationRequest `json:"authentication"`
+		DataDirectory  string                    `json:"dataDirectory"`
 	}
 	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 512*1024))
 	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" {
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" || input.DataDirectory == "" || nodeinspect.ValidateDataDirectory(input.DataDirectory) != nil {
 		writeError(response, http.StatusBadRequest, "invalid_node_inspection")
 		return
 	}
@@ -1427,7 +1428,7 @@ func (server *Server) inspectNode(response http.ResponseWriter, request *http.Re
 		writeError(response, http.StatusInternalServerError, "node_requirements_failed")
 		return
 	}
-	requirements := nodeinspect.Requirements{ProfileID: profile.ID, MemoryMi: assessment.Resources.MemoryMi, DiskGi: assessment.Resources.StorageGi, RequiredPorts: []int{80, 443, 6443}}
+	requirements := nodeinspect.Requirements{ProfileID: profile.ID, MemoryMi: assessment.Resources.MemoryMi, DiskGi: assessment.Resources.StorageGi, DataDirectory: input.DataDirectory, RequiredPorts: []int{80, 443, 6443}}
 	if target.Kind == nodeinspect.SameHostTarget {
 		report, result, err := server.nodes.InspectSameHost(profile.ID, requirements)
 		if err != nil {

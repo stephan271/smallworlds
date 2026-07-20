@@ -59,7 +59,7 @@ func TestServiceResumesAnInterruptedRunWithoutLeakingSecretsToActivity(t *testin
 	if _, err := store.CreateProfile(ctx, profile); err != nil {
 		t.Fatal(err)
 	}
-	overlay := state.OverlayIdentity{ProfileID: profile.ID, Provider: "github", Repository: "example/config", RepositoryURL: "https://github.com/example/config", Release: "v1.2.26", Commit: strings.Repeat("c", 40), RecordedAt: now}
+	overlay := state.OverlayIdentity{ProfileID: profile.ID, Provider: "github", Repository: "example/config", RepositoryURL: "https://github.com/example/config", Release: "v1.2.27", Commit: strings.Repeat("c", 40), RecordedAt: now}
 	if err := store.RecordOverlayIdentity(ctx, overlay); err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func TestServiceResumesAnInterruptedRunWithoutLeakingSecretsToActivity(t *testin
 		t.Fatal(err)
 	}
 	plan := state.PlanRecord{ID: "plan-1", ProfileID: profile.ID, Intent: "BootstrapLocalNode", Digest: "digest", Status: "approved", ProfileRevision: 1, CreatedAt: now}
-	binding := localbootstrap.Binding{PlanID: plan.ID, ProfileID: profile.ID, ProfileRevision: 1, Target: nodeinspect.Target{Kind: nodeinspect.RemoteTarget, Host: trust.Host, Port: trust.Port, Username: trust.Username}, HostFingerprint: trust.Fingerprint, NodeIdentity: trust.Fingerprint, InspectionDigest: strings.Repeat("a", 64), InspectedAt: now, Release: "v1.2.26", AssetID: "bootstrap-linux-amd64", AssetSHA256: strings.Repeat("b", 64), OverlayRepositoryURL: overlay.RepositoryURL, OverlayCommit: overlay.Commit, OverlayRelease: overlay.Release, AuthenticationKind: "password", SecretsVaultKey: profile.ID + "/cluster-secrets-manifest", Configuration: localbootstrap.Configuration{Domain: "example.internal", DataDirectory: "/var/lib/smallworlds-data", NodeName: "smallworlds-node"}}
+	binding := localbootstrap.Binding{PlanID: plan.ID, ProfileID: profile.ID, ProfileRevision: 1, Target: nodeinspect.Target{Kind: nodeinspect.RemoteTarget, Host: trust.Host, Port: trust.Port, Username: trust.Username}, HostFingerprint: trust.Fingerprint, NodeIdentity: trust.Fingerprint, InspectionDigest: strings.Repeat("a", 64), InspectedAt: now, Release: "v1.2.27", AssetID: "bootstrap-linux-amd64", AssetSHA256: strings.Repeat("b", 64), OverlayRepositoryURL: overlay.RepositoryURL, OverlayCommit: overlay.Commit, OverlayRelease: overlay.Release, AuthenticationKind: "password", SecretsVaultKey: profile.ID + "/cluster-secrets-manifest", Configuration: localbootstrap.Configuration{Domain: "example.internal", DataDirectory: "/var/lib/smallworlds-data", NodeName: "smallworlds-node"}}
 	plan.Digest = binding.PlanDigest(plan.Intent)
 	if err := store.CreatePlan(ctx, plan); err != nil {
 		t.Fatal(err)
@@ -129,12 +129,12 @@ func TestServiceDefersCancellationUntilTheAtomicCheckpointFinishes(t *testing.T)
 	if _, err := store.CreateProfile(ctx, profile); err != nil {
 		t.Fatal(err)
 	}
-	overlay := state.OverlayIdentity{ProfileID: profile.ID, Provider: "github", Repository: "example/config", RepositoryURL: "https://github.com/example/config", Release: "v1.2.26", Commit: strings.Repeat("c", 40), RecordedAt: now}
+	overlay := state.OverlayIdentity{ProfileID: profile.ID, Provider: "github", Repository: "example/config", RepositoryURL: "https://github.com/example/config", Release: "v1.2.27", Commit: strings.Repeat("c", 40), RecordedAt: now}
 	if err := store.RecordOverlayIdentity(ctx, overlay); err != nil {
 		t.Fatal(err)
 	}
 	plan := state.PlanRecord{ID: "plan-1", ProfileID: profile.ID, Intent: "BootstrapLocalNode", Status: "approved", ProfileRevision: 1, CreatedAt: now}
-	binding := localbootstrap.Binding{PlanID: plan.ID, ProfileID: profile.ID, ProfileRevision: 1, Target: nodeinspect.Target{Kind: nodeinspect.SameHostTarget}, NodeIdentity: "sha256:" + strings.Repeat("d", 64), InspectionDigest: strings.Repeat("a", 64), InspectedAt: now, Release: "v1.2.26", AssetID: "bootstrap-linux-amd64", AssetSHA256: strings.Repeat("b", 64), OverlayRepositoryURL: overlay.RepositoryURL, OverlayCommit: overlay.Commit, OverlayRelease: overlay.Release, AuthenticationKind: "same-host", Configuration: localbootstrap.Configuration{Domain: "example.internal", DataDirectory: "/var/lib/smallworlds-data", NodeName: "smallworlds-node"}}
+	binding := localbootstrap.Binding{PlanID: plan.ID, ProfileID: profile.ID, ProfileRevision: 1, Target: nodeinspect.Target{Kind: nodeinspect.SameHostTarget}, NodeIdentity: "sha256:" + strings.Repeat("d", 64), InspectionDigest: strings.Repeat("a", 64), InspectedAt: now, Release: "v1.2.27", AssetID: "bootstrap-linux-amd64", AssetSHA256: strings.Repeat("b", 64), OverlayRepositoryURL: overlay.RepositoryURL, OverlayCommit: overlay.Commit, OverlayRelease: overlay.Release, AuthenticationKind: "same-host", Configuration: localbootstrap.Configuration{Domain: "example.internal", DataDirectory: "/var/lib/smallworlds-data", NodeName: "smallworlds-node"}}
 	plan.Digest = binding.PlanDigest(plan.Intent)
 	if err := store.CreatePlan(ctx, plan); err != nil {
 		t.Fatal(err)

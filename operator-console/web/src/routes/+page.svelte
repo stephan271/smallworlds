@@ -61,7 +61,7 @@
   let genericGitOverlayNotice = $state('');
   let genericGitProposal: GenericGitProposal | null = $state(null);
   let bootstrapAssets: BootstrapAssetRequirements | null = $state(null);
-  let bootstrapAssetRelease = $state('v1.2.26');
+  let bootstrapAssetRelease = $state('v1.2.27');
   let bootstrapAssetError = $state('');
   let bootstrapAssetBusy = $state(false);
   let nodeCapabilities: NodeCapabilities | null = $state(null);
@@ -463,7 +463,7 @@
     nodeError = '';
     nodeInspection = null;
     try {
-      nodeInspection = await api.inspectNode(activeProfile.id, currentNodeTarget(), { kind: nodeAuthentication, ...(nodePassword ? { password: nodePassword } : {}), ...(nodePrivateKey ? { privateKey: nodePrivateKey } : {}), ...(nodeKeyPassphrase ? { keyPassphrase: nodeKeyPassphrase } : {}), ...(nodeSudoPassword ? { sudoPassword: nodeSudoPassword } : {}) });
+      nodeInspection = await api.inspectNode(activeProfile.id, currentNodeTarget(), { kind: nodeAuthentication, ...(nodePassword ? { password: nodePassword } : {}), ...(nodePrivateKey ? { privateKey: nodePrivateKey } : {}), ...(nodeKeyPassphrase ? { keyPassphrase: nodeKeyPassphrase } : {}), ...(nodeSudoPassword ? { sudoPassword: nodeSudoPassword } : {}) }, localBootstrapDataDirectory);
       nodePassword = '';
       nodePrivateKey = '';
       nodeKeyPassphrase = '';
@@ -497,7 +497,7 @@
         profileId: activeProfile.id,
         target: currentNodeTarget(),
         authentication: { kind: nodeAuthentication, ...(nodePassword ? { password: nodePassword } : {}), ...(nodePrivateKey ? { privateKey: nodePrivateKey } : {}), ...(nodeKeyPassphrase ? { keyPassphrase: nodeKeyPassphrase } : {}), ...(nodeSudoPassword ? { sudoPassword: nodeSudoPassword } : {}) },
-        release: 'v1.2.26',
+        release: 'v1.2.27',
         configuration: { domain: localBootstrapDomain, environmentExtension: localBootstrapEnvironment, dataDirectory: localBootstrapDataDirectory, nodeName: localBootstrapNodeName, acmeEmail: localBootstrapACMEEmail, manageDns: localBootstrapManageDNS },
         ...(localBootstrapSecrets ? { secretsManifest: localBootstrapSecrets } : {})
       });
@@ -861,6 +861,7 @@
           {#if nodeError}<p class="inline-error" role="alert">{nodeError}</p>{/if}
           <form onsubmit={(event) => { event.preventDefault(); void inspectNode(); }}>
             <label><span>{message('nodeTarget')}</span><select bind:value={nodeTargetKind}><option value="remote">{message('nodeRemote')}</option>{#if nodeCapabilities?.sameHostSupported}<option value="same-host">{message('nodeSameHost')}</option>{/if}</select></label>
+            {#if activeProfile?.deploymentMode === 'local-lan'}<label><span>{message('localBootstrapDataDirectory')}</span><input bind:value={localBootstrapDataDirectory} required /></label>{/if}
             {#if nodeTargetKind === 'remote'}
               <div class="form-grid"><label><span>{message('nodeHost')}</span><input bind:value={nodeHost} required autocomplete="off" /></label><label><span>{message('nodePort')}</span><input type="number" bind:value={nodePort} min="1" max="65535" required /></label></div>
               <label><span>{message('nodeUsername')}</span><input bind:value={nodeUsername} required autocomplete="username" /></label>
@@ -881,7 +882,7 @@
               {#if localBootstrapError}<p class="inline-error" role="alert">{localBootstrapError}</p>{/if}
               <form onsubmit={(event) => { event.preventDefault(); void planLocalBootstrap(); }}>
                 <div class="form-grid"><label><span>{message('capabilityDomain')}</span><input bind:value={localBootstrapDomain} required placeholder="home.example" /></label><label><span>{message('localBootstrapEnvironment')}</span><input bind:value={localBootstrapEnvironment} placeholder=".dev" /></label></div>
-                <div class="form-grid"><label><span>{message('localBootstrapDataDirectory')}</span><input bind:value={localBootstrapDataDirectory} required /></label><label><span>{message('localBootstrapNodeName')}</span><input bind:value={localBootstrapNodeName} required /></label></div>
+                <label><span>{message('localBootstrapNodeName')}</span><input bind:value={localBootstrapNodeName} required /></label>
                 <label><span>{message('localBootstrapACMEEmail')}</span><input type="email" bind:value={localBootstrapACMEEmail} /></label>
                 <label class="check"><input type="checkbox" bind:checked={localBootstrapManageDNS} /><span>{message('localBootstrapManageDNS')}</span></label>
                 <label><span>{message('localBootstrapSecrets')}</span><textarea bind:value={localBootstrapSecrets} autocomplete="off" placeholder="apiVersion: v1&#10;kind: Secret&#10;…"></textarea></label>

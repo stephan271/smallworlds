@@ -15,8 +15,8 @@ func validBinding() localbootstrap.Binding {
 		Target:          nodeinspect.Target{Kind: nodeinspect.RemoteTarget, Host: "node.internal", Port: 22, Username: "operator"},
 		HostFingerprint: "SHA256:pinned", InspectionDigest: strings.Repeat("a", 64), InspectedAt: time.Now().UTC(),
 		NodeIdentity: "SHA256:pinned",
-		Release:      "v1.2.26", AssetID: "bootstrap-linux-amd64", AssetSHA256: strings.Repeat("b", 64),
-		OverlayRepositoryURL: "https://github.com/example/community-config", OverlayCommit: strings.Repeat("c", 40), OverlayRelease: "v1.2.26",
+		Release:      "v1.2.27", AssetID: "bootstrap-linux-amd64", AssetSHA256: strings.Repeat("b", 64),
+		OverlayRepositoryURL: "https://github.com/example/community-config", OverlayCommit: strings.Repeat("c", 40), OverlayRelease: "v1.2.27",
 		AuthenticationKind: "private-key", SecretsVaultKey: "profile-1/cluster-secrets-manifest",
 		Configuration: localbootstrap.Configuration{Domain: "example.internal", EnvironmentExtension: ".dev", DataDirectory: "/var/lib/smallworlds-data", NodeName: "smallworlds-node", ACMEEmail: "admin@example.internal"},
 	}

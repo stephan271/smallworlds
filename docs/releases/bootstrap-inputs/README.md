@@ -13,9 +13,10 @@ after independently reviewing the official upstream release material. The
 GitHub Action validates and consumes this committed lock; it never accepts
 arbitrary values from an Operator's browser.
 
-`v1.2.25.json` is the first release candidate. `v1.2.26.json` retains the same
-reviewed upstream versions while adding the hardened, resumable local-node
-bootstrap contract. They pin K3s `v1.36.2+k3s1` and
+`v1.2.25.json` is the first release candidate. `v1.2.26.json` adds the hardened,
+resumable local-node bootstrap contract. `v1.2.27.json` retains the same
+reviewed upstream versions while incorporating fixes from the first destructive
+browser qualification. They pin K3s `v1.36.2+k3s1` and
 Argo CD `v3.4.5`, with digests independently retrieved from their official
 release locations on 2026-07-20. It is not published until a maintainer creates
 the matching SmallWorlds tag and explicitly runs the release workflow.

@@ -58,7 +58,7 @@ func TestLocalBootstrapPlanReinspectsBindsAndExecutesWithoutSecretLeakage(t *tes
 	if err != nil {
 		t.Fatal(err)
 	}
-	descriptor := bootstrapassets.Descriptor{ID: "bootstrap-linux-amd64", Release: "v1.2.26", URL: "https://assets.example.invalid/bootstrap.tar.gz", SHA256: digestText, Signature: base64.StdEncoding.EncodeToString(ed25519.Sign(privateKey, []byte(digestText))), PublicKey: publicKey, Destination: "assets.example.invalid"}
+	descriptor := bootstrapassets.Descriptor{ID: "bootstrap-linux-amd64", Release: "v1.2.27", URL: "https://assets.example.invalid/bootstrap.tar.gz", SHA256: digestText, Signature: base64.StdEncoding.EncodeToString(ed25519.Sign(privateKey, []byte(digestText))), PublicKey: publicKey, Destination: "assets.example.invalid"}
 	assets, err := bootstrapassets.NewManager(t.TempDir(), bootstrapassets.Catalog{Descriptors: []bootstrapassets.Descriptor{descriptor}}, assetFetcherStub{contents: contents})
 	if err != nil {
 		t.Fatal(err)
@@ -108,7 +108,7 @@ func TestLocalBootstrapPlanReinspectsBindsAndExecutesWithoutSecretLeakage(t *tes
 		t.Fatalf("bootstrap plan status = %d: %s", response.StatusCode, readAll(t, response))
 	}
 	planResponse := readAll(t, response)
-	if bytes.Contains(planResponse, []byte("cluster-secret-value")) || !bytes.Contains(planResponse, []byte(`"bootstrapRelease":"v1.2.26"`)) || !bytes.Contains(planResponse, []byte(`"overlayCommit":"`+strings.Repeat("c", 40)+`"`)) || !bytes.Contains(planResponse, []byte(`"dataDirectory":"/data/smallworlds-acceptance"`)) || !bytes.Contains(planResponse, []byte(`"code":"node.services.may_restart"`)) {
+	if bytes.Contains(planResponse, []byte("cluster-secret-value")) || !bytes.Contains(planResponse, []byte(`"bootstrapRelease":"v1.2.27"`)) || !bytes.Contains(planResponse, []byte(`"overlayCommit":"`+strings.Repeat("c", 40)+`"`)) || !bytes.Contains(planResponse, []byte(`"dataDirectory":"/data/smallworlds-acceptance"`)) || !bytes.Contains(planResponse, []byte(`"code":"node.services.may_restart"`)) {
 		t.Fatalf("unsafe or incomplete plan: %s", planResponse)
 	}
 	var planned struct {

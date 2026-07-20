@@ -31,6 +31,13 @@ func TestDefaultCatalogPinsTheReleaseSigningPublicKey(t *testing.T) {
 	if len(descriptors) != 1 || descriptors[0].SHA256 != "732e1a19bc31ecab367ddedc242599516625ac706ef719bccf5578bca05c0e99" {
 		t.Fatalf("unexpected v1.2.26 descriptor: %#v", descriptors)
 	}
+	descriptors, err = catalog.Resolve("v1.2.27")
+	if err != nil {
+		t.Fatalf("default catalog did not resolve v1.2.27: %v", err)
+	}
+	if len(descriptors) != 1 || descriptors[0].SHA256 != "0e9d75766faf0a2991d75a00104c30800bc1323f4bfe96d1998a0c62d4af9c79" {
+		t.Fatalf("unexpected v1.2.27 descriptor: %#v", descriptors)
+	}
 }
 
 func TestCatalogRejectsDescriptorSignedByAnotherKey(t *testing.T) {

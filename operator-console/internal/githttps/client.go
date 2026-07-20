@@ -15,6 +15,7 @@ import (
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	gitHttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/memory"
 )
@@ -59,6 +60,7 @@ func (client *Client) ValidateAccess(ctx context.Context, remoteURL, username, t
 	}
 	remote := git.NewRemote(memory.NewStorage(), &config.RemoteConfig{Name: "origin", URLs: []string{remoteURL}})
 	_, err := remote.ListContext(ctx, &git.ListOptions{Auth: &gitHttp.BasicAuth{Username: username, Password: token}})
+	_, err = normalizeReferenceList(nil, err)
 	if err == nil || errors.Is(err, git.NoErrAlreadyUpToDate) {
 		return nil
 	}
@@ -75,6 +77,7 @@ func (client *Client) RemoteContainsCommit(ctx context.Context, remoteURL, usern
 	}
 	remote := git.NewRemote(memory.NewStorage(), &config.RemoteConfig{Name: "origin", URLs: []string{remoteURL}})
 	references, err := remote.ListContext(ctx, &git.ListOptions{Auth: &gitHttp.BasicAuth{Username: username, Password: token}})
+	references, err = normalizeReferenceList(references, err)
 	if err != nil {
 		if looksLikeAuthenticationFailure(err) {
 			return false, fmt.Errorf("%w: %v", ErrAuthentication, err)
@@ -101,6 +104,7 @@ func (client *Client) InitializeEmptyRemote(ctx context.Context, remoteURL, user
 	}
 	remote := git.NewRemote(memory.NewStorage(), &config.RemoteConfig{Name: "origin", URLs: []string{remoteURL}})
 	references, err := remote.ListContext(ctx, &git.ListOptions{Auth: &gitHttp.BasicAuth{Username: username, Password: token}})
+	references, err = normalizeReferenceList(references, err)
 	if err != nil {
 		return Identity{}, fmt.Errorf("list generic git references: %w", err)
 	}
@@ -168,6 +172,13 @@ func (client *Client) InitializeEmptyRemote(ctx context.Context, remoteURL, user
 		return Identity{}, fmt.Errorf("push initial generic overlay: %w", err)
 	}
 	return Identity{RepositoryURL: remoteURL, Commit: commit.String()}, nil
+}
+
+func normalizeReferenceList(references []*plumbing.Reference, err error) ([]*plumbing.Reference, error) {
+	if errors.Is(err, transport.ErrEmptyRemoteRepository) {
+		return nil, nil
+	}
+	return references, err
 }
 
 // CreateProposalBranch writes an exact reviewed overlay only to a named branch.

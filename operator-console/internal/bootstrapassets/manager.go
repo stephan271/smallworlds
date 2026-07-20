@@ -203,6 +203,14 @@ func DefaultCatalog() Catalog {
 			Signature:   "ToaVsClQiGf+99dJabblyN72bF65Mt9Ox7xUrg7jSxWEn3LTn2PGrMaT7WJsO473xvPJiTMhmzZw1L7d6XAqBQ==",
 			PublicKey:   trustedPublicKey,
 			Destination: "github.com",
+		}, {
+			ID:          "bootstrap-linux-amd64",
+			Release:     "v1.2.27",
+			URL:         "https://github.com/stephan271/smallworlds/releases/download/v1.2.27/smallworlds-bootstrap-v1.2.27-linux-amd64.tar.gz",
+			SHA256:      "0e9d75766faf0a2991d75a00104c30800bc1323f4bfe96d1998a0c62d4af9c79",
+			Signature:   "2V8bYkiLqgVhuYpTyypI1lss99wtCgVBiedMetDqCEiKGuXtEVzL3umwdl8gVGQj92f35tQXJp3hD9fejvsQAQ==",
+			PublicKey:   trustedPublicKey,
+			Destination: "github.com",
 		}},
 	}
 }

@@ -5,6 +5,7 @@ test('Operator plans a Linux-node bootstrap and observes interruption recovery',
   let runReads = 0;
 
   await page.route('**/api/v1/nodes/inspect', async (route) => {
+    expect(route.request().postDataJSON()).toMatchObject({ dataDirectory: '/data/smallworlds-acceptance' });
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -26,7 +27,7 @@ test('Operator plans a Linux-node bootstrap and observes interruption recovery',
       body: JSON.stringify({
         plan: {
           id: 'bootstrap-plan', profileId: 'browser-profile', intent: 'BootstrapLocalNode', digest: 'a'.repeat(64), status: 'planned',
-          preconditions: { profileRevision: 1, nodeIdentity: 'sha256:test-machine', inspectionDigest: 'b'.repeat(64), inspectedAt: new Date().toISOString(), bootstrapRelease: 'v1.2.26', overlayCommit: 'c'.repeat(40), dataDirectory: '/var/lib/smallworlds-data' },
+          preconditions: { profileRevision: 1, nodeIdentity: 'sha256:test-machine', inspectionDigest: 'b'.repeat(64), inspectedAt: new Date().toISOString(), bootstrapRelease: 'v1.2.27', overlayCommit: 'c'.repeat(40), dataDirectory: '/var/lib/smallworlds-data' },
           effects: [{ code: 'node.privileged.bootstrap', messageKey: 'plan.effect.local_bootstrap_privileged' }],
           risks: [{ code: 'node.services.may_restart', messageKey: 'plan.risk.local_bootstrap_downtime' }, { code: 'node.atomic_install', messageKey: 'plan.risk.local_bootstrap_cancellation' }], createdAt: new Date().toISOString()
         },
@@ -55,6 +56,7 @@ test('Operator plans a Linux-node bootstrap and observes interruption recovery',
 
   const node = page.getByRole('region', { name: 'Inspect Local Cluster Node' });
   await node.getByLabel('Target').selectOption('same-host');
+  await node.getByLabel('Persistent data directory').fill('/data/smallworlds-acceptance');
   await node.getByRole('button', { name: 'Inspect node' }).click();
   await expect(node.getByText('Ready to plan')).toBeVisible();
 

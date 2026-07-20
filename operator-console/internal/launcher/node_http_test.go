@@ -21,7 +21,7 @@ func TestSameHostInspectionReturnsSafeAssessmentOnLinux(t *testing.T) {
 	t.Cleanup(func() { _ = handler.Close() })
 	cookie, csrf := exchange(t, handler, "same-host")
 	profile := createProfile(t, handler, cookie, csrf, "Node", "en", "local-lan")
-	body, _ := json.Marshal(map[string]any{"profileId": profile.ID, "target": map[string]any{"kind": "same-host"}, "authentication": map[string]any{"kind": "agent"}})
+	body, _ := json.Marshal(map[string]any{"profileId": profile.ID, "target": map[string]any{"kind": "same-host"}, "authentication": map[string]any{"kind": "agent"}, "dataDirectory": "/var/lib/smallworlds-data"})
 	response := request(t, handler, http.MethodPost, "/api/v1/nodes/inspect", body, cookie, map[string]string{"X-CSRF-Token": csrf})
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("same host status = %d", response.StatusCode)
@@ -29,6 +29,26 @@ func TestSameHostInspectionReturnsSafeAssessmentOnLinux(t *testing.T) {
 	data := readAll(t, response)
 	if !bytes.Contains(data, []byte(`"operatingSystem":"linux"`)) || bytes.Contains(data, []byte("privateKey")) || bytes.Contains(data, []byte("password")) {
 		t.Fatalf("unsafe or incomplete node report: %s", data)
+	}
+}
+
+func TestNodeInspectionMeasuresTheSelectedDataDirectory(t *testing.T) {
+	inspector := &readyNodeInspector{}
+	handler, err := launcher.New(launcher.Config{DataDir: t.TempDir(), LaunchToken: "selected-data-directory", NodeInspector: inspector})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = handler.Close() })
+	cookie, csrf := exchange(t, handler, "selected-data-directory")
+	profile := createProfile(t, handler, cookie, csrf, "Node", "en", "local-lan")
+	body, _ := json.Marshal(map[string]any{"profileId": profile.ID, "target": map[string]any{"kind": "same-host"}, "authentication": map[string]any{"kind": "agent"}, "dataDirectory": "/data/smallworlds-acceptance"})
+	response := request(t, handler, http.MethodPost, "/api/v1/nodes/inspect", body, cookie, map[string]string{"X-CSRF-Token": csrf})
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("selected data directory status = %d", response.StatusCode)
+	}
+	response.Body.Close()
+	if inspector.dataDirectory != "/data/smallworlds-acceptance" {
+		t.Fatalf("inspected data directory = %q", inspector.dataDirectory)
 	}
 }
 

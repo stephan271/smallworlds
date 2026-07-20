@@ -105,6 +105,11 @@ type Requirements struct {
 
 var safeDataDirectory = regexp.MustCompile(`^/[A-Za-z0-9._/-]*$`)
 
+func ValidateDataDirectory(value string) error {
+	_, err := normalizeDataDirectory(value)
+	return err
+}
+
 func normalizeDataDirectory(value string) (string, error) {
 	if value == "" {
 		return "/", nil

@@ -17,8 +17,8 @@ func TestSameHostExecutionRejectsChangedNodeIdentityBeforePrivilegeUse(t *testin
 	binding := Binding{
 		PlanID: "plan-1", ProfileID: "profile-1", ProfileRevision: 1,
 		Target: nodeinspect.Target{Kind: nodeinspect.SameHostTarget}, NodeIdentity: "sha256:expected",
-		InspectionDigest: strings.Repeat("a", 64), InspectedAt: time.Now().UTC(), Release: "v1.2.26", AssetID: "bootstrap-linux-amd64", AssetSHA256: strings.Repeat("b", 64),
-		OverlayRepositoryURL: "https://github.com/example/config", OverlayCommit: strings.Repeat("c", 40), OverlayRelease: "v1.2.26", AuthenticationKind: "same-host",
+		InspectionDigest: strings.Repeat("a", 64), InspectedAt: time.Now().UTC(), Release: "v1.2.27", AssetID: "bootstrap-linux-amd64", AssetSHA256: strings.Repeat("b", 64),
+		OverlayRepositoryURL: "https://github.com/example/config", OverlayCommit: strings.Repeat("c", 40), OverlayRelease: "v1.2.27", AuthenticationKind: "same-host",
 		Configuration: Configuration{Domain: "example.internal", DataDirectory: "/var/lib/smallworlds-data", NodeName: "node-1"},
 	}
 	runner := ProductionRunner{SameHostInspector: func(profileID, dataDirectory string) (nodeinspect.Report, error) {
@@ -41,8 +41,8 @@ func TestRuntimeArchiveKeepsSecretsOutOfShellConfiguration(t *testing.T) {
 	request := RunRequest{RunID: "run-1", Secrets: "apiVersion: v1\nkind: Secret\ndata:\n  token: sensitive-value\n", Binding: Binding{
 		PlanID: "plan-1", ProfileID: "profile-1", ProfileRevision: 1,
 		Target: nodeinspect.Target{Kind: nodeinspect.RemoteTarget, Host: "node.internal", Port: 22, Username: "operator"}, HostFingerprint: "SHA256:pinned", NodeIdentity: "SHA256:pinned",
-		InspectionDigest: strings.Repeat("a", 64), InspectedAt: time.Now().UTC(), Release: "v1.2.26", AssetID: "bootstrap-linux-amd64", AssetSHA256: strings.Repeat("b", 64),
-		OverlayRepositoryURL: "https://github.com/example/config", OverlayCommit: strings.Repeat("c", 40), OverlayRelease: "v1.2.26", AuthenticationKind: "password", SecretsVaultKey: "profile-1/cluster-secrets-manifest",
+		InspectionDigest: strings.Repeat("a", 64), InspectedAt: time.Now().UTC(), Release: "v1.2.27", AssetID: "bootstrap-linux-amd64", AssetSHA256: strings.Repeat("b", 64),
+		OverlayRepositoryURL: "https://github.com/example/config", OverlayCommit: strings.Repeat("c", 40), OverlayRelease: "v1.2.27", AuthenticationKind: "password", SecretsVaultKey: "profile-1/cluster-secrets-manifest",
 		Configuration: Configuration{Domain: "example.internal", EnvironmentExtension: ".dev", DataDirectory: "/var/lib/smallworlds-data", NodeName: "node-1", ACMEEmail: "admin@example.internal", ManageDNS: true},
 	}}
 	archive, err := buildRuntimeArchive(request)

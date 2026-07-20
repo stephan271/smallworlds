@@ -21,8 +21,16 @@ Covers PRD user stories 20–23, 54, and 61.
 
 ## Remaining qualification
 
-- Publish the prepared, signed `v1.2.26` bootstrap payload after the implementation commit is pushed and tagged.
-- Run the browser workflow against a disposable Linux Cluster Node, force a Launcher or SSH interruption during bootstrap, and verify recovery from the node's durable markers. The deterministic service, HTTP, runner, and browser-contract tests cover these paths without mutating a real machine, but they do not replace this final destructive acceptance run.
+- Commit, push, and tag the prepared `v1.2.27` release, then explicitly publish its locally reproduced signed bootstrap payload.
+- Recreate the secret-free acceptance overlay pinned to `v1.2.27` and repeat the clean-node browser run. It must reach Launcher's externally observed `verification-complete` state with the root Argo CD Application `Synced` and `Healthy`.
+
+## Destructive acceptance evidence (2026-07-20)
+
+- The Svelte browser journey created the private, secret-free overlay, acquired and verified the signed `v1.2.26` payload, inspected `egli@192.168.178.52`, and deliberately selected `/data/smallworlds-acceptance` as the persistent filesystem.
+- The browser approved the exact bootstrap Change Plan. The harness waited for the remote `bootstrap-started` marker, terminated the exact Launcher process, restarted it with the same data directory, unlocked the Vault, and resumed without repeating unsafe work.
+- Recovery produced `k3s-ready`, `argocd-ready`, `overlay-applied`, and `bootstrap-complete`; removed `bootstrap-interrupted`; left k3s active; and injected all four required Secret objects without reading or logging their values.
+- Launcher correctly withheld `verification-complete`: the release's cert-manager webhook consumer and Trivy ServiceMonitor consumer exhausted Argo CD sync before their providers were ready. The captured failures were converted into explicit sync-wave ordering, bounded retries, and `admin-tools/test-gitops-bootstrap-ordering.sh`.
+- The run was safely cancelled through the browser. The official k3s uninstaller then removed the disposable cluster, and verification confirmed no k3s process/service/binary, SmallWorlds marker/staging path, or acceptance data remained on the host.
 
 ## Blocked by
 

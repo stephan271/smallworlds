@@ -750,6 +750,7 @@ export interface components {
             profileId: string;
             target: components["schemas"]["NodeTarget"];
             authentication: components["schemas"]["NodeAuthentication"];
+            dataDirectory: string;
         };
         NodeAssessment: {
             ready: boolean;
@@ -792,7 +793,7 @@ export interface components {
             target: components["schemas"]["NodeTarget"];
             authentication: components["schemas"]["NodeAuthentication"];
             /** @constant */
-            release: "v1.2.26";
+            release: "v1.2.27";
             configuration: components["schemas"]["LocalBootstrapConfiguration"];
             /** Format: password */
             secretsManifest?: string;

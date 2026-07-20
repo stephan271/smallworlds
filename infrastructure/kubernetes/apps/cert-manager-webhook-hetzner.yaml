@@ -2,7 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   annotations:
-    argocd.argoproj.io/sync-wave: "-10"
+    argocd.argoproj.io/sync-wave: "-9"
   name: cert-manager-webhook-hetzner
   namespace: argocd
   finalizers:
@@ -17,6 +17,12 @@ spec:
     server: 'https://kubernetes.default.svc'
     namespace: cert-manager
   syncPolicy:
+    retry:
+      limit: 20
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 5m
     automated:
       prune: true
       selfHeal: true
