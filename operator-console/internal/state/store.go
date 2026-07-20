@@ -76,6 +76,9 @@ type OverlayIdentity struct {
 	RepositoryURL string    `json:"repositoryUrl"`
 	Release       string    `json:"release"`
 	Commit        string    `json:"commit"`
+	Domain        string    `json:"domain,omitempty"`
+	MemoryMi      int       `json:"memoryMi,omitempty"`
+	StorageGi     int       `json:"storageGi,omitempty"`
 	RecordedAt    time.Time `json:"recordedAt"`
 }
 
@@ -97,11 +100,21 @@ type PendingNodeTrust struct {
 	ObservedAt  time.Time
 }
 
+type BootstrapPlanRecord struct {
+	PlanID    string
+	ProfileID string
+	Binding   string
+	CreatedAt time.Time
+}
+
 type ProfileSnapshot struct {
 	Profile              Profile
 	Plans                []PlanRecord
 	Runs                 []RunRecord
 	Events               []EventRecord
+	BootstrapPlans       []BootstrapPlanRecord
+	OverlayIdentity      *OverlayIdentity
+	NodeTrust            *NodeTrust
 	CredentialReferences []CredentialReference
 }
 
@@ -286,7 +299,7 @@ func (store *Store) DeleteCredentialReference(ctx context.Context, profileID, ki
 }
 
 func (store *Store) RecordOverlayIdentity(ctx context.Context, identity OverlayIdentity) error {
-	_, err := store.database.ExecContext(ctx, `INSERT INTO overlay_identities (profile_id, provider, repository, repository_url, release, commit_sha, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(profile_id) DO UPDATE SET provider=excluded.provider, repository=excluded.repository, repository_url=excluded.repository_url, release=excluded.release, commit_sha=excluded.commit_sha, recorded_at=excluded.recorded_at`, identity.ProfileID, identity.Provider, identity.Repository, identity.RepositoryURL, identity.Release, identity.Commit, identity.RecordedAt.UTC().Format(time.RFC3339Nano))
+	_, err := store.database.ExecContext(ctx, `INSERT INTO overlay_identities (profile_id, provider, repository, repository_url, release, commit_sha, domain, memory_mi, storage_gi, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(profile_id) DO UPDATE SET provider=excluded.provider, repository=excluded.repository, repository_url=excluded.repository_url, release=excluded.release, commit_sha=excluded.commit_sha, domain=excluded.domain, memory_mi=excluded.memory_mi, storage_gi=excluded.storage_gi, recorded_at=excluded.recorded_at`, identity.ProfileID, identity.Provider, identity.Repository, identity.RepositoryURL, identity.Release, identity.Commit, identity.Domain, identity.MemoryMi, identity.StorageGi, identity.RecordedAt.UTC().Format(time.RFC3339Nano))
 	if err != nil {
 		return fmt.Errorf("record overlay identity: %w", err)
 	}
@@ -296,7 +309,7 @@ func (store *Store) RecordOverlayIdentity(ctx context.Context, identity OverlayI
 func (store *Store) GetOverlayIdentity(ctx context.Context, profileID string) (OverlayIdentity, error) {
 	var identity OverlayIdentity
 	var recordedAt string
-	err := store.database.QueryRowContext(ctx, `SELECT profile_id, provider, repository, repository_url, release, commit_sha, recorded_at FROM overlay_identities WHERE profile_id = ?`, profileID).Scan(&identity.ProfileID, &identity.Provider, &identity.Repository, &identity.RepositoryURL, &identity.Release, &identity.Commit, &recordedAt)
+	err := store.database.QueryRowContext(ctx, `SELECT profile_id, provider, repository, repository_url, release, commit_sha, domain, memory_mi, storage_gi, recorded_at FROM overlay_identities WHERE profile_id = ?`, profileID).Scan(&identity.ProfileID, &identity.Provider, &identity.Repository, &identity.RepositoryURL, &identity.Release, &identity.Commit, &identity.Domain, &identity.MemoryMi, &identity.StorageGi, &recordedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return OverlayIdentity{}, ErrNotFound
 	}
@@ -368,6 +381,31 @@ func (store *Store) DeletePendingNodeTrust(ctx context.Context, profileID string
 	return nil
 }
 
+func (store *Store) RecordBootstrapPlan(ctx context.Context, record BootstrapPlanRecord) error {
+	_, err := store.database.ExecContext(ctx, `INSERT INTO bootstrap_plans (plan_id, profile_id, binding_json, created_at) VALUES (?, ?, ?, ?)`, record.PlanID, record.ProfileID, record.Binding, record.CreatedAt.UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return fmt.Errorf("record bootstrap plan: %w", err)
+	}
+	return nil
+}
+
+func (store *Store) GetBootstrapPlan(ctx context.Context, planID string) (BootstrapPlanRecord, error) {
+	var record BootstrapPlanRecord
+	var createdAt string
+	err := store.database.QueryRowContext(ctx, `SELECT plan_id, profile_id, binding_json, created_at FROM bootstrap_plans WHERE plan_id = ?`, planID).Scan(&record.PlanID, &record.ProfileID, &record.Binding, &createdAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return BootstrapPlanRecord{}, ErrNotFound
+	}
+	if err != nil {
+		return BootstrapPlanRecord{}, fmt.Errorf("get bootstrap plan: %w", err)
+	}
+	record.CreatedAt, err = time.Parse(time.RFC3339Nano, createdAt)
+	if err != nil {
+		return BootstrapPlanRecord{}, fmt.Errorf("parse bootstrap plan creation: %w", err)
+	}
+	return record, nil
+}
+
 func (store *Store) ExportProfileSnapshot(ctx context.Context, profileID string) (ProfileSnapshot, error) {
 	profile, err := store.GetProfile(ctx, profileID)
 	if err != nil {
@@ -389,7 +427,23 @@ func (store *Store) ExportProfileSnapshot(ctx context.Context, profileID string)
 	if err != nil {
 		return ProfileSnapshot{}, err
 	}
-	return ProfileSnapshot{Profile: profile, Plans: plans, Runs: runs, Events: events, CredentialReferences: references}, nil
+	bootstrapPlans, err := store.listBootstrapPlansForProfile(ctx, profileID)
+	if err != nil {
+		return ProfileSnapshot{}, err
+	}
+	var overlayIdentity *OverlayIdentity
+	if overlay, overlayErr := store.GetOverlayIdentity(ctx, profileID); overlayErr == nil {
+		overlayIdentity = &overlay
+	} else if !errors.Is(overlayErr, ErrNotFound) {
+		return ProfileSnapshot{}, overlayErr
+	}
+	var nodeTrust *NodeTrust
+	if trust, trustErr := store.GetNodeTrust(ctx, profileID); trustErr == nil {
+		nodeTrust = &trust
+	} else if !errors.Is(trustErr, ErrNotFound) {
+		return ProfileSnapshot{}, trustErr
+	}
+	return ProfileSnapshot{Profile: profile, Plans: plans, Runs: runs, Events: events, BootstrapPlans: bootstrapPlans, OverlayIdentity: overlayIdentity, NodeTrust: nodeTrust, CredentialReferences: references}, nil
 }
 
 func (store *Store) CanImportProfileSnapshot(ctx context.Context, snapshot ProfileSnapshot) error {
@@ -428,6 +482,14 @@ func validateProfileSnapshot(snapshot ProfileSnapshot) error {
 			return fmt.Errorf("recovery run references missing plan")
 		}
 	}
+	for _, bootstrapPlan := range snapshot.BootstrapPlans {
+		if bootstrapPlan.ProfileID != snapshot.Profile.ID || bootstrapPlan.Binding == "" {
+			return fmt.Errorf("invalid recovery bootstrap plan")
+		}
+		if _, found := plans[bootstrapPlan.PlanID]; !found {
+			return fmt.Errorf("recovery bootstrap binding references missing plan")
+		}
+	}
 	for _, event := range snapshot.Events {
 		if event.ProfileID != snapshot.Profile.ID {
 			return fmt.Errorf("invalid recovery event")
@@ -437,6 +499,12 @@ func validateProfileSnapshot(snapshot ProfileSnapshot) error {
 		if reference.ProfileID != snapshot.Profile.ID || reference.Kind == "" || reference.VaultKey == "" {
 			return fmt.Errorf("invalid recovery credential reference")
 		}
+	}
+	if snapshot.OverlayIdentity != nil && snapshot.OverlayIdentity.ProfileID != snapshot.Profile.ID {
+		return fmt.Errorf("invalid recovery overlay identity")
+	}
+	if snapshot.NodeTrust != nil && snapshot.NodeTrust.ProfileID != snapshot.Profile.ID {
+		return fmt.Errorf("invalid recovery node trust")
 	}
 	return nil
 }
@@ -465,6 +533,26 @@ func (store *Store) ImportProfileSnapshot(ctx context.Context, snapshot ProfileS
 			VALUES (?, ?, ?, ?, ?, ?, ?)
 		`, plan.ID, plan.ProfileID, plan.Intent, plan.Digest, plan.Status, plan.ProfileRevision, plan.CreatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
 			return fmt.Errorf("restore recovery plan: %w", err)
+		}
+	}
+	for _, bootstrapPlan := range snapshot.BootstrapPlans {
+		if _, err := transaction.ExecContext(ctx, `
+			INSERT INTO bootstrap_plans (plan_id, profile_id, binding_json, created_at)
+			VALUES (?, ?, ?, ?)
+		`, bootstrapPlan.PlanID, bootstrapPlan.ProfileID, bootstrapPlan.Binding, bootstrapPlan.CreatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
+			return fmt.Errorf("restore recovery bootstrap plan: %w", err)
+		}
+	}
+	if snapshot.OverlayIdentity != nil {
+		identity := snapshot.OverlayIdentity
+		if _, err := transaction.ExecContext(ctx, `INSERT INTO overlay_identities (profile_id, provider, repository, repository_url, release, commit_sha, domain, memory_mi, storage_gi, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, identity.ProfileID, identity.Provider, identity.Repository, identity.RepositoryURL, identity.Release, identity.Commit, identity.Domain, identity.MemoryMi, identity.StorageGi, identity.RecordedAt.UTC().Format(time.RFC3339Nano)); err != nil {
+			return fmt.Errorf("restore recovery overlay identity: %w", err)
+		}
+	}
+	if snapshot.NodeTrust != nil {
+		trust := snapshot.NodeTrust
+		if _, err := transaction.ExecContext(ctx, `INSERT INTO node_trusts (profile_id, host, port, username, fingerprint, confirmed_at) VALUES (?, ?, ?, ?, ?, ?)`, trust.ProfileID, trust.Host, trust.Port, trust.Username, trust.Fingerprint, trust.ConfirmedAt.UTC().Format(time.RFC3339Nano)); err != nil {
+			return fmt.Errorf("restore recovery node trust: %w", err)
 		}
 	}
 	for _, run := range snapshot.Runs {
@@ -527,6 +615,28 @@ func (store *Store) listPlansForProfile(ctx context.Context, profileID string) (
 		plans = append(plans, plan)
 	}
 	return plans, rows.Err()
+}
+
+func (store *Store) listBootstrapPlansForProfile(ctx context.Context, profileID string) ([]BootstrapPlanRecord, error) {
+	rows, err := store.database.QueryContext(ctx, `SELECT plan_id, profile_id, binding_json, created_at FROM bootstrap_plans WHERE profile_id = ? ORDER BY created_at`, profileID)
+	if err != nil {
+		return nil, fmt.Errorf("list recovery bootstrap plans: %w", err)
+	}
+	defer rows.Close()
+	records := make([]BootstrapPlanRecord, 0)
+	for rows.Next() {
+		var record BootstrapPlanRecord
+		var createdAt string
+		if err := rows.Scan(&record.PlanID, &record.ProfileID, &record.Binding, &createdAt); err != nil {
+			return nil, fmt.Errorf("scan recovery bootstrap plan: %w", err)
+		}
+		record.CreatedAt, err = time.Parse(time.RFC3339Nano, createdAt)
+		if err != nil {
+			return nil, fmt.Errorf("parse recovery bootstrap plan: %w", err)
+		}
+		records = append(records, record)
+	}
+	return records, rows.Err()
 }
 
 func (store *Store) listRunsForProfile(ctx context.Context, profileID string) ([]RunRecord, error) {
@@ -993,6 +1103,15 @@ func (store *Store) migrate(ctx context.Context) error {
 			fingerprint TEXT NOT NULL,
 			observed_at TEXT NOT NULL
 		)`},
+		{9, `CREATE TABLE bootstrap_plans (
+			plan_id TEXT PRIMARY KEY REFERENCES plans(id),
+			profile_id TEXT NOT NULL REFERENCES profiles(id),
+			binding_json TEXT NOT NULL,
+			created_at TEXT NOT NULL
+		)`},
+		{10, `ALTER TABLE overlay_identities ADD COLUMN domain TEXT NOT NULL DEFAULT ''`},
+		{11, `ALTER TABLE overlay_identities ADD COLUMN memory_mi INTEGER NOT NULL DEFAULT 0`},
+		{12, `ALTER TABLE overlay_identities ADD COLUMN storage_gi INTEGER NOT NULL DEFAULT 0`},
 	}
 	for _, migration := range migrations {
 		if err := store.applyMigration(ctx, migration.version, migration.statement); err != nil {

@@ -18,6 +18,7 @@ type genericGitStub struct {
 	contains        bool
 	initializeCalls int
 	proposalCalls   int
+	commit          string
 }
 
 func (stub *genericGitStub) ValidateAccess(context.Context, string, string, string) error {
@@ -31,7 +32,11 @@ func (stub *genericGitStub) InitializeEmptyRemote(_ context.Context, remoteURL, 
 	if stub.initializeErr != nil {
 		return githttps.Identity{}, stub.initializeErr
 	}
-	return githttps.Identity{RepositoryURL: remoteURL, Commit: "initial-commit"}, nil
+	commit := stub.commit
+	if commit == "" {
+		commit = "initial-commit"
+	}
+	return githttps.Identity{RepositoryURL: remoteURL, Commit: commit}, nil
 }
 func (stub *genericGitStub) CreateProposalBranch(_ context.Context, _ string, _ string, _ string, branch string, _ map[string]string) (githttps.Proposal, error) {
 	stub.proposalCalls++

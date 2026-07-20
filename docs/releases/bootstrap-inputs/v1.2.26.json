@@ -1,0 +1,13 @@
+{
+  "release": "v1.2.26",
+  "k3s": {
+    "version": "v1.36.2+k3s1",
+    "installerUrl": "https://get.k3s.io",
+    "installerSHA256": "d264d4d43f7c5a27b44de0075513fb22dfb02d0b7cd33ba7a3838cb822f4729c"
+  },
+  "argocd": {
+    "version": "v3.4.5",
+    "manifestUrl": "https://raw.githubusercontent.com/argoproj/argo-cd/v3.4.5/manifests/install.yaml",
+    "manifestSHA256": "cdf6758b489d25641c2a1fd835642543aaa64fe530867d0136a83ddf3dafe456"
+  }
+}

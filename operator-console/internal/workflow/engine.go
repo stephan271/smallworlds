@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/stephan271/smallworlds/operator-console/internal/state"
@@ -26,7 +27,14 @@ type Risk struct {
 }
 
 type Preconditions struct {
-	ProfileRevision int64 `json:"profileRevision"`
+	ProfileRevision  int64     `json:"profileRevision"`
+	NodeIdentity     string    `json:"nodeIdentity,omitempty"`
+	HostFingerprint  string    `json:"hostFingerprint,omitempty"`
+	InspectionDigest string    `json:"inspectionDigest,omitempty"`
+	InspectedAt      time.Time `json:"inspectedAt,omitempty"`
+	BootstrapRelease string    `json:"bootstrapRelease,omitempty"`
+	OverlayCommit    string    `json:"overlayCommit,omitempty"`
+	DataDirectory    string    `json:"dataDirectory,omitempty"`
 }
 
 type Plan struct {
@@ -73,11 +81,21 @@ type Journey struct {
 }
 
 type Engine struct {
-	store *state.Store
+	store     *state.Store
+	mu        sync.RWMutex
+	executors map[string]func(string)
 }
 
 func New(store *state.Store) *Engine {
-	return &Engine{store: store}
+	return &Engine{store: store, executors: make(map[string]func(string))}
+}
+
+// RegisterExecutor attaches a Launcher-owned implementation to one fixed plan
+// intent. Browser input can never select an executable or command.
+func (engine *Engine) RegisterExecutor(intent string, executor func(string)) {
+	engine.mu.Lock()
+	defer engine.mu.Unlock()
+	engine.executors[intent] = executor
 }
 
 func (engine *Engine) ResumeActive(ctx context.Context) error {
@@ -86,7 +104,7 @@ func (engine *Engine) ResumeActive(ctx context.Context) error {
 		return err
 	}
 	for _, run := range runs {
-		go engine.executeVerification(run.ID)
+		go engine.execute(run.ID)
 	}
 	return nil
 }
@@ -96,6 +114,10 @@ func (engine *Engine) PlanVerification(ctx context.Context, profileID string) (P
 }
 
 func (engine *Engine) PlanChange(ctx context.Context, profileID, intent, detail string, effects []Effect) (Plan, error) {
+	return engine.PlanChangeWithRisks(ctx, profileID, intent, detail, effects, nil)
+}
+
+func (engine *Engine) PlanChangeWithRisks(ctx context.Context, profileID, intent, detail string, effects []Effect, risks []Risk) (Plan, error) {
 	profile, err := engine.store.GetProfile(ctx, profileID)
 	if err != nil {
 		return Plan{}, err
@@ -116,8 +138,8 @@ func (engine *Engine) PlanChange(ctx context.Context, profileID, intent, detail 
 		Preconditions: Preconditions{
 			ProfileRevision: profile.Revision,
 		},
-		Effects:   effects,
-		Risks:     []Risk{},
+		Effects:   append([]Effect{}, effects...),
+		Risks:     append([]Risk{}, risks...),
 		CreatedAt: createdAt,
 	}
 	if err := engine.store.CreatePlan(ctx, state.PlanRecord{
@@ -225,7 +247,7 @@ func (engine *Engine) Approve(ctx context.Context, planID string) (Run, error) {
 	}); err != nil {
 		return Run{}, err
 	}
-	go engine.executeVerification(run.ID)
+	go engine.execute(run.ID)
 	return run, nil
 }
 
@@ -243,6 +265,26 @@ func (engine *Engine) Cancel(ctx context.Context, id string) (Run, error) {
 		return Run{}, err
 	}
 	return runFromRecord(record), nil
+}
+
+func (engine *Engine) execute(runID string) {
+	ctx := context.Background()
+	run, err := engine.store.GetRun(ctx, runID)
+	if err != nil || run.State != "running" {
+		return
+	}
+	plan, err := engine.store.GetPlan(ctx, run.PlanID)
+	if err != nil {
+		return
+	}
+	engine.mu.RLock()
+	executor := engine.executors[plan.Intent]
+	engine.mu.RUnlock()
+	if executor != nil {
+		executor(runID)
+		return
+	}
+	engine.executeVerification(runID)
 }
 
 func (engine *Engine) executeVerification(runID string) {

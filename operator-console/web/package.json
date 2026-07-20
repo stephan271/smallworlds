@@ -6,7 +6,8 @@
     "build": "vite build",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "generate:api": "openapi-typescript ../api/openapi.json -o src/lib/generated/api.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:local-bootstrap": "playwright test --config local-bootstrap.playwright.config.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.12.1",

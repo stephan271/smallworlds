@@ -4,6 +4,8 @@
 package nodeinspect
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"regexp"
@@ -81,6 +83,7 @@ type Installation struct {
 }
 
 type Report struct {
+	NodeIdentity    string       `json:"nodeIdentity,omitempty"`
 	OperatingSystem string       `json:"operatingSystem"`
 	Architecture    string       `json:"architecture"`
 	Systemd         bool         `json:"systemd"`
@@ -119,6 +122,8 @@ func (assessment Assessment) HasBlocker(code string) bool {
 
 func Assess(report Report, requirements Requirements) Assessment {
 	blockers := make([]Blocker, 0)
+	installation := report.Installation
+	resumable := installation.Interrupted && installation.Kubernetes == ProfileOwned && installation.SmallWorldsData == ProfileOwned && installation.ProfileID == requirements.ProfileID
 	if report.OperatingSystem != "linux" {
 		blockers = append(blockers, Blocker{Code: "node.os.unsupported"})
 	}
@@ -142,12 +147,13 @@ func Assess(report Report, requirements Requirements) Assessment {
 		occupied[port] = true
 	}
 	for _, port := range requirements.RequiredPorts {
+		if resumable {
+			continue
+		}
 		if occupied[port] {
 			blockers = append(blockers, Blocker{Code: fmt.Sprintf("port.%d.occupied", port)})
 		}
 	}
-	installation := report.Installation
-	resumable := installation.Interrupted && installation.Kubernetes == ProfileOwned && installation.SmallWorldsData == ProfileOwned && installation.ProfileID == requirements.ProfileID
 	if installation.ProfileID != "" && installation.ProfileID != requirements.ProfileID && (installation.Kubernetes == ProfileOwned || installation.SmallWorldsData == ProfileOwned) {
 		blockers = append(blockers, Blocker{Code: "installation.profile.mismatch"})
 	} else {
@@ -169,6 +175,11 @@ func Assess(report Report, requirements Requirements) Assessment {
 	}
 	sort.Slice(blockers, func(left, right int) bool { return blockers[left].Code < blockers[right].Code })
 	return Assessment{Ready: len(blockers) == 0, Resumable: resumable && len(blockers) == 0, Blockers: blockers}
+}
+
+func HashNodeIdentity(identity string) string {
+	digest := sha256.Sum256([]byte(strings.TrimSpace(identity)))
+	return "sha256:" + hex.EncodeToString(digest[:])
 }
 
 // HostKeyFingerprint is the canonical SHA-256 presentation shown before the

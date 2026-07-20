@@ -221,6 +221,14 @@
         "responses": { "201": { "description": "Reviewable plan to prepare a dedicated per-profile SSH key after trust", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ChangePlan" } } } }, "409": { "$ref": "#/components/responses/Conflict" } }
       }
     },
+    "/api/v1/local-bootstrap/plan": {
+      "post": {
+        "operationId": "planLocalBootstrap",
+        "parameters": [{ "$ref": "#/components/parameters/CSRFToken" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LocalBootstrapPlanInput" } } } },
+        "responses": { "201": { "description": "Freshly inspected and immutably bound Local Cluster Node bootstrap plan", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LocalBootstrapPlanResult" } } } }, "409": { "$ref": "#/components/responses/Conflict" }, "423": { "$ref": "#/components/responses/Locked" } }
+      }
+    },
     "/api/v1/profiles": {
       "get": {
         "operationId": "listProfiles",
@@ -629,9 +637,12 @@
       "NodeInspectionInput": { "type": "object", "required": ["profileId", "target", "authentication"], "properties": { "profileId": { "type": "string" }, "target": { "$ref": "#/components/schemas/NodeTarget" }, "authentication": { "$ref": "#/components/schemas/NodeAuthentication" } } },
       "NodeAssessment": { "type": "object", "required": ["ready", "resumable", "blockers"], "properties": { "ready": { "type": "boolean" }, "resumable": { "type": "boolean" }, "blockers": { "type": "array", "items": { "type": "object", "required": ["code"], "properties": { "code": { "type": "string" } } } } } },
       "NodeCapacity": { "type": "object", "required": ["cpuCores", "memoryMi", "diskGi"], "properties": { "cpuCores": { "type": "integer", "minimum": 0 }, "memoryMi": { "type": "integer", "minimum": 0 }, "diskGi": { "type": "integer", "minimum": 0 } } },
-      "NodeReport": { "type": "object", "required": ["operatingSystem", "architecture", "systemd", "capacity", "ports", "kernelReady", "privilege", "installation"], "properties": { "operatingSystem": { "type": "string" }, "architecture": { "type": "string" }, "systemd": { "type": "boolean" }, "capacity": { "$ref": "#/components/schemas/NodeCapacity" }, "ports": { "type": "array", "items": { "type": "integer" } }, "kernelReady": { "type": "boolean" }, "privilege": { "type": "string" }, "installation": { "type": "object" } } },
+      "NodeReport": { "type": "object", "required": ["nodeIdentity", "operatingSystem", "architecture", "systemd", "capacity", "ports", "kernelReady", "privilege", "installation"], "properties": { "nodeIdentity": { "type": "string", "pattern": "^sha256:" }, "operatingSystem": { "type": "string" }, "architecture": { "type": "string" }, "systemd": { "type": "boolean" }, "capacity": { "$ref": "#/components/schemas/NodeCapacity" }, "ports": { "type": "array", "items": { "type": "integer" } }, "kernelReady": { "type": "boolean" }, "privilege": { "type": "string" }, "installation": { "type": "object" } } },
       "NodeInspectionResult": { "type": "object", "required": ["target", "report", "assessment"], "properties": { "target": { "$ref": "#/components/schemas/NodeTarget" }, "report": { "$ref": "#/components/schemas/NodeReport" }, "assessment": { "$ref": "#/components/schemas/NodeAssessment" } } },
-      "OverlayIdentity": { "type": "object", "required": ["profileId", "provider", "repository", "repositoryUrl", "release", "commit", "recordedAt"], "properties": { "profileId": { "type": "string" }, "provider": { "type": "string", "enum": ["github", "generic-https"] }, "repository": { "type": "string" }, "repositoryUrl": { "type": "string", "format": "uri" }, "release": { "type": "string" }, "commit": { "type": "string" }, "recordedAt": { "type": "string", "format": "date-time" } } },
+      "LocalBootstrapConfiguration": { "type": "object", "required": ["domain", "dataDirectory", "nodeName", "manageDns"], "properties": { "domain": { "type": "string" }, "environmentExtension": { "type": "string" }, "dataDirectory": { "type": "string", "pattern": "^/" }, "nodeName": { "type": "string" }, "acmeEmail": { "type": "string" }, "manageDns": { "type": "boolean" } } },
+      "LocalBootstrapPlanInput": { "type": "object", "required": ["profileId", "target", "authentication", "release", "configuration"], "properties": { "profileId": { "type": "string" }, "target": { "$ref": "#/components/schemas/NodeTarget" }, "authentication": { "$ref": "#/components/schemas/NodeAuthentication" }, "release": { "type": "string", "const": "v1.2.26" }, "configuration": { "$ref": "#/components/schemas/LocalBootstrapConfiguration" }, "secretsManifest": { "type": "string", "format": "password", "writeOnly": true } } },
+      "LocalBootstrapPlanResult": { "type": "object", "required": ["plan", "inspection"], "properties": { "plan": { "$ref": "#/components/schemas/ChangePlan" }, "inspection": { "$ref": "#/components/schemas/NodeInspectionResult" } } },
+      "OverlayIdentity": { "type": "object", "required": ["profileId", "provider", "repository", "repositoryUrl", "release", "commit", "recordedAt"], "properties": { "profileId": { "type": "string" }, "provider": { "type": "string", "enum": ["github", "generic-https"] }, "repository": { "type": "string" }, "repositoryUrl": { "type": "string", "format": "uri" }, "release": { "type": "string" }, "commit": { "type": "string" }, "domain": { "type": "string" }, "memoryMi": { "type": "integer" }, "storageGi": { "type": "integer" }, "recordedAt": { "type": "string", "format": "date-time" } } },
       "ProfileInput": {
         "type": "object",
         "required": ["name", "language", "deploymentMode"],
@@ -703,7 +714,7 @@
           "preconditions": {
             "type": "object",
             "required": ["profileRevision"],
-            "properties": { "profileRevision": { "type": "integer", "format": "int64" } }
+            "properties": { "profileRevision": { "type": "integer", "format": "int64" }, "nodeIdentity": { "type": "string" }, "hostFingerprint": { "type": "string" }, "inspectionDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }, "inspectedAt": { "type": "string", "format": "date-time" }, "bootstrapRelease": { "type": "string" }, "overlayCommit": { "type": "string" }, "dataDirectory": { "type": "string", "pattern": "^/" } }
           },
           "effects": { "type": "array", "items": { "$ref": "#/components/schemas/PlanEffect" } },
           "risks": { "type": "array", "items": { "$ref": "#/components/schemas/PlanEffect" } },

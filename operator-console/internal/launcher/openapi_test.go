@@ -43,6 +43,7 @@ func TestOpenAPIContractDescribesLauncherWorkflow(t *testing.T) {
 		"/api/v1/nodes/trust":                      {"post"},
 		"/api/v1/nodes/inspect":                    {"post"},
 		"/api/v1/nodes/ssh-key/plan":               {"post"},
+		"/api/v1/local-bootstrap/plan":             {"post"},
 		"/api/v1/profiles":                         {"get", "post"},
 		"/api/v1/profiles/{id}":                    {"put"},
 		"/api/v1/profiles/{id}/journey":            {"get"},

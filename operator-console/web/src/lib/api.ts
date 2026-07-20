@@ -21,6 +21,7 @@ export type NodeCapabilities = components['schemas']['NodeCapabilities'];
 export type NodeTarget = components['schemas']['NodeTarget'];
 export type NodeProbeResult = components['schemas']['NodeProbeResult'];
 export type NodeInspectionResult = components['schemas']['NodeInspectionResult'];
+export type LocalBootstrapPlanResult = components['schemas']['LocalBootstrapPlanResult'];
 
 let csrfToken = '';
 
@@ -127,7 +128,9 @@ export const api = {
   trustNode: (profileId: string, target: NodeTarget, fingerprint: string) => request<NodeProbeResult>('/api/v1/nodes/trust', { method: 'POST', body: JSON.stringify({ profileId, target, fingerprint, confirmed: true }) }),
   inspectNode: (profileId: string, target: NodeTarget, authentication: { kind: 'agent' | 'private-key' | 'password'; password?: string; privateKey?: string; keyPassphrase?: string; sudoPassword?: string }) => request<NodeInspectionResult>('/api/v1/nodes/inspect', { method: 'POST', body: JSON.stringify({ profileId, target, authentication }) }),
   planNodeSSHKey: (profileId: string) => request<ChangePlan>('/api/v1/nodes/ssh-key/plan', { method: 'POST', body: JSON.stringify({ profileId }) }),
+  planLocalBootstrap: (input: components['schemas']['LocalBootstrapPlanInput']) => request<LocalBootstrapPlanResult>('/api/v1/local-bootstrap/plan', { method: 'POST', body: JSON.stringify(input) }),
   createVerificationPlan: (profileId: string) => request<ChangePlan>('/api/v1/plans', { method: 'POST', body: JSON.stringify({ profileId, intent: 'VerifyLauncher' }) }),
   approvePlan: (planId: string) => request<WorkflowRun>(`/api/v1/plans/${planId}/approve`, { method: 'POST' }),
   getRun: (runId: string) => request<WorkflowRun>(`/api/v1/runs/${runId}`)
+  ,cancelRun: (runId: string) => request<WorkflowRun>(`/api/v1/runs/${runId}/cancel`, { method: 'POST' })
 };

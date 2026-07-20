@@ -88,7 +88,8 @@ test('Operator completes and reopens the launcher journey in English and German'
     const accessibility = await new AxeBuilder({ page }).analyze();
     expect(accessibility.violations).toEqual([]);
 
-    await page.getByRole('button', { name: journey.plan }).click();
+    const createPlan = page.getByRole('button', { name: journey.plan });
+    if (await createPlan.isVisible()) await createPlan.click();
     await expect(page.getByTestId('plan-digest')).not.toBeEmpty();
     await page.getByRole('button', { name: journey.approve }).click();
     await expect(page.getByRole('status')).toContainText(journey.verified);

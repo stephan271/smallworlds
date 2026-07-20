@@ -340,6 +340,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/local-bootstrap/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["planLocalBootstrap"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profiles": {
         parameters: {
             query?: never;
@@ -748,6 +764,7 @@ export interface components {
             diskGi: number;
         };
         NodeReport: {
+            nodeIdentity: string;
             operatingSystem: string;
             architecture: string;
             systemd: boolean;
@@ -762,6 +779,28 @@ export interface components {
             report: components["schemas"]["NodeReport"];
             assessment: components["schemas"]["NodeAssessment"];
         };
+        LocalBootstrapConfiguration: {
+            domain: string;
+            environmentExtension?: string;
+            dataDirectory: string;
+            nodeName: string;
+            acmeEmail?: string;
+            manageDns: boolean;
+        };
+        LocalBootstrapPlanInput: {
+            profileId: string;
+            target: components["schemas"]["NodeTarget"];
+            authentication: components["schemas"]["NodeAuthentication"];
+            /** @constant */
+            release: "v1.2.26";
+            configuration: components["schemas"]["LocalBootstrapConfiguration"];
+            /** Format: password */
+            secretsManifest?: string;
+        };
+        LocalBootstrapPlanResult: {
+            plan: components["schemas"]["ChangePlan"];
+            inspection: components["schemas"]["NodeInspectionResult"];
+        };
         OverlayIdentity: {
             profileId: string;
             /** @enum {string} */
@@ -771,6 +810,9 @@ export interface components {
             repositoryUrl: string;
             release: string;
             commit: string;
+            domain?: string;
+            memoryMi?: number;
+            storageGi?: number;
             /** Format: date-time */
             recordedAt: string;
         };
@@ -821,6 +863,14 @@ export interface components {
             preconditions: {
                 /** Format: int64 */
                 profileRevision: number;
+                nodeIdentity?: string;
+                hostFingerprint?: string;
+                inspectionDigest?: string;
+                /** Format: date-time */
+                inspectedAt?: string;
+                bootstrapRelease?: string;
+                overlayCommit?: string;
+                dataDirectory?: string;
             };
             effects: components["schemas"]["PlanEffect"][];
             risks: components["schemas"]["PlanEffect"][];
@@ -1468,6 +1518,34 @@ export interface operations {
                 };
             };
             409: components["responses"]["Conflict"];
+        };
+    };
+    planLocalBootstrap: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LocalBootstrapPlanInput"];
+            };
+        };
+        responses: {
+            /** @description Freshly inspected and immutably bound Local Cluster Node bootstrap plan */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocalBootstrapPlanResult"];
+                };
+            };
+            409: components["responses"]["Conflict"];
+            423: components["responses"]["Locked"];
         };
     };
     listProfiles: {

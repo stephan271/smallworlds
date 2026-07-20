@@ -21,6 +21,7 @@ import (
 	"github.com/stephan271/smallworlds/operator-console/internal/capability"
 	"github.com/stephan271/smallworlds/operator-console/internal/githttps"
 	"github.com/stephan271/smallworlds/operator-console/internal/github"
+	"github.com/stephan271/smallworlds/operator-console/internal/localbootstrap"
 	"github.com/stephan271/smallworlds/operator-console/internal/nodeinspect"
 	"github.com/stephan271/smallworlds/operator-console/internal/recovery"
 	"github.com/stephan271/smallworlds/operator-console/internal/state"
@@ -32,12 +33,14 @@ const sessionCookieName = "smallworlds_session"
 const sessionLifetime = 12 * time.Hour
 
 type Config struct {
-	DataDir          string
-	LaunchToken      string
-	WrappingStore    vault.WrappingStore
-	GitHubClient     *github.Client
-	GenericGitClient GenericGitClient
-	BootstrapAssets  *bootstrapassets.Manager
+	DataDir              string
+	LaunchToken          string
+	WrappingStore        vault.WrappingStore
+	GitHubClient         *github.Client
+	GenericGitClient     GenericGitClient
+	BootstrapAssets      *bootstrapassets.Manager
+	LocalBootstrapRunner localbootstrap.Runner
+	NodeInspector        NodeInspector
 }
 
 // GenericGitClient permits deterministic Launcher contract tests while the
@@ -47,6 +50,25 @@ type GenericGitClient interface {
 	RemoteContainsCommit(context.Context, string, string, string, string) (bool, error)
 	InitializeEmptyRemote(context.Context, string, string, string, map[string]string) (githttps.Identity, error)
 	CreateProposalBranch(context.Context, string, string, string, string, map[string]string) (githttps.Proposal, error)
+}
+
+type NodeInspector interface {
+	InspectSameHost(profileID string, requirements nodeinspect.Requirements) (nodeinspect.Report, nodeinspect.Assessment, error)
+	InspectRemote(context.Context, nodeinspect.Target, nodeinspect.Credentials, string, string, nodeinspect.Requirements) (nodeinspect.Report, nodeinspect.Assessment, error)
+}
+
+type productionNodeInspector struct{}
+
+func (productionNodeInspector) InspectSameHost(profileID string, requirements nodeinspect.Requirements) (nodeinspect.Report, nodeinspect.Assessment, error) {
+	report, err := nodeinspect.InspectSameHost(profileID)
+	if err != nil {
+		return nodeinspect.Report{}, nodeinspect.Assessment{}, err
+	}
+	return report, nodeinspect.Assess(report, requirements), nil
+}
+
+func (productionNodeInspector) InspectRemote(ctx context.Context, target nodeinspect.Target, credentials nodeinspect.Credentials, fingerprint, profileID string, requirements nodeinspect.Requirements) (nodeinspect.Report, nodeinspect.Assessment, error) {
+	return nodeinspect.InspectRemote(ctx, target, credentials, fingerprint, profileID, requirements)
 }
 
 type session struct {
@@ -66,6 +88,7 @@ type Server struct {
 	github     *github.Client
 	genericGit GenericGitClient
 	assets     *bootstrapassets.Manager
+	nodes      NodeInspector
 }
 
 func New(config Config) (*Server, error) {
@@ -81,10 +104,6 @@ func New(config Config) (*Server, error) {
 		return nil, err
 	}
 	workflowEngine := workflow.New(store)
-	if err := workflowEngine.ResumeActive(context.Background()); err != nil {
-		store.Close()
-		return nil, err
-	}
 	githubClient := config.GitHubClient
 	if githubClient == nil {
 		githubClient = github.New("https://api.github.com", nil)
@@ -101,16 +120,33 @@ func New(config Config) (*Server, error) {
 			return nil, err
 		}
 	}
-	return &Server{
+	vaultStore := vault.New(config.DataDir, config.WrappingStore)
+	bootstrapRunner := config.LocalBootstrapRunner
+	if bootstrapRunner == nil {
+		bootstrapRunner = localbootstrap.ProductionRunner{}
+	}
+	bootstrapService := localbootstrap.NewService(store, localbootstrap.OpenManagerAsset(assetManager), vaultStore.Load, bootstrapRunner)
+	nodeInspector := config.NodeInspector
+	if nodeInspector == nil {
+		nodeInspector = productionNodeInspector{}
+	}
+	workflowEngine.RegisterExecutor("BootstrapLocalNode", bootstrapService.Execute)
+	server := &Server{
 		launchToken: config.LaunchToken,
 		sessions:    make(map[string]session),
 		store:       store,
-		vault:       vault.New(config.DataDir, config.WrappingStore),
+		vault:       vaultStore,
 		workflow:    workflowEngine,
 		github:      githubClient,
 		genericGit:  genericGitClient,
 		assets:      assetManager,
-	}, nil
+		nodes:       nodeInspector,
+	}
+	if err := workflowEngine.ResumeActive(context.Background()); err != nil {
+		store.Close()
+		return nil, err
+	}
+	return server, nil
 }
 
 func (server *Server) Close() error {
@@ -165,6 +201,8 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.inspectNode(response, request)
 	case request.URL.Path == "/api/v1/nodes/ssh-key/plan":
 		server.planNodeSSHKey(response, request)
+	case request.URL.Path == "/api/v1/local-bootstrap/plan":
+		server.planLocalBootstrap(response, request)
 	case request.URL.Path == "/api/v1/profiles":
 		server.profiles(response, request)
 	case strings.HasPrefix(request.URL.Path, "/api/v1/profiles/"):
@@ -282,9 +320,12 @@ func (server *Server) exportRecoveryBundle(response http.ResponseWriter, request
 		Version: 1,
 		Profile: snapshot.Profile,
 		WorkflowSnapshot: recovery.WorkflowSnapshot{
-			Plans:  snapshot.Plans,
-			Runs:   snapshot.Runs,
-			Events: snapshot.Events,
+			Plans:           snapshot.Plans,
+			Runs:            snapshot.Runs,
+			Events:          snapshot.Events,
+			BootstrapPlans:  snapshot.BootstrapPlans,
+			OverlayIdentity: snapshot.OverlayIdentity,
+			NodeTrust:       snapshot.NodeTrust,
 		},
 		InfrastructureState:  json.RawMessage(`{}`),
 		VaultMaterial:        vaultMaterial,
@@ -356,6 +397,9 @@ func (server *Server) importRecoveryBundle(response http.ResponseWriter, request
 		Plans:                payload.WorkflowSnapshot.Plans,
 		Runs:                 payload.WorkflowSnapshot.Runs,
 		Events:               payload.WorkflowSnapshot.Events,
+		BootstrapPlans:       payload.WorkflowSnapshot.BootstrapPlans,
+		OverlayIdentity:      payload.WorkflowSnapshot.OverlayIdentity,
+		NodeTrust:            payload.WorkflowSnapshot.NodeTrust,
 		CredentialReferences: payload.CredentialReferences,
 	}
 	if err := server.store.CanImportProfileSnapshot(request.Context(), snapshot); errors.Is(err, state.ErrConflict) {
@@ -473,6 +517,10 @@ func (server *Server) unlockVault(response http.ResponseWriter, request *http.Re
 	}
 	if err != nil {
 		writeError(response, http.StatusInternalServerError, "vault_unlock_failed")
+		return
+	}
+	if err := server.workflow.ResumeActive(request.Context()); err != nil {
+		writeError(response, http.StatusInternalServerError, "workflow_resume_failed")
 		return
 	}
 	writeJSON(response, http.StatusOK, status)
@@ -797,7 +845,7 @@ func (server *Server) establishGitHubOverlay(response http.ResponseWriter, reque
 		writeError(response, http.StatusBadGateway, "github_overlay_initialization_failed")
 		return
 	}
-	identity := state.OverlayIdentity{ProfileID: input.ProfileID, Provider: "github", Repository: repository.FullName, RepositoryURL: repository.HTMLURL, Release: input.Release, Commit: commit, RecordedAt: time.Now().UTC()}
+	identity := state.OverlayIdentity{ProfileID: input.ProfileID, Provider: "github", Repository: repository.FullName, RepositoryURL: repository.HTMLURL, Release: input.Release, Commit: commit, Domain: input.Domain, MemoryMi: overlay.Assessment.Resources.MemoryMi, StorageGi: overlay.Assessment.Resources.StorageGi, RecordedAt: time.Now().UTC()}
 	if err := server.store.RecordOverlayIdentity(request.Context(), identity); err != nil {
 		writeError(response, http.StatusInternalServerError, "github_overlay_identity_failed")
 		return
@@ -994,7 +1042,7 @@ func (server *Server) establishGenericGitOverlay(response http.ResponseWriter, r
 		writeError(response, http.StatusBadGateway, "generic_git_overlay_initialization_failed")
 		return
 	}
-	identity := state.OverlayIdentity{ProfileID: input.ProfileID, Provider: "generic-https", Repository: remoteIdentity.RepositoryURL, RepositoryURL: remoteIdentity.RepositoryURL, Release: input.Release, Commit: remoteIdentity.Commit, RecordedAt: time.Now().UTC()}
+	identity := state.OverlayIdentity{ProfileID: input.ProfileID, Provider: "generic-https", Repository: remoteIdentity.RepositoryURL, RepositoryURL: remoteIdentity.RepositoryURL, Release: input.Release, Commit: remoteIdentity.Commit, Domain: input.Domain, MemoryMi: overlay.Assessment.Resources.MemoryMi, StorageGi: overlay.Assessment.Resources.StorageGi, RecordedAt: time.Now().UTC()}
 	if err := server.store.RecordOverlayIdentity(request.Context(), identity); err != nil {
 		writeError(response, http.StatusInternalServerError, "generic_git_overlay_identity_failed")
 		return
@@ -1182,6 +1230,10 @@ func (server *Server) acquireBootstrapAssets(response http.ResponseWriter, reque
 		writeError(response, http.StatusBadGateway, "bootstrap_asset_acquisition_failed")
 		return
 	}
+	if err := server.workflow.ResumeActive(request.Context()); err != nil {
+		writeError(response, http.StatusInternalServerError, "workflow_resume_failed")
+		return
+	}
 	writeJSON(response, http.StatusCreated, map[string]any{
 		"release":                   input.Release,
 		"assets":                    assets,
@@ -1194,6 +1246,14 @@ type nodeTargetRequest struct {
 	Host     string                 `json:"host"`
 	Port     int                    `json:"port"`
 	Username string                 `json:"username"`
+}
+
+type nodeAuthenticationRequest struct {
+	Kind          nodeinspect.AuthenticationKind `json:"kind"`
+	Password      string                         `json:"password"`
+	PrivateKey    string                         `json:"privateKey"`
+	KeyPassphrase string                         `json:"keyPassphrase"`
+	SudoPassword  string                         `json:"sudoPassword"`
 }
 
 func (server *Server) nodeCapabilities(response http.ResponseWriter, request *http.Request) {
@@ -1338,15 +1398,9 @@ func (server *Server) inspectNode(response http.ResponseWriter, request *http.Re
 		return
 	}
 	var input struct {
-		ProfileID      string            `json:"profileId"`
-		Target         nodeTargetRequest `json:"target"`
-		Authentication struct {
-			Kind          nodeinspect.AuthenticationKind `json:"kind"`
-			Password      string                         `json:"password"`
-			PrivateKey    string                         `json:"privateKey"`
-			KeyPassphrase string                         `json:"keyPassphrase"`
-			SudoPassword  string                         `json:"sudoPassword"`
-		} `json:"authentication"`
+		ProfileID      string                    `json:"profileId"`
+		Target         nodeTargetRequest         `json:"target"`
+		Authentication nodeAuthenticationRequest `json:"authentication"`
 	}
 	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 512*1024))
 	decoder.DisallowUnknownFields()
@@ -1375,12 +1429,12 @@ func (server *Server) inspectNode(response http.ResponseWriter, request *http.Re
 	}
 	requirements := nodeinspect.Requirements{ProfileID: profile.ID, MemoryMi: assessment.Resources.MemoryMi, DiskGi: assessment.Resources.StorageGi, RequiredPorts: []int{80, 443, 6443}}
 	if target.Kind == nodeinspect.SameHostTarget {
-		report, err := nodeinspect.InspectSameHost(profile.ID)
+		report, result, err := server.nodes.InspectSameHost(profile.ID, requirements)
 		if err != nil {
 			writeError(response, http.StatusConflict, "same_host_inspection_unsupported")
 			return
 		}
-		writeJSON(response, http.StatusOK, map[string]any{"target": target, "report": report, "assessment": nodeinspect.Assess(report, requirements)})
+		writeJSON(response, http.StatusOK, map[string]any{"target": target, "report": report, "assessment": result})
 		return
 	}
 	trust, err := server.store.GetNodeTrust(request.Context(), input.ProfileID)
@@ -1401,7 +1455,7 @@ func (server *Server) inspectNode(response http.ResponseWriter, request *http.Re
 		writeError(response, http.StatusBadRequest, "invalid_node_credentials")
 		return
 	}
-	report, result, err := nodeinspect.InspectRemote(request.Context(), target, credentials, trust.Fingerprint, profile.ID, requirements)
+	report, result, err := server.nodes.InspectRemote(request.Context(), target, credentials, trust.Fingerprint, profile.ID, requirements)
 	if errors.Is(err, nodeinspect.ErrHostKeyMismatch) {
 		writeError(response, http.StatusConflict, "node_host_key_mismatch")
 		return
@@ -1458,13 +1512,233 @@ func (server *Server) planNodeSSHKey(response http.ResponseWriter, request *http
 	writeJSON(response, http.StatusCreated, plan)
 }
 
-func (server *Server) storeNodeCredentials(ctx context.Context, profileID string, input struct {
-	Kind          nodeinspect.AuthenticationKind `json:"kind"`
-	Password      string                         `json:"password"`
-	PrivateKey    string                         `json:"privateKey"`
-	KeyPassphrase string                         `json:"keyPassphrase"`
-	SudoPassword  string                         `json:"sudoPassword"`
-}) (nodeinspect.Credentials, error) {
+func (server *Server) planLocalBootstrap(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		ProfileID       string                       `json:"profileId"`
+		Target          nodeTargetRequest            `json:"target"`
+		Authentication  nodeAuthenticationRequest    `json:"authentication"`
+		Release         string                       `json:"release"`
+		Configuration   localbootstrap.Configuration `json:"configuration"`
+		SecretsManifest string                       `json:"secretsManifest"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 2*1024*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" || input.Release == "" {
+		writeError(response, http.StatusBadRequest, "invalid_local_bootstrap_plan")
+		return
+	}
+	if input.Release != localbootstrap.SupportedRelease {
+		writeError(response, http.StatusConflict, "local_bootstrap_release_unsupported")
+		return
+	}
+	if input.Configuration.DataDirectory == "" {
+		input.Configuration.DataDirectory = "/var/lib/smallworlds-data"
+	}
+	if input.Configuration.NodeName == "" {
+		input.Configuration.NodeName = "smallworlds-local-node"
+	}
+	profile, err := server.store.GetProfile(request.Context(), input.ProfileID)
+	if errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "profile_not_found")
+		return
+	}
+	if err != nil || profile.DeploymentMode != "local-lan" {
+		writeError(response, http.StatusConflict, "local_bootstrap_profile_incompatible")
+		return
+	}
+	overlay, err := server.store.GetOverlayIdentity(request.Context(), profile.ID)
+	if errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusConflict, "gitops_overlay_required")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "local_bootstrap_plan_failed")
+		return
+	}
+	if overlay.Release != input.Release {
+		writeError(response, http.StatusConflict, "local_bootstrap_release_mismatch")
+		return
+	}
+	if overlay.Domain != "" && overlay.Domain != input.Configuration.Domain {
+		writeError(response, http.StatusConflict, "local_bootstrap_domain_mismatch")
+		return
+	}
+	assetStatuses, err := server.assets.Requirements(input.Release)
+	if errors.Is(err, bootstrapassets.ErrUnknownRelease) {
+		writeError(response, http.StatusConflict, "bootstrap_asset_release_unavailable")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "bootstrap_asset_status_failed")
+		return
+	}
+	var selectedAsset bootstrapassets.Status
+	for _, candidate := range assetStatuses {
+		if candidate.ID == "bootstrap-linux-amd64" {
+			selectedAsset = candidate
+			break
+		}
+	}
+	if selectedAsset.ID == "" || selectedAsset.State != bootstrapassets.StateReady {
+		writeError(response, http.StatusConflict, "bootstrap_assets_not_ready")
+		return
+	}
+	target := input.Target.target()
+	if err := target.Validate(runtime.GOOS); err != nil {
+		writeError(response, http.StatusBadRequest, "invalid_node_target")
+		return
+	}
+	assessment, err := capability.DefaultCatalog().Assess(capability.Selection{Mode: capability.Minimal, DeploymentMode: capability.DeploymentMode(profile.DeploymentMode)})
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "node_requirements_failed")
+		return
+	}
+	requirements := nodeinspect.Requirements{ProfileID: profile.ID, MemoryMi: assessment.Resources.MemoryMi, DiskGi: assessment.Resources.StorageGi, RequiredPorts: []int{80, 443, 6443}}
+	if overlay.MemoryMi > 0 {
+		requirements.MemoryMi = overlay.MemoryMi
+	}
+	if overlay.StorageGi > 0 {
+		requirements.DiskGi = overlay.StorageGi
+	}
+	var report nodeinspect.Report
+	var nodeAssessment nodeinspect.Assessment
+	hostFingerprint := ""
+	authenticationKind := "same-host"
+	if target.Kind == nodeinspect.SameHostTarget {
+		if input.Authentication.SudoPassword != "" {
+			if err := server.vault.Store(profile.ID+"/node-sudo-password", input.Authentication.SudoPassword); errors.Is(err, vault.ErrLocked) {
+				writeError(response, http.StatusLocked, "vault_locked")
+				return
+			} else if err != nil {
+				writeError(response, http.StatusInternalServerError, "node_credentials_storage_failed")
+				return
+			}
+			expiresAt := time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC)
+			if err := server.store.UpsertCredentialReference(request.Context(), state.CredentialReference{ProfileID: profile.ID, Kind: "node-sudo-password", VaultKey: profile.ID + "/node-sudo-password", Source: "operator", ExpiresAt: expiresAt, RotationStatus: "current"}); err != nil {
+				writeError(response, http.StatusInternalServerError, "node_credentials_storage_failed")
+				return
+			}
+		}
+		report, nodeAssessment, err = server.nodes.InspectSameHost(profile.ID, requirements)
+	} else {
+		trust, trustErr := server.store.GetNodeTrust(request.Context(), profile.ID)
+		if errors.Is(trustErr, state.ErrNotFound) || trust.Host != target.Host || trust.Port != target.Port || trust.Username != target.Username {
+			writeError(response, http.StatusConflict, "node_host_key_confirmation_required")
+			return
+		}
+		if trustErr != nil {
+			writeError(response, http.StatusInternalServerError, "local_bootstrap_plan_failed")
+			return
+		}
+		credentials, credentialErr := server.storeNodeCredentials(request.Context(), profile.ID, input.Authentication)
+		if errors.Is(credentialErr, vault.ErrLocked) {
+			writeError(response, http.StatusLocked, "vault_locked")
+			return
+		}
+		if credentialErr != nil {
+			writeError(response, http.StatusBadRequest, "invalid_node_credentials")
+			return
+		}
+		hostFingerprint = trust.Fingerprint
+		authenticationKind = string(credentials.Kind)
+		report, nodeAssessment, err = server.nodes.InspectRemote(request.Context(), target, credentials, trust.Fingerprint, profile.ID, requirements)
+	}
+	if errors.Is(err, nodeinspect.ErrHostKeyMismatch) {
+		writeError(response, http.StatusConflict, "node_host_key_mismatch")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusBadGateway, "node_reinspection_failed")
+		return
+	}
+	if !nodeAssessment.Ready {
+		writeJSON(response, http.StatusConflict, map[string]any{"code": "node_bootstrap_preconditions_failed", "assessment": nodeAssessment})
+		return
+	}
+	secretVaultKey := ""
+	if input.SecretsManifest != "" {
+		if err := localbootstrap.ValidateSecretsManifest(input.SecretsManifest); err != nil {
+			writeError(response, http.StatusBadRequest, "invalid_cluster_secrets_manifest")
+			return
+		}
+		secretVaultKey = profile.ID + "/cluster-secrets-manifest"
+		if err := server.vault.Store(secretVaultKey, input.SecretsManifest); errors.Is(err, vault.ErrLocked) {
+			writeError(response, http.StatusLocked, "vault_locked")
+			return
+		} else if err != nil {
+			writeError(response, http.StatusInternalServerError, "cluster_secrets_storage_failed")
+			return
+		}
+	} else if present, containsErr := server.vault.Contains(profile.ID + "/cluster-secrets-manifest"); containsErr == nil && present {
+		secretVaultKey = profile.ID + "/cluster-secrets-manifest"
+	} else if errors.Is(containsErr, vault.ErrLocked) {
+		writeError(response, http.StatusLocked, "vault_locked")
+		return
+	}
+	inspectionDigest, err := localbootstrap.InspectionDigest(report)
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "local_bootstrap_plan_failed")
+		return
+	}
+	nodeIdentity := report.NodeIdentity
+	inspectedAt := time.Now().UTC()
+	binding := localbootstrap.Binding{
+		PlanID: "pending", ProfileID: profile.ID, ProfileRevision: profile.Revision, Target: target,
+		HostFingerprint: hostFingerprint, NodeIdentity: nodeIdentity, InspectionDigest: inspectionDigest, InspectedAt: inspectedAt,
+		Release: input.Release, AssetID: selectedAsset.ID, AssetSHA256: selectedAsset.SHA256,
+		OverlayRepositoryURL: overlay.RepositoryURL, OverlayCommit: overlay.Commit, OverlayRelease: overlay.Release,
+		AuthenticationKind: authenticationKind, SecretsVaultKey: secretVaultKey, Configuration: input.Configuration,
+	}
+	if _, err := binding.Marshal(); err != nil {
+		writeError(response, http.StatusBadRequest, "invalid_local_bootstrap_plan")
+		return
+	}
+	plan, err := server.workflow.PlanChangeWithRisks(request.Context(), profile.ID, "BootstrapLocalNode", binding.DigestDetail(), []workflow.Effect{
+		{Code: "node.privileged.bootstrap", MessageKey: "plan.effect.local_bootstrap_privileged"},
+		{Code: "node.data_paths.prepared", MessageKey: "plan.effect.local_bootstrap_data"},
+		{Code: "kubernetes.k3s.installed", MessageKey: "plan.effect.local_bootstrap_k3s"},
+		{Code: "gitops.argocd.configured", MessageKey: "plan.effect.local_bootstrap_argocd"},
+	}, []workflow.Risk{
+		{Code: "node.network_ports.changed", MessageKey: "plan.risk.local_bootstrap_exposure"},
+		{Code: "node.services.may_restart", MessageKey: "plan.risk.local_bootstrap_downtime"},
+		{Code: "node.atomic_install", MessageKey: "plan.risk.local_bootstrap_cancellation"},
+		{Code: "node.data_preserved_on_retry", MessageKey: "plan.risk.local_bootstrap_recovery"},
+	})
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "local_bootstrap_plan_failed")
+		return
+	}
+	binding.PlanID = plan.ID
+	encodedBinding, err := binding.Marshal()
+	if err != nil || server.store.RecordBootstrapPlan(request.Context(), state.BootstrapPlanRecord{PlanID: plan.ID, ProfileID: profile.ID, Binding: encodedBinding, CreatedAt: plan.CreatedAt}) != nil {
+		writeError(response, http.StatusInternalServerError, "local_bootstrap_plan_failed")
+		return
+	}
+	plan.Preconditions.NodeIdentity = nodeIdentity
+	plan.Preconditions.HostFingerprint = hostFingerprint
+	plan.Preconditions.InspectionDigest = inspectionDigest
+	plan.Preconditions.InspectedAt = inspectedAt
+	plan.Preconditions.BootstrapRelease = input.Release
+	plan.Preconditions.OverlayCommit = overlay.Commit
+	plan.Preconditions.DataDirectory = input.Configuration.DataDirectory
+	writeJSON(response, http.StatusCreated, map[string]any{"plan": plan, "inspection": map[string]any{"target": target, "report": report, "assessment": nodeAssessment}})
+}
+
+func (server *Server) storeNodeCredentials(ctx context.Context, profileID string, input nodeAuthenticationRequest) (nodeinspect.Credentials, error) {
 	credentials := nodeinspect.Credentials{Kind: input.Kind, Password: input.Password, PrivateKey: []byte(input.PrivateKey), KeyPassphrase: input.KeyPassphrase, SudoPassword: input.SudoPassword}
 	if input.Kind != nodeinspect.AgentAuthentication && input.Kind != nodeinspect.PrivateKeyAuthentication && input.Kind != nodeinspect.PasswordAuthentication {
 		return nodeinspect.Credentials{}, fmt.Errorf("unsupported node authentication")

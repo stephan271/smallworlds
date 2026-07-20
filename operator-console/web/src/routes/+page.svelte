@@ -61,7 +61,7 @@
   let genericGitOverlayNotice = $state('');
   let genericGitProposal: GenericGitProposal | null = $state(null);
   let bootstrapAssets: BootstrapAssetRequirements | null = $state(null);
-  let bootstrapAssetRelease = $state('v1.2.25');
+  let bootstrapAssetRelease = $state('v1.2.26');
   let bootstrapAssetError = $state('');
   let bootstrapAssetBusy = $state(false);
   let nodeCapabilities: NodeCapabilities | null = $state(null);
@@ -78,6 +78,15 @@
   let nodeInspection: NodeInspectionResult | null = $state(null);
   let nodeError = $state('');
   let nodeBusy = $state(false);
+  let localBootstrapDomain = $state('');
+  let localBootstrapEnvironment = $state('');
+  let localBootstrapDataDirectory = $state('/var/lib/smallworlds-data');
+  let localBootstrapNodeName = $state('smallworlds-local-node');
+  let localBootstrapACMEEmail = $state('');
+  let localBootstrapManageDNS = $state(false);
+  let localBootstrapSecrets = $state('');
+  let localBootstrapError = $state('');
+  let localBootstrapBusy = $state(false);
   let creating = $state(true);
   let editing = $state(false);
   let busy = $state(false);
@@ -479,6 +488,33 @@
     }
   }
 
+  async function planLocalBootstrap(): Promise<void> {
+    if (!activeProfile) return;
+    localBootstrapBusy = true;
+    localBootstrapError = '';
+    try {
+      const result = await api.planLocalBootstrap({
+        profileId: activeProfile.id,
+        target: currentNodeTarget(),
+        authentication: { kind: nodeAuthentication, ...(nodePassword ? { password: nodePassword } : {}), ...(nodePrivateKey ? { privateKey: nodePrivateKey } : {}), ...(nodeKeyPassphrase ? { keyPassphrase: nodeKeyPassphrase } : {}), ...(nodeSudoPassword ? { sudoPassword: nodeSudoPassword } : {}) },
+        release: 'v1.2.26',
+        configuration: { domain: localBootstrapDomain, environmentExtension: localBootstrapEnvironment, dataDirectory: localBootstrapDataDirectory, nodeName: localBootstrapNodeName, acmeEmail: localBootstrapACMEEmail, manageDns: localBootstrapManageDNS },
+        ...(localBootstrapSecrets ? { secretsManifest: localBootstrapSecrets } : {})
+      });
+      plan = result.plan;
+      nodeInspection = result.inspection;
+      localBootstrapSecrets = '';
+      nodePassword = '';
+      nodePrivateKey = '';
+      nodeKeyPassphrase = '';
+      nodeSudoPassword = '';
+    } catch (reason) {
+      localBootstrapError = reason instanceof Error ? reason.message : 'local_bootstrap_plan_failed';
+    } finally {
+      localBootstrapBusy = false;
+    }
+  }
+
   function rotationLabel(status: string): string {
     if (status === 'expired') return message('rotationExpired');
     if (status === 'due-soon') return message('rotationDueSoon');
@@ -554,6 +590,20 @@
     }
   }
 
+  async function cancelRun(): Promise<void> {
+    if (!run || run.state !== 'running') return;
+    busy = true;
+    error = '';
+    try {
+      run = await api.cancelRun(run.id);
+      schedulePoll(run.id);
+    } catch (reason) {
+      error = reason instanceof Error ? reason.message : 'run_cancellation_failed';
+    } finally {
+      busy = false;
+    }
+  }
+
   function schedulePoll(runID: string): void {
     if (pollTimer) window.clearTimeout(pollTimer);
     pollTimer = window.setTimeout(async () => {
@@ -580,6 +630,20 @@
     if (state === 'cancelled') return message('cancelled');
     if (state === 'failed') return message('failed');
     return message('running');
+  }
+
+  function planItemLabel(code: string): string {
+    const labels: Record<string, MessageKey> = {
+      'node.privileged.bootstrap': 'localBootstrapEffectPrivileged',
+      'node.data_paths.prepared': 'localBootstrapEffectData',
+      'kubernetes.k3s.installed': 'localBootstrapEffectK3S',
+      'gitops.argocd.configured': 'localBootstrapEffectArgoCD',
+      'node.network_ports.changed': 'localBootstrapRiskExposure',
+      'node.services.may_restart': 'localBootstrapRiskDowntime',
+      'node.atomic_install': 'localBootstrapRiskCancellation',
+      'node.data_preserved_on_retry': 'localBootstrapRiskRecovery'
+    };
+    return labels[code] ? message(labels[code]) : code;
   }
 </script>
 
@@ -750,6 +814,7 @@
           <span class="status-icon" aria-hidden="true">{run?.state === 'verified' ? '✓' : '•'}</span>
           <span>{run ? runLabel(run.state) : message('ready')}</span>
           {#if run}<small>{run.currentCheckpoint}</small>{/if}
+          {#if run?.state === 'running' && run.cancellationState === 'not-requested'}<button class="secondary" onclick={() => void cancelRun()} disabled={busy}>{message('cancel')}</button>{/if}
         </div>
 
         <section class="card capability-card" aria-labelledby="capability-title">
@@ -808,6 +873,23 @@
             <div class="actions"><button type="submit" disabled={nodeBusy}>{message('nodeInspect')}</button></div>
           </form>
           {#if nodeInspection}<dl class="credential-metadata"><div><dt>{message('nodeOperatingSystem')}</dt><dd>{nodeInspection.report.operatingSystem} / {nodeInspection.report.architecture}</dd></div><div><dt>{message('nodeCapacity')}</dt><dd>{nodeInspection.report.capacity.memoryMi} MiB · {nodeInspection.report.capacity.diskGi} GiB</dd></div><div><dt>{message('nodeAssessment')}</dt><dd>{nodeInspection.assessment.ready ? message('nodeReady') : nodeInspection.assessment.blockers.map((blocker) => blocker.code).join(', ')}</dd></div></dl>{#if nodeTargetKind === 'remote'}<div class="actions"><button class="secondary" onclick={() => void planNodeSSHKey()} disabled={nodeBusy}>{message('nodePlanSSHKey')}</button></div>{/if}{/if}
+          {#if nodeInspection?.assessment.ready && activeProfile?.deploymentMode === 'local-lan'}
+            <section class="capability-preview" aria-labelledby="local-bootstrap-title">
+              <p class="eyebrow">{message('localBootstrapEyebrow')}</p>
+              <h3 id="local-bootstrap-title">{message('localBootstrapTitle')}</h3>
+              <p class="muted">{message('localBootstrapDescription')}</p>
+              {#if localBootstrapError}<p class="inline-error" role="alert">{localBootstrapError}</p>{/if}
+              <form onsubmit={(event) => { event.preventDefault(); void planLocalBootstrap(); }}>
+                <div class="form-grid"><label><span>{message('capabilityDomain')}</span><input bind:value={localBootstrapDomain} required placeholder="home.example" /></label><label><span>{message('localBootstrapEnvironment')}</span><input bind:value={localBootstrapEnvironment} placeholder=".dev" /></label></div>
+                <div class="form-grid"><label><span>{message('localBootstrapDataDirectory')}</span><input bind:value={localBootstrapDataDirectory} required /></label><label><span>{message('localBootstrapNodeName')}</span><input bind:value={localBootstrapNodeName} required /></label></div>
+                <label><span>{message('localBootstrapACMEEmail')}</span><input type="email" bind:value={localBootstrapACMEEmail} /></label>
+                <label class="check"><input type="checkbox" bind:checked={localBootstrapManageDNS} /><span>{message('localBootstrapManageDNS')}</span></label>
+                <label><span>{message('localBootstrapSecrets')}</span><textarea bind:value={localBootstrapSecrets} autocomplete="off" placeholder="apiVersion: v1&#10;kind: Secret&#10;…"></textarea></label>
+                {#if nodeTargetKind === 'same-host'}<label><span>{message('nodeSudoPassword')}</span><input type="password" bind:value={nodeSudoPassword} autocomplete="off" /></label>{/if}
+                <div class="actions"><button type="submit" disabled={localBootstrapBusy}>{message('localBootstrapReview')}</button></div>
+              </form>
+            </section>
+          {/if}
         </section>
 
         <section class="card github-card" aria-labelledby="github-title">
@@ -927,8 +1009,11 @@
             <h2 id="plan-title">{message('planTitle')}</h2>
             <dl>
               <div><dt>{message('digest')}</dt><dd data-testid="plan-digest"><code>{plan.digest}</code></dd></div>
-              <div><dt>Effect</dt><dd>{message('effect')}</dd></div>
-              <div><dt>Risk</dt><dd>{message('noRisk')}</dd></div>
+              <div><dt>Effect</dt><dd>{plan.effects?.map((entry) => planItemLabel(entry.code)).join('; ') || message('effect')}</dd></div>
+              <div><dt>Risk</dt><dd>{plan.risks?.map((entry) => planItemLabel(entry.code)).join('; ') || message('noRisk')}</dd></div>
+              {#if plan.preconditions.bootstrapRelease}<div><dt>{message('capabilityRelease')}</dt><dd>{plan.preconditions.bootstrapRelease}</dd></div>{/if}
+              {#if plan.preconditions.overlayCommit}<div><dt>{message('localBootstrapOverlayCommit')}</dt><dd><code>{plan.preconditions.overlayCommit}</code></dd></div>{/if}
+              {#if plan.preconditions.dataDirectory}<div><dt>{message('localBootstrapDataDirectory')}</dt><dd><code>{plan.preconditions.dataDirectory}</code></dd></div>{/if}
             </dl>
             <div class="actions">
               <button onclick={() => void approvePlan()} disabled={busy || run?.state === 'running'}>{message('approve')}</button>

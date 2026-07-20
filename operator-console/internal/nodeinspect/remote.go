@@ -14,6 +14,7 @@ import (
 const inspectionCommand = `LANG=C
 echo os="$(uname -s 2>/dev/null || true)"
 echo arch="$(uname -m 2>/dev/null || true)"
+echo machine_id="$(cat /etc/machine-id 2>/dev/null | head -n 1 || true)"
 echo systemd="$(test -d /run/systemd/system && echo 1 || echo 0)"
 echo cpu="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 0)"
 echo memory_mi="$(awk '/MemAvailable:/ {print int($2/1024)}' /proc/meminfo 2>/dev/null || echo 0)"
@@ -64,12 +65,15 @@ func ParseRemoteReport(output, profileID string) (Report, error) {
 		if len(parts) != 2 {
 			continue
 		}
-		if _, known := map[string]bool{"os": true, "arch": true, "systemd": true, "cpu": true, "memory_mi": true, "disk_gi": true, "ports": true, "kernel_ready": true, "privilege": true, "kubernetes": true, "data": true, "profile_marker": true, "interrupted": true, "bootstrap_run_id": true, "k3s_ready": true, "argocd_ready": true, "overlay_applied": true, "bootstrap_complete": true}[parts[0]]; known {
+		if _, known := map[string]bool{"os": true, "arch": true, "machine_id": true, "systemd": true, "cpu": true, "memory_mi": true, "disk_gi": true, "ports": true, "kernel_ready": true, "privilege": true, "kubernetes": true, "data": true, "profile_marker": true, "interrupted": true, "bootstrap_run_id": true, "k3s_ready": true, "argocd_ready": true, "overlay_applied": true, "bootstrap_complete": true}[parts[0]]; known {
 			values[parts[0]] = strings.TrimSpace(parts[1])
 		}
 	}
 	if err := scanner.Err(); err != nil {
 		return Report{}, err
+	}
+	if values["machine_id"] == "" {
+		return Report{}, fmt.Errorf("invalid remote inspection machine_id")
 	}
 	parseInt := func(key string) (int, error) {
 		value, err := strconv.Atoi(values[key])
@@ -107,7 +111,7 @@ func ParseRemoteReport(output, profileID string) (Report, error) {
 	if owned {
 		installation.ProfileID = marker
 	}
-	return Report{OperatingSystem: strings.ToLower(values["os"]), Architecture: values["arch"], Systemd: values["systemd"] == "1", Capacity: Capacity{CPUCores: cpu, MemoryMi: memory, DiskGi: disk}, Ports: ports, KernelReady: values["kernel_ready"] == "1", Privilege: values["privilege"], Installation: installation}, nil
+	return Report{NodeIdentity: HashNodeIdentity(values["machine_id"]), OperatingSystem: strings.ToLower(values["os"]), Architecture: values["arch"], Systemd: values["systemd"] == "1", Capacity: Capacity{CPUCores: cpu, MemoryMi: memory, DiskGi: disk}, Ports: ports, KernelReady: values["kernel_ready"] == "1", Privilege: values["privilege"], Installation: installation}, nil
 }
 
 func ownership(value string, owned bool) Ownership {

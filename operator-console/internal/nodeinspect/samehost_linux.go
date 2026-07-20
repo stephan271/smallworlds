@@ -16,6 +16,13 @@ import (
 // InspectSameHost performs only local reads. It does not elevate privileges,
 // create paths, install packages, or modify network/kernel configuration.
 func InspectSameHost(profileID string) (Report, error) {
+	machineID, err := os.ReadFile("/etc/machine-id")
+	if err != nil {
+		return Report{}, fmt.Errorf("read same-host machine identity: %w", err)
+	}
+	if strings.TrimSpace(string(machineID)) == "" {
+		return Report{}, fmt.Errorf("read same-host machine identity: empty identity")
+	}
 	memory, err := localMemoryMi()
 	if err != nil {
 		return Report{}, err
@@ -30,7 +37,7 @@ func InspectSameHost(profileID string) (Report, error) {
 	}
 	marker, _ := os.ReadFile("/etc/smallworlds/profile-id")
 	owned := strings.TrimSpace(string(marker)) == profileID && profileID != ""
-	installation := Installation{Kubernetes: localOwnership("/etc/rancher/k3s", owned), SmallWorldsData: localOwnership("/mnt/smallworlds-data", owned), Interrupted: exists("/etc/smallworlds/bootstrap-interrupted")}
+	installation := Installation{Kubernetes: localOwnership("/etc/rancher/k3s", owned), SmallWorldsData: localOwnership("/mnt/smallworlds-data", owned), Interrupted: exists("/etc/smallworlds/bootstrap-interrupted"), BootstrapRunID: readMarker("bootstrap-run-id"), K3SReady: exists("/etc/smallworlds/k3s-ready"), ArgoCDReady: exists("/etc/smallworlds/argocd-ready"), OverlayApplied: exists("/etc/smallworlds/overlay-applied"), Complete: exists("/etc/smallworlds/bootstrap-complete")}
 	if owned {
 		installation.ProfileID = profileID
 	}
@@ -40,7 +47,15 @@ func InspectSameHost(profileID string) (Report, error) {
 	} else if exists("/usr/bin/sudo") || exists("/bin/sudo") {
 		privilege = "sudo"
 	}
-	return Report{OperatingSystem: "linux", Architecture: runtime.GOARCH, Systemd: exists("/run/systemd/system"), Capacity: Capacity{CPUCores: runtime.NumCPU(), MemoryMi: memory, DiskGi: disk}, Ports: ports, KernelReady: exists("/proc/sys/net/ipv4/ip_forward"), Privilege: privilege, Installation: installation}, nil
+	return Report{NodeIdentity: HashNodeIdentity(string(machineID)), OperatingSystem: "linux", Architecture: runtime.GOARCH, Systemd: exists("/run/systemd/system"), Capacity: Capacity{CPUCores: runtime.NumCPU(), MemoryMi: memory, DiskGi: disk}, Ports: ports, KernelReady: exists("/proc/sys/net/ipv4/ip_forward"), Privilege: privilege, Installation: installation}, nil
+}
+
+func readMarker(name string) string {
+	contents, err := os.ReadFile(filepath.Join("/etc/smallworlds", name))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(contents))
 }
 
 func localMemoryMi() (int, error) {

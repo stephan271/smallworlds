@@ -29,9 +29,12 @@ type Payload struct {
 }
 
 type WorkflowSnapshot struct {
-	Plans  []state.PlanRecord  `json:"plans"`
-	Runs   []state.RunRecord   `json:"runs"`
-	Events []state.EventRecord `json:"events"`
+	Plans           []state.PlanRecord          `json:"plans"`
+	Runs            []state.RunRecord           `json:"runs"`
+	Events          []state.EventRecord         `json:"events"`
+	BootstrapPlans  []state.BootstrapPlanRecord `json:"bootstrapPlans,omitempty"`
+	OverlayIdentity *state.OverlayIdentity      `json:"overlayIdentity,omitempty"`
+	NodeTrust       *state.NodeTrust            `json:"nodeTrust,omitempty"`
 }
 
 func ExportWithPassphrase(payload Payload, passphrase string) ([]byte, error) {
