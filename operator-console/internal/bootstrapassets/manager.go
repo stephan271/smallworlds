@@ -4,6 +4,7 @@
 package bootstrapassets
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/sha256"
@@ -40,7 +41,8 @@ type Descriptor struct {
 }
 
 type Catalog struct {
-	Descriptors []Descriptor
+	TrustedPublicKey ed25519.PublicKey
+	Descriptors      []Descriptor
 }
 
 func (catalog Catalog) Resolve(release string) ([]Descriptor, error) {
@@ -53,10 +55,16 @@ func (catalog Catalog) Resolve(release string) ([]Descriptor, error) {
 	if len(descriptors) == 0 {
 		return nil, ErrUnknownRelease
 	}
+	if len(catalog.TrustedPublicKey) != 0 && len(catalog.TrustedPublicKey) != ed25519.PublicKeySize {
+		return nil, ErrInvalidDescriptor
+	}
 	sort.Slice(descriptors, func(left, right int) bool { return descriptors[left].ID < descriptors[right].ID })
 	for _, descriptor := range descriptors {
 		if err := descriptor.Validate(); err != nil {
 			return nil, err
+		}
+		if len(catalog.TrustedPublicKey) != 0 && !bytes.Equal(descriptor.PublicKey, catalog.TrustedPublicKey) {
+			return nil, fmt.Errorf("%w: unexpected release signing key", ErrInvalidDescriptor)
 		}
 	}
 	return descriptors, nil
@@ -167,10 +175,19 @@ func NewManager(dataDirectory string, catalog Catalog, fetcher Fetcher) (*Manage
 	return &Manager{cacheDirectory: cacheDirectory, catalog: catalog, fetcher: fetcher}, nil
 }
 
-// DefaultCatalog intentionally contains no remotely fetchable artifacts until
-// release engineering publishes a signed descriptor. This preserves the closed
-// source boundary rather than silently falling back to ambient PATH or URLs.
-func DefaultCatalog() Catalog { return Catalog{} }
+const defaultReleaseSigningPublicKey = "eQCLQJVXRoXY1nSSKuhRsDMoLBh2EjkGo9GVe6vLP/0="
+
+// DefaultCatalog pins the release-signing trust anchor but intentionally has no
+// remotely fetchable artifacts until release engineering publishes a descriptor.
+// This preserves the closed source boundary rather than falling back to ambient
+// PATH or an Operator-supplied URL.
+func DefaultCatalog() Catalog {
+	publicKey, err := base64.StdEncoding.DecodeString(defaultReleaseSigningPublicKey)
+	if err != nil || len(publicKey) != ed25519.PublicKeySize {
+		panic("invalid compiled SmallWorlds release signing public key")
+	}
+	return Catalog{TrustedPublicKey: ed25519.PublicKey(publicKey)}
+}
 
 func (manager *Manager) Requirements(release string) ([]Status, error) {
 	descriptors, err := manager.catalog.Resolve(release)

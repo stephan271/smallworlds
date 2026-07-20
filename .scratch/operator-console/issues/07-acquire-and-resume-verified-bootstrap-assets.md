@@ -43,6 +43,14 @@ official GitHub Release URL into GitHub's asset domain. No release has been
 created: a reviewed real input lock, the release public key in the Launcher
 catalog, and the GitHub Actions secret remain required.
 
+### 2026-07-20 — First candidate input lock and trust anchor
+
+`v1.2.25.json` pins the first candidate's official K3s and Argo CD inputs and
+the Launcher now compiles the Operator-created release public key as its only
+default signing trust anchor. The catalog therefore rejects a future descriptor
+signed by any other key. A real signed archive descriptor still has to be
+generated before the catalog can expose an acquireable release.
+
 ## What to build
 
 Publish and acquire one managed bootstrap archive through the official
