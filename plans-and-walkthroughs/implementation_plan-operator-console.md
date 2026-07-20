@@ -1,6 +1,6 @@
 # SmallWorlds Operator Console — Implementation Plan
 
-**Status:** ready for implementation; OD-001 remains a scheduled decision gate
+**Status:** ready for implementation; OD-001 is accepted in ADR 0046
 
 This plan was sharpened through a `grill-with-docs` session. Accepted architectural decisions live in `docs/adr/`; domain language lives in `CONTEXT.md`.
 
@@ -17,16 +17,18 @@ This plan was sharpened through a `grill-with-docs` session. Accepted architectu
 
 ### OD-001 — Distribution of release-specific bootstrap assets
 
-**Decision deadline:** before implementing the first real Hetzner or Local provisioning adapter and release pipeline.
+**Decision:** accepted in ADR 0046 before implementing the first real Hetzner
+or Local provisioning adapter and release pipeline.
 
 The Bootstrap Launcher needs OpenTofu configuration, cloud-init and Local-node payloads, GitOps Overlay templates, the Cluster Capability catalog, and bootstrap manifests compatible with the SmallWorlds release it installs.
 
-Options still under consideration:
-
-1. Embed the assets in the signed launcher. This is operationally simple and self-contained, but couples new-cluster creation to the launcher's bundled SmallWorlds release.
-2. Fetch a separately signed, versioned asset archive. This lets one compatible launcher create multiple SmallWorlds releases, but adds an artifact format, download/cache lifecycle, and signature chain.
-
-Early implementation must consume an internal read-only asset-source interface and a filesystem test adapter. Before this gate closes, prototype both release adapters and compare reproducibility, binary/artifact size, release automation, offline-cache behavior, downgrade support, and failure modes. Do not expose the asset-source choice in the browser interface.
+The accepted design is a separately signed, versioned bootstrap archive attached
+to the matching official `stephan271/smallworlds` GitHub Release. The Launcher
+selects only a compiled, release-pinned GitHub attachment, verifies the archive
+checksum and signature after any GitHub-controlled asset redirect, and caches it
+privately. The Operator never supplies an artifact URL, executable, host, or
+key. The exact same signed attachment is the input to a later Offline Bundle;
+alternative online stores are not part of the first release.
 
 ## 1. Outcome
 
@@ -609,8 +611,8 @@ Deliver:
 - OpenAPI generation loop for Go and TypeScript.
 - ADR/glossary/plan links in contributor documentation.
 - CI jobs for Go, Svelte, schema, translations and generated-code cleanliness.
+- A GitHub Release packaging proof for the accepted OD-001 asset distribution.
 - Spike reports for:
-  - OD-001 asset distribution.
   - Private Gateway on all three networking shapes.
   - Cross-platform OS credential stores, elevation, background-process rendezvous and browser opening.
   - OpenTofu state sensitivity/redaction and provider acquisition.
@@ -618,7 +620,7 @@ Deliver:
 
 Exit criteria:
 
-- OD-001 is resolved before M3 begins.
+- The GitHub Release packaging proof for OD-001 is complete before M3 begins.
 - Gateway proof shows no public Host-header bypass.
 - Unsupported OS operations have documented fallbacks before UI work promises automation.
 
@@ -895,7 +897,7 @@ Exit criteria:
 | Risk | Impact | Mitigation / gate |
 |---|---|---|
 | Scope expands into a full cluster manager | Delivery stalls and unsafe generic actions appear | Typed intents, first-release action allowlist, vertical slices |
-| Asset/version packaging remains ambiguous | Non-reproducible bootstrap | OD-001 must close before M3/M4 real provisioning |
+| GitHub Release packaging is unpublished or invalid | Bootstrap cannot begin reproducibly | Publish and verify the signed GitHub attachment before M3/M4 real provisioning |
 | Private Gateway works only on one network shape | Operator lockout or public bypass | Three-mode networking spike and forged-Host test |
 | Cross-platform elevation/keychain/client install varies | “No prerequisites” promise breaks | M0 OS spike, capability detection, explicit fallbacks |
 | OpenTofu state leaks sensitive values | Cloud/cluster compromise | private workspace, redaction tests, encrypted Recovery Bundle |
@@ -958,6 +960,6 @@ Start with these independently reviewable issues:
 9. Implement catalog validation and dependency/resource/preset engine.
 10. Characterize `prepare-community-repo.sh` outputs and create renderer fixtures.
 11. Implement deterministic GitOps Overlay renderer without secrets.
-12. Complete OD-001 experiment and record the decision before real provisioning adapters.
+12. Produce and verify the signed GitHub Release attachment required by accepted OD-001 before real provisioning adapters.
 
 Do not begin with live Hetzner mutations, a generic command runner, or a visual-only dashboard. The first mergeable tracer must already exercise the durable plan/approval/run/verification seam through the Svelte client.

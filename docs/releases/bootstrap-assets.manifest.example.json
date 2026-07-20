@@ -3,11 +3,11 @@
   "release": "v1.2.24",
   "assets": [
     {
-      "id": "bootstrap-contract-linux-amd64",
-      "url": "https://releases.example.invalid/smallworlds/v1.2.24/bootstrap-contract-linux-amd64.tar.gz",
+      "id": "bootstrap-linux-amd64",
+      "url": "https://github.com/stephan271/smallworlds/releases/download/v1.2.24/smallworlds-bootstrap-v1.2.24-linux-amd64.tar.gz",
       "sha256": "REPLACE_WITH_64_LOWERCASE_HEX_DIGEST",
       "signature": "REPLACE_WITH_BASE64_ED25519_SIGNATURE_OF_SHA256_TEXT",
-      "destination": "releases.example.invalid"
+      "destination": "github.com"
     }
   ],
   "signingPublicKey": "REPLACE_WITH_BASE64_ED25519_PUBLIC_KEY"
