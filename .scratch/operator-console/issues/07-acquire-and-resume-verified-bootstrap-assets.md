@@ -1,6 +1,6 @@
 # Publish and acquire verified GitHub Release bootstrap assets
 
-Status: ready-for-agent
+Status: complete
 
 ## Implementation note
 
@@ -49,8 +49,17 @@ catalog, and the GitHub Actions secret remain required.
 the Launcher now compiles the Operator-created release public key as its only
 default signing trust anchor. The catalog therefore rejects a future descriptor
 signed by any other key. The locally generated `v1.2.25` descriptor is now
-compiled into the catalog; it will remain unavailable until the matching GitHub
-Release attachment is published.
+compiled into the catalog and its matching GitHub Release attachment is
+published.
+
+### 2026-07-20 — v1.2.25 published and verified
+
+The official `v1.2.25` GitHub Release contains the bootstrap archive, checksum,
+signature, and public manifest. GitHub reports the archive digest as
+`e07843ffb73227c6f1d9b70ed0aa4cd7e7c6e07f0b06a25bf8d04ffd5d7f2b38`,
+which matches the compiled descriptor. The release workflow first completed its
+non-publishing validation and then completed publication. All acceptance
+criteria for this issue now have concrete release evidence.
 
 ## What to build
 
