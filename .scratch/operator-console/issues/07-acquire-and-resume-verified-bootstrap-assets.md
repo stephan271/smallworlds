@@ -48,8 +48,9 @@ catalog, and the GitHub Actions secret remain required.
 `v1.2.25.json` pins the first candidate's official K3s and Argo CD inputs and
 the Launcher now compiles the Operator-created release public key as its only
 default signing trust anchor. The catalog therefore rejects a future descriptor
-signed by any other key. A real signed archive descriptor still has to be
-generated before the catalog can expose an acquireable release.
+signed by any other key. The locally generated `v1.2.25` descriptor is now
+compiled into the catalog; it will remain unavailable until the matching GitHub
+Release attachment is published.
 
 ## What to build
 

@@ -41,7 +41,7 @@ validate_version() {
 
 validate_https_url() {
     local url="$1" authority
-    [[ "$url" =~ ^https://[^/?#]+/.+ ]] || die "URL must be an absolute HTTPS URL with a path: $url"
+    [[ "$url" =~ ^https://[^/?#]+(/[^?#]*)?$ ]] || die "URL must be an absolute HTTPS URL: $url"
     [[ "$url" != *'?'* && "$url" != *'#'* ]] || die "URL must not include a query string or fragment: $url"
     authority="${url#https://}"
     authority="${authority%%/*}"

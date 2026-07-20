@@ -61,7 +61,7 @@
   let genericGitOverlayNotice = $state('');
   let genericGitProposal: GenericGitProposal | null = $state(null);
   let bootstrapAssets: BootstrapAssetRequirements | null = $state(null);
-  let bootstrapAssetRelease = $state('v1.2.3');
+  let bootstrapAssetRelease = $state('v1.2.25');
   let bootstrapAssetError = $state('');
   let bootstrapAssetBusy = $state(false);
   let nodeCapabilities: NodeCapabilities | null = $state(null);

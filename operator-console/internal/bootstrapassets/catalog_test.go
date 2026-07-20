@@ -17,6 +17,13 @@ func TestDefaultCatalogPinsTheReleaseSigningPublicKey(t *testing.T) {
 	if encoded := base64.StdEncoding.EncodeToString(catalog.TrustedPublicKey); encoded != "eQCLQJVXRoXY1nSSKuhRsDMoLBh2EjkGo9GVe6vLP/0=" {
 		t.Fatalf("unexpected compiled release signing public key: %q", encoded)
 	}
+	descriptors, err := catalog.Resolve("v1.2.25")
+	if err != nil {
+		t.Fatalf("default catalog did not resolve v1.2.25: %v", err)
+	}
+	if len(descriptors) != 1 || descriptors[0].SHA256 != "e07843ffb73227c6f1d9b70ed0aa4cd7e7c6e07f0b06a25bf8d04ffd5d7f2b38" {
+		t.Fatalf("unexpected v1.2.25 descriptor: %#v", descriptors)
+	}
 }
 
 func TestCatalogRejectsDescriptorSignedByAnotherKey(t *testing.T) {

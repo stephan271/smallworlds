@@ -40,7 +40,7 @@ argocd_sha="$(sha256sum "$fixture_directory/argocd-install.yaml" | awk '{print $
 arguments=(
     --release v1.2.24
     --k3s-version v1.31.5+k3s1
-    --k3s-installer-url https://releases.example.test/k3s-install.sh
+    --k3s-installer-url https://get.k3s.io
     --k3s-installer-sha256 "$k3s_sha"
     --argocd-version v2.14.5
     --argocd-manifest-url https://releases.example.test/argocd-install.yaml

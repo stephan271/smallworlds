@@ -177,16 +177,26 @@ func NewManager(dataDirectory string, catalog Catalog, fetcher Fetcher) (*Manage
 
 const defaultReleaseSigningPublicKey = "eQCLQJVXRoXY1nSSKuhRsDMoLBh2EjkGo9GVe6vLP/0="
 
-// DefaultCatalog pins the release-signing trust anchor but intentionally has no
-// remotely fetchable artifacts until release engineering publishes a descriptor.
-// This preserves the closed source boundary rather than falling back to ambient
-// PATH or an Operator-supplied URL.
+// DefaultCatalog contains only release-engineering reviewed descriptors. It
+// never accepts an Operator-supplied URL or an ambient executable.
 func DefaultCatalog() Catalog {
 	publicKey, err := base64.StdEncoding.DecodeString(defaultReleaseSigningPublicKey)
 	if err != nil || len(publicKey) != ed25519.PublicKeySize {
 		panic("invalid compiled SmallWorlds release signing public key")
 	}
-	return Catalog{TrustedPublicKey: ed25519.PublicKey(publicKey)}
+	trustedPublicKey := ed25519.PublicKey(publicKey)
+	return Catalog{
+		TrustedPublicKey: trustedPublicKey,
+		Descriptors: []Descriptor{{
+			ID:          "bootstrap-linux-amd64",
+			Release:     "v1.2.25",
+			URL:         "https://github.com/stephan271/smallworlds/releases/download/v1.2.25/smallworlds-bootstrap-v1.2.25-linux-amd64.tar.gz",
+			SHA256:      "e07843ffb73227c6f1d9b70ed0aa4cd7e7c6e07f0b06a25bf8d04ffd5d7f2b38",
+			Signature:   "rNdp+0xDxapYkvfBX8SWBzyIldziGvVPPA3M3YOFkFD3wixq3dZyaMeQmeN/ptI+nD8/6GyXzD0UrayPlu1SCA==",
+			PublicKey:   trustedPublicKey,
+			Destination: "github.com",
+		}},
+	}
 }
 
 func (manager *Manager) Requirements(release string) ([]Status, error) {
