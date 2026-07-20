@@ -1,16 +1,24 @@
 # Build a bootstrap release payload
 
-Use this release-engineering command to construct the first signed Linux amd64
-bootstrap payload. It is deterministic: identical reviewed inputs produce the
-same archive bytes, and no value defaults to a floating upstream release.
+Use the manually-triggered **Publish Bootstrap Assets** GitHub Action to
+construct and publish the first signed Linux amd64 bootstrap payload. It reads a
+reviewed input lock and produces the same archive bytes from identical inputs.
 
 This is not an Operator setup step. It is run by a SmallWorlds release
-maintainer or an approved release workflow before a GitHub Release is published.
-Cluster Operators later select only the SmallWorlds release in the Launcher.
+maintainer before a GitHub Release is published. Cluster Operators later select
+only the SmallWorlds release in the Launcher.
 
-The command takes the K3s installer and Argo CD install manifest as explicit
-inputs. Obtain their exact versioned HTTPS release URLs and SHA-256 checksums
-from the relevant upstream release records, review them, then run:
+Before running the Action, a maintainer adds a reviewed input lock at
+`docs/releases/bootstrap-inputs/<release>.json`, using the format documented in
+[the input-lock directory](bootstrap-inputs/README.md). The Action's default
+non-publishing mode proves that the lock can build and sign an archive using a
+temporary key. Selecting `publish: true` requires the repository secret
+`SMALLWORLDS_RELEASE_ED25519_PRIVATE_KEY_B64`; it then attaches the archive,
+checksum, signature, and public manifest to the matching existing tag's GitHub
+Release. The one-time setup is documented in
+[the signing setup guide](github-release-signing-setup.md).
+
+The underlying local command remains available for release-maintainer diagnosis:
 
 ```bash
 admin-tools/build-bootstrap-assets.sh \
@@ -36,10 +44,6 @@ that workflow belongs to the later bootstrap issue. Consequently it neither
 claims an offline installation nor makes the legacy script's network downloads
 safe by itself.
 
-The release engineer must next attach that exact archive to the matching
-official SmallWorlds GitHub Release, calculate its SHA-256, sign that digest
-with the private SmallWorlds Ed25519 release key, and publish the public
-manifest as described in [the publication contract](bootstrap-assets-publication.md).
 Do not commit the private key or a production archive to this repository.
 
 For a local structural and reproducibility check, run:

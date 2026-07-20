@@ -1,0 +1,13 @@
+{
+  "release": "vX.Y.Z",
+  "k3s": {
+    "version": "vX.Y.Z+k3sN",
+    "installerUrl": "https://get.k3s.io",
+    "installerSHA256": "REPLACE_WITH_64_LOWERCASE_HEX_DIGEST_OF_REVIEWED_INSTALLER"
+  },
+  "argocd": {
+    "version": "vX.Y.Z",
+    "manifestUrl": "https://raw.githubusercontent.com/argoproj/argo-cd/vX.Y.Z/manifests/install.yaml",
+    "manifestSHA256": "REPLACE_WITH_64_LOWERCASE_HEX_DIGEST_OF_REVIEWED_MANIFEST"
+  }
+}

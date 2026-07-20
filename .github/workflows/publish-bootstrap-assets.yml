@@ -1,0 +1,86 @@
+name: Publish Bootstrap Assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: Existing SmallWorlds tag to package, for example v1.2.25
+        required: true
+        type: string
+      publish:
+        description: Create or update the GitHub Release (false only validates and signs with a temporary key)
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: github.repository == 'stephan271/smallworlds'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the requested release tag
+        uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.release }}
+          fetch-depth: 0
+
+      - name: Validate the release input lock
+        env:
+          RELEASE: ${{ inputs.release }}
+        run: |
+          set -euo pipefail
+          test -n "$RELEASE"
+          test "$(git describe --exact-match --tags HEAD)" = "$RELEASE"
+          test -f "docs/releases/bootstrap-inputs/$RELEASE.json"
+          jq -e --arg release "$RELEASE" '.release == $release' "docs/releases/bootstrap-inputs/$RELEASE.json" >/dev/null
+
+      - name: Build a non-publishing validation package
+        if: inputs.publish != true
+        env:
+          RELEASE: ${{ inputs.release }}
+        run: |
+          set -euo pipefail
+          key="$RUNNER_TEMP/temporary-release-signing-key.pem"
+          openssl genpkey -algorithm ED25519 -out "$key"
+          admin-tools/publish-bootstrap-assets.sh \
+            --release "$RELEASE" \
+            --inputs-file "docs/releases/bootstrap-inputs/$RELEASE.json" \
+            --signing-key "$key" \
+            --output-directory "$RUNNER_TEMP/bootstrap-assets"
+
+      - name: Build and sign release assets
+        if: inputs.publish == true
+        env:
+          RELEASE: ${{ inputs.release }}
+          RELEASE_SIGNING_KEY_B64: ${{ secrets.SMALLWORLDS_RELEASE_ED25519_PRIVATE_KEY_B64 }}
+        run: |
+          set -euo pipefail
+          test -n "$RELEASE_SIGNING_KEY_B64"
+          key="$RUNNER_TEMP/release-signing-key.pem"
+          printf '%s' "$RELEASE_SIGNING_KEY_B64" | base64 --decode > "$key"
+          chmod 600 "$key"
+          admin-tools/publish-bootstrap-assets.sh \
+            --release "$RELEASE" \
+            --inputs-file "docs/releases/bootstrap-inputs/$RELEASE.json" \
+            --signing-key "$key" \
+            --output-directory "$RUNNER_TEMP/bootstrap-assets"
+
+      - name: Publish GitHub Release attachments
+        if: inputs.publish == true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ inputs.release }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE" >/dev/null 2>&1; then
+            gh release upload "$RELEASE" "$RUNNER_TEMP/bootstrap-assets"/* --clobber
+          else
+            gh release create "$RELEASE" "$RUNNER_TEMP/bootstrap-assets"/* \
+              --verify-tag \
+              --title "SmallWorlds $RELEASE" \
+              --generate-notes
+          fi

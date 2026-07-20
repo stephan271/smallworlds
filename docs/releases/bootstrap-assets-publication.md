@@ -30,3 +30,6 @@ ambient paths, or browser-supplied executable locations. GitHub's controlled
 release-asset redirect is an implementation detail of the trusted URL, not an
 Operator-selected destination. A failed or unavailable release must leave the
 Launcher in its current explicit “artifact not published” state.
+
+For the one-time key and GitHub Actions secret setup, follow
+[the signing setup guide](github-release-signing-setup.md).

@@ -32,6 +32,17 @@ It does not replace the required published signed archive manifest and trusted
 release public key, and the later Local Node bootstrap issue will consume the
 payload; this issue remains incomplete until the real release material exists.
 
+### 2026-07-20 — GitHub Release workflow foundation
+
+The repository now has a manually triggered GitHub Actions workflow that
+validates a checked-in release-input lock by default and publishes only after a
+maintainer explicitly selects publish. It uses the repository's scoped
+`GITHUB_TOKEN` for release upload and a separately stored Ed25519 signing key
+for archive provenance. Its downloader follows redirects only from the compiled
+official GitHub Release URL into GitHub's asset domain. No release has been
+created: a reviewed real input lock, the release public key in the Launcher
+catalog, and the GitHub Actions secret remain required.
+
 ## What to build
 
 Publish and acquire one managed bootstrap archive through the official
@@ -48,6 +59,7 @@ Covers PRD user stories 1, 33–34, and 127–130.
 ## Acceptance criteria
 
 - [x] OD-001 records the accepted separately signed-archive decision in ADR 0046 before production acquisition behavior is merged.
+- [ ] A non-publishing GitHub Actions run validates the reviewed input lock and a publishing run attaches the signed archive, checksum, signature, and manifest to the matching existing tag.
 - [ ] A release maintainer can attach the signed archive, checksum, and signature to the matching official SmallWorlds GitHub Release without operating separate artifact storage.
 - [ ] The launcher diagnoses the official GitHub Release destination and clearly distinguishes prerequisite-free setup from offline setup.
 - [ ] A selected release resolves only explicit compatible asset versions and refuses downgrade, substitution, or incompatible mutation.

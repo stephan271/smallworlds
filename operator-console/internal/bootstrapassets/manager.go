@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 
 	"github.com/stephan271/smallworlds/operator-console/internal/fileprotection"
 )
@@ -88,7 +89,7 @@ func (fetcher HTTPFetcher) Fetch(ctx context.Context, rawURL string, offset int6
 		client = http.DefaultClient
 	}
 	copy := *client
-	copy.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	copy.CheckRedirect = redirectPolicy(rawURL)
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, 0, err
@@ -105,6 +106,29 @@ func (fetcher HTTPFetcher) Fetch(ctx context.Context, rawURL string, offset int6
 		return nil, response.StatusCode, fmt.Errorf("asset download returned HTTP %d", response.StatusCode)
 	}
 	return response.Body, response.StatusCode, nil
+}
+
+func redirectPolicy(rawURL string) func(*http.Request, []*http.Request) error {
+	if isOfficialGitHubReleaseURL(rawURL) {
+		return allowGitHubReleaseAssetRedirect
+	}
+	return func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+}
+
+func isOfficialGitHubReleaseURL(rawURL string) bool {
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.Scheme != "https" || parsed.Hostname() != "github.com" || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.User != nil {
+		return false
+	}
+	parts := strings.Split(strings.Trim(parsed.EscapedPath(), "/"), "/")
+	return len(parts) == 6 && parts[0] == "stephan271" && parts[1] == "smallworlds" && parts[2] == "releases" && parts[3] == "download" && parts[4] != "" && parts[5] != ""
+}
+
+func allowGitHubReleaseAssetRedirect(request *http.Request, via []*http.Request) error {
+	if len(via) > 3 || !strings.HasSuffix(request.URL.Hostname(), ".githubusercontent.com") {
+		return http.ErrUseLastResponse
+	}
+	return nil
 }
 
 type State string
