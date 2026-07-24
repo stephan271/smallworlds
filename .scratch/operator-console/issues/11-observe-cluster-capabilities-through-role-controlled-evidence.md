@@ -1,6 +1,29 @@
 # Observe Cluster Capabilities through role-controlled evidence
 
-Status: ready-for-agent
+Status: in-progress
+
+## Implementation progress
+
+Following the repository's tracer-per-commit pattern (as issues 09 and 10 were
+built), this issue — milestone M5, the first useful in-cluster Operator Console —
+is being landed incrementally. Each tracer compiles, is gofmt-clean, and ships
+unit tests.
+
+- [x] **Pure Capability Assessment engine** (`internal/assessment`) — the
+  deterministic, table-tested core acceptance criteria 3–6 (and the self-model
+  of 8) all build on. `Assess` derives one headline Capability State (planned,
+  blocked, installing, healthy, degraded, failed, disabled) from five evidence
+  facets — configuration, delivery, runtime, access, protection — each carrying
+  a stable reason code, evidence timestamp, staleness flag, and one remediation
+  route (setup journey, Git proposal, bounded Runtime Action, documentation,
+  Grafana, or Argo CD). Observers gather evidence; the engine decides state
+  (ADR 0020). Four invariants are encoded and tested: an Argo-Healthy delivery
+  with a not-yet-ready runtime never reads healthy; unknown or stale evidence is
+  never flattened into healthy; a capability's declared exposure changes access
+  evaluation (a private capability reachable through public ingress is a
+  failure, not a success); and stale backup protection degrades a stateful
+  capability even while its workload serves traffic. The engine holds no clock,
+  network, or Kubernetes handle. `gofmt`, `go build/vet/test ./...` all pass.
 
 ## What to build
 
