@@ -107,6 +107,16 @@ type BootstrapPlanRecord struct {
 	CreatedAt time.Time
 }
 
+// PrivateNetworkReference persists the secret-free LAN-only Private Network
+// shape for a profile (Headscale coordination + operator DNS). The Headscale
+// coordination secret lives only in the Launcher Vault, never here. Reference is
+// an opaque JSON blob owned by the launcher.
+type PrivateNetworkReference struct {
+	ProfileID  string
+	Reference  string
+	RecordedAt time.Time
+}
+
 // ClusterCAReference persists the secret-free, public Cluster CA material for a
 // profile (metadata plus the public root and intermediate certificates). The
 // private root and intermediate keys live only in the Launcher Vault, never
@@ -416,6 +426,31 @@ func (store *Store) GetBootstrapPlan(ctx context.Context, planID string) (Bootst
 		return BootstrapPlanRecord{}, fmt.Errorf("parse bootstrap plan creation: %w", err)
 	}
 	return record, nil
+}
+
+func (store *Store) RecordPrivateNetwork(ctx context.Context, reference PrivateNetworkReference) error {
+	_, err := store.database.ExecContext(ctx, `INSERT INTO private_networks (profile_id, reference_json, recorded_at) VALUES (?, ?, ?) ON CONFLICT(profile_id) DO UPDATE SET reference_json=excluded.reference_json, recorded_at=excluded.recorded_at`, reference.ProfileID, reference.Reference, reference.RecordedAt.UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return fmt.Errorf("record private network: %w", err)
+	}
+	return nil
+}
+
+func (store *Store) GetPrivateNetwork(ctx context.Context, profileID string) (PrivateNetworkReference, error) {
+	var reference PrivateNetworkReference
+	var recordedAt string
+	err := store.database.QueryRowContext(ctx, `SELECT profile_id, reference_json, recorded_at FROM private_networks WHERE profile_id = ?`, profileID).Scan(&reference.ProfileID, &reference.Reference, &recordedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return PrivateNetworkReference{}, ErrNotFound
+	}
+	if err != nil {
+		return PrivateNetworkReference{}, fmt.Errorf("get private network: %w", err)
+	}
+	reference.RecordedAt, err = time.Parse(time.RFC3339Nano, recordedAt)
+	if err != nil {
+		return PrivateNetworkReference{}, fmt.Errorf("parse private network record: %w", err)
+	}
+	return reference, nil
 }
 
 func (store *Store) RecordClusterCAReference(ctx context.Context, reference ClusterCAReference) error {
@@ -1174,6 +1209,11 @@ func (store *Store) migrate(ctx context.Context) error {
 			profile_id TEXT PRIMARY KEY REFERENCES profiles(id),
 			material_json TEXT NOT NULL,
 			device_trust_installed INTEGER NOT NULL DEFAULT 0,
+			recorded_at TEXT NOT NULL
+		)`},
+		{14, `CREATE TABLE private_networks (
+			profile_id TEXT PRIMARY KEY REFERENCES profiles(id),
+			reference_json TEXT NOT NULL,
 			recorded_at TEXT NOT NULL
 		)`},
 	}

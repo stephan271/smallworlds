@@ -47,6 +47,8 @@ func TestOpenAPIContractDescribesLauncherWorkflow(t *testing.T) {
 		"/api/v1/cluster-ca":                       {"get"},
 		"/api/v1/cluster-ca/establish":             {"post"},
 		"/api/v1/cluster-ca/device-trust":          {"post"},
+		"/api/v1/private-network":                  {"get"},
+		"/api/v1/private-network/establish":        {"post"},
 		"/api/v1/profiles":                         {"get", "post"},
 		"/api/v1/profiles/{id}":                    {"put"},
 		"/api/v1/profiles/{id}/journey":            {"get"},

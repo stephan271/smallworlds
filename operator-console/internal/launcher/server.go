@@ -24,6 +24,7 @@ import (
 	"github.com/stephan271/smallworlds/operator-console/internal/github"
 	"github.com/stephan271/smallworlds/operator-console/internal/localbootstrap"
 	"github.com/stephan271/smallworlds/operator-console/internal/nodeinspect"
+	"github.com/stephan271/smallworlds/operator-console/internal/privatenetwork"
 	"github.com/stephan271/smallworlds/operator-console/internal/recovery"
 	"github.com/stephan271/smallworlds/operator-console/internal/state"
 	"github.com/stephan271/smallworlds/operator-console/internal/vault"
@@ -210,6 +211,10 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.establishClusterCA(response, request)
 	case request.URL.Path == "/api/v1/cluster-ca/device-trust":
 		server.installClusterCADeviceTrust(response, request)
+	case request.URL.Path == "/api/v1/private-network":
+		server.privateNetworkStatus(response, request)
+	case request.URL.Path == "/api/v1/private-network/establish":
+		server.establishPrivateNetwork(response, request)
 	case request.URL.Path == "/api/v1/profiles":
 		server.profiles(response, request)
 	case strings.HasPrefix(request.URL.Path, "/api/v1/profiles/"):
@@ -884,6 +889,133 @@ func (server *Server) installClusterCADeviceTrust(response http.ResponseWriter, 
 		"notAfter":             material.Reference.RootNotAfter,
 		"deviceTrustInstalled": true,
 	})
+}
+
+func privateNetworkCoordinationVaultKey(profileID string) string {
+	return profileID + "/headscale-coordination-secret"
+}
+
+func (server *Server) establishPrivateNetwork(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		ProfileID  string `json:"profileId"`
+		BaseDomain string `json:"baseDomain"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 8*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" || input.BaseDomain == "" {
+		writeError(response, http.StatusBadRequest, "invalid_private_network_request")
+		return
+	}
+	profile, err := server.store.GetProfile(request.Context(), input.ProfileID)
+	if errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "profile_not_found")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "private_network_failed")
+		return
+	}
+	// The private, non-public Headscale coordination shape is specific to the
+	// LAN-only mode; internet-exposed and Hetzner expose coordination publicly.
+	if profile.DeploymentMode != "local-lan" {
+		writeError(response, http.StatusConflict, "private_network_lan_only")
+		return
+	}
+	// Resumable: a previously established network is returned unchanged so the
+	// coordination identity and operator hostnames stay stable.
+	if existing, existingErr := server.store.GetPrivateNetwork(request.Context(), input.ProfileID); existingErr == nil {
+		reference, parseErr := privatenetwork.ParseReference(existing.Reference)
+		if parseErr != nil {
+			writeError(response, http.StatusInternalServerError, "private_network_failed")
+			return
+		}
+		writeJSON(response, http.StatusOK, reference)
+		return
+	} else if !errors.Is(existingErr, state.ErrNotFound) {
+		writeError(response, http.StatusInternalServerError, "private_network_failed")
+		return
+	}
+	reference, err := privatenetwork.Plan(input.ProfileID, input.BaseDomain)
+	if err != nil {
+		writeError(response, http.StatusBadRequest, "invalid_private_network_request")
+		return
+	}
+	secret, err := privatenetwork.GenerateCoordinationSecret()
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "private_network_failed")
+		return
+	}
+	// The Headscale coordination secret is held in the Launcher Vault and never
+	// returned to the browser.
+	if err := server.vault.Store(privateNetworkCoordinationVaultKey(input.ProfileID), secret); errors.Is(err, vault.ErrLocked) {
+		writeError(response, http.StatusLocked, "vault_locked")
+		return
+	} else if err != nil {
+		writeError(response, http.StatusInternalServerError, "private_network_storage_failed")
+		return
+	}
+	encoded, err := reference.Marshal()
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "private_network_failed")
+		return
+	}
+	now := time.Now().UTC()
+	if err := server.store.RecordPrivateNetwork(request.Context(), state.PrivateNetworkReference{ProfileID: input.ProfileID, Reference: encoded, RecordedAt: now}); err != nil {
+		writeError(response, http.StatusInternalServerError, "private_network_failed")
+		return
+	}
+	expiresAt := time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC)
+	if err := server.store.UpsertCredentialReference(request.Context(), state.CredentialReference{ProfileID: input.ProfileID, Kind: "headscale-coordination-secret", VaultKey: privateNetworkCoordinationVaultKey(input.ProfileID), Source: "launcher", ExpiresAt: expiresAt, RotationStatus: "current"}); err != nil {
+		writeError(response, http.StatusInternalServerError, "private_network_failed")
+		return
+	}
+	writeJSON(response, http.StatusCreated, reference)
+}
+
+func (server *Server) privateNetworkStatus(response http.ResponseWriter, request *http.Request) {
+	if _, ok := server.authenticatedSession(request); !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodGet {
+		response.Header().Set("Allow", "GET")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	profileID := request.URL.Query().Get("profileId")
+	if profileID == "" {
+		writeError(response, http.StatusBadRequest, "profile_required")
+		return
+	}
+	record, err := server.store.GetPrivateNetwork(request.Context(), profileID)
+	if errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "private_network_not_established")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "private_network_failed")
+		return
+	}
+	reference, err := privatenetwork.ParseReference(record.Reference)
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "private_network_failed")
+		return
+	}
+	writeJSON(response, http.StatusOK, reference)
 }
 
 func (server *Server) plans(response http.ResponseWriter, request *http.Request) {

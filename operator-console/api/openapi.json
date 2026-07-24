@@ -1243,6 +1243,84 @@
           }
         }
       }
+    },
+    "/api/v1/private-network": {
+      "get": {
+        "operationId": "getPrivateNetwork",
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Established LAN-only Private Network shape (secret-free)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrivateNetworkReferenceView"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/private-network/establish": {
+      "post": {
+        "operationId": "establishPrivateNetwork",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrivateNetworkInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Existing Private Network returned unchanged",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrivateNetworkReferenceView"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "LAN-only Headscale coordination + operator DNS shape established",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrivateNetworkReferenceView"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "423": {
+            "$ref": "#/components/responses/Locked"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2853,6 +2931,81 @@
           "deviceTrustInstalled": {
             "type": "boolean",
             "const": true
+          }
+        }
+      },
+      "PrivateNetworkInput": {
+        "type": "object",
+        "required": [
+          "profileId",
+          "baseDomain"
+        ],
+        "properties": {
+          "profileId": {
+            "type": "string"
+          },
+          "baseDomain": {
+            "type": "string"
+          }
+        }
+      },
+      "PrivateNetworkReferenceView": {
+        "type": "object",
+        "required": [
+          "shape",
+          "coordinationExposure",
+          "resolution",
+          "baseDomain",
+          "coordinationHost",
+          "gatewayHostname",
+          "operatorEndpoints"
+        ],
+        "properties": {
+          "shape": {
+            "type": "string",
+            "const": "lan-only"
+          },
+          "coordinationExposure": {
+            "type": "string",
+            "const": "private"
+          },
+          "resolution": {
+            "type": "string",
+            "const": "magic-dns"
+          },
+          "baseDomain": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": "string"
+          },
+          "coordinationHost": {
+            "type": "string"
+          },
+          "gatewayHostname": {
+            "type": "string"
+          },
+          "operatorEndpoints": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "fqdn",
+                "target"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "fqdn": {
+                  "type": "string"
+                },
+                "target": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }

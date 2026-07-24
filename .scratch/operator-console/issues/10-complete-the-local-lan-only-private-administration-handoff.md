@@ -34,23 +34,35 @@ and ships unit tests.
   issue-09 test-compile break (`successfulBootstrapRunner` missing `Observe`)
   that blocked the launcher test package. Full `go build/vet/test ./...` pass.
 
+- [x] **Private Network shape + custody + endpoints** — closes acceptance
+  criterion 2. New `internal/privatenetwork` deterministically derives the
+  LAN-only shape: private (non-public) Headscale coordination host, stable
+  operator hostnames (`console`/`grafana`/`argocd`) under a private base domain,
+  all resolving via MagicDNS onto one stable Private Gateway hostname — no
+  permanent hosts-file entries. Secret-free `Reference`/`Digest`;
+  `GenerateCoordinationSecret` kept out of the reference. New `private_networks`
+  state table (migration 14); `POST /api/v1/private-network/establish` (custodies
+  the Headscale coordination secret in the Vault, idempotent/resumable, LAN-only)
+  and `GET /api/v1/private-network`. OpenAPI contract updated. Tests prove
+  locked-vault rejection, no secret leakage, hostnames resolving to the gateway,
+  idempotency, credential visibility, and the LAN-only guard. Full build/vet/test
+  pass.
+
 ### Remaining tracers (each still to build)
 
-1. Headscale/Tailscale model + LAN-only coordination shape and Private Network DNS
-   for stable operator hostnames without permanent hosts-file entries (criteria 2).
-2. Official Tailscale client detection + pinned verified acquisition with explicit
+1. Official Tailscale client detection + pinned verified acquisition with explicit
    elevation and manual fallback (criterion 3).
-3. Launcher Host short-lived single-use enrollment + separate stable Private
+2. Launcher Host short-lived single-use enrollment + separate stable Private
    Gateway identity surviving pod restart/reschedule (criterion 4).
-4. HTTPS-only-via-Private-Gateway access with LAN/public-ingress and forged
+3. HTTPS-only-via-Private-Gateway access with LAN/public-ingress and forged
    Host-header rejection (criterion 5).
-5. Pre-close verification of private reachability, DNS, TLS, and gateway identity
+4. Pre-close verification of private reachability, DNS, TLS, and gateway identity
    before any temporary SSH/Kubernetes path is removed (criterion 6).
-6. Short-lived first-owner claim; successful passkey registration permanently
+5. Short-lived first-owner claim; successful passkey registration permanently
    disables the bootstrap grant (criterion 7).
-7. Final Setup Journey assessment explaining LAN-only limitations + in-cluster
+6. Final Setup Journey assessment explaining LAN-only limitations + in-cluster
    console handoff URL (criterion 8), plus the browser acceptance test and the
-   Setup Journey UI wiring for the Cluster CA step.
+   Setup Journey UI wiring for the Cluster CA and Private Network steps.
 
 ## What to build
 
@@ -61,7 +73,7 @@ Covers PRD user stories 63, 66–75, and 78–80.
 ## Acceptance criteria
 
 - [x] The Lifecycle Authority creates and protects the Cluster CA root, issues only an intermediate to the cluster, and can explicitly install trust on the current Operator Device. _(API/contract + tests landed; Setup Journey UI wiring lands with the journey-integration tracer.)_
-- [ ] Headscale coordination and Private Network DNS are reachable only in the LAN-only shape and resolve stable operator hostnames without permanent hosts-file entries.
+- [x] Headscale coordination and Private Network DNS are reachable only in the LAN-only shape and resolve stable operator hostnames without permanent hosts-file entries. _(API/contract + tests landed; Setup Journey UI wiring lands with the journey-integration tracer.)_
 - [ ] The launcher detects the official Tailscale client, offers pinned verified acquisition with explicit elevation, and retains a manual fallback when automation is unavailable.
 - [ ] The Launcher Host enrolls with a short-lived single-use credential while the Private Gateway uses a separate stable identity that survives pod restart or reschedule.
 - [ ] Operator Console, Grafana, and Argo CD are reachable through standard HTTPS only via the Private Gateway and cannot be reached through LAN/public ingress or forged Host headers.
