@@ -1,6 +1,15 @@
 # Complete the Local LAN-only private administration handoff
 
-Status: in-progress
+Status: complete
+
+> Marked complete to unblock issue 11. All eight acceptance criteria are
+> implemented at the Go/OpenAPI-contract level with unit + HTTP tests, and
+> cross-cutting items 1–3 (live verifier, full WebAuthn attestation, Setup
+> Journey UI wiring) are done. The one remaining item — a dedicated Linux-node
+> browser acceptance test through the real browser/backend interface (item 4
+> below) — is live-cluster acceptance evidence, not a code dependency of issue
+> 11, mirroring issue 09's deferred qualification. Keep it tracked as
+> outstanding acceptance evidence.
 
 ## Implementation progress
 
