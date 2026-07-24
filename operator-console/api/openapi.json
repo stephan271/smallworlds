@@ -1338,6 +1338,125 @@
           }
         }
       }
+    },
+    "/api/v1/enrollment": {
+      "get": {
+        "operationId": "getEnrollment",
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tailnet enrollment state (secret-free)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentReferenceView"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/enrollment/establish": {
+      "post": {
+        "operationId": "establishEnrollment",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnrollmentInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Existing enrollment returned unchanged",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentReferenceView"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Short-lived single-use Launcher credential + stable Gateway identity established",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentReferenceView"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "423": {
+            "$ref": "#/components/responses/Locked"
+          }
+        }
+      }
+    },
+    "/api/v1/enrollment/launcher/consume": {
+      "post": {
+        "operationId": "consumeLauncherEnrollment",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnrollmentInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Single-use Launcher credential consumed and destroyed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentReferenceView"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "423": {
+            "$ref": "#/components/responses/Locked"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3084,6 +3203,106 @@
               },
               "manualInstructionsUrl": {
                 "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "EnrollmentInput": {
+        "type": "object",
+        "required": [
+          "profileId"
+        ],
+        "properties": {
+          "profileId": {
+            "type": "string"
+          }
+        }
+      },
+      "EnrollmentReferenceView": {
+        "type": "object",
+        "required": [
+          "baseDomain",
+          "launcher",
+          "gateway"
+        ],
+        "properties": {
+          "baseDomain": {
+            "type": "string"
+          },
+          "launcher": {
+            "type": "object",
+            "required": [
+              "role",
+              "hostname",
+              "singleUse",
+              "stable",
+              "used"
+            ],
+            "properties": {
+              "role": {
+                "type": "string"
+              },
+              "namespace": {
+                "type": "string"
+              },
+              "hostname": {
+                "type": "string"
+              },
+              "singleUse": {
+                "type": "boolean"
+              },
+              "stable": {
+                "type": "boolean"
+              },
+              "issuedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "expiresAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "used": {
+                "type": "boolean"
+              }
+            }
+          },
+          "gateway": {
+            "type": "object",
+            "required": [
+              "role",
+              "hostname",
+              "singleUse",
+              "stable",
+              "used"
+            ],
+            "properties": {
+              "role": {
+                "type": "string"
+              },
+              "namespace": {
+                "type": "string"
+              },
+              "hostname": {
+                "type": "string"
+              },
+              "singleUse": {
+                "type": "boolean"
+              },
+              "stable": {
+                "type": "boolean"
+              },
+              "issuedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "expiresAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "used": {
+                "type": "boolean"
               }
             }
           }

@@ -107,6 +107,16 @@ type BootstrapPlanRecord struct {
 	CreatedAt time.Time
 }
 
+// EnrollmentReference persists the secret-free tailnet enrollment state for a
+// profile (short-lived single-use Launcher credential + stable Private Gateway
+// identity). The credential secrets live only in the Launcher Vault. Reference
+// is an opaque JSON blob owned by the launcher.
+type EnrollmentReference struct {
+	ProfileID  string
+	Reference  string
+	RecordedAt time.Time
+}
+
 // PrivateNetworkReference persists the secret-free LAN-only Private Network
 // shape for a profile (Headscale coordination + operator DNS). The Headscale
 // coordination secret lives only in the Launcher Vault, never here. Reference is
@@ -426,6 +436,31 @@ func (store *Store) GetBootstrapPlan(ctx context.Context, planID string) (Bootst
 		return BootstrapPlanRecord{}, fmt.Errorf("parse bootstrap plan creation: %w", err)
 	}
 	return record, nil
+}
+
+func (store *Store) RecordEnrollment(ctx context.Context, reference EnrollmentReference) error {
+	_, err := store.database.ExecContext(ctx, `INSERT INTO enrollments (profile_id, reference_json, recorded_at) VALUES (?, ?, ?) ON CONFLICT(profile_id) DO UPDATE SET reference_json=excluded.reference_json, recorded_at=excluded.recorded_at`, reference.ProfileID, reference.Reference, reference.RecordedAt.UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return fmt.Errorf("record enrollment: %w", err)
+	}
+	return nil
+}
+
+func (store *Store) GetEnrollment(ctx context.Context, profileID string) (EnrollmentReference, error) {
+	var reference EnrollmentReference
+	var recordedAt string
+	err := store.database.QueryRowContext(ctx, `SELECT profile_id, reference_json, recorded_at FROM enrollments WHERE profile_id = ?`, profileID).Scan(&reference.ProfileID, &reference.Reference, &recordedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return EnrollmentReference{}, ErrNotFound
+	}
+	if err != nil {
+		return EnrollmentReference{}, fmt.Errorf("get enrollment: %w", err)
+	}
+	reference.RecordedAt, err = time.Parse(time.RFC3339Nano, recordedAt)
+	if err != nil {
+		return EnrollmentReference{}, fmt.Errorf("parse enrollment record: %w", err)
+	}
+	return reference, nil
 }
 
 func (store *Store) RecordPrivateNetwork(ctx context.Context, reference PrivateNetworkReference) error {
@@ -1212,6 +1247,11 @@ func (store *Store) migrate(ctx context.Context) error {
 			recorded_at TEXT NOT NULL
 		)`},
 		{14, `CREATE TABLE private_networks (
+			profile_id TEXT PRIMARY KEY REFERENCES profiles(id),
+			reference_json TEXT NOT NULL,
+			recorded_at TEXT NOT NULL
+		)`},
+		{15, `CREATE TABLE enrollments (
 			profile_id TEXT PRIMARY KEY REFERENCES profiles(id),
 			reference_json TEXT NOT NULL,
 			recorded_at TEXT NOT NULL

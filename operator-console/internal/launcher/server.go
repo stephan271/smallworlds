@@ -20,6 +20,7 @@ import (
 	"github.com/stephan271/smallworlds/operator-console/internal/bootstrapassets"
 	"github.com/stephan271/smallworlds/operator-console/internal/capability"
 	"github.com/stephan271/smallworlds/operator-console/internal/clusterca"
+	"github.com/stephan271/smallworlds/operator-console/internal/enrollment"
 	"github.com/stephan271/smallworlds/operator-console/internal/githttps"
 	"github.com/stephan271/smallworlds/operator-console/internal/github"
 	"github.com/stephan271/smallworlds/operator-console/internal/localbootstrap"
@@ -218,6 +219,12 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.establishPrivateNetwork(response, request)
 	case request.URL.Path == "/api/v1/tailscale-client":
 		server.tailscaleClient(response, request)
+	case request.URL.Path == "/api/v1/enrollment":
+		server.enrollmentStatus(response, request)
+	case request.URL.Path == "/api/v1/enrollment/establish":
+		server.establishEnrollment(response, request)
+	case request.URL.Path == "/api/v1/enrollment/launcher/consume":
+		server.consumeLauncherEnrollment(response, request)
 	case request.URL.Path == "/api/v1/profiles":
 		server.profiles(response, request)
 	case strings.HasPrefix(request.URL.Path, "/api/v1/profiles/"):
@@ -892,6 +899,238 @@ func (server *Server) installClusterCADeviceTrust(response http.ResponseWriter, 
 		"notAfter":             material.Reference.RootNotAfter,
 		"deviceTrustInstalled": true,
 	})
+}
+
+func launcherEnrollmentVaultKey(profileID string) string {
+	return profileID + "/launcher-enrollment-preauth"
+}
+
+func gatewayIdentityVaultKey(profileID string) string {
+	return profileID + "/gateway-auth-key"
+}
+
+func (server *Server) establishEnrollment(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		ProfileID string `json:"profileId"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 8*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" {
+		writeError(response, http.StatusBadRequest, "invalid_enrollment_request")
+		return
+	}
+	// Enrollment binds to the established Private Network's base domain, which in
+	// turn is only established in the LAN-only shape.
+	network, err := server.store.GetPrivateNetwork(request.Context(), input.ProfileID)
+	if errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusConflict, "private_network_required")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "enrollment_failed")
+		return
+	}
+	networkReference, err := privatenetwork.ParseReference(network.Reference)
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "enrollment_failed")
+		return
+	}
+	// Resumable: a previously established enrollment is returned unchanged so the
+	// stable gateway identity and any consumption state stay intact.
+	if existing, existingErr := server.store.GetEnrollment(request.Context(), input.ProfileID); existingErr == nil {
+		reference, parseErr := enrollment.ParseReference(existing.Reference)
+		if parseErr != nil {
+			writeError(response, http.StatusInternalServerError, "enrollment_failed")
+			return
+		}
+		writeJSON(response, http.StatusOK, reference)
+		return
+	} else if !errors.Is(existingErr, state.ErrNotFound) {
+		writeError(response, http.StatusInternalServerError, "enrollment_failed")
+		return
+	}
+	now := time.Now().UTC()
+	reference, err := enrollment.Plan(networkReference.BaseDomain, now)
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "enrollment_failed")
+		return
+	}
+	launcherSecret, err := enrollment.GenerateCredentialSecret()
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "enrollment_failed")
+		return
+	}
+	gatewaySecret, err := enrollment.GenerateCredentialSecret()
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "enrollment_failed")
+		return
+	}
+	// Both credential secrets are held in the Launcher Vault and never returned
+	// to the browser; the gateway key is a Cluster Secret destined for the pod.
+	if err := server.vault.Store(launcherEnrollmentVaultKey(input.ProfileID), launcherSecret); errors.Is(err, vault.ErrLocked) {
+		writeError(response, http.StatusLocked, "vault_locked")
+		return
+	} else if err != nil {
+		writeError(response, http.StatusInternalServerError, "enrollment_storage_failed")
+		return
+	}
+	if err := server.vault.Store(gatewayIdentityVaultKey(input.ProfileID), gatewaySecret); errors.Is(err, vault.ErrLocked) {
+		writeError(response, http.StatusLocked, "vault_locked")
+		return
+	} else if err != nil {
+		writeError(response, http.StatusInternalServerError, "enrollment_storage_failed")
+		return
+	}
+	encoded, err := reference.Marshal()
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "enrollment_failed")
+		return
+	}
+	if err := server.store.RecordEnrollment(request.Context(), state.EnrollmentReference{ProfileID: input.ProfileID, Reference: encoded, RecordedAt: now}); err != nil {
+		writeError(response, http.StatusInternalServerError, "enrollment_failed")
+		return
+	}
+	stable := time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC)
+	launcherExpiry := stable
+	if reference.Launcher.ExpiresAt != nil {
+		launcherExpiry = *reference.Launcher.ExpiresAt
+	}
+	for _, entry := range []struct {
+		kind     string
+		vaultKey string
+		expires  time.Time
+	}{
+		{"launcher-enrollment-preauth", launcherEnrollmentVaultKey(input.ProfileID), launcherExpiry},
+		{"gateway-auth-key", gatewayIdentityVaultKey(input.ProfileID), stable},
+	} {
+		if err := server.store.UpsertCredentialReference(request.Context(), state.CredentialReference{ProfileID: input.ProfileID, Kind: entry.kind, VaultKey: entry.vaultKey, Source: "launcher", ExpiresAt: entry.expires, RotationStatus: credentialRotationStatus(entry.expires, now)}); err != nil {
+			writeError(response, http.StatusInternalServerError, "enrollment_failed")
+			return
+		}
+	}
+	writeJSON(response, http.StatusCreated, reference)
+}
+
+func (server *Server) enrollmentStatus(response http.ResponseWriter, request *http.Request) {
+	if _, ok := server.authenticatedSession(request); !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodGet {
+		response.Header().Set("Allow", "GET")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	profileID := request.URL.Query().Get("profileId")
+	if profileID == "" {
+		writeError(response, http.StatusBadRequest, "profile_required")
+		return
+	}
+	record, err := server.store.GetEnrollment(request.Context(), profileID)
+	if errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "enrollment_not_established")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "enrollment_failed")
+		return
+	}
+	reference, err := enrollment.ParseReference(record.Reference)
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "enrollment_failed")
+		return
+	}
+	writeJSON(response, http.StatusOK, reference)
+}
+
+func (server *Server) consumeLauncherEnrollment(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		ProfileID string `json:"profileId"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 8*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" {
+		writeError(response, http.StatusBadRequest, "invalid_enrollment_request")
+		return
+	}
+	record, err := server.store.GetEnrollment(request.Context(), input.ProfileID)
+	if errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "enrollment_not_established")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "enrollment_failed")
+		return
+	}
+	reference, err := enrollment.ParseReference(record.Reference)
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "enrollment_failed")
+		return
+	}
+	consumed, err := reference.ConsumeLauncher(time.Now().UTC())
+	if errors.Is(err, enrollment.ErrLauncherAlreadyUsed) {
+		writeError(response, http.StatusConflict, "launcher_enrollment_already_used")
+		return
+	}
+	if errors.Is(err, enrollment.ErrLauncherExpired) {
+		writeError(response, http.StatusConflict, "launcher_enrollment_expired")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "enrollment_failed")
+		return
+	}
+	// A single-use credential is destroyed on consumption: remove the secret and
+	// its custody reference so it can never be presented again.
+	if err := server.vault.Delete(launcherEnrollmentVaultKey(input.ProfileID)); errors.Is(err, vault.ErrLocked) {
+		writeError(response, http.StatusLocked, "vault_locked")
+		return
+	} else if err != nil && !errors.Is(err, vault.ErrSecretNotFound) {
+		writeError(response, http.StatusInternalServerError, "enrollment_failed")
+		return
+	}
+	encoded, err := consumed.Marshal()
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "enrollment_failed")
+		return
+	}
+	if err := server.store.RecordEnrollment(request.Context(), state.EnrollmentReference{ProfileID: input.ProfileID, Reference: encoded, RecordedAt: time.Now().UTC()}); err != nil {
+		writeError(response, http.StatusInternalServerError, "enrollment_failed")
+		return
+	}
+	if err := server.store.DeleteCredentialReference(request.Context(), input.ProfileID, "launcher-enrollment-preauth"); err != nil && !errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusInternalServerError, "enrollment_failed")
+		return
+	}
+	writeJSON(response, http.StatusOK, consumed)
 }
 
 func (server *Server) tailscaleClient(response http.ResponseWriter, request *http.Request) {
