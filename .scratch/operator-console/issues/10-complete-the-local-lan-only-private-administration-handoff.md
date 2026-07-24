@@ -167,9 +167,22 @@ consistent with issue 09's outstanding qualification):
    default against an unreachable cluster and asserts it reports unverified and
    blocks closure. Full build/vet/test pass. A green end-to-end run still
    requires a real running LAN-only cluster (item 4).
-2. **Full WebAuthn attestation-signature verification** — the default passkey
-   verifier checks the challenge binding + required fields; attestation
-   signature/trust-anchor verification is still to add.
+2. ~~**Full WebAuthn attestation-signature verification**~~ — **DONE.**
+   `firstowner.WebAuthnPasskeyVerifier` runs the full registration ceremony:
+   clientDataJSON (`type`/`challenge`/`origin`), authenticator data (RP ID hash,
+   user-present + attested-credential-data flags), credential-id binding, COSE
+   public-key extraction (EC2 P-256/P-384, OKP Ed25519), and attestation-statement
+   verification for `none` and `packed` (self-attestation signature against the
+   credential key; `x5c` leaf signature — full FIDO-MDS chain trust remains future
+   work). Backed by a minimal in-package CBOR decoder; no third-party deps. The
+   wire format is now clientDataJSON + attestationObject (base64url), the launcher
+   default is the WebAuthn verifier (RP ID `127.0.0.1`, loopback origins), and the
+   Svelte UI performs a real `navigator.credentials.create()` ceremony. A shared
+   `internal/webauthntest` helper builds valid/tamperable payloads. Unit tests
+   cover valid none+packed plus tampered challenge/origin/RP-ID/user-present/format;
+   HTTP tests register through the real default verifier end to end. `go
+   build/vet/test ./...`, `npm run check`, `npm run build`, and the Playwright
+   journey all pass. (Real-browser interop on 127.0.0.1 is validated by item 4.)
 3. ~~**Setup Journey UI wiring** (Svelte)~~ — **DONE.** A "Private administration
    handoff" card (shown for `local-lan` profiles) renders the eight-step
    assessment checklist, the LAN-only limitations, and the in-cluster console

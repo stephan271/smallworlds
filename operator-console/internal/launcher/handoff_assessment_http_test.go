@@ -8,6 +8,7 @@ import (
 
 	"github.com/stephan271/smallworlds/operator-console/internal/handoffverification"
 	"github.com/stephan271/smallworlds/operator-console/internal/launcher"
+	"github.com/stephan271/smallworlds/operator-console/internal/webauthntest"
 )
 
 func TestHandoffAssessmentCompletesAndProvidesConsoleURL(t *testing.T) {
@@ -50,8 +51,11 @@ func TestHandoffAssessmentCompletesAndProvidesConsoleURL(t *testing.T) {
 	if err := json.Unmarshal(readAll(t, response), &claim); err != nil {
 		t.Fatal(err)
 	}
-	register, _ := json.Marshal(map[string]string{"profileId": profile.ID, "credentialId": "cred-1", "publicKey": "pub-1", "challenge": claim.Claim.Challenge})
-	response = request(t, handler, http.MethodPost, "/api/v1/first-owner/register", register, cookie, headers)
+	registration, err := webauthntest.Registration(webauthntest.Options{Challenge: claim.Claim.Challenge})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response = request(t, handler, http.MethodPost, "/api/v1/first-owner/register", firstOwnerRegistrationBody(t, profile.ID, registration), cookie, headers)
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("register status = %d: %s", response.StatusCode, readAll(t, response))
 	}

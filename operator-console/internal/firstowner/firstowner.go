@@ -9,7 +9,6 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
-	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -152,34 +151,18 @@ func (state State) Digest() (string, error) {
 }
 
 // Registration is the public WebAuthn material a browser submits after a passkey
-// ceremony.
+// registration ceremony. ClientDataJSON and AttestationObject are the
+// base64url-encoded bytes returned by navigator.credentials.create().
 type Registration struct {
-	CredentialID string `json:"credentialId"`
-	PublicKey    string `json:"publicKey"`
-	Challenge    string `json:"challenge"`
+	CredentialID      string `json:"credentialId"`
+	ClientDataJSON    string `json:"clientDataJson"`
+	AttestationObject string `json:"attestationObject"`
 }
 
 // PasskeyVerifier verifies a passkey registration against the issued challenge
 // and returns the credential id to persist.
 type PasskeyVerifier interface {
 	Verify(ctx context.Context, expectedChallenge string, registration Registration) (string, error)
-}
-
-// StructuralPasskeyVerifier verifies the challenge binding and required public
-// material. Full WebAuthn attestation-signature verification is a follow-up
-// integration; this deliberately does not fabricate a stronger guarantee.
-type StructuralPasskeyVerifier struct{}
-
-// Verify checks the required fields and constant-time compares the echoed
-// challenge to the one issued in the claim.
-func (StructuralPasskeyVerifier) Verify(_ context.Context, expectedChallenge string, registration Registration) (string, error) {
-	if registration.CredentialID == "" || registration.PublicKey == "" {
-		return "", ErrInvalidRegistration
-	}
-	if expectedChallenge == "" || subtle.ConstantTimeCompare([]byte(expectedChallenge), []byte(registration.Challenge)) != 1 {
-		return "", ErrChallengeMismatch
-	}
-	return registration.CredentialID, nil
 }
 
 func generateChallenge() (string, error) {

@@ -3769,21 +3769,24 @@
         "required": [
           "profileId",
           "credentialId",
-          "publicKey",
-          "challenge"
+          "clientDataJson",
+          "attestationObject"
         ],
         "properties": {
           "profileId": {
             "type": "string"
           },
           "credentialId": {
-            "type": "string"
+            "type": "string",
+            "description": "base64url credential id"
           },
-          "publicKey": {
-            "type": "string"
+          "clientDataJson": {
+            "type": "string",
+            "description": "base64url clientDataJSON from navigator.credentials.create()"
           },
-          "challenge": {
-            "type": "string"
+          "attestationObject": {
+            "type": "string",
+            "description": "base64url CBOR attestation object"
           }
         }
       },

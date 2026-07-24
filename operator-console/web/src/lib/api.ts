@@ -151,7 +151,7 @@ export const api = {
   verifyHandoff: (profileId: string) => request<HandoffReport>('/api/v1/handoff/verify', { method: 'POST', body: JSON.stringify({ profileId }) }),
   closeTemporaryAccess: (profileId: string) => request<HandoffClosure>('/api/v1/handoff/close-temporary-access', { method: 'POST', body: JSON.stringify({ profileId }) }),
   claimFirstOwner: (profileId: string) => request<FirstOwnerState>('/api/v1/first-owner/claim', { method: 'POST', body: JSON.stringify({ profileId }) }),
-  registerFirstOwner: (profileId: string, registration: { credentialId: string; publicKey: string; challenge: string }) =>
+  registerFirstOwner: (profileId: string, registration: { credentialId: string; clientDataJson: string; attestationObject: string }) =>
     request<FirstOwnerState>('/api/v1/first-owner/register', { method: 'POST', body: JSON.stringify({ profileId, ...registration }) }),
   getHandoffAssessment: (profileId: string) => request<HandoffAssessment>(`/api/v1/handoff-assessment?profileId=${encodeURIComponent(profileId)}`)
 };

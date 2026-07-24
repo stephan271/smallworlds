@@ -2,12 +2,14 @@ package firstowner_test
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stephan271/smallworlds/operator-console/internal/firstowner"
+	"github.com/stephan271/smallworlds/operator-console/internal/webauthntest"
 )
 
 func TestRegistrationPermanentlyDisablesBootstrapGrant(t *testing.T) {
@@ -76,16 +78,61 @@ func TestValidateRejectsInconsistentState(t *testing.T) {
 	}
 }
 
-func TestStructuralPasskeyVerifierEnforcesChallengeBinding(t *testing.T) {
-	verifier := firstowner.StructuralPasskeyVerifier{}
-	registration := firstowner.Registration{CredentialID: "cred", PublicKey: "pub", Challenge: "abc"}
-	if id, err := verifier.Verify(context.Background(), "abc", registration); err != nil || id != "cred" {
-		t.Fatalf("valid registration rejected: id=%q err=%v", id, err)
+func challenge(text string) string {
+	return base64.RawURLEncoding.EncodeToString([]byte(text))
+}
+
+func webAuthnVerifier() firstowner.WebAuthnPasskeyVerifier {
+	return firstowner.NewWebAuthnPasskeyVerifier("127.0.0.1", firstowner.LoopbackOriginAllowed)
+}
+
+func TestWebAuthnVerifierAcceptsValidRegistrations(t *testing.T) {
+	verifier := webAuthnVerifier()
+	for _, format := range []string{"none", "packed"} {
+		t.Run(format, func(t *testing.T) {
+			issued := challenge("first-owner-registration")
+			registration, err := webauthntest.Registration(webauthntest.Options{Challenge: issued, Format: format})
+			if err != nil {
+				t.Fatal(err)
+			}
+			credentialID, err := verifier.Verify(context.Background(), issued, registration)
+			if err != nil {
+				t.Fatalf("valid %s registration rejected: %v", format, err)
+			}
+			if credentialID != registration.CredentialID {
+				t.Fatalf("credential id = %q, want %q", credentialID, registration.CredentialID)
+			}
+		})
 	}
-	if _, err := verifier.Verify(context.Background(), "different", registration); !errors.Is(err, firstowner.ErrChallengeMismatch) {
-		t.Fatalf("challenge mismatch not detected: %v", err)
+}
+
+func TestWebAuthnVerifierRejectsTamperedRegistrations(t *testing.T) {
+	verifier := webAuthnVerifier()
+	issued := challenge("first-owner-registration")
+
+	if _, err := verifier.Verify(context.Background(), issued, firstowner.Registration{}); !errors.Is(err, firstowner.ErrInvalidRegistration) {
+		t.Fatalf("empty registration error = %v", err)
 	}
-	if _, err := verifier.Verify(context.Background(), "abc", firstowner.Registration{Challenge: "abc"}); !errors.Is(err, firstowner.ErrInvalidRegistration) {
-		t.Fatalf("missing credential material not rejected: %v", err)
+
+	challengeMismatch, _ := webauthntest.Registration(webauthntest.Options{Challenge: issued, ChallengeForClientData: challenge("different")})
+	if _, err := verifier.Verify(context.Background(), issued, challengeMismatch); !errors.Is(err, firstowner.ErrChallengeMismatch) {
+		t.Fatalf("challenge mismatch error = %v", err)
+	}
+
+	for name, options := range map[string]webauthntest.Options{
+		"foreign origin":  {Challenge: issued, Origin: "https://evil.example"},
+		"foreign rp id":   {Challenge: issued, RPIDForHash: "evil.example"},
+		"no user present": {Challenge: issued, NoUserPresent: true},
+		"unsupported fmt": {Challenge: issued, Format: "tpm"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			registration, err := webauthntest.Registration(options)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := verifier.Verify(context.Background(), issued, registration); !errors.Is(err, firstowner.ErrInvalidRegistration) {
+				t.Fatalf("tampered registration (%s) accepted or wrong error: %v", name, err)
+			}
+		})
 	}
 }

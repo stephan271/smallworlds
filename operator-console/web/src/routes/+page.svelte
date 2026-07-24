@@ -267,7 +267,41 @@
   const verifyHandoff = () => runHandoff(() => api.verifyHandoff(activeProfile!.id));
   const closeTemporaryAccess = () => runHandoff(() => api.closeTemporaryAccess(activeProfile!.id));
   const claimFirstOwner = () => runHandoff(async () => { firstOwnerChallenge = (await api.claimFirstOwner(activeProfile!.id)).claim.challenge; });
-  const registerFirstOwner = () => runHandoff(() => api.registerFirstOwner(activeProfile!.id, { credentialId: crypto.randomUUID(), publicKey: crypto.randomUUID(), challenge: firstOwnerChallenge }));
+  const registerFirstOwner = () => runHandoff(async () => {
+    if (!firstOwnerChallenge) throw new Error('first_owner_claim_required');
+    const created = await navigator.credentials.create({
+      publicKey: {
+        challenge: base64urlToBytes(firstOwnerChallenge),
+        rp: { id: window.location.hostname, name: 'SmallWorlds Operator Console' },
+        user: { id: crypto.getRandomValues(new Uint8Array(16)), name: 'console-owner', displayName: 'Console Owner' },
+        pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -8 }, { type: 'public-key', alg: -257 }],
+        authenticatorSelection: { userVerification: 'preferred', residentKey: 'required' },
+        attestation: 'none',
+        timeout: 60000
+      }
+    });
+    if (!created) throw new Error('passkey_registration_cancelled');
+    const credential = created as PublicKeyCredential;
+    const attestation = credential.response as AuthenticatorAttestationResponse;
+    await api.registerFirstOwner(activeProfile!.id, {
+      credentialId: bytesToBase64url(new Uint8Array(credential.rawId)),
+      clientDataJson: bytesToBase64url(new Uint8Array(attestation.clientDataJSON)),
+      attestationObject: bytesToBase64url(new Uint8Array(attestation.attestationObject))
+    });
+  });
+
+  function bytesToBase64url(bytes: Uint8Array): string {
+    let binary = '';
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  function base64urlToBytes(value: string): Uint8Array<ArrayBuffer> {
+    const binary = atob(value.replace(/-/g, '+').replace(/_/g, '/'));
+    const bytes = new Uint8Array(new ArrayBuffer(binary.length));
+    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+    return bytes;
+  }
 
   function recoveryCredential(): { passphrase?: string; identity?: string } {
     return recoveryCredentialMode === 'passphrase' ? { passphrase: recoveryPassphrase } : { identity: recoveryIdentity };

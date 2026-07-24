@@ -1318,9 +1318,12 @@ export interface components {
         };
         PasskeyRegistrationInput: {
             profileId: string;
+            /** @description base64url credential id */
             credentialId: string;
-            publicKey: string;
-            challenge: string;
+            /** @description base64url clientDataJSON from navigator.credentials.create() */
+            clientDataJson: string;
+            /** @description base64url CBOR attestation object */
+            attestationObject: string;
         };
         FirstOwnerState: {
             claim: {

@@ -148,7 +148,9 @@ func New(config Config) (*Server, error) {
 	}
 	passkeyVerifier := config.PasskeyVerifier
 	if passkeyVerifier == nil {
-		passkeyVerifier = firstowner.StructuralPasskeyVerifier{}
+		// The launcher serves the client over http on loopback, so the WebAuthn
+		// relying-party id is 127.0.0.1 and only loopback origins are accepted.
+		passkeyVerifier = firstowner.NewWebAuthnPasskeyVerifier("127.0.0.1", firstowner.LoopbackOriginAllowed)
 	}
 	workflowEngine.RegisterExecutor("BootstrapLocalNode", bootstrapService.Execute)
 	server := &Server{
@@ -1092,10 +1094,10 @@ func (server *Server) registerFirstOwner(response http.ResponseWriter, request *
 		return
 	}
 	var input struct {
-		ProfileID    string `json:"profileId"`
-		CredentialID string `json:"credentialId"`
-		PublicKey    string `json:"publicKey"`
-		Challenge    string `json:"challenge"`
+		ProfileID         string `json:"profileId"`
+		CredentialID      string `json:"credentialId"`
+		ClientDataJSON    string `json:"clientDataJson"`
+		AttestationObject string `json:"attestationObject"`
 	}
 	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 64*1024))
 	decoder.DisallowUnknownFields()
@@ -1121,7 +1123,7 @@ func (server *Server) registerFirstOwner(response http.ResponseWriter, request *
 		writeError(response, http.StatusConflict, "bootstrap_grant_disabled")
 		return
 	}
-	credentialID, err := server.passkey.Verify(request.Context(), ownerState.Claim.Challenge, firstowner.Registration{CredentialID: input.CredentialID, PublicKey: input.PublicKey, Challenge: input.Challenge})
+	credentialID, err := server.passkey.Verify(request.Context(), ownerState.Claim.Challenge, firstowner.Registration{CredentialID: input.CredentialID, ClientDataJSON: input.ClientDataJSON, AttestationObject: input.AttestationObject})
 	if errors.Is(err, firstowner.ErrChallengeMismatch) {
 		writeError(response, http.StatusConflict, "passkey_challenge_mismatch")
 		return
