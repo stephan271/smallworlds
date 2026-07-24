@@ -175,6 +175,97 @@ export interface ProposeResponse {
   mergeInstructionKey: string;
 }
 
+// --- Device access administration (internal/operatordevice, internal/console) ---
+
+export type EnrollmentStepKind =
+  | 'acquire-tailscale-client'
+  | 'join-private-network'
+  | 'configure-private-dns'
+  | 'install-cluster-ca'
+  | 'verify-gateway-access';
+
+export interface EnrollmentStep {
+  kind: EnrollmentStepKind;
+  elevationRequired: boolean;
+}
+
+export interface EnrollmentGuidance {
+  mode: string;
+  clusterCaTrustRequired: boolean;
+  gatewayHostname: string;
+  operatorHostnames: string[];
+  steps: EnrollmentStep[];
+}
+
+export interface OperatorDevice {
+  stableId: string;
+  hostname: string;
+  label?: string;
+  ownerAccess: boolean;
+  self: boolean;
+  online: boolean;
+  lastSeen?: string;
+}
+
+/** One entry in the shared Activity Record projected for the Owner surface. */
+export interface AdminActivity {
+  id: string;
+  planId: string;
+  phase: string;
+  checkpoint?: string;
+  evidenceSummary?: string;
+  startedAt: string;
+}
+
+export interface AccessSummary {
+  totalDevices: number;
+  ownerDevices: number;
+}
+
+export interface AdminAccess {
+  devices: OperatorDevice[];
+  summary: AccessSummary;
+  activity: AdminActivity[];
+  guidance?: EnrollmentGuidance;
+}
+
+export interface InvitationResponse {
+  invitationId: string;
+  label: string;
+  issuedBy: string;
+  keyFingerprint: string;
+  expiresAt: string;
+  singleUse: boolean;
+  /** The single-use join key, shown exactly once. Never persisted. */
+  joinKey: string;
+  guidance?: EnrollmentGuidance;
+}
+
+export type LockoutReason = 'last-owner-device' | 'self-revocation' | '';
+
+export interface RevocationAssessment {
+  affectedStableId: string;
+  target: OperatorDevice;
+  remainingOwnerDevices: number;
+  alternativeOwnerAccess: boolean;
+  totalDevices: number;
+  lockoutRisk: boolean;
+  lockoutReason?: LockoutReason;
+}
+
+export interface RevocationPlanResponse {
+  planId: string;
+  digest: string;
+  assessment: RevocationAssessment;
+}
+
+export interface RevocationExecuteResponse {
+  runId: string;
+  phase: string;
+  affectedStableId: string;
+  accessVerified: boolean;
+}
+
 export class ConsoleApiError extends Error {
   constructor(
     public readonly status: number,
@@ -228,6 +319,19 @@ export const consoleApi = {
     ),
   proposeAddition: (planId: string) =>
     postJSON<ProposeResponse>(`/api/v1/additions/${encodeURIComponent(planId)}/propose`),
+  administrationAccess: () => getJSON<AdminAccess>('/api/v1/administration/access'),
+  createInvitation: (label: string) =>
+    postJSON<InvitationResponse>('/api/v1/administration/invitations', { label }),
+  planRevocation: (stableId: string) =>
+    postJSON<RevocationPlanResponse>('/api/v1/administration/revocations/plan', { stableId }),
+  approveRevocation: (planId: string) =>
+    postJSON<{ planId: string; approvedBy: string }>(
+      `/api/v1/administration/revocations/${encodeURIComponent(planId)}/approve`
+    ),
+  executeRevocation: (planId: string) =>
+    postJSON<RevocationExecuteResponse>(
+      `/api/v1/administration/revocations/${encodeURIComponent(planId)}/execute`
+    ),
   logout: () => fetch('/api/v1/auth/logout', { method: 'POST' })
 };
 

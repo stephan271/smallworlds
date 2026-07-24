@@ -1,6 +1,11 @@
 # Enroll and revoke Operator Devices
 
-Status: in-progress
+Status: done — acceptance criteria 1–7 met against injected seams; the live
+device directory, invitation issuer (Headscale pre-auth keys), and device
+revoker are deferred to the live-cluster integration exactly like issue 11/14's
+in-cluster console adapters (the console is not yet wired into
+`cmd/smallworlds-admin`), tracked as outstanding integration evidence, not a code
+dependency.
 
 ## Implementation progress
 
@@ -37,7 +42,19 @@ Status: in-progress
   deferred to the live-cluster integration like the console's other adapters.
   Owner-level (device) Activity Records are filtered out of the Operator-visible
   `/proposals` workspace. httptest-verified; `gofmt`/`go vet`/`go test ./...` pass.
-- [ ] Web UI device-access view (EN/DE).
+- [x] **Web UI device-access view** (`web/src/lib/console.ts`,
+  `web/src/lib/console-i18n.ts`, `web/src/routes/console/+page.svelte`) — an
+  `Access` view shown only when the session holds the `administer` permission
+  (server-side authz remains the enforcement; the UI merely hides controls). It
+  lists the current devices with online/Owner-access/this-device cues and an
+  owner-access summary, offers a single-input enrollment form that surfaces the
+  one-time join key with a "shown once" warning plus the deployment-mode-aware
+  guidance steps (elevation badges, Cluster CA notice), and drives the revoke
+  journey plan→lockout-labeled-assessment→approve→execute with a redacted result
+  and a recent-activity list. EN/DE parity is enforced by the
+  `Record<ConsoleMessageKey,string>` German catalog; `step_*` and `lockout_*`
+  keys localize the backend enums. `npm run check` (0 errors) and `npm run build`
+  both pass.
 
 ## What to build
 

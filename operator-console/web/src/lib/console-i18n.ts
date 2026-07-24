@@ -119,6 +119,76 @@ const en = {
   additionErrorProposal: 'The overlay proposal path is not configured yet.',
   additionErrorNotOffered: 'This application can no longer be added.',
 
+  navAccess: 'Access',
+  accessHeading: 'Operator device access',
+  accessIntro:
+    'Enroll additional Operator Devices with short-lived, single-use invitations, and revoke a lost device through an inspected, approved action — no cluster shell or Headscale administration required.',
+  accessDevicesHeading: 'Current devices',
+  accessSummary: 'devices',
+  accessOwnerDevices: 'with Owner access',
+  accessNoDevices: 'No devices are enrolled yet.',
+  deviceOwnerBadge: 'Owner access',
+  deviceSelfBadge: 'This device',
+  deviceOnline: 'Online',
+  deviceOffline: 'Offline',
+  deviceLastSeen: 'Last seen',
+  deviceNever: 'never',
+
+  enrollHeading: 'Enroll a device',
+  enrollIntro:
+    'Create a short-lived, single-use invitation. The join key is shown once and is not a reusable cluster or Headscale administrator credential.',
+  enrollLabelLabel: 'Device label',
+  enrollLabelPlaceholder: 'e.g. alice-laptop',
+  enrollCreateButton: 'Create invitation',
+  enrollGuidanceHeading: 'How this device joins',
+  enrollElevationBadge: 'Needs elevation',
+  enrollCaRequired: 'This deployment requires installing the Cluster CA root on the device.',
+  enrollGatewayLabel: 'Private Gateway',
+  enrollHostsLabel: 'Operator hostnames (reachable only through the gateway)',
+  enrollJoinKeyHeading: 'Single-use join key',
+  enrollJoinKeyOnce:
+    'Copy this now — it is shown once. The invitation is single-use and expires soon.',
+  enrollExpiresAt: 'Expires',
+  enrollIssuedBy: 'Issued by',
+  enrollAnother: 'Create another invitation',
+
+  'step_acquire-tailscale-client': 'Install the official Tailscale client (verified download)',
+  'step_join-private-network': 'Join the Private Network with the single-use invitation',
+  'step_configure-private-dns': 'Use the Private Network DNS so operator hostnames resolve',
+  'step_install-cluster-ca': 'Install the Cluster CA root so operator interfaces are trusted',
+  'step_verify-gateway-access': 'Confirm operator hostnames open through the Private Gateway',
+
+  revokeHeading: 'Revoke a device',
+  revokeIntro:
+    'Removing a lost device is an inspected, approved action. Its lockout impact is shown before you approve.',
+  revokeSelectPrompt: 'Select a device above and plan its revocation.',
+  revokePlanButton: 'Plan revocation',
+  revokeAssessmentHeading: 'Revocation impact',
+  revokeAffected: 'Affected device',
+  revokeAlternativeYes: 'Other Owner devices remain',
+  revokeAlternativeNo: 'No other Owner device would remain',
+  revokeRemaining: 'Remaining Owner devices',
+  revokeLockoutWarning: 'Lockout risk',
+  'lockout_last-owner-device': 'This is the last device with Owner access — removing it risks a lockout.',
+  'lockout_self-revocation': 'This is the device you are using — revoking it may cut off your session.',
+  revokeApproveButton: 'Approve revocation',
+  revokeExecuteButton: 'Revoke device',
+  revokeDoneHeading: 'Device revoked',
+  revokeAccessVerified: 'Loss of access was verified.',
+  revokeAccessNotVerified: 'The device was removed, but loss of access could not be verified.',
+  revokeAnother: 'Back to devices',
+
+  activityHeading: 'Recent access activity',
+  activityEmpty: 'No device access activity recorded yet.',
+
+  deviceErrorGeneric: 'The action could not be completed.',
+  deviceErrorDirectory: 'The device directory is not available yet.',
+  deviceErrorInvitation: 'The invitation path is not configured yet.',
+  deviceErrorRevocation: 'The device revocation path is not configured yet.',
+  deviceErrorMismatch: 'The devices changed since you planned. Re-plan to continue.',
+  deviceErrorNotApproved: 'Approve the plan before revoking.',
+  deviceErrorNotFound: 'That device is no longer present.',
+
   'cat_application-policy': 'Application-defined access policy',
   'cat_private-gateway': 'Private Gateway only',
   'cat_capability-backup': 'Per-application backup',
@@ -308,6 +378,80 @@ const de: Record<ConsoleMessageKey, string> = {
   additionErrorProposal: 'Der Overlay-Vorschlagspfad ist noch nicht konfiguriert.',
   additionErrorNotOffered: 'Diese Anwendung kann nicht mehr hinzugefügt werden.',
 
+  navAccess: 'Zugriff',
+  accessHeading: 'Zugriff für Operator-Geräte',
+  accessIntro:
+    'Registrieren Sie zusätzliche Operator-Geräte mit kurzlebigen Einmal-Einladungen und widerrufen Sie ein verlorenes Gerät über eine geprüfte, genehmigte Aktion — ohne Cluster-Shell oder Headscale-Administration.',
+  accessDevicesHeading: 'Aktuelle Geräte',
+  accessSummary: 'Geräte',
+  accessOwnerDevices: 'mit Eigentümer-Zugriff',
+  accessNoDevices: 'Es sind noch keine Geräte registriert.',
+  deviceOwnerBadge: 'Eigentümer-Zugriff',
+  deviceSelfBadge: 'Dieses Gerät',
+  deviceOnline: 'Online',
+  deviceOffline: 'Offline',
+  deviceLastSeen: 'Zuletzt gesehen',
+  deviceNever: 'nie',
+
+  enrollHeading: 'Gerät registrieren',
+  enrollIntro:
+    'Erstellen Sie eine kurzlebige Einmal-Einladung. Der Beitrittsschlüssel wird einmal angezeigt und ist kein wiederverwendbares Cluster- oder Headscale-Administrator-Anmeldedatum.',
+  enrollLabelLabel: 'Gerätebezeichnung',
+  enrollLabelPlaceholder: 'z. B. alice-laptop',
+  enrollCreateButton: 'Einladung erstellen',
+  enrollGuidanceHeading: 'So tritt dieses Gerät bei',
+  enrollElevationBadge: 'Benötigt Rechteerhöhung',
+  enrollCaRequired:
+    'Diese Bereitstellung erfordert die Installation des Cluster-CA-Stammzertifikats auf dem Gerät.',
+  enrollGatewayLabel: 'Private Gateway',
+  enrollHostsLabel: 'Operator-Hostnamen (nur über das Gateway erreichbar)',
+  enrollJoinKeyHeading: 'Einmaliger Beitrittsschlüssel',
+  enrollJoinKeyOnce:
+    'Jetzt kopieren — er wird nur einmal angezeigt. Die Einladung ist einmalig und läuft bald ab.',
+  enrollExpiresAt: 'Läuft ab',
+  enrollIssuedBy: 'Ausgestellt von',
+  enrollAnother: 'Weitere Einladung erstellen',
+
+  'step_acquire-tailscale-client': 'Offiziellen Tailscale-Client installieren (verifizierter Download)',
+  'step_join-private-network': 'Mit der Einmal-Einladung dem Private Network beitreten',
+  'step_configure-private-dns': 'Private-Network-DNS nutzen, damit Operator-Hostnamen auflösen',
+  'step_install-cluster-ca': 'Cluster-CA-Stammzertifikat installieren, damit Operator-Oberflächen vertraut werden',
+  'step_verify-gateway-access': 'Bestätigen, dass Operator-Hostnamen über das Private Gateway öffnen',
+
+  revokeHeading: 'Gerät widerrufen',
+  revokeIntro:
+    'Das Entfernen eines verlorenen Geräts ist eine geprüfte, genehmigte Aktion. Die Aussperrungs-Auswirkung wird vor der Genehmigung angezeigt.',
+  revokeSelectPrompt: 'Wählen Sie oben ein Gerät und planen Sie dessen Widerruf.',
+  revokePlanButton: 'Widerruf planen',
+  revokeAssessmentHeading: 'Auswirkung des Widerrufs',
+  revokeAffected: 'Betroffenes Gerät',
+  revokeAlternativeYes: 'Weitere Eigentümer-Geräte bleiben bestehen',
+  revokeAlternativeNo: 'Es würde kein weiteres Eigentümer-Gerät verbleiben',
+  revokeRemaining: 'Verbleibende Eigentümer-Geräte',
+  revokeLockoutWarning: 'Aussperrungsrisiko',
+  'lockout_last-owner-device':
+    'Dies ist das letzte Gerät mit Eigentümer-Zugriff — sein Entfernen riskiert eine Aussperrung.',
+  'lockout_self-revocation':
+    'Dies ist das Gerät, das Sie verwenden — sein Widerruf kann Ihre Sitzung trennen.',
+  revokeApproveButton: 'Widerruf genehmigen',
+  revokeExecuteButton: 'Gerät widerrufen',
+  revokeDoneHeading: 'Gerät widerrufen',
+  revokeAccessVerified: 'Der Zugriffsverlust wurde bestätigt.',
+  revokeAccessNotVerified:
+    'Das Gerät wurde entfernt, aber der Zugriffsverlust konnte nicht bestätigt werden.',
+  revokeAnother: 'Zurück zu den Geräten',
+
+  activityHeading: 'Letzte Zugriffsaktivität',
+  activityEmpty: 'Noch keine Geräte-Zugriffsaktivität erfasst.',
+
+  deviceErrorGeneric: 'Die Aktion konnte nicht abgeschlossen werden.',
+  deviceErrorDirectory: 'Das Geräteverzeichnis ist noch nicht verfügbar.',
+  deviceErrorInvitation: 'Der Einladungspfad ist noch nicht konfiguriert.',
+  deviceErrorRevocation: 'Der Geräte-Widerrufspfad ist noch nicht konfiguriert.',
+  deviceErrorMismatch: 'Die Geräte haben sich seit Ihrer Planung geändert. Bitte neu planen.',
+  deviceErrorNotApproved: 'Genehmigen Sie den Plan vor dem Widerruf.',
+  deviceErrorNotFound: 'Dieses Gerät ist nicht mehr vorhanden.',
+
   'cat_application-policy': 'Anwendungsdefinierte Zugriffsrichtlinie',
   'cat_private-gateway': 'Nur Private Gateway',
   'cat_capability-backup': 'Anwendungsspezifisches Backup',
@@ -418,6 +562,14 @@ export function roleKey(role: ConsoleRole | undefined): ConsoleMessageKey {
 
 export function protectionLevelKey(level: ProtectionLevel): ConsoleMessageKey {
   return `plevel_${level}` as ConsoleMessageKey;
+}
+
+export function stepKey(kind: string): ConsoleMessageKey {
+  return `step_${kind}` as ConsoleMessageKey;
+}
+
+export function lockoutKey(reason: string): ConsoleMessageKey {
+  return `lockout_${reason}` as ConsoleMessageKey;
 }
 
 export function dataTypeKey(dataType: DataType): ConsoleMessageKey {

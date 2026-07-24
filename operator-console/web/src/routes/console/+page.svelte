@@ -5,15 +5,20 @@
     ConsoleApiError,
     hasPermission,
     type AddCapabilityOffer,
+    type AdminAccess,
     type CapabilityAssessment,
     type CapabilityState,
     type DatasetProtection,
     type FacetState,
+    type InvitationResponse,
+    type OperatorDevice,
     type Overview,
     type PlanResponse,
     type ProposeResponse,
     type ProtectionLevel,
     type RemediationKind,
+    type RevocationExecuteResponse,
+    type RevocationPlanResponse,
     type Session
   } from '$lib/console';
   import {
@@ -22,17 +27,20 @@
     dataTypeKey,
     facetKindKey,
     facetStateKey,
+    lockoutKey,
     protectionLevelKey,
     reasonKey,
     roleKey,
     stateKey,
+    stepKey,
     type ConsoleMessageKey,
     type Locale
   } from '$lib/console-i18n';
 
   type Status = 'loading' | 'anon' | 'ready' | 'forbidden' | 'error';
-  type View = 'capabilities' | 'protection' | 'additions';
+  type View = 'capabilities' | 'protection' | 'additions' | 'access';
   type AdditionStage = 'offers' | 'plan' | 'proposed';
+  type RevokeStage = 'idle' | 'planned' | 'done';
 
   let locale = $state<Locale>('en');
   let status = $state<Status>('loading');
@@ -55,6 +63,20 @@
   let approved = $state(false);
   let proposal = $state<ProposeResponse | null>(null);
   let additionError = $state<ConsoleMessageKey | null>(null);
+
+  // Device-access (Administer) journey state.
+  let access = $state<AdminAccess | null>(null);
+  let accessError = $state<ConsoleMessageKey | null>(null);
+  let inviteLabel = $state('');
+  let inviting = $state(false);
+  let invitation = $state<InvitationResponse | null>(null);
+  let revokeStage = $state<RevokeStage>('idle');
+  let revokeTarget = $state<OperatorDevice | null>(null);
+  let revokePlan = $state<RevocationPlanResponse | null>(null);
+  let revokeApproved = $state(false);
+  let revoking = $state(false);
+  let approvingRevoke = $state(false);
+  let revokeResult = $state<RevocationExecuteResponse | null>(null);
 
   const t = $derived((key: ConsoleMessageKey) => consoleTranslate(locale, key));
   const planFits = $derived(
@@ -255,6 +277,115 @@
     void loadOffers();
   }
 
+  function deviceErrorFor(err: unknown): ConsoleMessageKey {
+    if (err instanceof ConsoleApiError) {
+      switch (err.code) {
+        case 'directory_unavailable':
+          return 'deviceErrorDirectory';
+        case 'invitation_unavailable':
+          return 'deviceErrorInvitation';
+        case 'revocation_unavailable':
+          return 'deviceErrorRevocation';
+        case 'revocation_plan_mismatch':
+          return 'deviceErrorMismatch';
+        case 'revocation_not_approved':
+          return 'deviceErrorNotApproved';
+        case 'device_not_found':
+          return 'deviceErrorNotFound';
+      }
+    }
+    return 'deviceErrorGeneric';
+  }
+
+  async function showAccess() {
+    view = 'access';
+    if (access !== null) return;
+    await loadAccess();
+  }
+
+  async function loadAccess() {
+    accessError = null;
+    try {
+      access = await consoleApi.administrationAccess();
+    } catch (err) {
+      access = { devices: [], summary: { totalDevices: 0, ownerDevices: 0 }, activity: [] };
+      accessError = deviceErrorFor(err);
+    }
+  }
+
+  async function createInvitation() {
+    if (!inviteLabel.trim()) return;
+    inviting = true;
+    accessError = null;
+    try {
+      invitation = await consoleApi.createInvitation(inviteLabel.trim());
+      inviteLabel = '';
+    } catch (err) {
+      accessError = deviceErrorFor(err);
+    } finally {
+      inviting = false;
+    }
+  }
+
+  function resetInvitation() {
+    invitation = null;
+    void loadAccess();
+  }
+
+  async function planRevoke(device: OperatorDevice) {
+    revokeTarget = device;
+    revokeApproved = false;
+    revokeResult = null;
+    accessError = null;
+    revoking = true;
+    try {
+      revokePlan = await consoleApi.planRevocation(device.stableId);
+      revokeStage = 'planned';
+    } catch (err) {
+      accessError = deviceErrorFor(err);
+    } finally {
+      revoking = false;
+    }
+  }
+
+  async function approveRevoke() {
+    if (!revokePlan) return;
+    approvingRevoke = true;
+    accessError = null;
+    try {
+      await consoleApi.approveRevocation(revokePlan.planId);
+      revokeApproved = true;
+    } catch (err) {
+      accessError = deviceErrorFor(err);
+    } finally {
+      approvingRevoke = false;
+    }
+  }
+
+  async function executeRevoke() {
+    if (!revokePlan) return;
+    revoking = true;
+    accessError = null;
+    try {
+      revokeResult = await consoleApi.executeRevocation(revokePlan.planId);
+      revokeStage = 'done';
+    } catch (err) {
+      accessError = deviceErrorFor(err);
+    } finally {
+      revoking = false;
+    }
+  }
+
+  function resetRevoke() {
+    revokeStage = 'idle';
+    revokeTarget = null;
+    revokePlan = null;
+    revokeApproved = false;
+    revokeResult = null;
+    accessError = null;
+    void loadAccess();
+  }
+
   async function signOut() {
     await consoleApi.logout();
     session = null;
@@ -264,6 +395,13 @@
     additionStage = 'offers';
     currentPlan = null;
     proposal = null;
+    access = null;
+    invitation = null;
+    revokeStage = 'idle';
+    revokeTarget = null;
+    revokePlan = null;
+    revokeApproved = false;
+    revokeResult = null;
     status = 'anon';
   }
 
@@ -328,6 +466,11 @@
       {#if hasPermission(session, 'propose')}
         <button type="button" aria-pressed={view === 'additions'} onclick={showAdditions}>
           {t('navAdditions')}
+        </button>
+      {/if}
+      {#if hasPermission(session, 'administer')}
+        <button type="button" aria-pressed={view === 'access'} onclick={showAccess}>
+          {t('navAccess')}
         </button>
       {/if}
     </nav>
@@ -502,6 +645,145 @@
           {/if}
           <p class="reason">{t('proposalMergeObserved')}</p>
           <button type="button" class="button" onclick={resetAdditions}>{t('addAnother')}</button>
+        {/if}
+      </section>
+    {:else if view === 'access'}
+      <section class="panel" aria-labelledby="access-heading">
+        <h2 id="access-heading">{t('accessHeading')}</h2>
+        <p class="hint">{t('accessIntro')}</p>
+        {#if accessError}
+          <p class="badge warn errorline" role="alert">{t(accessError)}</p>
+        {/if}
+
+        {#if access === null}
+          <p>{t('loading')}</p>
+        {:else if revokeStage === 'planned' && revokePlan}
+          <h3>{t('revokeAssessmentHeading')}</h3>
+          <dl class="evidence">
+            <div><dt>{t('revokeAffected')}</dt><dd>{revokePlan.assessment.target.hostname} <code>{revokePlan.assessment.affectedStableId}</code></dd></div>
+            <div><dt>{t('revokeRemaining')}</dt><dd>{revokePlan.assessment.remainingOwnerDevices}</dd></div>
+          </dl>
+          <p class="badge {revokePlan.assessment.alternativeOwnerAccess ? '' : 'warn'} fitline">
+            <span aria-hidden="true" class="sym">{revokePlan.assessment.alternativeOwnerAccess ? '✓' : '▲'}</span>
+            {revokePlan.assessment.alternativeOwnerAccess ? t('revokeAlternativeYes') : t('revokeAlternativeNo')}
+          </p>
+          {#if revokePlan.assessment.lockoutRisk && revokePlan.assessment.lockoutReason}
+            <p class="badge warn errorline" role="alert">
+              <span aria-hidden="true" class="sym">▲</span>
+              <strong>{t('revokeLockoutWarning')}:</strong> {t(lockoutKey(revokePlan.assessment.lockoutReason))}
+            </p>
+          {/if}
+          <div class="actions">
+            <button type="button" class="button" disabled={revokeApproved} aria-busy={approvingRevoke} onclick={approveRevoke}>
+              {#if revokeApproved}✓ {/if}{t('revokeApproveButton')}
+            </button>
+            <button type="button" class="button" disabled={!revokeApproved} aria-busy={revoking} onclick={executeRevoke}>
+              {t('revokeExecuteButton')}
+            </button>
+            <button type="button" class="link" onclick={resetRevoke}>← {t('revokeAnother')}</button>
+          </div>
+        {:else if revokeStage === 'done' && revokeResult}
+          <h3>{t('revokeDoneHeading')}</h3>
+          <p class="badge {revokeResult.accessVerified ? '' : 'warn'} fitline">
+            <span aria-hidden="true" class="sym">{revokeResult.accessVerified ? '✓' : '▲'}</span>
+            {revokeResult.accessVerified ? t('revokeAccessVerified') : t('revokeAccessNotVerified')}
+          </p>
+          <dl class="evidence">
+            <div><dt>{t('revokeAffected')}</dt><dd><code>{revokeResult.affectedStableId}</code></dd></div>
+          </dl>
+          <button type="button" class="button" onclick={resetRevoke}>{t('revokeAnother')}</button>
+        {:else}
+          <h3>{t('accessDevicesHeading')}</h3>
+          <p class="meta">{access.summary.totalDevices} {t('accessSummary')} · {access.summary.ownerDevices} {t('accessOwnerDevices')}</p>
+          {#if access.devices.length === 0}
+            <p>{t('accessNoDevices')}</p>
+          {:else}
+            <ul class="datasets">
+              {#each access.devices as device}
+                <li class="dataset">
+                  <div class="facet-head">
+                    <span aria-hidden="true" class="sym">{device.online ? '●' : '○'}</span>
+                    <strong>{device.hostname}</strong>
+                    {#if device.ownerAccess}<span class="badge">{t('deviceOwnerBadge')}</span>{/if}
+                    {#if device.self}<span class="badge muted">{t('deviceSelfBadge')}</span>{/if}
+                    <span class="badge muted">{device.online ? t('deviceOnline') : t('deviceOffline')}</span>
+                  </div>
+                  <p class="meta">
+                    <code>{device.stableId}</code>
+                    · {t('deviceLastSeen')}: {device.lastSeen ? formatTime(device.lastSeen) : t('deviceNever')}
+                  </p>
+                  <button type="button" class="button" aria-busy={revoking && revokeTarget?.stableId === device.stableId} onclick={() => planRevoke(device)}>
+                    {t('revokePlanButton')}
+                  </button>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+
+          <h3>{t('enrollHeading')}</h3>
+          <p class="hint">{t('enrollIntro')}</p>
+          {#if invitation}
+            <div class="joinkey" role="group" aria-label={t('enrollJoinKeyHeading')}>
+              <h4>{t('enrollJoinKeyHeading')}</h4>
+              <p class="badge warn">{t('enrollJoinKeyOnce')}</p>
+              <pre class="diff"><code>{invitation.joinKey}</code></pre>
+              <dl class="evidence">
+                <div><dt>{t('enrollIssuedBy')}</dt><dd>{invitation.issuedBy}</dd></div>
+                <div><dt>{t('enrollExpiresAt')}</dt><dd>{formatTime(invitation.expiresAt)}</dd></div>
+              </dl>
+              {#if invitation.guidance}
+                <h4>{t('enrollGuidanceHeading')}</h4>
+                {#if invitation.guidance.clusterCaTrustRequired}
+                  <p class="badge warn">{t('enrollCaRequired')}</p>
+                {/if}
+                <ol class="steps">
+                  {#each invitation.guidance.steps as step}
+                    <li>
+                      {t(stepKey(step.kind))}
+                      {#if step.elevationRequired}<span class="badge muted">{t('enrollElevationBadge')}</span>{/if}
+                    </li>
+                  {/each}
+                </ol>
+                <dl class="evidence">
+                  <div><dt>{t('enrollGatewayLabel')}</dt><dd><code>{invitation.guidance.gatewayHostname}</code></dd></div>
+                </dl>
+                <p class="meta">{t('enrollHostsLabel')}: {invitation.guidance.operatorHostnames.join(', ')}</p>
+              {/if}
+              <button type="button" class="button" onclick={resetInvitation}>{t('enrollAnother')}</button>
+            </div>
+          {:else}
+            <div class="enrollform">
+              <label for="invite-label">{t('enrollLabelLabel')}</label>
+              <input
+                id="invite-label"
+                type="text"
+                bind:value={inviteLabel}
+                placeholder={t('enrollLabelPlaceholder')}
+                autocomplete="off"
+              />
+              <button type="button" class="button" aria-busy={inviting} disabled={!inviteLabel.trim()} onclick={createInvitation}>
+                {t('enrollCreateButton')}
+              </button>
+            </div>
+          {/if}
+
+          <h3>{t('activityHeading')}</h3>
+          {#if access.activity.length === 0}
+            <p class="meta">{t('activityEmpty')}</p>
+          {:else}
+            <ul class="datasets">
+              {#each access.activity as entry}
+                <li class="dataset">
+                  <div class="facet-head">
+                    <strong>{entry.phase}</strong>
+                    {#if entry.checkpoint}<span class="badge muted">{entry.checkpoint}</span>{/if}
+                  </div>
+                  {#if entry.evidenceSummary}<p class="reason">{entry.evidenceSummary}</p>{/if}
+                  <p class="meta">{formatTime(entry.startedAt)}</p>
+                </li>
+              {/each}
+            </ul>
+          {/if}
         {/if}
       </section>
     {:else if selected}
@@ -835,6 +1117,43 @@
     overflow-x: auto;
     font-size: 0.82rem;
     line-height: 1.45;
+  }
+  .enrollform {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin-top: 0.5rem;
+  }
+  .enrollform label {
+    font-weight: 600;
+  }
+  .enrollform input {
+    padding: 0.45rem 0.6rem;
+    border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+    border-radius: 0.4rem;
+    background: transparent;
+    color: inherit;
+    font-size: 1rem;
+    min-width: 14rem;
+  }
+  .enrollform .button {
+    margin-top: 0;
+  }
+  .joinkey {
+    margin-top: 0.5rem;
+    padding: 1rem;
+    border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+    border-radius: 0.5rem;
+  }
+  ol.steps {
+    margin: 0.5rem 0 0;
+    padding-left: 1.5rem;
+    display: grid;
+    gap: 0.35rem;
+  }
+  ol.steps .badge {
+    margin-left: 0.4rem;
   }
   @media (prefers-reduced-motion: reduce) {
     * {
