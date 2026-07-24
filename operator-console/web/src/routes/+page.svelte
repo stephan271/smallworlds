@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type HandoffAssessment, type NodeCapabilities, type NodeInspectionResult, type NodeProbeResult, type NodeTarget, type RecoveryBundlePreview, type SetupJourney, type TailscaleClientOffer, type VaultStatus, type WorkflowRun } from '$lib/api';
+  import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type HandoffAssessment, type NodeCapabilities, type NodeInspectionResult, type NodeProbeResult, type NodeTarget, type OffsitePlan, type OffsiteProposal, type OffsiteProtection, type RecoveryBundlePreview, type SetupJourney, type TailscaleClientOffer, type VaultStatus, type WorkflowRun } from '$lib/api';
   import { translate, type Locale, type MessageKey } from '$lib/i18n';
 
   type ActivityEvent = {
@@ -94,6 +94,18 @@
   let firstOwnerChallenge = $state('');
   let handoffBusy = $state(false);
   let handoffError = $state('');
+  let offsiteEndpoint = $state('');
+  let offsiteRegion = $state('');
+  let offsiteBucket = $state('');
+  let offsiteAccessKey = $state('');
+  let offsiteSecretKey = $state('');
+  let offsiteAcknowledge = $state(false);
+  let offsiteStatus: OffsiteProtection | null = $state(null);
+  let offsitePlan: OffsitePlan | null = $state(null);
+  let offsitePlanId = $state('');
+  let offsiteProposal: OffsiteProposal | null = $state(null);
+  let offsiteError = $state('');
+  let offsiteBusy = $state(false);
   let creating = $state(true);
   let editing = $state(false);
   let busy = $state(false);
@@ -147,6 +159,16 @@
     deviceTrustFingerprint = '';
     firstOwnerChallenge = '';
     handoffError = '';
+    offsitePlan = null;
+    offsitePlanId = '';
+    offsiteProposal = null;
+    offsiteError = '';
+    offsiteAcknowledge = false;
+    try {
+      offsiteStatus = await api.getOffsiteProtection(profile.id);
+    } catch {
+      offsiteStatus = null;
+    }
     if (profile.deploymentMode === 'local-lan') {
       try {
         handoffAssessment = await api.getHandoffAssessment(profile.id);
@@ -496,6 +518,97 @@
     } finally {
       genericGitBusy = false;
     }
+  }
+
+  async function inspectOffsiteDestination(): Promise<void> {
+    if (!activeProfile) return;
+    offsiteBusy = true;
+    offsiteError = '';
+    offsitePlan = null;
+    offsitePlanId = '';
+    offsiteProposal = null;
+    try {
+      offsiteStatus = await api.inspectOffsiteDestination({ profileId: activeProfile.id, endpoint: offsiteEndpoint, region: offsiteRegion, bucket: offsiteBucket, accessKeyId: offsiteAccessKey, secretAccessKey: offsiteSecretKey });
+      offsiteAccessKey = '';
+      offsiteSecretKey = '';
+      if (!offsiteStatus.requiresAcknowledgement) offsiteAcknowledge = false;
+    } catch (reason) {
+      offsiteError = reason instanceof Error ? reason.message : 'offsite_inspection_failed';
+    } finally {
+      offsiteBusy = false;
+    }
+  }
+
+  async function planOffsiteProtection(): Promise<void> {
+    if (!activeProfile) return;
+    offsiteBusy = true;
+    offsiteError = '';
+    offsiteProposal = null;
+    try {
+      offsitePlan = await api.planOffsiteProtection(activeProfile.id, offsiteAcknowledge);
+      offsitePlanId = (offsitePlan.plan as { id?: string } | undefined)?.id ?? '';
+    } catch (reason) {
+      offsitePlan = null;
+      offsiteError = reason instanceof Error ? reason.message : 'offsite_plan_failed';
+    } finally {
+      offsiteBusy = false;
+    }
+  }
+
+  async function proposeOffsiteProtection(): Promise<void> {
+    if (!activeProfile || !offsitePlanId) return;
+    offsiteBusy = true;
+    offsiteError = '';
+    try {
+      // The proposal opens only after the plan is approved; the credential values
+      // reach the Cluster Secret, never Git or the browser.
+      await api.approvePlan(offsitePlanId);
+      offsiteProposal = await api.proposeOffsiteProtection(activeProfile.id, offsitePlanId);
+      offsiteStatus = await api.getOffsiteProtection(activeProfile.id);
+    } catch (reason) {
+      offsiteError = reason instanceof Error ? reason.message : 'offsite_proposal_failed';
+    } finally {
+      offsiteBusy = false;
+    }
+  }
+
+  async function validateOffsiteProtection(): Promise<void> {
+    if (!activeProfile) return;
+    offsiteBusy = true;
+    offsiteError = '';
+    try {
+      const planned = await api.validateOffsiteProtection(activeProfile.id);
+      let current = await api.approvePlan(planned.plan.id);
+      for (let attempt = 0; attempt < 40 && current.state === 'running'; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        current = await api.getRun(current.id);
+      }
+      offsiteStatus = await api.getOffsiteProtection(activeProfile.id);
+    } catch (reason) {
+      offsiteError = reason instanceof Error ? reason.message : 'offsite_validation_failed';
+    } finally {
+      offsiteBusy = false;
+    }
+  }
+
+  function offsiteVersioningLabel(value: string | undefined): string {
+    const labels: Record<string, MessageKey> = { enabled: 'offsiteVersioningEnabled', disabled: 'offsiteVersioningDisabled', unsupported: 'offsiteVersioningUnsupported', unknown: 'offsiteVersioningUnknown' };
+    return value && labels[value] ? message(labels[value]) : (value ?? '');
+  }
+
+  function offsiteResultLabel(result: string | undefined): string {
+    const labels: Record<string, MessageKey> = { 'offsite-verified': 'offsiteResultVerified', 'local-backup-failed': 'offsiteResultLocalBackupFailed', 'replication-failed': 'offsiteResultReplicationFailed', 'no-offsite-evidence': 'offsiteResultNoEvidence', 'offsite-evidence-stale': 'offsiteResultStale', 'versioning-unsupported': 'offsiteResultVersioningUnsupported', pending: 'offsiteResultPending' };
+    return result && labels[result] ? message(labels[result]) : (result ?? '');
+  }
+
+  function offsiteRemediationLabel(key: string | undefined): string {
+    const labels: Record<string, MessageKey> = { 'offsite.remediation.none': 'offsiteRemediationNone', 'offsite.remediation.local_backup_failed': 'offsiteRemediationLocalBackupFailed', 'offsite.remediation.replication_failed': 'offsiteRemediationReplicationFailed', 'offsite.remediation.no_offsite_evidence': 'offsiteRemediationNoEvidence', 'offsite.remediation.evidence_stale': 'offsiteRemediationStale', 'offsite.remediation.versioning_unsupported': 'offsiteRemediationVersioningUnsupported', 'offsite.remediation.pending': 'offsiteRemediationPending' };
+    return key && labels[key] ? message(labels[key]) : (key ?? '');
+  }
+
+  function offsiteImplicationLabel(code: string | undefined): string {
+    const labels: Record<string, MessageKey> = { 'offsite-copy-of-all-buckets-created': 'offsiteImplData', 'offsite-storage-and-egress-billed-by-destination': 'offsiteImplCost', 'enables-offsite-disaster-protection': 'offsiteImplProtection' };
+    return code && labels[code] ? message(labels[code]) : (code ?? '');
   }
 
   async function inspectBootstrapAssets(): Promise<void> {
@@ -1025,6 +1138,43 @@
           {/if}
           {#if genericGitOverlayNotice}<p class="inline-notice" aria-live="polite">{genericGitOverlayNotice}</p>{/if}
           {#if genericGitProposal}<p class="inline-notice" aria-live="polite">{message('genericGitManualMerge')} <code>{genericGitProposal.branch}</code> · {genericGitProposal.commit}</p>{/if}
+        </section>
+
+        <section class="card offsite-card" aria-labelledby="offsite-title">
+          <p class="eyebrow">{message('offsiteEyebrow')}</p>
+          <h2 id="offsite-title">{message('offsiteTitle')}</h2>
+          <p class="muted">{message('offsiteDescription')}</p>
+          {#if offsiteError}<p class="inline-error" role="alert">{offsiteError}</p>{/if}
+          <form onsubmit={(event) => { event.preventDefault(); void inspectOffsiteDestination(); }}>
+            <div class="form-grid"><label><span>{message('offsiteEndpoint')}</span><input type="url" bind:value={offsiteEndpoint} required placeholder="https://s3.eu-central-003.backblazeb2.com" /></label><label><span>{message('offsiteRegion')}</span><input bind:value={offsiteRegion} required placeholder="eu-central-003" autocomplete="off" /></label></div>
+            <label><span>{message('offsiteBucket')}</span><input bind:value={offsiteBucket} required placeholder="community-backups" autocomplete="off" /></label>
+            <div class="form-grid"><label><span>{message('offsiteAccessKey')}</span><input bind:value={offsiteAccessKey} required autocomplete="off" /></label><label><span>{message('offsiteSecretKey')}</span><input type="password" bind:value={offsiteSecretKey} required autocomplete="off" /></label></div>
+            <div class="actions"><button type="submit" disabled={offsiteBusy}>{message('offsiteInspect')}</button></div>
+          </form>
+          {#if offsiteStatus?.destination?.bucket}
+            <dl class="credential-metadata"><div><dt>{message('offsiteBucket')}</dt><dd>{offsiteStatus.destination.bucket} · {offsiteStatus.destination.region}</dd></div><div><dt>{message('offsiteVersioning')}</dt><dd>{offsiteVersioningLabel(offsiteStatus.versioning)}</dd></div><div><dt>{message('offsiteFingerprint')}</dt><dd><code>{offsiteStatus.accessKeyFingerprint}</code></dd></div></dl>
+            {#if offsiteStatus.requiresAcknowledgement}<label class="check"><input type="checkbox" bind:checked={offsiteAcknowledge} /><span>{message('offsiteAcknowledge')}</span></label>{/if}
+            <div class="actions"><button type="button" onclick={() => void planOffsiteProtection()} disabled={offsiteBusy || (offsiteStatus.requiresAcknowledgement && !offsiteAcknowledge)}>{message('offsitePlanReview')}</button></div>
+          {/if}
+          {#if offsitePlan}
+            <section class="capability-preview" aria-labelledby="offsite-plan-title">
+              <p class="eyebrow">{message('planTitle')}</p>
+              <h3 id="offsite-plan-title">{message('offsiteGitDiff')}</h3>
+              <div data-testid="offsite-diff" class="overlay-diff" role="textbox" aria-readonly="true" tabindex="0" aria-label={message('offsiteGitDiff')}>{offsitePlan.gitDiff}</div>
+              <dl class="credential-metadata"><div><dt>{message('offsiteSecretEffect')}</dt><dd><code>{offsitePlan.secret?.secretName}</code></dd></div><div><dt>{message('offsiteSecretKeysLabel')}</dt><dd>{(offsitePlan.secret?.keys ?? []).join(', ')}</dd></div></dl>
+              <p class="eyebrow">{message('offsiteImplications')}</p>
+              <ul class="offsite-implications"><li>{offsiteImplicationLabel(offsitePlan.implications?.data)}</li><li>{offsiteImplicationLabel(offsitePlan.implications?.cost)}</li><li>{offsiteImplicationLabel(offsitePlan.implications?.protection)}</li></ul>
+              <div class="actions"><button type="button" onclick={() => void proposeOffsiteProtection()} disabled={offsiteBusy || !offsitePlanId}>{message('offsiteApprovePropose')}</button></div>
+            </section>
+          {/if}
+          {#if offsiteProposal}<p class="inline-notice" aria-live="polite">{message('offsiteProposalOpened')} {#if offsiteProposal.url}<a href={offsiteProposal.url} target="_blank" rel="noreferrer">{offsiteProposal.branch || offsiteProposal.commit}</a>{:else}<code>{offsiteProposal.branch}</code> · {offsiteProposal.commit}{/if}</p>{/if}
+          {#if offsiteStatus?.proposal}
+            <p class="muted">{message('offsiteProposalRequired')}</p>
+            <div class="actions"><button type="button" class="secondary" onclick={() => void validateOffsiteProtection()} disabled={offsiteBusy}>{message('offsiteValidate')}</button></div>
+          {/if}
+          {#if offsiteStatus?.validation}
+            <dl class="credential-metadata"><div><dt>{message('offsiteValidationVerdict')}</dt><dd>{offsiteResultLabel(offsiteStatus.validation.result)}</dd></div><div><dt>{message('offsiteRemediation')}</dt><dd>{offsiteRemediationLabel(offsiteStatus.validation.remediationKey)}</dd></div>{#if offsiteStatus.validation.recoveryPointAt}<div><dt>{message('offsiteRecoveryPoint')}</dt><dd>{offsiteStatus.validation.recoveryPointAt}</dd></div>{/if}</dl>
+          {/if}
         </section>
 
 		<section class="card vault-card" aria-labelledby="vault-title">

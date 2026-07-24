@@ -31,6 +31,10 @@ export type HandoffReport = components['schemas']['HandoffReport'];
 export type HandoffClosure = components['schemas']['HandoffClosure'];
 export type FirstOwnerState = components['schemas']['FirstOwnerState'];
 export type HandoffAssessment = components['schemas']['HandoffAssessment'];
+export type OffsiteProtection = components['schemas']['OffsiteProtection'];
+export type OffsitePlan = components['schemas']['OffsitePlan'];
+export type OffsiteProposal = components['schemas']['OffsiteProposal'];
+export type OffsiteDestinationInput = { profileId: string; endpoint: string; region: string; bucket: string; accessKeyId: string; secretAccessKey: string };
 
 let csrfToken = '';
 
@@ -153,5 +157,10 @@ export const api = {
   claimFirstOwner: (profileId: string) => request<FirstOwnerState>('/api/v1/first-owner/claim', { method: 'POST', body: JSON.stringify({ profileId }) }),
   registerFirstOwner: (profileId: string, registration: { credentialId: string; clientDataJson: string; attestationObject: string }) =>
     request<FirstOwnerState>('/api/v1/first-owner/register', { method: 'POST', body: JSON.stringify({ profileId, ...registration }) }),
-  getHandoffAssessment: (profileId: string) => request<HandoffAssessment>(`/api/v1/handoff-assessment?profileId=${encodeURIComponent(profileId)}`)
+  getHandoffAssessment: (profileId: string) => request<HandoffAssessment>(`/api/v1/handoff-assessment?profileId=${encodeURIComponent(profileId)}`),
+  getOffsiteProtection: (profileId: string) => request<OffsiteProtection>(`/api/v1/offsite?profileId=${encodeURIComponent(profileId)}`),
+  inspectOffsiteDestination: (input: OffsiteDestinationInput) => request<OffsiteProtection>('/api/v1/offsite/inspect', { method: 'POST', body: JSON.stringify(input) }),
+  planOffsiteProtection: (profileId: string, acknowledged: boolean) => request<OffsitePlan>('/api/v1/offsite/plan', { method: 'POST', body: JSON.stringify({ profileId, acknowledged }) }),
+  proposeOffsiteProtection: (profileId: string, planId: string) => request<OffsiteProposal>('/api/v1/offsite/propose', { method: 'POST', body: JSON.stringify({ profileId, planId }) }),
+  validateOffsiteProtection: (profileId: string) => request<{ plan: ChangePlan }>('/api/v1/offsite/validate', { method: 'POST', body: JSON.stringify({ profileId }) })
 };

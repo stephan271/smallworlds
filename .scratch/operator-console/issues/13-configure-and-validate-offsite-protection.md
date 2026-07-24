@@ -1,6 +1,8 @@
 # Configure and validate offsite protection
 
-Status: in-progress
+Status: done — acceptance criteria 1–6 met; criterion 7 (live S3/MinIO contract
+test) is deferred to the live-cluster integration like issues 09/10/11's live
+adapters, tracked as outstanding acceptance evidence, not a code dependency.
 
 ## Implementation progress
 
@@ -102,9 +104,24 @@ Status: in-progress
   route. `gofmt`, `go build/vet/test ./...`, `npm run check`, `npm run build` all
   pass.
 
+- [x] **Setup Journey UI** (`web/src/routes/+page.svelte` offsite card, `web/src/lib/api.ts`,
+  `web/src/lib/i18n.ts`) — the offsite step of the Setup Journey, EN/DE. An Operator
+  fills endpoint/region/bucket/access key/secret and inspects the destination
+  (`getByLabel`-addressable, secret via a password field); the secret-free view
+  shows the destination shape, versioning verdict, and access-key fingerprint. When
+  versioning cannot be confirmed the UI blocks planning behind an explicit
+  acknowledgement checkbox. The Change Plan preview renders the exact non-secret Git
+  diff, the Cluster Secret effect (name + key names, no values), and the data/cost/
+  protection implications; a single action approves the plan and opens the Git
+  proposal (surfacing branch/commit/PR URL), after which a bounded validation run can
+  be started and its evidence-derived verdict + remediation route are shown. The
+  Playwright launcher-journey e2e now drives inspect→acknowledge→plan against the real
+  launcher binary and asserts the offsite diff carries the bucket but never the secret
+  (the propose/validate live paths stay injected-seam-only). `npm run check`,
+  `npm run build`, and `npx playwright test tests/launcher-journey.spec.ts` all pass.
+
 ## Remaining
 
-- **Setup Journey UI** for the offsite step.
 - **Live S3 contract test** (criterion 7): the production `Inspector` against
   compatible local object storage (MinIO/localstack), covering auth errors,
   unsupported versioning APIs, interruption, and secret scanning — a
@@ -118,9 +135,9 @@ Covers PRD user stories 100–104 and 109–110.
 
 ## Acceptance criteria
 
-- [ ] The Setup Journey collects endpoint, region, bucket, access key, and secret without returning stored values or placing them in Desired Configuration.
-- [ ] Bucket access is inspected safely, and versioning is verified where supported or requires an explicit recorded acknowledgement when it cannot be inspected.
-- [ ] The Change Plan separates Cluster Secret effects from the exact non-secret Git diff and explains data, cost, and protection implications.
+- [x] The Setup Journey collects endpoint, region, bucket, access key, and secret without returning stored values or placing them in Desired Configuration.
+- [x] Bucket access is inspected safely, and versioning is verified where supported or requires an explicit recorded acknowledgement when it cannot be inspected.
+- [x] The Change Plan separates Cluster Secret effects from the exact non-secret Git diff and explains data, cost, and protection implications.
 - [x] Approval produces or updates the Cluster Secret through the authorized secret path and opens the required Git proposal without logging credentials.
 - [x] A bounded validation run starts only the declared backup/replication work, persists checkpoints/events, and verifies the resulting offsite evidence rather than trusting Job exit status.
 - [x] Failed local backup, failed replication, stale observation, and unsupported versioning remain distinguishable with relevant remediation.

@@ -85,6 +85,29 @@ test('Operator completes and reopens the launcher journey in English and German'
 			await expect(vault.getByText('Kein Zugangsschlüssel gespeichert')).toBeVisible();
 		}
 
+    if (journey.language === 'en') {
+      const offsite = page.getByRole('region', { name: 'Offsite backup destination' });
+      await offsite.getByLabel('S3 endpoint (HTTPS)').fill('https://s3.eu-central-003.backblazeb2.com');
+      await offsite.getByLabel('Region').fill('eu-central-003');
+      await offsite.getByLabel('Bucket').fill('community-backups');
+      await offsite.getByLabel('Access key ID').fill('e2e-offsite-access-key');
+      const offsiteSecret = 'e2e-offsite-secret-must-not-render';
+      await offsite.getByLabel('Secret access key').fill(offsiteSecret);
+      const inspectResponse = page.waitForResponse('/api/v1/offsite/inspect');
+      await offsite.getByRole('button', { name: 'Inspect destination' }).click();
+      expect((await inspectResponse).status()).toBe(200);
+      // The launcher has no live S3 client, so it cannot confirm versioning and
+      // must require an explicit acknowledgement rather than claim it is on.
+      await expect(offsite.getByText('Not inspectable')).toBeVisible();
+      await offsite.getByLabel(/point-in-time recovery is not guaranteed/i).check();
+      const planResponse = page.waitForResponse('/api/v1/offsite/plan');
+      await offsite.getByRole('button', { name: 'Review change plan' }).click();
+      expect((await planResponse).status()).toBe(201);
+      await expect(offsite.getByTestId('offsite-diff')).toContainText('community-backups');
+      await expect(offsite.getByTestId('offsite-diff')).not.toContainText(offsiteSecret);
+      await expect(page.getByText(offsiteSecret)).toHaveCount(0);
+    }
+
     const accessibility = await new AxeBuilder({ page }).analyze();
     expect(accessibility.violations).toEqual([]);
 
