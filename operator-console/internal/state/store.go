@@ -107,6 +107,18 @@ type BootstrapPlanRecord struct {
 	CreatedAt time.Time
 }
 
+// ClusterCAReference persists the secret-free, public Cluster CA material for a
+// profile (metadata plus the public root and intermediate certificates). The
+// private root and intermediate keys live only in the Launcher Vault, never
+// here. Material is an opaque JSON blob owned by the launcher, mirroring how
+// BootstrapPlanRecord stores its binding.
+type ClusterCAReference struct {
+	ProfileID            string
+	Material             string
+	DeviceTrustInstalled bool
+	RecordedAt           time.Time
+}
+
 type ProfileSnapshot struct {
 	Profile              Profile
 	Plans                []PlanRecord
@@ -404,6 +416,52 @@ func (store *Store) GetBootstrapPlan(ctx context.Context, planID string) (Bootst
 		return BootstrapPlanRecord{}, fmt.Errorf("parse bootstrap plan creation: %w", err)
 	}
 	return record, nil
+}
+
+func (store *Store) RecordClusterCAReference(ctx context.Context, reference ClusterCAReference) error {
+	installed := 0
+	if reference.DeviceTrustInstalled {
+		installed = 1
+	}
+	_, err := store.database.ExecContext(ctx, `INSERT INTO cluster_ca_references (profile_id, material_json, device_trust_installed, recorded_at) VALUES (?, ?, ?, ?) ON CONFLICT(profile_id) DO UPDATE SET material_json=excluded.material_json, device_trust_installed=excluded.device_trust_installed, recorded_at=excluded.recorded_at`, reference.ProfileID, reference.Material, installed, reference.RecordedAt.UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return fmt.Errorf("record cluster CA reference: %w", err)
+	}
+	return nil
+}
+
+func (store *Store) GetClusterCAReference(ctx context.Context, profileID string) (ClusterCAReference, error) {
+	var reference ClusterCAReference
+	var installed int
+	var recordedAt string
+	err := store.database.QueryRowContext(ctx, `SELECT profile_id, material_json, device_trust_installed, recorded_at FROM cluster_ca_references WHERE profile_id = ?`, profileID).Scan(&reference.ProfileID, &reference.Material, &installed, &recordedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ClusterCAReference{}, ErrNotFound
+	}
+	if err != nil {
+		return ClusterCAReference{}, fmt.Errorf("get cluster CA reference: %w", err)
+	}
+	reference.DeviceTrustInstalled = installed == 1
+	reference.RecordedAt, err = time.Parse(time.RFC3339Nano, recordedAt)
+	if err != nil {
+		return ClusterCAReference{}, fmt.Errorf("parse cluster CA record: %w", err)
+	}
+	return reference, nil
+}
+
+func (store *Store) MarkClusterCADeviceTrustInstalled(ctx context.Context, profileID string) error {
+	result, err := store.database.ExecContext(ctx, `UPDATE cluster_ca_references SET device_trust_installed = 1 WHERE profile_id = ?`, profileID)
+	if err != nil {
+		return fmt.Errorf("mark cluster CA device trust: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read cluster CA device trust count: %w", err)
+	}
+	if rows == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (store *Store) ExportProfileSnapshot(ctx context.Context, profileID string) (ProfileSnapshot, error) {
@@ -1112,6 +1170,12 @@ func (store *Store) migrate(ctx context.Context) error {
 		{10, `ALTER TABLE overlay_identities ADD COLUMN domain TEXT NOT NULL DEFAULT ''`},
 		{11, `ALTER TABLE overlay_identities ADD COLUMN memory_mi INTEGER NOT NULL DEFAULT 0`},
 		{12, `ALTER TABLE overlay_identities ADD COLUMN storage_gi INTEGER NOT NULL DEFAULT 0`},
+		{13, `CREATE TABLE cluster_ca_references (
+			profile_id TEXT PRIMARY KEY REFERENCES profiles(id),
+			material_json TEXT NOT NULL,
+			device_trust_installed INTEGER NOT NULL DEFAULT 0,
+			recorded_at TEXT NOT NULL
+		)`},
 	}
 	for _, migration := range migrations {
 		if err := store.applyMigration(ctx, migration.version, migration.statement); err != nil {

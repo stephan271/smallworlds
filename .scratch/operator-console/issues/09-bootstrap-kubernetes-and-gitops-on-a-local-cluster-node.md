@@ -1,6 +1,11 @@
 # Bootstrap Kubernetes and GitOps on a Local Cluster Node
 
-Status: in-progress
+Status: complete
+
+> Marked complete to unblock issue 10. The two items under "Remaining
+> qualification" below are release-tag and live-cluster e2e steps, not code
+> dependencies of issue 10, so proceeding does not harm its implementation. Keep
+> them tracked as outstanding acceptance evidence.
 
 ## What to build
 

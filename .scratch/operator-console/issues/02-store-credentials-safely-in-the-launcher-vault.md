@@ -1,6 +1,6 @@
 # Store credentials safely in the Launcher Vault
 
-Status: ready-for-agent
+Status: complete
 
 ## What to build
 

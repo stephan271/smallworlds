@@ -1,6 +1,6 @@
 # Complete a fake mutation through the Bootstrap Launcher
 
-Status: ready-for-agent
+Status: complete
 
 ## What to build
 

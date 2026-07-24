@@ -50,6 +50,10 @@ func (runner *successfulBootstrapRunner) Run(_ context.Context, request localboo
 	return localbootstrap.Observation{CommandCompleted: true, K3SReady: true, ArgoCDReady: true, OverlaySynced: true, ObservedAt: time.Now().UTC()}, nil
 }
 
+func (runner *successfulBootstrapRunner) Observe(_ context.Context, _ localbootstrap.RunRequest) (localbootstrap.Observation, error) {
+	return localbootstrap.Observation{CommandCompleted: true, K3SReady: true, ArgoCDReady: true, OverlaySynced: true, ObservedAt: time.Now().UTC()}, nil
+}
+
 func TestLocalBootstrapPlanReinspectsBindsAndExecutesWithoutSecretLeakage(t *testing.T) {
 	contents := []byte("verified bootstrap archive")
 	digest := sha256.Sum256(contents)

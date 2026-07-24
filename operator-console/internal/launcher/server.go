@@ -19,6 +19,7 @@ import (
 
 	"github.com/stephan271/smallworlds/operator-console/internal/bootstrapassets"
 	"github.com/stephan271/smallworlds/operator-console/internal/capability"
+	"github.com/stephan271/smallworlds/operator-console/internal/clusterca"
 	"github.com/stephan271/smallworlds/operator-console/internal/githttps"
 	"github.com/stephan271/smallworlds/operator-console/internal/github"
 	"github.com/stephan271/smallworlds/operator-console/internal/localbootstrap"
@@ -203,6 +204,12 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.planNodeSSHKey(response, request)
 	case request.URL.Path == "/api/v1/local-bootstrap/plan":
 		server.planLocalBootstrap(response, request)
+	case request.URL.Path == "/api/v1/cluster-ca":
+		server.clusterCAStatus(response, request)
+	case request.URL.Path == "/api/v1/cluster-ca/establish":
+		server.establishClusterCA(response, request)
+	case request.URL.Path == "/api/v1/cluster-ca/device-trust":
+		server.installClusterCADeviceTrust(response, request)
 	case request.URL.Path == "/api/v1/profiles":
 		server.profiles(response, request)
 	case strings.HasPrefix(request.URL.Path, "/api/v1/profiles/"):
@@ -650,6 +657,233 @@ func (server *Server) run(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 	writeJSON(response, http.StatusOK, run)
+}
+
+// clusterCAMaterial is the launcher-owned JSON persisted for a profile's
+// Cluster CA. It holds only public certificate material and secret-free
+// metadata; the private root and intermediate keys live in the Launcher Vault.
+type clusterCAMaterial struct {
+	Reference                  clusterca.Reference `json:"reference"`
+	RootCertificatePEM         string              `json:"rootCertificatePem"`
+	IntermediateCertificatePEM string              `json:"intermediateCertificatePem"`
+}
+
+func clusterCARootKeyVaultKey(profileID string) string { return profileID + "/cluster-ca-root-key" }
+
+func clusterCAIntermediateKeyVaultKey(profileID string) string {
+	return profileID + "/cluster-ca-intermediate-key"
+}
+
+func writeClusterCAReference(response http.ResponseWriter, status int, reference clusterca.Reference, installed bool) {
+	writeJSON(response, status, map[string]any{
+		"reference":            reference,
+		"rootFingerprint":      reference.RootFingerprint,
+		"deviceTrustInstalled": installed,
+	})
+}
+
+func (server *Server) establishClusterCA(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		ProfileID string `json:"profileId"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 8*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" {
+		writeError(response, http.StatusBadRequest, "invalid_cluster_ca_request")
+		return
+	}
+	profile, err := server.store.GetProfile(request.Context(), input.ProfileID)
+	if errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "profile_not_found")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "cluster_ca_failed")
+		return
+	}
+	// The private Cluster CA exists specifically because a LAN-only cluster has
+	// no publicly registered domain; internet-exposed and Hetzner modes use
+	// publicly trusted ACME certificates instead.
+	if profile.DeploymentMode != "local-lan" {
+		writeError(response, http.StatusConflict, "cluster_ca_lan_only")
+		return
+	}
+	// Resumable: a previously established authority is returned unchanged so the
+	// root identity — and therefore any installed device trust — stays stable.
+	if existing, existingErr := server.store.GetClusterCAReference(request.Context(), input.ProfileID); existingErr == nil {
+		var material clusterCAMaterial
+		if json.Unmarshal([]byte(existing.Material), &material) != nil {
+			writeError(response, http.StatusInternalServerError, "cluster_ca_failed")
+			return
+		}
+		writeClusterCAReference(response, http.StatusOK, material.Reference, existing.DeviceTrustInstalled)
+		return
+	} else if !errors.Is(existingErr, state.ErrNotFound) {
+		writeError(response, http.StatusInternalServerError, "cluster_ca_failed")
+		return
+	}
+	now := time.Now().UTC()
+	authority, err := clusterca.CreateAuthority(input.ProfileID, now)
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "cluster_ca_failed")
+		return
+	}
+	intermediate, err := authority.IssueIntermediate(now)
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "cluster_ca_failed")
+		return
+	}
+	rootKeyPEM, err := authority.RootPrivateKeyPEM()
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "cluster_ca_failed")
+		return
+	}
+	intermediateKeyPEM, err := intermediate.PrivateKeyPEM()
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "cluster_ca_failed")
+		return
+	}
+	// The root key stays with the Lifecycle Authority; the intermediate key is
+	// the only signing key destined for the cluster. Both are held in the
+	// Launcher Vault and never returned to the browser.
+	if err := server.vault.Store(clusterCARootKeyVaultKey(input.ProfileID), rootKeyPEM); errors.Is(err, vault.ErrLocked) {
+		writeError(response, http.StatusLocked, "vault_locked")
+		return
+	} else if err != nil {
+		writeError(response, http.StatusInternalServerError, "cluster_ca_storage_failed")
+		return
+	}
+	if err := server.vault.Store(clusterCAIntermediateKeyVaultKey(input.ProfileID), intermediateKeyPEM); errors.Is(err, vault.ErrLocked) {
+		writeError(response, http.StatusLocked, "vault_locked")
+		return
+	} else if err != nil {
+		writeError(response, http.StatusInternalServerError, "cluster_ca_storage_failed")
+		return
+	}
+	reference := authority.Reference(intermediate)
+	encoded, err := json.Marshal(clusterCAMaterial{Reference: reference, RootCertificatePEM: authority.RootCertificatePEM(), IntermediateCertificatePEM: intermediate.CertificatePEM()})
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "cluster_ca_failed")
+		return
+	}
+	if err := server.store.RecordClusterCAReference(request.Context(), state.ClusterCAReference{ProfileID: input.ProfileID, Material: string(encoded), DeviceTrustInstalled: false, RecordedAt: now}); err != nil {
+		writeError(response, http.StatusInternalServerError, "cluster_ca_failed")
+		return
+	}
+	for _, entry := range []struct {
+		kind     string
+		vaultKey string
+		expires  time.Time
+	}{
+		{"cluster-ca-root-key", clusterCARootKeyVaultKey(input.ProfileID), reference.RootNotAfter},
+		{"cluster-ca-intermediate-key", clusterCAIntermediateKeyVaultKey(input.ProfileID), reference.IntermediateNotAfter},
+	} {
+		if err := server.store.UpsertCredentialReference(request.Context(), state.CredentialReference{ProfileID: input.ProfileID, Kind: entry.kind, VaultKey: entry.vaultKey, Source: "launcher", ExpiresAt: entry.expires, RotationStatus: credentialRotationStatus(entry.expires, now)}); err != nil {
+			writeError(response, http.StatusInternalServerError, "cluster_ca_failed")
+			return
+		}
+	}
+	writeClusterCAReference(response, http.StatusCreated, reference, false)
+}
+
+func (server *Server) clusterCAStatus(response http.ResponseWriter, request *http.Request) {
+	if _, ok := server.authenticatedSession(request); !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodGet {
+		response.Header().Set("Allow", "GET")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	profileID := request.URL.Query().Get("profileId")
+	if profileID == "" {
+		writeError(response, http.StatusBadRequest, "profile_required")
+		return
+	}
+	record, err := server.store.GetClusterCAReference(request.Context(), profileID)
+	if errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "cluster_ca_not_established")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "cluster_ca_failed")
+		return
+	}
+	var material clusterCAMaterial
+	if json.Unmarshal([]byte(record.Material), &material) != nil {
+		writeError(response, http.StatusInternalServerError, "cluster_ca_failed")
+		return
+	}
+	writeClusterCAReference(response, http.StatusOK, material.Reference, record.DeviceTrustInstalled)
+}
+
+func (server *Server) installClusterCADeviceTrust(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		ProfileID string `json:"profileId"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 8*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" {
+		writeError(response, http.StatusBadRequest, "invalid_cluster_ca_request")
+		return
+	}
+	record, err := server.store.GetClusterCAReference(request.Context(), input.ProfileID)
+	if errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "cluster_ca_not_established")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "cluster_ca_failed")
+		return
+	}
+	var material clusterCAMaterial
+	if json.Unmarshal([]byte(record.Material), &material) != nil {
+		writeError(response, http.StatusInternalServerError, "cluster_ca_failed")
+		return
+	}
+	if err := server.store.MarkClusterCADeviceTrustInstalled(request.Context(), input.ProfileID); err != nil {
+		writeError(response, http.StatusInternalServerError, "cluster_ca_failed")
+		return
+	}
+	// The root certificate is public trust material the Operator installs on the
+	// current device; it carries no private key.
+	writeJSON(response, http.StatusOK, map[string]any{
+		"profileId":            input.ProfileID,
+		"rootCertificatePem":   material.RootCertificatePEM,
+		"fingerprint":          material.Reference.RootFingerprint,
+		"subject":              material.Reference.RootSubject,
+		"notAfter":             material.Reference.RootNotAfter,
+		"deviceTrustInstalled": true,
+	})
 }
 
 func (server *Server) plans(response http.ResponseWriter, request *http.Request) {
