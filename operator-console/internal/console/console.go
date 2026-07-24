@@ -26,8 +26,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/stephan271/smallworlds/operator-console/internal/addcapability"
 	"github.com/stephan271/smallworlds/operator-console/internal/assessment"
+	"github.com/stephan271/smallworlds/operator-console/internal/capability"
 	"github.com/stephan271/smallworlds/operator-console/internal/consoleauth"
+	"github.com/stephan271/smallworlds/operator-console/internal/consoleworkflow"
 	"github.com/stephan271/smallworlds/operator-console/internal/deeplinks"
 	"github.com/stephan271/smallworlds/operator-console/internal/protection"
 )
@@ -63,6 +66,25 @@ type Config struct {
 	// Protection reports the dataset protection inventory for the /protection
 	// endpoint. When nil, the endpoint returns an empty inventory.
 	Protection ProtectionReporter
+	// RichCatalog carries the full Cluster Capability catalog (categories,
+	// dependencies, resources, exposure, protection) the add-capability planner
+	// needs. When empty, the add-capability surface offers nothing.
+	RichCatalog capability.Catalog
+	// DeploymentMode is the cluster's deployment mode, used to filter which
+	// capabilities can be added. Empty defaults to hetzner.
+	DeploymentMode capability.DeploymentMode
+	// OverlayTarget names the pinned release and credential-free overlay
+	// repository an add-capability proposal is rendered against.
+	OverlayTarget addcapability.OverlayTarget
+	// Capacity reports live cluster capacity for add-capability planning. When
+	// nil, planning refuses honestly with capacity_unavailable.
+	Capacity CapacityReporter
+	// Proposals opens Git proposals against the operator's overlay. When nil,
+	// proposing refuses honestly with proposal_unavailable.
+	Proposals ProposalOpener
+	// Workflow persists compact Change Plans and Workflow Runs (the Activity
+	// Record). When nil, an in-memory store is used.
+	Workflow consoleworkflow.Store
 	// BaseDomain is the Private Network base domain used to build contextual
 	// Grafana/Argo CD deep links. When empty or invalid, the console omits those
 	// external links rather than fabricating them.
@@ -75,14 +97,20 @@ type Config struct {
 
 // Server is the in-cluster console HTTP handler.
 type Server struct {
-	config     Config
-	catalog    []assessment.CapabilityRef
-	byID       map[string]assessment.CapabilityRef
-	sessionKey []byte
-	now        func() time.Time
-	random     io.Reader
-	links      deeplinks.Targets
-	mux        *http.ServeMux
+	config         Config
+	catalog        []assessment.CapabilityRef
+	byID           map[string]assessment.CapabilityRef
+	sessionKey     []byte
+	now            func() time.Time
+	random         io.Reader
+	links          deeplinks.Targets
+	mux            *http.ServeMux
+	richCatalog    capability.Catalog
+	deploymentMode capability.DeploymentMode
+	overlayTarget  addcapability.OverlayTarget
+	capacity       CapacityReporter
+	proposals      ProposalOpener
+	workflow       consoleworkflow.Store
 }
 
 // New builds a console Server. A missing SessionKey is filled with a fresh
@@ -109,14 +137,32 @@ func New(config Config) (*Server, error) {
 	if random == nil {
 		random = rand.Reader
 	}
+	capacityReporter := config.Capacity
+	if capacityReporter == nil {
+		capacityReporter = unavailableCapacityReporter{}
+	}
+	proposalOpener := config.Proposals
+	if proposalOpener == nil {
+		proposalOpener = unavailableProposalOpener{}
+	}
+	workflowStore := config.Workflow
+	if workflowStore == nil {
+		workflowStore = consoleworkflow.NewMemoryStore(nil)
+	}
 	server := &Server{
-		config:     config,
-		catalog:    append([]assessment.CapabilityRef(nil), config.Catalog...),
-		byID:       make(map[string]assessment.CapabilityRef, len(config.Catalog)),
-		sessionKey: sessionKey,
-		now:        now,
-		random:     random,
-		mux:        http.NewServeMux(),
+		config:         config,
+		catalog:        append([]assessment.CapabilityRef(nil), config.Catalog...),
+		byID:           make(map[string]assessment.CapabilityRef, len(config.Catalog)),
+		sessionKey:     sessionKey,
+		now:            now,
+		random:         random,
+		mux:            http.NewServeMux(),
+		richCatalog:    config.RichCatalog,
+		deploymentMode: capabilityDeploymentModeOrDefault(config.DeploymentMode),
+		overlayTarget:  config.OverlayTarget,
+		capacity:       capacityReporter,
+		proposals:      proposalOpener,
+		workflow:       workflowStore,
 	}
 	for _, ref := range server.catalog {
 		server.byID[ref.ID] = ref
@@ -141,6 +187,10 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("GET /api/v1/capabilities/{id}", server.require(consoleauth.PermissionObserve, server.handleCapability))
 	server.mux.HandleFunc("GET /api/v1/protection", server.require(consoleauth.PermissionObserve, server.handleProtection))
 	server.mux.HandleFunc("GET /api/v1/proposals", server.require(consoleauth.PermissionPropose, server.handleProposals))
+	server.mux.HandleFunc("GET /api/v1/additions/offers", server.require(consoleauth.PermissionPropose, server.handleAdditionOffers))
+	server.mux.HandleFunc("POST /api/v1/additions/plan", server.require(consoleauth.PermissionPropose, server.handleAdditionPlan))
+	server.mux.HandleFunc("POST /api/v1/additions/{id}/approve", server.require(consoleauth.PermissionPropose, server.handleAdditionApprove))
+	server.mux.HandleFunc("POST /api/v1/additions/{id}/propose", server.require(consoleauth.PermissionPropose, server.handleAdditionPropose))
 	server.mux.HandleFunc("GET /api/v1/administration/access", server.require(consoleauth.PermissionAdminister, server.handleAdministrationAccess))
 }
 
@@ -352,10 +402,43 @@ func (server *Server) handleProtection(response http.ResponseWriter, request *ht
 }
 
 // handleProposals serves the GitOps proposal workspace, readable at Operator
-// authority and above. The create/branch/PR flow arrives with the add-capability
-// issue; the list is empty until then.
+// authority and above: the compact add-capability Change Plans and the Workflow
+// Runs that recorded opening a proposal, with each run's remote commit identity
+// from the Activity Record.
 func (server *Server) handleProposals(response http.ResponseWriter, request *http.Request) {
-	writeJSON(response, http.StatusOK, map[string]any{"proposals": []any{}})
+	plans, err := server.workflow.ListPlans(request.Context())
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "proposals_unavailable")
+		return
+	}
+	runs, err := server.workflow.ListRuns(request.Context())
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "proposals_unavailable")
+		return
+	}
+	planViews := make([]additionPlanView, 0, len(plans))
+	for _, plan := range plans {
+		planViews = append(planViews, additionPlanView{
+			ID:        plan.ID,
+			Summary:   plan.Summary,
+			Actor:     plan.Actor,
+			Approved:  plan.Approval != nil,
+			CreatedAt: plan.CreatedAt,
+			ExpiresAt: plan.ExpiresAt,
+		})
+	}
+	runViews := make([]additionRunView, 0, len(runs))
+	for _, run := range runs {
+		runViews = append(runViews, additionRunView{
+			ID:              run.ID,
+			PlanID:          run.PlanID,
+			Phase:           run.Phase,
+			Checkpoint:      run.CurrentCheckpoint,
+			EvidenceSummary: run.EvidenceSummary,
+			StartedAt:       run.StartedAt,
+		})
+	}
+	writeJSON(response, http.StatusOK, map[string]any{"proposals": planViews, "runs": runViews})
 }
 
 // handleAdministrationAccess serves the operator-access administration view,
