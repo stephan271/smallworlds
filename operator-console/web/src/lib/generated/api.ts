@@ -869,6 +869,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/offsite/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Plans a bounded validation run for a configured, proposed offsite destination. Approving the returned plan starts only the declared backup/replication work and records a verdict drawn from observed offsite evidence, not Job exit status. */
+        post: operations["validateOffsiteProtection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -897,6 +914,18 @@ export interface components {
                 secretApplied?: boolean;
                 /** Format: date-time */
                 openedAt?: string;
+            };
+            /** @description Present once a bounded validation run has settled: the evidence-derived verdict and its remediation route. Drawn from observed offsite evidence, not Job exit status. */
+            validation?: {
+                /** @enum {string} */
+                result?: "pending" | "local-backup-failed" | "replication-failed" | "no-offsite-evidence" | "offsite-evidence-stale" | "versioning-unsupported" | "offsite-verified";
+                remediationKey?: string;
+                verified?: boolean;
+                /** Format: date-time */
+                recoveryPointAt?: string;
+                runId?: string;
+                /** Format: date-time */
+                observedAt?: string;
             };
         };
         /** @description Result of proposing an approved offsite Change Plan: the Cluster Secret effect and the remote commit identity of the opened Git proposal. Never carries a credential value. */
@@ -3041,6 +3070,39 @@ export interface operations {
             409: components["responses"]["Conflict"];
             423: components["responses"]["Locked"];
             503: components["responses"]["Unavailable"];
+        };
+    };
+    validateOffsiteProtection: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    profileId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description A validation Change Plan; approve it to start the bounded run */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        plan?: {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+            409: components["responses"]["Conflict"];
         };
     };
 }

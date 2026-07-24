@@ -31,6 +31,40 @@ const (
 	ValidationVerified ValidationResult = "offsite-verified"
 )
 
+// DefaultOffsiteMaxAge is how recent an offsite Recovery Point must be for a
+// validation run to accept it. It spans slightly more than the nightly
+// replication cadence so a single missed run reads as stale rather than absent.
+const DefaultOffsiteMaxAge = 26 * time.Hour
+
+// Verified reports whether the result is the one fully-protected outcome. Every
+// other result is a distinguishable gap with its own remediation.
+func (result ValidationResult) Verified() bool {
+	return result == ValidationVerified
+}
+
+// RemediationKey maps a validation outcome to a stable, translatable remediation
+// message key, keeping failed local backup, failed replication, missing/stale
+// evidence, and unsupported versioning distinguishable so each gets the right
+// next step.
+func (result ValidationResult) RemediationKey() string {
+	switch result {
+	case ValidationVerified:
+		return "offsite.remediation.none"
+	case ValidationLocalBackupFailed:
+		return "offsite.remediation.local_backup_failed"
+	case ValidationReplicationFailed:
+		return "offsite.remediation.replication_failed"
+	case ValidationNoOffsiteEvidence:
+		return "offsite.remediation.no_offsite_evidence"
+	case ValidationEvidenceStale:
+		return "offsite.remediation.evidence_stale"
+	case ValidationVersioningUnsupported:
+		return "offsite.remediation.versioning_unsupported"
+	default:
+		return "offsite.remediation.pending"
+	}
+}
+
 // ValidationEvidence is what a validation run observes. Job completion is kept
 // separate from the offsite Recovery Point: the verdict is drawn from observed
 // evidence, not from either Job's exit status.

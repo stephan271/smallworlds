@@ -73,11 +73,37 @@ Status: in-progress
   browser types updated; the contract test now covers the propose route. `gofmt`,
   `go build/vet/test ./...`, `npm run check`, `npm run build` all pass.
 
+- [x] **Bounded validation Workflow Run** (`internal/offsite/validation.go`,
+  `internal/launcher/offsite.go` `validateOffsite`/`executeOffsiteValidation`) —
+  covers acceptance criteria 5 and 6. `POST /api/v1/offsite/validate` requires a
+  configured **and proposed** destination (409 `offsite_proposal_required`
+  otherwise) and creates a bounded `ValidateOffsiteProtection` plan; approving it
+  via the existing `/plans/{id}/approve` starts a durable launcher Workflow Run
+  whose registered executor drives one checkpoint per bounded stage
+  (`declared-work-started` → `offsite-evidence-observed`), honours cooperative
+  cancellation, and calls a new injectable `OffsiteValidationRunner` seam that
+  starts **only** the declared backup + replication work and returns observed
+  **evidence** (never a pass/fail verdict). The verdict is derived by
+  `offsite.ClassifyValidation` from that evidence — not from a Job exit status —
+  so a green local Job with failed replication is still `replication-failed`;
+  `ValidationResult.RemediationKey()` keeps local-backup-failed, replication-
+  failed, no-offsite-evidence, stale, and versioning-unsupported distinguishable
+  with their own remediation route (criterion 6). The verdict + remediation +
+  Recovery Point are persisted secret-free on the offsite record (surfaced by
+  `GET /api/v1/offsite`) and as the run's observed evidence; checkpoints and the
+  verdict appear in the Activity Record. The launcher default runner refuses
+  honestly, failing the run at `validation-unavailable` without fabricating a
+  verdict (live adapter deferred). The executor is registered before
+  `ResumeActive`, so a validation run interrupted by a restart resumes. HTTP tests
+  prove the verified path, the replication-failed distinction, the
+  proposal-required gate, and the unavailable-runner honest failure; a domain test
+  proves every outcome has a distinct remediation key. OpenAPI contract +
+  generated browser types updated; the contract test now covers the validate
+  route. `gofmt`, `go build/vet/test ./...`, `npm run check`, `npm run build` all
+  pass.
+
 ## Remaining
 
-- **Bounded validation Workflow Run** (criterion 5): start only the declared
-  backup/replication work, persist checkpoints/events (via `consoleworkflow`),
-  and classify the outcome from observed offsite evidence.
 - **Setup Journey UI** for the offsite step.
 - **Live S3 contract test** (criterion 7): the production `Inspector` against
   compatible local object storage (MinIO/localstack), covering auth errors,
@@ -96,8 +122,8 @@ Covers PRD user stories 100–104 and 109–110.
 - [ ] Bucket access is inspected safely, and versioning is verified where supported or requires an explicit recorded acknowledgement when it cannot be inspected.
 - [ ] The Change Plan separates Cluster Secret effects from the exact non-secret Git diff and explains data, cost, and protection implications.
 - [x] Approval produces or updates the Cluster Secret through the authorized secret path and opens the required Git proposal without logging credentials.
-- [ ] A bounded validation run starts only the declared backup/replication work, persists checkpoints/events, and verifies the resulting offsite evidence rather than trusting Job exit status.
-- [ ] Failed local backup, failed replication, stale observation, and unsupported versioning remain distinguishable with relevant remediation.
+- [x] A bounded validation run starts only the declared backup/replication work, persists checkpoints/events, and verifies the resulting offsite evidence rather than trusting Job exit status.
+- [x] Failed local backup, failed replication, stale observation, and unsupported versioning remain distinguishable with relevant remediation.
 - [ ] Contract tests use compatible local object storage and cover authentication errors, unsupported versioning APIs, interruption, and secret scanning.
 
 ## Blocked by

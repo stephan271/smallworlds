@@ -1895,6 +1895,45 @@
           "503": { "$ref": "#/components/responses/Unavailable" }
         }
       }
+    },
+    "/api/v1/offsite/validate": {
+      "post": {
+        "operationId": "validateOffsiteProtection",
+        "description": "Plans a bounded validation run for a configured, proposed offsite destination. Approving the returned plan starts only the declared backup/replication work and records a verdict drawn from observed offsite evidence, not Job exit status.",
+        "parameters": [
+          { "$ref": "#/components/parameters/CSRFToken" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["profileId"],
+                "properties": {
+                  "profileId": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "A validation Change Plan; approve it to start the bounded run",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "plan": { "type": "object", "additionalProperties": true }
+                  }
+                }
+              }
+            }
+          },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
     }
   },
   "components": {
@@ -2045,6 +2084,21 @@
               "url": { "type": "string" },
               "secretApplied": { "type": "boolean" },
               "openedAt": { "type": "string", "format": "date-time" }
+            }
+          },
+          "validation": {
+            "type": "object",
+            "description": "Present once a bounded validation run has settled: the evidence-derived verdict and its remediation route. Drawn from observed offsite evidence, not Job exit status.",
+            "properties": {
+              "result": {
+                "type": "string",
+                "enum": ["pending", "local-backup-failed", "replication-failed", "no-offsite-evidence", "offsite-evidence-stale", "versioning-unsupported", "offsite-verified"]
+              },
+              "remediationKey": { "type": "string" },
+              "verified": { "type": "boolean" },
+              "recoveryPointAt": { "type": "string", "format": "date-time" },
+              "runId": { "type": "string" },
+              "observedAt": { "type": "string", "format": "date-time" }
             }
           }
         }

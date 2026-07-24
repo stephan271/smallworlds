@@ -42,18 +42,19 @@ const sessionCookieName = "smallworlds_session"
 const sessionLifetime = 12 * time.Hour
 
 type Config struct {
-	DataDir              string
-	LaunchToken          string
-	WrappingStore        vault.WrappingStore
-	GitHubClient         *github.Client
-	GenericGitClient     GenericGitClient
-	BootstrapAssets      *bootstrapassets.Manager
-	LocalBootstrapRunner localbootstrap.Runner
-	NodeInspector        NodeInspector
-	HandoffVerifier      handoffverification.Verifier
-	PasskeyVerifier      firstowner.PasskeyVerifier
-	OffsiteInspector     offsite.Inspector
-	ClusterSecretApplier ClusterSecretApplier
+	DataDir                 string
+	LaunchToken             string
+	WrappingStore           vault.WrappingStore
+	GitHubClient            *github.Client
+	GenericGitClient        GenericGitClient
+	BootstrapAssets         *bootstrapassets.Manager
+	LocalBootstrapRunner    localbootstrap.Runner
+	NodeInspector           NodeInspector
+	HandoffVerifier         handoffverification.Verifier
+	PasskeyVerifier         firstowner.PasskeyVerifier
+	OffsiteInspector        offsite.Inspector
+	ClusterSecretApplier    ClusterSecretApplier
+	OffsiteValidationRunner OffsiteValidationRunner
 }
 
 // GenericGitClient permits deterministic Launcher contract tests while the
@@ -92,20 +93,21 @@ type session struct {
 type Server struct {
 	launchToken string
 
-	mu         sync.RWMutex
-	tokenUsed  bool
-	sessions   map[string]session
-	store      *state.Store
-	vault      *vault.Vault
-	workflow   *workflow.Engine
-	github     *github.Client
-	genericGit GenericGitClient
-	assets     *bootstrapassets.Manager
-	nodes      NodeInspector
-	handoff    handoffverification.Verifier
-	passkey    firstowner.PasskeyVerifier
-	offsite    offsite.Inspector
-	secrets    ClusterSecretApplier
+	mu               sync.RWMutex
+	tokenUsed        bool
+	sessions         map[string]session
+	store            *state.Store
+	vault            *vault.Vault
+	workflow         *workflow.Engine
+	github           *github.Client
+	genericGit       GenericGitClient
+	assets           *bootstrapassets.Manager
+	nodes            NodeInspector
+	handoff          handoffverification.Verifier
+	passkey          firstowner.PasskeyVerifier
+	offsite          offsite.Inspector
+	secrets          ClusterSecretApplier
+	offsiteValidator OffsiteValidationRunner
 }
 
 func New(config Config) (*Server, error) {
@@ -171,22 +173,33 @@ func New(config Config) (*Server, error) {
 		// reached the cluster — the live adapter is deferred like the others.
 		clusterSecretApplier = unavailableClusterSecretApplier{}
 	}
+	offsiteValidationRunner := config.OffsiteValidationRunner
+	if offsiteValidationRunner == nil {
+		// Without a live cluster adapter the launcher cannot start backup and
+		// replication or read a Recovery Point, so it refuses rather than
+		// fabricating evidence — the live adapter is deferred like the others.
+		offsiteValidationRunner = unavailableOffsiteValidationRunner{}
+	}
 	workflowEngine.RegisterExecutor("BootstrapLocalNode", bootstrapService.Execute)
 	server := &Server{
-		launchToken: config.LaunchToken,
-		sessions:    make(map[string]session),
-		store:       store,
-		vault:       vaultStore,
-		workflow:    workflowEngine,
-		github:      githubClient,
-		genericGit:  genericGitClient,
-		assets:      assetManager,
-		nodes:       nodeInspector,
-		handoff:     handoffVerifier,
-		passkey:     passkeyVerifier,
-		offsite:     offsiteInspector,
-		secrets:     clusterSecretApplier,
+		launchToken:      config.LaunchToken,
+		sessions:         make(map[string]session),
+		store:            store,
+		vault:            vaultStore,
+		workflow:         workflowEngine,
+		github:           githubClient,
+		genericGit:       genericGitClient,
+		assets:           assetManager,
+		nodes:            nodeInspector,
+		handoff:          handoffVerifier,
+		passkey:          passkeyVerifier,
+		offsite:          offsiteInspector,
+		secrets:          clusterSecretApplier,
+		offsiteValidator: offsiteValidationRunner,
 	}
+	// Registered after the server exists (the executor is a server method) and
+	// before ResumeActive, so a validation run interrupted by a restart resumes.
+	workflowEngine.RegisterExecutor(offsiteValidationIntent, server.executeOffsiteValidation)
 	if err := workflowEngine.ResumeActive(context.Background()); err != nil {
 		store.Close()
 		return nil, err
@@ -292,6 +305,8 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.planOffsite(response, request)
 	case request.URL.Path == "/api/v1/offsite/propose":
 		server.proposeOffsite(response, request)
+	case request.URL.Path == "/api/v1/offsite/validate":
+		server.validateOffsite(response, request)
 	case request.URL.Path == "/api/v1/profiles":
 		server.profiles(response, request)
 	case strings.HasPrefix(request.URL.Path, "/api/v1/profiles/"):

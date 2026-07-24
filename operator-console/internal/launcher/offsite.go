@@ -41,6 +41,32 @@ func (unavailableClusterSecretApplier) ApplyClusterSecret(context.Context, strin
 	return ErrClusterSecretUnavailable
 }
 
+// OffsiteValidationRunner starts ONLY the declared bounded backup and
+// replication work for a validation run, then returns the offsite evidence it
+// observed (local-backup completion, replication completion, the offsite
+// Recovery Point timestamp, and versioning). It deliberately returns *evidence*,
+// never a pass/fail verdict — the verdict is derived by classifying that
+// evidence, so a green Job exit can never be mistaken for real protection. The
+// launcher injects a deterministic runner in tests; the live cluster adapter is
+// deferred like the others.
+type OffsiteValidationRunner interface {
+	RunValidation(ctx context.Context, profileID string, destination offsite.Destination) (offsite.ValidationEvidence, error)
+}
+
+// ErrOffsiteValidationUnavailable is returned by the launcher default when no
+// live backup/replication path is wired, so the validation run fails honestly
+// rather than fabricating evidence.
+var ErrOffsiteValidationUnavailable = errors.New("launcher: offsite validation path unavailable")
+
+// unavailableOffsiteValidationRunner is the launcher default: with no live
+// cluster adapter it cannot start backup/replication or read a Recovery Point,
+// so it refuses rather than inventing evidence.
+type unavailableOffsiteValidationRunner struct{}
+
+func (unavailableOffsiteValidationRunner) RunValidation(context.Context, string, offsite.Destination) (offsite.ValidationEvidence, error) {
+	return offsite.ValidationEvidence{}, ErrOffsiteValidationUnavailable
+}
+
 // unavailableOffsiteInspector is the launcher default: with no real S3 client it
 // cannot inspect a destination bucket, so it reports reachability false and
 // versioning unknown — honestly forcing an explicit acknowledgement rather than
@@ -59,6 +85,20 @@ type offsiteRecord struct {
 	Reference  offsite.Reference  `json:"reference"`
 	Inspection offsite.Inspection `json:"inspection"`
 	Proposal   *offsiteProposal   `json:"proposal,omitempty"`
+	Validation *offsiteValidation `json:"validation,omitempty"`
+}
+
+// offsiteValidation is the secret-free verdict of the last bounded validation
+// run: the evidence-derived result, its remediation route, the offsite Recovery
+// Point observed, and the run it came from. It is the authoritative offsite
+// protection verdict — drawn from observed evidence, not a Job exit status.
+type offsiteValidation struct {
+	Result          string    `json:"result"`
+	RemediationKey  string    `json:"remediationKey"`
+	Verified        bool      `json:"verified"`
+	RecoveryPointAt time.Time `json:"recoveryPointAt,omitempty"`
+	RunID           string    `json:"runId"`
+	ObservedAt      time.Time `json:"observedAt"`
 }
 
 // offsiteProposal is the secret-free record of a submitted offsite Change Plan:
@@ -513,6 +553,157 @@ func (server *Server) recordOffsiteProposalEvent(ctx context.Context, profileID 
 	})
 }
 
+// offsiteValidationIntent is the fixed plan intent the launcher owns for the
+// bounded backup/replication validation run. Browser input never selects it.
+const offsiteValidationIntent = "ValidateOffsiteProtection"
+
+// validateOffsite plans a bounded validation run for a configured, proposed
+// offsite destination. Approving the returned plan (via /plans/{id}/approve)
+// starts the run, whose executor triggers only the declared backup + replication
+// work and records a verdict drawn from observed offsite evidence.
+func (server *Server) validateOffsite(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		ProfileID string `json:"profileId"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 8*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" {
+		writeError(response, http.StatusBadRequest, "invalid_offsite_validation_request")
+		return
+	}
+	record, ok := server.loadOffsiteRecord(request.Context(), input.ProfileID)
+	if !ok {
+		writeError(response, http.StatusConflict, "offsite_not_configured")
+		return
+	}
+	// Validation is only meaningful once the destination config has been proposed
+	// (and, after merge, delivered); the launcher gates on the furthest state it
+	// can observe.
+	if record.Proposal == nil {
+		writeError(response, http.StatusConflict, "offsite_proposal_required")
+		return
+	}
+	plan, err := server.workflow.PlanChange(request.Context(), input.ProfileID, offsiteValidationIntent, offsiteValidationDetail(record.Reference), []workflow.Effect{
+		{Code: "offsite.validation.backup_started", MessageKey: "plan.effect.offsite_validation_backup"},
+		{Code: "offsite.validation.evidence_verified", MessageKey: "plan.effect.offsite_validation_evidence"},
+	})
+	if errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "profile_not_found")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "offsite_validation_failed")
+		return
+	}
+	writeJSON(response, http.StatusCreated, map[string]any{"plan": plan})
+}
+
+// offsiteValidationDetail is the stable, secret-free description of the declared
+// work bound into the validation plan's digest.
+func offsiteValidationDetail(reference offsite.Reference) string {
+	return fmt.Sprintf("offsite.validation:backup+replication->%s/%s", reference.Destination.Bucket, reference.SecretName)
+}
+
+// executeOffsiteValidation is the registered executor for the validation intent.
+// It starts only the declared backup/replication work through the runner seam,
+// persists a checkpoint per bounded stage, then classifies the outcome from the
+// observed offsite evidence — never from a Job exit status — and records the
+// verdict on the offsite record and as the run's evidence.
+func (server *Server) executeOffsiteValidation(runID string) {
+	ctx := context.Background()
+	run, err := server.store.GetRun(ctx, runID)
+	if err != nil || run.State != "running" {
+		return
+	}
+	record, ok := server.loadOffsiteRecord(ctx, run.ProfileID)
+	if !ok {
+		server.failOffsiteRun(ctx, run, "offsite-not-configured")
+		return
+	}
+	if !server.checkpointOffsiteRun(ctx, run, "declared-work-started") {
+		return
+	}
+	if server.offsiteRunCancelled(ctx, runID) {
+		_ = server.store.CompleteRunCancellation(ctx, runID, "declared-work-started")
+		return
+	}
+	evidence, err := server.offsiteValidator.RunValidation(ctx, run.ProfileID, record.Reference.Destination)
+	if err != nil {
+		server.failOffsiteRun(ctx, run, "validation-unavailable")
+		return
+	}
+	if !server.checkpointOffsiteRun(ctx, run, "offsite-evidence-observed") {
+		return
+	}
+	now := time.Now().UTC()
+	result := offsite.ClassifyValidation(evidence, now, offsite.DefaultOffsiteMaxAge)
+	record.Validation = &offsiteValidation{
+		Result:          string(result),
+		RemediationKey:  result.RemediationKey(),
+		Verified:        result.Verified(),
+		RecoveryPointAt: evidence.OffsiteRecoveryPointAt,
+		RunID:           runID,
+		ObservedAt:      now,
+	}
+	server.persistOffsiteRecord(ctx, run.ProfileID, record)
+	// The verdict is recorded as the run's observed evidence, not a pass/fail Job
+	// status; the offsite record above holds the authoritative protection verdict.
+	_ = server.store.CompleteRunVerification(ctx, runID, "validation-complete", string(result), now)
+}
+
+// checkpointOffsiteRun advances a running validation to a named safe point and
+// appends a redacted Activity Record checkpoint event.
+func (server *Server) checkpointOffsiteRun(ctx context.Context, run state.RunRecord, checkpoint string) bool {
+	if err := server.store.UpdateRun(ctx, run.ID, "running", checkpoint, "", nil); err != nil {
+		return false
+	}
+	_, _ = server.store.AppendEvent(ctx, state.EventRecord{
+		ProfileID:  run.ProfileID,
+		RunID:      run.ID,
+		Type:       "run.checkpoint",
+		MessageKey: "activity.run.checkpoint",
+		Parameters: `{"checkpoint":"` + checkpoint + `"}`,
+		OccurredAt: time.Now().UTC(),
+	})
+	return true
+}
+
+// offsiteRunCancelled reports whether a cooperative cancellation was requested.
+func (server *Server) offsiteRunCancelled(ctx context.Context, runID string) bool {
+	run, err := server.store.GetRun(ctx, runID)
+	return err == nil && run.CancellationState == "requested"
+}
+
+// failOffsiteRun moves a validation run to a terminal failed state at a named
+// checkpoint and records the failure in the Activity Record.
+func (server *Server) failOffsiteRun(ctx context.Context, run state.RunRecord, checkpoint string) {
+	if err := server.store.UpdateRun(ctx, run.ID, "failed", checkpoint, "", nil); err != nil {
+		return
+	}
+	_, _ = server.store.AppendEvent(ctx, state.EventRecord{
+		ProfileID:  run.ProfileID,
+		RunID:      run.ID,
+		Type:       "run.failed",
+		MessageKey: "activity.run.failed",
+		Parameters: `{"checkpoint":"` + checkpoint + `"}`,
+		OccurredAt: time.Now().UTC(),
+	})
+}
+
 func (server *Server) persistOffsiteRecord(ctx context.Context, profileID string, record offsiteRecord) bool {
 	encoded, err := json.Marshal(record)
 	if err != nil {
@@ -555,6 +746,16 @@ func offsiteView(record offsiteRecord) map[string]any {
 			"url":           record.Proposal.URL,
 			"secretApplied": record.Proposal.SecretApplied,
 			"openedAt":      record.Proposal.OpenedAt,
+		}
+	}
+	if record.Validation != nil {
+		view["validation"] = map[string]any{
+			"result":          record.Validation.Result,
+			"remediationKey":  record.Validation.RemediationKey,
+			"verified":        record.Validation.Verified,
+			"recoveryPointAt": record.Validation.RecoveryPointAt,
+			"runId":           record.Validation.RunID,
+			"observedAt":      record.Validation.ObservedAt,
 		}
 	}
 	return view

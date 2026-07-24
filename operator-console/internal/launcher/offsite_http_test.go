@@ -7,10 +7,96 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stephan271/smallworlds/operator-console/internal/launcher"
 	"github.com/stephan271/smallworlds/operator-console/internal/offsite"
 )
+
+// fakeOffsiteValidationRunner returns fixed offsite evidence so a test controls
+// exactly what the validation run observes — proving the verdict comes from the
+// evidence, not from the runner reporting success.
+type fakeOffsiteValidationRunner struct {
+	evidence    offsite.ValidationEvidence
+	err         error
+	calls       int
+	destination offsite.Destination
+}
+
+func (runner *fakeOffsiteValidationRunner) RunValidation(_ context.Context, _ string, destination offsite.Destination) (offsite.ValidationEvidence, error) {
+	runner.calls++
+	runner.destination = destination
+	return runner.evidence, runner.err
+}
+
+// waitForOffsiteRun polls a run until it leaves the running state.
+func waitForOffsiteRun(t *testing.T, handler http.Handler, cookie *http.Cookie, runID string) workflowRunResponse {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		response := request(t, handler, http.MethodGet, "/api/v1/runs/"+runID, nil, cookie, nil)
+		var run workflowRunResponse
+		if err := json.NewDecoder(response.Body).Decode(&run); err != nil {
+			t.Fatal(err)
+		}
+		response.Body.Close()
+		if run.State != "running" {
+			return run
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("run %s did not settle before deadline", runID)
+	return workflowRunResponse{}
+}
+
+// openOffsiteProposal drives a configured profile through an approved offsite
+// plan and a submitted Git proposal, so a validation run has something to check.
+func openOffsiteProposal(t *testing.T, handler http.Handler, cookie *http.Cookie, csrf, profileID string) {
+	t.Helper()
+	planID := approvedOffsitePlan(t, handler, cookie, csrf, profileID)
+	body, _ := json.Marshal(map[string]string{"profileId": profileID, "planId": planID})
+	response := request(t, handler, http.MethodPost, "/api/v1/offsite/propose", body, cookie, map[string]string{"X-CSRF-Token": csrf})
+	if response.StatusCode != http.StatusCreated {
+		t.Fatalf("propose status = %d: %s", response.StatusCode, readAll(t, response))
+	}
+	response.Body.Close()
+}
+
+// approveOffsiteValidation asks for a validation plan and approves it, returning
+// the started run's id.
+func approveOffsiteValidation(t *testing.T, handler http.Handler, cookie *http.Cookie, csrf, profileID string) string {
+	t.Helper()
+	headers := map[string]string{"X-CSRF-Token": csrf}
+	validateBody, _ := json.Marshal(map[string]string{"profileId": profileID})
+	response := request(t, handler, http.MethodPost, "/api/v1/offsite/validate", validateBody, cookie, headers)
+	planned := readAll(t, response)
+	if response.StatusCode != http.StatusCreated {
+		t.Fatalf("validate status = %d: %s", response.StatusCode, planned)
+	}
+	var view struct {
+		Plan struct {
+			ID string `json:"id"`
+		} `json:"plan"`
+	}
+	if err := json.Unmarshal(planned, &view); err != nil {
+		t.Fatal(err)
+	}
+	response = request(t, handler, http.MethodPost, "/api/v1/plans/"+view.Plan.ID+"/approve", nil, cookie, headers)
+	approved := readAll(t, response)
+	if response.StatusCode != http.StatusAccepted {
+		t.Fatalf("validation approve status = %d: %s", response.StatusCode, approved)
+	}
+	var run struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(approved, &run); err != nil {
+		t.Fatal(err)
+	}
+	if run.ID == "" {
+		t.Fatalf("approve did not start a run: %s", approved)
+	}
+	return run.ID
+}
 
 // recordingSecretApplier captures the last Cluster Secret applied so a test can
 // prove the credential values reach the authorized secret path — and nowhere
@@ -372,5 +458,179 @@ func TestOffsiteProposeRefusesWithoutAnApprovedPlanOrSecretPath(t *testing.T) {
 	// credentials must land first.
 	if stub.proposalCalls != 0 {
 		t.Fatalf("git proposal opened despite unavailable secret path: %d", stub.proposalCalls)
+	}
+}
+
+func TestOffsiteValidateRunClassifiesFromObservedEvidence(t *testing.T) {
+	stub := &genericGitStub{contains: true}
+	applier := &recordingSecretApplier{}
+	runner := &fakeOffsiteValidationRunner{evidence: offsite.ValidationEvidence{
+		LocalBackupSucceeded:   true,
+		ReplicationSucceeded:   true,
+		OffsiteRecoveryPointAt: time.Now().UTC(),
+		Versioning:             offsite.VersioningEnabled,
+	}}
+	handler, err := launcher.New(launcher.Config{
+		DataDir:                 t.TempDir(),
+		LaunchToken:             "offsite-validate",
+		GenericGitClient:        stub,
+		ClusterSecretApplier:    applier,
+		OffsiteInspector:        fakeOffsiteInspector{inspection: offsite.Inspection{Reachable: true, Versioning: offsite.VersioningEnabled}},
+		OffsiteValidationRunner: runner,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = handler.Close() })
+	cookie, csrf := exchange(t, handler, "offsite-validate")
+	profile := createProfile(t, handler, cookie, csrf, "Home", "en", "local-lan")
+	unlockVaultForRecoveryTest(t, handler, cookie, csrf)
+	establishGenericOverlay(t, handler, cookie, csrf, profile.ID)
+	openOffsiteProposal(t, handler, cookie, csrf, profile.ID)
+
+	runID := approveOffsiteValidation(t, handler, cookie, csrf, profile.ID)
+	verified := waitForOffsiteRun(t, handler, cookie, runID)
+	if verified.State != "verified" || verified.CurrentCheckpoint != "validation-complete" {
+		t.Fatalf("validation run did not complete: %#v", verified)
+	}
+	// The verdict is the evidence-derived classification, not a Job exit status.
+	if verified.Verification.Code != string(offsite.ValidationVerified) {
+		t.Fatalf("run evidence = %q, want %q", verified.Verification.Code, offsite.ValidationVerified)
+	}
+	if runner.calls != 1 {
+		t.Fatalf("validation runner calls = %d, want 1", runner.calls)
+	}
+	if runner.destination.Bucket != "community-backups" {
+		t.Fatalf("runner did not receive the configured destination: %#v", runner.destination)
+	}
+
+	// The offsite record carries the authoritative protection verdict.
+	response := request(t, handler, http.MethodGet, "/api/v1/offsite?profileId="+profile.ID, nil, cookie, nil)
+	status := readAll(t, response)
+	assertNoOffsiteSecret(t, status)
+	var view struct {
+		Validation struct {
+			Result         string `json:"result"`
+			RemediationKey string `json:"remediationKey"`
+			Verified       bool   `json:"verified"`
+			RunID          string `json:"runId"`
+		} `json:"validation"`
+	}
+	if err := json.Unmarshal(status, &view); err != nil {
+		t.Fatal(err)
+	}
+	if view.Validation.Result != string(offsite.ValidationVerified) || !view.Validation.Verified {
+		t.Fatalf("status validation verdict = %#v", view.Validation)
+	}
+	if view.Validation.RemediationKey != offsite.ValidationVerified.RemediationKey() || view.Validation.RunID != runID {
+		t.Fatalf("status validation route = %#v", view.Validation)
+	}
+
+	// The bounded stages and the verdict appear in the Activity Record.
+	response = request(t, handler, http.MethodGet, "/api/v1/events?profileId="+profile.ID, nil, cookie, nil)
+	events := readAll(t, response)
+	for _, marker := range []string{"declared-work-started", "offsite-evidence-observed", "activity.run.verified"} {
+		if !bytes.Contains(events, []byte(marker)) {
+			t.Fatalf("activity record missing %q: %s", marker, events)
+		}
+	}
+}
+
+func TestOffsiteValidateDistinguishesReplicationFailureFromEvidence(t *testing.T) {
+	stub := &genericGitStub{contains: true}
+	applier := &recordingSecretApplier{}
+	// The runner reports the local backup completed but replication did not — a
+	// green local Job must not read as offsite protection.
+	runner := &fakeOffsiteValidationRunner{evidence: offsite.ValidationEvidence{
+		LocalBackupSucceeded: true,
+		ReplicationSucceeded: false,
+		Versioning:           offsite.VersioningEnabled,
+	}}
+	handler, err := launcher.New(launcher.Config{
+		DataDir:                 t.TempDir(),
+		LaunchToken:             "offsite-replfail",
+		GenericGitClient:        stub,
+		ClusterSecretApplier:    applier,
+		OffsiteInspector:        fakeOffsiteInspector{inspection: offsite.Inspection{Reachable: true, Versioning: offsite.VersioningEnabled}},
+		OffsiteValidationRunner: runner,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = handler.Close() })
+	cookie, csrf := exchange(t, handler, "offsite-replfail")
+	profile := createProfile(t, handler, cookie, csrf, "Home", "en", "local-lan")
+	unlockVaultForRecoveryTest(t, handler, cookie, csrf)
+	establishGenericOverlay(t, handler, cookie, csrf, profile.ID)
+	openOffsiteProposal(t, handler, cookie, csrf, profile.ID)
+
+	runID := approveOffsiteValidation(t, handler, cookie, csrf, profile.ID)
+	settled := waitForOffsiteRun(t, handler, cookie, runID)
+	if settled.Verification.Code != string(offsite.ValidationReplicationFailed) {
+		t.Fatalf("run evidence = %q, want %q", settled.Verification.Code, offsite.ValidationReplicationFailed)
+	}
+	response := request(t, handler, http.MethodGet, "/api/v1/offsite?profileId="+profile.ID, nil, cookie, nil)
+	status := readAll(t, response)
+	var view struct {
+		Validation struct {
+			Result         string `json:"result"`
+			RemediationKey string `json:"remediationKey"`
+			Verified       bool   `json:"verified"`
+		} `json:"validation"`
+	}
+	json.Unmarshal(status, &view)
+	if view.Validation.Verified || view.Validation.Result != string(offsite.ValidationReplicationFailed) {
+		t.Fatalf("replication failure not distinguished: %#v", view.Validation)
+	}
+	if view.Validation.RemediationKey != offsite.ValidationReplicationFailed.RemediationKey() {
+		t.Fatalf("remediation route = %q", view.Validation.RemediationKey)
+	}
+}
+
+func TestOffsiteValidateRefusesWithoutAProposalAndFailsWhenUnavailable(t *testing.T) {
+	stub := &genericGitStub{contains: true}
+	applier := &recordingSecretApplier{}
+	handler, err := launcher.New(launcher.Config{
+		DataDir:              t.TempDir(),
+		LaunchToken:          "offsite-noproposal",
+		GenericGitClient:     stub,
+		ClusterSecretApplier: applier,
+		// No OffsiteValidationRunner: the launcher default refuses honestly.
+		OffsiteInspector: fakeOffsiteInspector{inspection: offsite.Inspection{Reachable: true, Versioning: offsite.VersioningEnabled}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = handler.Close() })
+	cookie, csrf := exchange(t, handler, "offsite-noproposal")
+	profile := createProfile(t, handler, cookie, csrf, "Home", "en", "local-lan")
+	headers := map[string]string{"X-CSRF-Token": csrf}
+	unlockVaultForRecoveryTest(t, handler, cookie, csrf)
+	establishGenericOverlay(t, handler, cookie, csrf, profile.ID)
+
+	// A destination configured but not yet proposed cannot be validated.
+	approvedOffsitePlan(t, handler, cookie, csrf, profile.ID)
+	validateBody, _ := json.Marshal(map[string]string{"profileId": profile.ID})
+	response := request(t, handler, http.MethodPost, "/api/v1/offsite/validate", validateBody, cookie, headers)
+	if response.StatusCode != http.StatusConflict {
+		t.Fatalf("validate before proposal status = %d, want 409", response.StatusCode)
+	}
+	response.Body.Close()
+
+	// Once proposed, the run starts but the unavailable runner fails honestly
+	// without inventing a verdict.
+	openOffsiteProposal(t, handler, cookie, csrf, profile.ID)
+	runID := approveOffsiteValidation(t, handler, cookie, csrf, profile.ID)
+	settled := waitForOffsiteRun(t, handler, cookie, runID)
+	if settled.State != "failed" || settled.CurrentCheckpoint != "validation-unavailable" {
+		t.Fatalf("unavailable validation run = %#v, want failed/validation-unavailable", settled)
+	}
+	if settled.Verification.Code != "" {
+		t.Fatalf("failed run fabricated a verdict: %q", settled.Verification.Code)
+	}
+	response = request(t, handler, http.MethodGet, "/api/v1/offsite?profileId="+profile.ID, nil, cookie, nil)
+	status := readAll(t, response)
+	if bytes.Contains(status, []byte("\"validation\"")) {
+		t.Fatalf("offsite record recorded a verdict despite no evidence: %s", status)
 	}
 }
