@@ -97,6 +97,28 @@ unit tests.
   production JWKS `TokenExchanger` and live observers, deferred with those
   adapters; the Svelte overview/capability screens land with the screens tracer.)
 
+- [x] **Svelte console screens** (`web/src/routes/console`, `web/src/lib/console.ts`,
+  `web/src/lib/console-i18n.ts`) — the operator-facing face of the console. A
+  typed console API client mirrors the Go DTOs (session, overview, per-capability
+  assessment) without reproducing any assessment rule in TypeScript. The
+  `/console` route renders: sign-in state (a Keycloak sign-in prompt when
+  anonymous, an access-denied panel for a session without observe, sign-out and
+  identity/role when signed in); the cluster overview as a keyboard-operable
+  capability list with headline state; and, on selecting a capability, its five
+  evidence facets — each showing the facet state, the localized reason, the
+  evidence timestamp (or "never observed"), a stale badge, and its one
+  remediation route. Every state carries a **non-color text symbol** so status
+  never depends on color alone; headings are semantic, a status region is
+  `aria-live`, and reduced motion is honored. Full **English + German** via a
+  dedicated i18n module typed as `Record<ConsoleMessageKey, string>` so
+  `svelte-check` fails the build if the German catalog drifts — every backend
+  reason code, state, facet kind/state, role, and remediation label is
+  translated. `npm run check` (0 errors, de/en parity) and `npm run build` (the
+  `/console` route prerenders under adapter-static strict) both pass. (Real
+  Grafana/Argo deep-link URLs on the remediation routes land with the linked-tools
+  tracer; wiring which landing screen the in-cluster deployment shows lands with
+  the serving-mode binary integration.)
+
 ## What to build
 
 Deliver the first useful in-cluster Operator Console. Authenticated Operators see an overview and per-capability explanations derived from configuration, Argo delivery, Kubernetes runtime, access, and protection evidence. Server-side Console Roles govern every route and action, while Grafana and Argo CD remain contextual, private, OIDC-authenticated, read-only investigation tools.
