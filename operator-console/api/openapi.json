@@ -1755,6 +1755,107 @@
           }
         }
       }
+    },
+    "/api/v1/offsite": {
+      "get": {
+        "operationId": "getOffsiteProtection",
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Secret-free offsite destination shape and its last bucket inspection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OffsiteProtection"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No offsite destination configured for this profile"
+          }
+        }
+      }
+    },
+    "/api/v1/offsite/inspect": {
+      "post": {
+        "operationId": "inspectOffsiteDestination",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["profileId", "endpoint", "region", "bucket", "accessKeyId", "secretAccessKey"],
+                "properties": {
+                  "profileId": { "type": "string" },
+                  "endpoint": { "type": "string" },
+                  "region": { "type": "string" },
+                  "bucket": { "type": "string" },
+                  "accessKeyId": { "type": "string" },
+                  "secretAccessKey": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Credentials custodied in the Launcher Vault; the secret-free destination shape and bucket inspection are returned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OffsiteProtection"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/offsite/plan": {
+      "post": {
+        "operationId": "planOffsiteProtection",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["profileId"],
+                "properties": {
+                  "profileId": { "type": "string" },
+                  "acknowledged": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Change Plan separating the Cluster Secret effect from the non-secret Git diff",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OffsitePlan"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Versioning could not be confirmed and was not acknowledged, or the destination is not configured"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1873,6 +1974,53 @@
       }
     },
     "schemas": {
+      "OffsiteProtection": {
+        "type": "object",
+        "description": "Secret-free view of an offsite destination and its last bucket inspection. Never carries the access key or secret.",
+        "properties": {
+          "destination": {
+            "type": "object",
+            "properties": {
+              "endpoint": { "type": "string" },
+              "region": { "type": "string" },
+              "bucket": { "type": "string" }
+            }
+          },
+          "schedule": { "type": "string" },
+          "secretName": { "type": "string" },
+          "accessKeyFingerprint": { "type": "string" },
+          "versioningAcknowledged": { "type": "boolean" },
+          "reachable": { "type": "boolean" },
+          "versioning": {
+            "type": "string",
+            "enum": ["enabled", "disabled", "unsupported", "unknown"]
+          },
+          "requiresAcknowledgement": { "type": "boolean" }
+        }
+      },
+      "OffsitePlan": {
+        "type": "object",
+        "description": "Change Plan separating the Cluster Secret effect from the non-secret Git diff.",
+        "properties": {
+          "plan": { "type": "object", "additionalProperties": true },
+          "gitDiff": { "type": "string" },
+          "secret": {
+            "type": "object",
+            "properties": {
+              "secretName": { "type": "string" },
+              "keys": { "type": "array", "items": { "type": "string" } }
+            }
+          },
+          "implications": {
+            "type": "object",
+            "properties": {
+              "data": { "type": "string" },
+              "cost": { "type": "string" },
+              "protection": { "type": "string" }
+            }
+          }
+        }
+      },
       "Error": {
         "type": "object",
         "required": [

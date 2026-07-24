@@ -804,10 +804,90 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/offsite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getOffsiteProtection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/offsite/inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["inspectOffsiteDestination"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/offsite/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["planOffsiteProtection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description Secret-free view of an offsite destination and its last bucket inspection. Never carries the access key or secret. */
+        OffsiteProtection: {
+            destination?: {
+                endpoint?: string;
+                region?: string;
+                bucket?: string;
+            };
+            schedule?: string;
+            secretName?: string;
+            accessKeyFingerprint?: string;
+            versioningAcknowledged?: boolean;
+            reachable?: boolean;
+            /** @enum {string} */
+            versioning?: "enabled" | "disabled" | "unsupported" | "unknown";
+            requiresAcknowledgement?: boolean;
+        };
+        /** @description Change Plan separating the Cluster Secret effect from the non-secret Git diff. */
+        OffsitePlan: {
+            plan?: {
+                [key: string]: unknown;
+            };
+            gitDiff?: string;
+            secret?: {
+                secretName?: string;
+                keys?: string[];
+            };
+            implications?: {
+                data?: string;
+                cost?: string;
+                protection?: string;
+            };
+        };
         Error: {
             code: string;
         };
@@ -2795,6 +2875,100 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HandoffAssessment"];
                 };
+            };
+        };
+    };
+    getOffsiteProtection: {
+        parameters: {
+            query: {
+                profileId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Secret-free offsite destination shape and its last bucket inspection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OffsiteProtection"];
+                };
+            };
+            /** @description No offsite destination configured for this profile */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    inspectOffsiteDestination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    profileId: string;
+                    endpoint: string;
+                    region: string;
+                    bucket: string;
+                    accessKeyId: string;
+                    secretAccessKey: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Credentials custodied in the Launcher Vault; the secret-free destination shape and bucket inspection are returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OffsiteProtection"];
+                };
+            };
+        };
+    };
+    planOffsiteProtection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    profileId: string;
+                    acknowledged?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Change Plan separating the Cluster Secret effect from the non-secret Git diff */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OffsitePlan"];
+                };
+            };
+            /** @description Versioning could not be confirmed and was not acknowledged, or the destination is not configured */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

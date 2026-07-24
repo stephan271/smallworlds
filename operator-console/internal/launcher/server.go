@@ -29,6 +29,7 @@ import (
 	"github.com/stephan271/smallworlds/operator-console/internal/handoffverification"
 	"github.com/stephan271/smallworlds/operator-console/internal/localbootstrap"
 	"github.com/stephan271/smallworlds/operator-console/internal/nodeinspect"
+	"github.com/stephan271/smallworlds/operator-console/internal/offsite"
 	"github.com/stephan271/smallworlds/operator-console/internal/privatenetwork"
 	"github.com/stephan271/smallworlds/operator-console/internal/recovery"
 	"github.com/stephan271/smallworlds/operator-console/internal/state"
@@ -51,6 +52,7 @@ type Config struct {
 	NodeInspector        NodeInspector
 	HandoffVerifier      handoffverification.Verifier
 	PasskeyVerifier      firstowner.PasskeyVerifier
+	OffsiteInspector     offsite.Inspector
 }
 
 // GenericGitClient permits deterministic Launcher contract tests while the
@@ -101,6 +103,7 @@ type Server struct {
 	nodes      NodeInspector
 	handoff    handoffverification.Verifier
 	passkey    firstowner.PasskeyVerifier
+	offsite    offsite.Inspector
 }
 
 func New(config Config) (*Server, error) {
@@ -152,6 +155,13 @@ func New(config Config) (*Server, error) {
 		// relying-party id is 127.0.0.1 and only loopback origins are accepted.
 		passkeyVerifier = firstowner.NewWebAuthnPasskeyVerifier("127.0.0.1", firstowner.LoopbackOriginAllowed)
 	}
+	offsiteInspector := config.OffsiteInspector
+	if offsiteInspector == nil {
+		// Without a real S3 client the launcher cannot inspect a destination
+		// bucket, so it honestly reports versioning unknown (forcing an explicit
+		// acknowledgement) rather than claiming versioning is enabled.
+		offsiteInspector = unavailableOffsiteInspector{}
+	}
 	workflowEngine.RegisterExecutor("BootstrapLocalNode", bootstrapService.Execute)
 	server := &Server{
 		launchToken: config.LaunchToken,
@@ -165,6 +175,7 @@ func New(config Config) (*Server, error) {
 		nodes:       nodeInspector,
 		handoff:     handoffVerifier,
 		passkey:     passkeyVerifier,
+		offsite:     offsiteInspector,
 	}
 	if err := workflowEngine.ResumeActive(context.Background()); err != nil {
 		store.Close()
@@ -263,6 +274,12 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.registerFirstOwner(response, request)
 	case request.URL.Path == "/api/v1/handoff-assessment":
 		server.handoffAssessment(response, request)
+	case request.URL.Path == "/api/v1/offsite":
+		server.offsiteStatus(response, request)
+	case request.URL.Path == "/api/v1/offsite/inspect":
+		server.inspectOffsite(response, request)
+	case request.URL.Path == "/api/v1/offsite/plan":
+		server.planOffsite(response, request)
 	case request.URL.Path == "/api/v1/profiles":
 		server.profiles(response, request)
 	case strings.HasPrefix(request.URL.Path, "/api/v1/profiles/"):

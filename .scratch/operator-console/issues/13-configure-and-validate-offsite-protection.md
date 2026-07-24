@@ -26,13 +26,32 @@ Status: in-progress
   credentials, and the full validation truth table. `gofmt`, `go build/vet/test
   ./...` all pass.
 
+- [x] **Launcher inspect/status/plan endpoints** (`internal/launcher/offsite.go`,
+  state migration 18) — covers acceptance criteria 1 and 2 and the plan-separation
+  half of 3. `POST /api/v1/offsite/inspect` collects endpoint/region/bucket/access
+  key/secret, custodies the credential **values in the Launcher Vault** (requires
+  an unlocked vault; 423 otherwise), records secret-free credential references,
+  runs the injected bucket `Inspector`, and persists a secret-free
+  `offsite_protections` record (destination shape + key fingerprint + inspection)
+  — returning **no credential value**. `GET /api/v1/offsite` returns the same
+  secret-free view. `POST /api/v1/offsite/plan` loads the custodied key only to
+  keep the plan's fingerprint bound, builds the Change Plan **separating the
+  Cluster Secret effect (name + keys) from the non-secret Git diff**, and refuses
+  (409) when versioning could not be confirmed and was not acknowledged. The
+  launcher's default inspector honestly reports versioning *unknown* (no real S3
+  client), forcing the acknowledgement path. OpenAPI contract + generated browser
+  types updated; the contract test now covers the three routes. HTTP tests prove
+  vault-locked rejection, no credential leakage in any response, the
+  fingerprint-not-value guarantee, the versioning-acknowledgement gate, and the
+  secret/Git-diff separation. `gofmt`, `go build/vet/test ./...`, `npm run check`,
+  `npm run build` all pass.
+
 ## Remaining
 
-- **Launcher Setup Journey wiring** (criterion 4): endpoints to collect
-  credentials into the Launcher Vault, run the bucket `Inspector`, produce the
-  Change Plan, and on approval create/update the Cluster Secret through the
-  authorized secret path and open the required Git proposal — reusing the
-  existing Vault-custody and Git-proposal machinery, without logging credentials.
+- **Approval → Cluster Secret + Git proposal** (criterion 4): on plan approval,
+  create/update the Cluster Secret through the authorized secret path and open the
+  required Git proposal (reusing the GitHub/generic-git proposal machinery),
+  without logging credentials.
 - **Bounded validation Workflow Run** (criterion 5): start only the declared
   backup/replication work, persist checkpoints/events (via `consoleworkflow`),
   and classify the outcome from observed offsite evidence.
