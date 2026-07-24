@@ -234,10 +234,12 @@ func headline(facets map[FacetKind]Facet) (CapabilityState, string) {
 		return StateInstalling, facet.ReasonCode
 	}
 
+	// A capability is planned when it is fully configured but Argo CD has not yet
+	// created its Application: no delivery means no workloads, so the other facets'
+	// not-yet-observed states are consequences, not independent problems. Outright
+	// failures and active progress are ranked above and have already returned.
 	delivery := facets[FacetDelivery]
-	runtime := facets[FacetRuntime]
-	if configuration.State == FacetSatisfied && delivery.State == FacetPending &&
-		(runtime.State == FacetPending || runtime.State == FacetUnknown) {
+	if configuration.State == FacetSatisfied && delivery.State == FacetPending {
 		return StatePlanned, ReasonAwaitingDelivery
 	}
 

@@ -47,6 +47,29 @@ unit tests.
   in-cluster serving mode, HTTP middleware, cookie sessions, and the production
   JWKS TokenExchanger land with the serving-mode tracer.)
 
+- [x] **Cluster evidence observers** (`internal/observers`) — the
+  evidence-gathering seam that feeds the pure assessment engine, keeping the
+  ADR-0020 split strict (observers gather; the engine decides). Defines
+  provider-neutral raw fact structs (configuration, Argo CD delivery, Kubernetes
+  runtime, access reachability, backup protection), the five source interfaces
+  where production cluster readers plug in (each returning facts + last-refresh
+  time + error), pure translators from facts to `assessment.*Evidence`, and a
+  `Gatherer` that composes the sources into an `assessment.Input` and runs the
+  engine. Two honesty distinctions are encoded and tested: a source that cannot
+  read (or is unwired/nil) yields **Missing** evidence — unknown, never healthy —
+  while an Argo Application that does not exist yet is **Pending** (declared,
+  awaiting delivery). Argo Degraded/Failed maps to a delivery failure;
+  OutOfSync maps to drift; Progressing/Missing/Unknown health keeps a synced app
+  from reading healthy until runtime confirms readiness; the source's refresh
+  timestamp drives staleness. Unit tests cover the healthy path, nil/error →
+  Missing, not-found → planned, Degraded → failed, OutOfSync → drift,
+  Unknown-health → installing, and stale-evidence → not healthy. This tracer also
+  refined the engine's *planned* rule (a fully-configured capability whose Argo
+  Application is not yet created is planned regardless of the not-yet-observed
+  runtime). Production readers (raw-HTTP Kubernetes/Argo reads, DNS/TLS probes)
+  are deferred to a follow-up, mirroring how the live handoff verifier followed
+  the pure verification core. `gofmt`, `go build/vet/test ./...` all pass.
+
 ## What to build
 
 Deliver the first useful in-cluster Operator Console. Authenticated Operators see an overview and per-capability explanations derived from configuration, Argo delivery, Kubernetes runtime, access, and protection evidence. Server-side Console Roles govern every route and action, while Grafana and Argo CD remain contextual, private, OIDC-authenticated, read-only investigation tools.
