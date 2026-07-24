@@ -15,9 +15,11 @@ import (
 type genericGitStub struct {
 	validateErr     error
 	initializeErr   error
+	proposalErr     error
 	contains        bool
 	initializeCalls int
 	proposalCalls   int
+	proposalFiles   map[string]string
 	commit          string
 }
 
@@ -38,8 +40,12 @@ func (stub *genericGitStub) InitializeEmptyRemote(_ context.Context, remoteURL, 
 	}
 	return githttps.Identity{RepositoryURL: remoteURL, Commit: commit}, nil
 }
-func (stub *genericGitStub) CreateProposalBranch(_ context.Context, _ string, _ string, _ string, branch string, _ map[string]string) (githttps.Proposal, error) {
+func (stub *genericGitStub) CreateProposalBranch(_ context.Context, _ string, _ string, _ string, branch string, files map[string]string) (githttps.Proposal, error) {
 	stub.proposalCalls++
+	stub.proposalFiles = files
+	if stub.proposalErr != nil {
+		return githttps.Proposal{}, stub.proposalErr
+	}
 	return githttps.Proposal{Branch: branch, Commit: "proposal-commit"}, nil
 }
 

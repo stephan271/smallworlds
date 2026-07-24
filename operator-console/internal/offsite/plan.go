@@ -100,7 +100,7 @@ func gitDiff(reference Reference) string {
 kind: ConfigMap
 metadata:
   name: backup-replicator-destination
-  namespace: backup-system
+  namespace: %s
 data:
   endpoint: %q
   region: %q
@@ -108,6 +108,7 @@ data:
   schedule: %q
   secretRef: %q
 `,
+		Namespace,
 		reference.Destination.Endpoint,
 		reference.Destination.Region,
 		reference.Destination.Bucket,

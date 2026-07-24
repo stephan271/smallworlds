@@ -53,6 +53,7 @@ type Config struct {
 	HandoffVerifier      handoffverification.Verifier
 	PasskeyVerifier      firstowner.PasskeyVerifier
 	OffsiteInspector     offsite.Inspector
+	ClusterSecretApplier ClusterSecretApplier
 }
 
 // GenericGitClient permits deterministic Launcher contract tests while the
@@ -104,6 +105,7 @@ type Server struct {
 	handoff    handoffverification.Verifier
 	passkey    firstowner.PasskeyVerifier
 	offsite    offsite.Inspector
+	secrets    ClusterSecretApplier
 }
 
 func New(config Config) (*Server, error) {
@@ -162,6 +164,13 @@ func New(config Config) (*Server, error) {
 		// acknowledgement) rather than claiming versioning is enabled.
 		offsiteInspector = unavailableOffsiteInspector{}
 	}
+	clusterSecretApplier := config.ClusterSecretApplier
+	if clusterSecretApplier == nil {
+		// Without a live cluster adapter the launcher cannot write a Cluster
+		// Secret, so it refuses honestly rather than claiming the credentials
+		// reached the cluster — the live adapter is deferred like the others.
+		clusterSecretApplier = unavailableClusterSecretApplier{}
+	}
 	workflowEngine.RegisterExecutor("BootstrapLocalNode", bootstrapService.Execute)
 	server := &Server{
 		launchToken: config.LaunchToken,
@@ -176,6 +185,7 @@ func New(config Config) (*Server, error) {
 		handoff:     handoffVerifier,
 		passkey:     passkeyVerifier,
 		offsite:     offsiteInspector,
+		secrets:     clusterSecretApplier,
 	}
 	if err := workflowEngine.ResumeActive(context.Background()); err != nil {
 		store.Close()
@@ -280,6 +290,8 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.inspectOffsite(response, request)
 	case request.URL.Path == "/api/v1/offsite/plan":
 		server.planOffsite(response, request)
+	case request.URL.Path == "/api/v1/offsite/propose":
+		server.proposeOffsite(response, request)
 	case request.URL.Path == "/api/v1/profiles":
 		server.profiles(response, request)
 	case strings.HasPrefix(request.URL.Path, "/api/v1/profiles/"):

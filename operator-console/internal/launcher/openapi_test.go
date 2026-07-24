@@ -65,6 +65,7 @@ func TestOpenAPIContractDescribesLauncherWorkflow(t *testing.T) {
 		"/api/v1/offsite":                          {"get"},
 		"/api/v1/offsite/inspect":                  {"post"},
 		"/api/v1/offsite/plan":                     {"post"},
+		"/api/v1/offsite/propose":                  {"post"},
 		"/api/v1/profiles":                         {"get", "post"},
 		"/api/v1/profiles/{id}":                    {"put"},
 		"/api/v1/profiles/{id}/journey":            {"get"},

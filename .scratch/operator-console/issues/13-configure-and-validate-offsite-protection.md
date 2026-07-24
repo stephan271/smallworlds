@@ -46,12 +46,35 @@ Status: in-progress
   secret/Git-diff separation. `gofmt`, `go build/vet/test ./...`, `npm run check`,
   `npm run build` all pass.
 
+- [x] **Approval → Cluster Secret + Git proposal** (`internal/offsite/proposal.go`,
+  `internal/launcher/offsite.go` `proposeOffsite`) — covers acceptance criterion 4.
+  `POST /api/v1/offsite/propose` takes an **approved** `ConfigureOffsiteProtection`
+  plan (rejecting any plan that is not approved, not this profile's, or of another
+  intent) and re-derives the reviewed diff from the persisted record + the
+  Vault-custodied access key, refusing (409 `offsite_plan_mismatch`) if it no
+  longer hashes to the approved plan's digest. It then splits the change across
+  the trust boundary: (1) the credential **values** are written to the Cluster
+  Secret through a new injectable `ClusterSecretApplier` seam — the *authorized
+  secret path*, never Git; the launcher default refuses honestly
+  (503 `offsite_cluster_secret_unavailable`) so no proposal opens without the
+  secret landing first — and (2) only the non-secret destination ConfigMap
+  (`offsite.ProposalFiles`, byte-for-byte the reviewed Git diff) is committed as a
+  branch/PR on the established overlay, reusing the generic-git
+  (`CreateProposalBranch`) or GitHub (`CreateProposalWithFiles`) machinery per the
+  recorded overlay identity. The proposal's provider + remote commit identity are
+  persisted secret-free on the offsite record (surfaced by `GET /api/v1/offsite`)
+  and appended to the Activity Record (`activity.offsite.proposed`); merge stays a
+  human step. HTTP tests prove the Cluster Secret receives the real values in the
+  replicator namespace under the plan's secret name, the Git proposal carries the
+  destination but no credential, no response/status/event leaks a credential, the
+  unavailable-secret-path refusal opens no proposal, and the not-approved guard.
+  Domain tests prove `ProposalFiles` == the reviewed diff and carries no secret,
+  and `SecretMaterial` carries both credential keys. OpenAPI contract + generated
+  browser types updated; the contract test now covers the propose route. `gofmt`,
+  `go build/vet/test ./...`, `npm run check`, `npm run build` all pass.
+
 ## Remaining
 
-- **Approval → Cluster Secret + Git proposal** (criterion 4): on plan approval,
-  create/update the Cluster Secret through the authorized secret path and open the
-  required Git proposal (reusing the GitHub/generic-git proposal machinery),
-  without logging credentials.
 - **Bounded validation Workflow Run** (criterion 5): start only the declared
   backup/replication work, persist checkpoints/events (via `consoleworkflow`),
   and classify the outcome from observed offsite evidence.
@@ -72,7 +95,7 @@ Covers PRD user stories 100–104 and 109–110.
 - [ ] The Setup Journey collects endpoint, region, bucket, access key, and secret without returning stored values or placing them in Desired Configuration.
 - [ ] Bucket access is inspected safely, and versioning is verified where supported or requires an explicit recorded acknowledgement when it cannot be inspected.
 - [ ] The Change Plan separates Cluster Secret effects from the exact non-secret Git diff and explains data, cost, and protection implications.
-- [ ] Approval produces or updates the Cluster Secret through the authorized secret path and opens the required Git proposal without logging credentials.
+- [x] Approval produces or updates the Cluster Secret through the authorized secret path and opens the required Git proposal without logging credentials.
 - [ ] A bounded validation run starts only the declared backup/replication work, persists checkpoints/events, and verifies the resulting offsite evidence rather than trusting Job exit status.
 - [ ] Failed local backup, failed replication, stale observation, and unsupported versioning remain distinguishable with relevant remediation.
 - [ ] Contract tests use compatible local object storage and cover authentication errors, unsupported versioning APIs, interruption, and secret scanning.

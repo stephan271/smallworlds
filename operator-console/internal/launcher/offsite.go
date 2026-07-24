@@ -2,16 +2,44 @@ package launcher
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/stephan271/smallworlds/operator-console/internal/githttps"
+	"github.com/stephan271/smallworlds/operator-console/internal/github"
 	"github.com/stephan271/smallworlds/operator-console/internal/offsite"
 	"github.com/stephan271/smallworlds/operator-console/internal/state"
 	"github.com/stephan271/smallworlds/operator-console/internal/vault"
 	"github.com/stephan271/smallworlds/operator-console/internal/workflow"
 )
+
+// ClusterSecretApplier writes a Cluster Secret through the operator's authorized
+// path (a live Kubernetes API call in production). It is the *only* channel the
+// offsite credentials take into the cluster — they never travel through Git. The
+// launcher injects a deterministic implementation in tests; production wires a
+// live adapter, which remains deferred like the other live cluster adapters.
+type ClusterSecretApplier interface {
+	ApplyClusterSecret(ctx context.Context, namespace, name string, data map[string]string) error
+}
+
+// ErrClusterSecretUnavailable is returned by the launcher default when no live
+// cluster secret path is wired, so the propose handler can refuse honestly
+// rather than claim the Cluster Secret was written.
+var ErrClusterSecretUnavailable = errors.New("launcher: cluster secret path unavailable")
+
+// unavailableClusterSecretApplier is the launcher default: with no live cluster
+// adapter it cannot write a Cluster Secret, so it refuses rather than pretending
+// the credentials reached the cluster.
+type unavailableClusterSecretApplier struct{}
+
+func (unavailableClusterSecretApplier) ApplyClusterSecret(context.Context, string, string, map[string]string) error {
+	return ErrClusterSecretUnavailable
+}
 
 // unavailableOffsiteInspector is the launcher default: with no real S3 client it
 // cannot inspect a destination bucket, so it reports reachability false and
@@ -30,6 +58,20 @@ func (unavailableOffsiteInspector) Inspect(context.Context, offsite.Destination,
 type offsiteRecord struct {
 	Reference  offsite.Reference  `json:"reference"`
 	Inspection offsite.Inspection `json:"inspection"`
+	Proposal   *offsiteProposal   `json:"proposal,omitempty"`
+}
+
+// offsiteProposal is the secret-free record of a submitted offsite Change Plan:
+// the remote commit identity of the Git proposal and whether the Cluster Secret
+// was applied. It carries no credential value — the merge is observed, not
+// performed here.
+type offsiteProposal struct {
+	Provider      string    `json:"provider"`
+	Branch        string    `json:"branch,omitempty"`
+	Commit        string    `json:"commit"`
+	URL           string    `json:"url,omitempty"`
+	SecretApplied bool      `json:"secretApplied"`
+	OpenedAt      time.Time `json:"openedAt"`
 }
 
 func offsiteVaultKeys(profileID string) (accessKey, secretKey string) {
@@ -230,6 +272,247 @@ func (server *Server) planOffsite(response http.ResponseWriter, request *http.Re
 	})
 }
 
+// proposeOffsite turns an approved offsite Change Plan into two authorized
+// effects: it writes the credential values to the Cluster Secret through the
+// authorized secret path, then opens a Git proposal carrying only the non-secret
+// destination ConfigMap. It never mutates the destination config in the cluster
+// directly, never writes a credential to Git, and never logs or returns a
+// credential value. The merge stays a human step observed later.
+func (server *Server) proposeOffsite(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		ProfileID string `json:"profileId"`
+		PlanID    string `json:"planId"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 8*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" || input.PlanID == "" {
+		writeError(response, http.StatusBadRequest, "invalid_offsite_proposal_request")
+		return
+	}
+	plan, err := server.store.GetPlan(request.Context(), input.PlanID)
+	if errors.Is(err, state.ErrNotFound) || plan.ProfileID != input.ProfileID || plan.Intent != "ConfigureOffsiteProtection" || plan.Status != "approved" {
+		writeError(response, http.StatusConflict, "offsite_plan_not_approved")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "offsite_proposal_failed")
+		return
+	}
+	record, ok := server.loadOffsiteRecord(request.Context(), input.ProfileID)
+	if !ok {
+		writeError(response, http.StatusConflict, "offsite_not_configured")
+		return
+	}
+	identity, err := server.store.GetOverlayIdentity(request.Context(), input.ProfileID)
+	if errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusConflict, "offsite_overlay_missing")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "offsite_proposal_failed")
+		return
+	}
+
+	// Load both credential values from the Vault — the access key id also keeps
+	// the rebuilt plan's fingerprint bound to the custodied key. Values never
+	// leave this handler except into the Cluster Secret.
+	accessKeyVaultKey, secretVaultKey := offsiteVaultKeys(input.ProfileID)
+	accessKeyID, secretAccessKey, ok := server.loadOffsiteCredentials(response, accessKeyVaultKey, secretVaultKey)
+	if !ok {
+		return
+	}
+
+	changePlan, err := offsite.Plan(record.Reference.Destination, record.Reference.Schedule, record.Reference.SecretName, accessKeyID, record.Inspection, record.Reference.VersioningAcknowledged)
+	if errors.Is(err, offsite.ErrVersioningUnacknowledged) {
+		writeError(response, http.StatusConflict, "offsite_versioning_acknowledgement_required")
+		return
+	}
+	if errors.Is(err, offsite.ErrInvalidDestination) {
+		writeError(response, http.StatusBadRequest, "invalid_offsite_destination")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "offsite_proposal_failed")
+		return
+	}
+	// The reviewed diff must be exactly what the operator approved.
+	if !matchesOffsitePlan(plan, changePlan.GitDiff) {
+		writeError(response, http.StatusConflict, "offsite_plan_mismatch")
+		return
+	}
+
+	// 1) The credentials reach the cluster only through the authorized secret path.
+	if err := server.secrets.ApplyClusterSecret(request.Context(), offsite.Namespace, changePlan.Secret.SecretName, offsite.SecretMaterial(offsite.Credentials{AccessKeyID: accessKeyID, SecretAccessKey: secretAccessKey})); err != nil {
+		if errors.Is(err, ErrClusterSecretUnavailable) {
+			writeError(response, http.StatusServiceUnavailable, "offsite_cluster_secret_unavailable")
+			return
+		}
+		writeError(response, http.StatusBadGateway, "offsite_cluster_secret_failed")
+		return
+	}
+
+	// 2) Only the non-secret destination config travels to Git, as a proposal.
+	branch := githttps.ProposalBranchForDiff(changePlan.GitDiff)
+	files := changePlan.ProposalFiles()
+	proposal := offsiteProposal{Provider: identity.Provider, SecretApplied: true, OpenedAt: time.Now().UTC()}
+	var mergeInstructionKey string
+	switch identity.Provider {
+	case "generic-https":
+		username, uOK := server.loadOffsiteGitSecret(response, input.ProfileID+"/generic-git-username")
+		if !uOK {
+			return
+		}
+		token, tOK := server.loadOffsiteGitSecret(response, input.ProfileID+"/generic-git-token")
+		if !tOK {
+			return
+		}
+		submitted, err := server.genericGit.CreateProposalBranch(request.Context(), identity.RepositoryURL, username, token, branch, files)
+		if errors.Is(err, githttps.ErrAuthentication) {
+			writeError(response, http.StatusForbidden, "generic_git_authentication_failed")
+			return
+		}
+		if errors.Is(err, githttps.ErrConcurrentChange) {
+			writeError(response, http.StatusConflict, "offsite_proposal_conflict")
+			return
+		}
+		if err != nil {
+			writeError(response, http.StatusBadGateway, "offsite_proposal_failed")
+			return
+		}
+		proposal.Branch, proposal.Commit = submitted.Branch, submitted.Commit
+		mergeInstructionKey = "generic_git_manual_merge"
+	case "github":
+		token, tOK := server.loadOffsiteGitSecret(response, input.ProfileID+"/github-creation-token")
+		if !tOK {
+			return
+		}
+		submitted, err := server.github.CreateProposalWithFiles(request.Context(), token, github.Repository{FullName: identity.Repository, DefaultBranch: "main"}, branch, offsite.ProposalTitle, offsiteProposalBody(changePlan.Reference), files)
+		if err != nil {
+			writeError(response, http.StatusBadGateway, "offsite_proposal_failed")
+			return
+		}
+		proposal.Branch, proposal.Commit, proposal.URL = branch, submitted.Commit, submitted.URL
+		mergeInstructionKey = "github_manual_merge"
+	default:
+		writeError(response, http.StatusConflict, "offsite_overlay_unsupported")
+		return
+	}
+
+	// 3) Record the proposal and its remote commit identity in the Activity Record.
+	record.Proposal = &proposal
+	if !server.persistOffsiteRecord(request.Context(), input.ProfileID, record) {
+		writeError(response, http.StatusInternalServerError, "offsite_proposal_failed")
+		return
+	}
+	server.recordOffsiteProposalEvent(request.Context(), input.ProfileID, proposal)
+
+	writeJSON(response, http.StatusCreated, map[string]any{
+		"provider":            proposal.Provider,
+		"branch":              proposal.Branch,
+		"commit":              proposal.Commit,
+		"url":                 proposal.URL,
+		"secret":              changePlan.Secret,
+		"mergeInstructionKey": mergeInstructionKey,
+	})
+}
+
+// loadOffsiteCredentials returns the custodied access key id and secret access
+// key, writing the appropriate error (423/409/500) and returning ok=false on
+// failure. The values are only ever passed to the Cluster Secret path.
+func (server *Server) loadOffsiteCredentials(response http.ResponseWriter, accessKeyVaultKey, secretVaultKey string) (string, string, bool) {
+	accessKeyID, err := server.vault.Load(accessKeyVaultKey)
+	if errors.Is(err, vault.ErrLocked) {
+		writeError(response, http.StatusLocked, "vault_locked")
+		return "", "", false
+	}
+	if errors.Is(err, vault.ErrSecretNotFound) {
+		writeError(response, http.StatusConflict, "offsite_credentials_missing")
+		return "", "", false
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "offsite_proposal_failed")
+		return "", "", false
+	}
+	secretAccessKey, err := server.vault.Load(secretVaultKey)
+	if errors.Is(err, vault.ErrLocked) {
+		writeError(response, http.StatusLocked, "vault_locked")
+		return "", "", false
+	}
+	if errors.Is(err, vault.ErrSecretNotFound) {
+		writeError(response, http.StatusConflict, "offsite_credentials_missing")
+		return "", "", false
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "offsite_proposal_failed")
+		return "", "", false
+	}
+	return accessKeyID, secretAccessKey, true
+}
+
+// loadOffsiteGitSecret loads a stored Git provider credential, writing the
+// error (423/409/500) and returning ok=false on failure.
+func (server *Server) loadOffsiteGitSecret(response http.ResponseWriter, vaultKey string) (string, bool) {
+	value, err := server.vault.Load(vaultKey)
+	if errors.Is(err, vault.ErrLocked) {
+		writeError(response, http.StatusLocked, "vault_locked")
+		return "", false
+	}
+	if errors.Is(err, vault.ErrSecretNotFound) {
+		writeError(response, http.StatusConflict, "offsite_git_credentials_missing")
+		return "", false
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "offsite_proposal_failed")
+		return "", false
+	}
+	return value, true
+}
+
+// matchesOffsitePlan confirms the reviewed Git diff still hashes to the approved
+// plan's digest, so a proposal cannot drift from what was approved.
+func matchesOffsitePlan(plan state.PlanRecord, gitDiff string) bool {
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s\n%s\n%d\n%s", "ConfigureOffsiteProtection", plan.ProfileID, plan.ProfileRevision, gitDiff)))
+	return plan.Digest == hex.EncodeToString(digest[:])
+}
+
+// offsiteProposalBody renders a secret-free pull-request body describing the
+// destination shape. It references the Cluster Secret by name only.
+func offsiteProposalBody(reference offsite.Reference) string {
+	return fmt.Sprintf("Add the offsite backup destination for bucket %q at %q (region %q). Credentials are held in the %q Cluster Secret and are not part of this change.",
+		reference.Destination.Bucket, reference.Destination.Endpoint, reference.Destination.Region, reference.SecretName)
+}
+
+// recordOffsiteProposalEvent appends a secret-free Activity Record entry noting
+// the proposal's provider and remote commit identity. Failures are non-fatal:
+// the proposal is already submitted.
+func (server *Server) recordOffsiteProposalEvent(ctx context.Context, profileID string, proposal offsiteProposal) {
+	parameters, err := json.Marshal(map[string]string{"provider": proposal.Provider, "commit": proposal.Commit, "branch": proposal.Branch})
+	if err != nil {
+		return
+	}
+	_, _ = server.store.AppendEvent(ctx, state.EventRecord{
+		ProfileID:  profileID,
+		Type:       "offsite.proposal.opened",
+		MessageKey: "activity.offsite.proposed",
+		Parameters: string(parameters),
+		OccurredAt: proposal.OpenedAt,
+	})
+}
+
 func (server *Server) persistOffsiteRecord(ctx context.Context, profileID string, record offsiteRecord) bool {
 	encoded, err := json.Marshal(record)
 	if err != nil {
@@ -254,7 +537,7 @@ func (server *Server) loadOffsiteRecord(ctx context.Context, profileID string) (
 // destination shape, the key fingerprint, and the inspection verdict — never the
 // access key or secret.
 func offsiteView(record offsiteRecord) map[string]any {
-	return map[string]any{
+	view := map[string]any{
 		"destination":             record.Reference.Destination,
 		"schedule":                record.Reference.Schedule,
 		"secretName":              record.Reference.SecretName,
@@ -264,4 +547,15 @@ func offsiteView(record offsiteRecord) map[string]any {
 		"versioning":              record.Inspection.Versioning,
 		"requiresAcknowledgement": record.Inspection.RequiresAcknowledgement(),
 	}
+	if record.Proposal != nil {
+		view["proposal"] = map[string]any{
+			"provider":      record.Proposal.Provider,
+			"branch":        record.Proposal.Branch,
+			"commit":        record.Proposal.Commit,
+			"url":           record.Proposal.URL,
+			"secretApplied": record.Proposal.SecretApplied,
+			"openedAt":      record.Proposal.OpenedAt,
+		}
+	}
+	return view
 }

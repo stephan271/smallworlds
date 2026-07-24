@@ -1856,6 +1856,45 @@
           }
         }
       }
+    },
+    "/api/v1/offsite/propose": {
+      "post": {
+        "operationId": "proposeOffsiteProtection",
+        "description": "Applies the approved offsite Change Plan: writes the credential values to the Cluster Secret through the authorized secret path, then opens a Git proposal carrying only the non-secret destination config. Never returns a credential value.",
+        "parameters": [
+          { "$ref": "#/components/parameters/CSRFToken" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["profileId", "planId"],
+                "properties": {
+                  "profileId": { "type": "string" },
+                  "planId": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Cluster Secret applied and Git proposal opened; the remote commit identity is returned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OffsiteProposal"
+                }
+              }
+            }
+          },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "423": { "$ref": "#/components/responses/Locked" },
+          "503": { "$ref": "#/components/responses/Unavailable" }
+        }
+      }
     }
   },
   "components": {
@@ -1995,7 +2034,37 @@
             "type": "string",
             "enum": ["enabled", "disabled", "unsupported", "unknown"]
           },
-          "requiresAcknowledgement": { "type": "boolean" }
+          "requiresAcknowledgement": { "type": "boolean" },
+          "proposal": {
+            "type": "object",
+            "description": "Present once a Change Plan has been submitted: the provider and remote commit identity of the Git proposal. Secret-free.",
+            "properties": {
+              "provider": { "type": "string" },
+              "branch": { "type": "string" },
+              "commit": { "type": "string" },
+              "url": { "type": "string" },
+              "secretApplied": { "type": "boolean" },
+              "openedAt": { "type": "string", "format": "date-time" }
+            }
+          }
+        }
+      },
+      "OffsiteProposal": {
+        "type": "object",
+        "description": "Result of proposing an approved offsite Change Plan: the Cluster Secret effect and the remote commit identity of the opened Git proposal. Never carries a credential value.",
+        "properties": {
+          "provider": { "type": "string" },
+          "branch": { "type": "string" },
+          "commit": { "type": "string" },
+          "url": { "type": "string" },
+          "secret": {
+            "type": "object",
+            "properties": {
+              "secretName": { "type": "string" },
+              "keys": { "type": "array", "items": { "type": "string" } }
+            }
+          },
+          "mergeInstructionKey": { "type": "string" }
         }
       },
       "OffsitePlan": {
