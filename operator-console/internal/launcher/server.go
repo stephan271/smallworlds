@@ -25,6 +25,7 @@ import (
 	"github.com/stephan271/smallworlds/operator-console/internal/gatewayaccess"
 	"github.com/stephan271/smallworlds/operator-console/internal/githttps"
 	"github.com/stephan271/smallworlds/operator-console/internal/github"
+	"github.com/stephan271/smallworlds/operator-console/internal/handoffassessment"
 	"github.com/stephan271/smallworlds/operator-console/internal/handoffverification"
 	"github.com/stephan271/smallworlds/operator-console/internal/localbootstrap"
 	"github.com/stephan271/smallworlds/operator-console/internal/nodeinspect"
@@ -268,6 +269,8 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.claimFirstOwner(response, request)
 	case request.URL.Path == "/api/v1/first-owner/register":
 		server.registerFirstOwner(response, request)
+	case request.URL.Path == "/api/v1/handoff-assessment":
+		server.handoffAssessment(response, request)
 	case request.URL.Path == "/api/v1/profiles":
 		server.profiles(response, request)
 	case strings.HasPrefix(request.URL.Path, "/api/v1/profiles/"):
@@ -942,6 +945,87 @@ func (server *Server) installClusterCADeviceTrust(response http.ResponseWriter, 
 		"notAfter":             material.Reference.RootNotAfter,
 		"deviceTrustInstalled": true,
 	})
+}
+
+func (server *Server) handoffAssessment(response http.ResponseWriter, request *http.Request) {
+	if _, ok := server.authenticatedSession(request); !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodGet {
+		response.Header().Set("Allow", "GET")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	profileID := request.URL.Query().Get("profileId")
+	if profileID == "" {
+		writeError(response, http.StatusBadRequest, "profile_required")
+		return
+	}
+	ctx := request.Context()
+	var inputs handoffassessment.Inputs
+
+	if record, err := server.store.GetClusterCAReference(ctx, profileID); err == nil {
+		inputs.DeviceTrustInstalled = record.DeviceTrustInstalled
+	} else if !errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusInternalServerError, "handoff_assessment_failed")
+		return
+	}
+
+	if record, err := server.store.GetPrivateNetwork(ctx, profileID); err == nil {
+		if reference, parseErr := privatenetwork.ParseReference(record.Reference); parseErr == nil {
+			inputs.PrivateNetworkReady = true
+			for _, endpoint := range reference.OperatorEndpoints {
+				if endpoint.Name == "console" {
+					inputs.ConsoleHost = endpoint.FQDN
+				}
+			}
+			if _, policyErr := server.gatewayPolicy(request, profileID); policyErr == nil {
+				inputs.GatewayAccessEnforced = true
+			}
+		}
+	} else if !errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusInternalServerError, "handoff_assessment_failed")
+		return
+	}
+
+	if record, err := server.store.GetEnrollment(ctx, profileID); err == nil {
+		if reference, parseErr := enrollment.ParseReference(record.Reference); parseErr == nil {
+			inputs.GatewayIdentityReady = true
+			inputs.LauncherEnrolled = reference.Launcher.Used
+		}
+	} else if !errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusInternalServerError, "handoff_assessment_failed")
+		return
+	}
+
+	if record, err := server.store.GetHandoffState(ctx, profileID); err == nil {
+		var report handoffverification.Report
+		if json.Unmarshal([]byte(record.Report), &report) == nil {
+			inputs.HandoffVerified = report.Verified
+		}
+		inputs.TemporaryAccessClosed = record.Closed
+	} else if !errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusInternalServerError, "handoff_assessment_failed")
+		return
+	}
+
+	if record, err := server.store.GetFirstOwnerState(ctx, profileID); err == nil {
+		if ownerState, parseErr := firstowner.ParseState(record.State); parseErr == nil {
+			inputs.OwnerRegistered = ownerState.OwnerRegistered
+			inputs.BootstrapGrantDisabled = ownerState.BootstrapGrantDisabled
+		}
+	} else if !errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusInternalServerError, "handoff_assessment_failed")
+		return
+	}
+
+	assessment, err := handoffassessment.Evaluate(inputs)
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "handoff_assessment_failed")
+		return
+	}
+	writeJSON(response, http.StatusOK, assessment)
 }
 
 func (server *Server) claimFirstOwner(response http.ResponseWriter, request *http.Request) {

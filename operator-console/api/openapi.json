@@ -1728,6 +1728,33 @@
           }
         }
       }
+    },
+    "/api/v1/handoff-assessment": {
+      "get": {
+        "operationId": "getHandoffAssessment",
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Final Setup Journey assessment: step completion, LAN-only limitations, and (when complete) the in-cluster console handoff URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoffAssessment"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3839,6 +3866,46 @@
                 "type": "boolean"
               }
             }
+          }
+        }
+      },
+      "HandoffAssessment": {
+        "type": "object",
+        "required": [
+          "steps",
+          "complete",
+          "limitations"
+        ],
+        "properties": {
+          "complete": {
+            "type": "boolean"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "complete"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "complete": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "consoleHandoffUrl": {
+            "type": "string"
           }
         }
       }

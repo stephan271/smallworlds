@@ -130,13 +130,41 @@ and ships unit tests.
   mismatch rejection, permanent disable, and that neither re-registration nor a
   new claim is allowed afterward. Full build/vet/test pass.
 
-### Remaining tracers (each still to build)
+- [x] **Final handoff assessment** — closes acceptance criterion 8. New
+  `internal/handoffassessment` composes the completion of every prior tracer
+  (device trust, private network, launcher enrollment consumed, gateway
+  identity, gateway-access policy, handoff verified, temporary access closed,
+  first-owner registered + grant disabled) into the final Setup Journey
+  assessment. It always states the LAN-only limitations and, only once every
+  step is complete, provides the in-cluster console handoff URL
+  (`https://console.<baseDomain>`). Derived on demand (no new persistence).
+  `GET /api/v1/handoff-assessment` composes the assessment from all stored
+  state. OpenAPI contract updated. Unit tests cover completion gating, URL
+  withholding until complete, the first-owner dual condition, and console-host
+  validation; a capstone HTTP test drives the entire journey end to end and
+  asserts the final assessment completes with the console URL. Full
+  build/vet/test pass.
 
-1. Final Setup Journey assessment explaining LAN-only limitations + in-cluster
-   console handoff URL (criterion 8), plus the browser acceptance test, the live
-   handoff-verification Verifier, full WebAuthn attestation verification, and the
-   Setup Journey UI wiring for the Cluster CA, Private Network, enrollment,
-   gateway-access, handoff, and first-owner steps.
+## Backend/API layer complete — remaining cross-cutting work
+
+All eight acceptance criteria are implemented at the Go/OpenAPI-contract level
+with unit + HTTP tests. What remains before the issue's acceptance boxes can be
+signed off against a live cluster (the parts intentionally deferred throughout,
+consistent with issue 09's outstanding qualification):
+
+1. **Live handoff-verification `Verifier`** — real private-reachability, DNS,
+   TLS-to-Cluster-CA, and gateway-identity probing (currently an injected
+   interface with a 503 production default).
+2. **Full WebAuthn attestation-signature verification** — the default passkey
+   verifier checks the challenge binding + required fields; attestation
+   signature/trust-anchor verification is still to add.
+3. **Setup Journey UI wiring** (Svelte) for all steps: Cluster CA + device-trust
+   install, Private Network, Tailscale client offer, enrollment + launcher
+   consume, gateway-access, handoff verify/close, first-owner passkey, and the
+   final assessment.
+4. **Dedicated Linux-node browser acceptance test** exercising the whole handoff
+   through the real browser/backend interface (the equivalent of issue 09's
+   remaining acceptance evidence).
 
 ## What to build
 
@@ -153,7 +181,7 @@ Covers PRD user stories 63, 66–75, and 78–80.
 - [x] Operator Console, Grafana, and Argo CD are reachable through standard HTTPS only via the Private Gateway and cannot be reached through LAN/public ingress or forged Host headers. _(API/contract + tests landed; Setup Journey UI wiring lands with the journey-integration tracer.)_
 - [x] Private reachability, DNS, TLS, and gateway identity are verified before any temporary SSH or Kubernetes administration path is closed. _(API/contract + tests landed; live probing Verifier and Setup Journey UI wiring land with later tracers.)_
 - [x] The launcher displays a short-lived first-owner claim, and successful passkey registration permanently disables the bootstrap grant. _(API/contract + tests landed; full WebAuthn attestation-signature verification and Setup Journey UI wiring land with later tracers.)_
-- [ ] The final Setup Journey assessment explains LAN-only limitations and provides the in-cluster console handoff URL.
+- [x] The final Setup Journey assessment explains LAN-only limitations and provides the in-cluster console handoff URL. _(API/contract + tests landed; Setup Journey UI wiring lands with the journey-integration tracer.)_
 
 ## Blocked by
 
