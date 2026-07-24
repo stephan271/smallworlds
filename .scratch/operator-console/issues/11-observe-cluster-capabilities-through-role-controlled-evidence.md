@@ -25,6 +25,28 @@ unit tests.
   capability even while its workload serves traffic. The engine holds no clock,
   network, or Kubernetes handle. `gofmt`, `go build/vet/test ./...` all pass.
 
+- [x] **OIDC authentication + Console Roles authorization** (`internal/consoleauth`)
+  — the pure, table-tested core of acceptance criteria 1 and 2. Provides the
+  Authorization Code + PKCE (S256) request builder (fresh state/nonce/verifier
+  from an injectable random source, S256 challenge, assembled authorization URL);
+  constant-time callback-state verification; ID-token claims validation (exact
+  issuer, audience containing the console client with authorized-party pinning
+  for multi-audience tokens, nonce binding to the login, expiry/not-before with
+  leeway); mapping of Keycloak realm and console-client roles to the three
+  Console Roles (Observer/Operator/Owner) with **default denial** for a user
+  holding no role; and the server-side authorization gate (Observe/Propose/
+  Administer permissions, where Operator ⊇ Observer and Owner ⊇ Operator).
+  `CompleteLogin` composes state-verify → token-exchange → claims-validate →
+  role-map → default-deny. The one networked step — exchanging the code for a
+  JWKS-signature-verified ID token — is an injectable `TokenExchanger`, mirroring
+  the firstowner/handoffverification Verifier pattern, so login is deterministically
+  testable without a live Keycloak. Unit tests cover default-deny, per-role
+  permissions, highest-role selection, PKCE/S256 correctness, forged-state and
+  replayed-nonce rejection, issuer/audience/azp/expiry checks, and the full
+  login composition. `gofmt`, `go build/vet/test ./...` all pass. (Wiring into an
+  in-cluster serving mode, HTTP middleware, cookie sessions, and the production
+  JWKS TokenExchanger land with the serving-mode tracer.)
+
 ## What to build
 
 Deliver the first useful in-cluster Operator Console. Authenticated Operators see an overview and per-capability explanations derived from configuration, Argo delivery, Kubernetes runtime, access, and protection evidence. Server-side Console Roles govern every route and action, while Grafana and Argo CD remain contextual, private, OIDC-authenticated, read-only investigation tools.
