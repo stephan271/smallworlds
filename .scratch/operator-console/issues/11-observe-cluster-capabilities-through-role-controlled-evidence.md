@@ -70,6 +70,33 @@ unit tests.
   are deferred to a follow-up, mirroring how the live handoff verifier followed
   the pure verification core. `gofmt`, `go build/vet/test ./...` all pass.
 
+- [x] **In-cluster serving mode + role-gated HTTP API** (`internal/console`) —
+  the console's HTTP surface, proving acceptance criteria 1 and 2 end to end over
+  HTTP. Unlike the loopback launcher, it authenticates through Keycloak OIDC and
+  governs every route with a server-side Console Role check. OIDC login
+  (`GET /api/v1/auth/login` starts the PKCE flow, sets a signed short-lived
+  pending cookie, and redirects to Keycloak; `GET /api/v1/auth/callback` completes
+  via `consoleauth.CompleteLogin`, sets a signed session cookie carrying
+  subject/username/role, and **default-denies** a user with no Console Role by
+  redirecting with `auth_error=no_console_role` and issuing no session).
+  Sessions are stateless HMAC-SHA256-signed cookies (restart-safe, no server-side
+  session store); the login's state/nonce/PKCE-verifier ride a second signed
+  cookie so the callback is stateless too. A `require(permission, handler)`
+  middleware gates the routes: observe (`/overview`, `/capabilities`,
+  `/capabilities/{id}`) at Observe; the GitOps proposal workspace (`/proposals`)
+  at Propose; operator-access administration (`/administration/access`) at
+  Administer. `GET /api/v1/session` advertises the role and its permissions so the
+  UI can hide controls it must never rely on for enforcement. The networked token
+  exchange is the injected `consoleauth.TokenExchanger`, so the whole surface is
+  httptest-verified without a live Keycloak: anonymous → 401, no-role → denied,
+  forged session → 401, state mismatch → no session, logout clears the cookie,
+  and the full Observe/Propose/Administer matrix per role (observer/operator/owner
+  → 200/403/403, 200/200/403, 200/200/200). Security headers (CSP,
+  nosniff, frame-deny) on every response. `gofmt`, `go build/vet/test ./...` all
+  pass. (Wiring the console into the binary's in-cluster startup mode needs the
+  production JWKS `TokenExchanger` and live observers, deferred with those
+  adapters; the Svelte overview/capability screens land with the screens tracer.)
+
 ## What to build
 
 Deliver the first useful in-cluster Operator Console. Authenticated Operators see an overview and per-capability explanations derived from configuration, Argo delivery, Kubernetes runtime, access, and protection evidence. Server-side Console Roles govern every route and action, while Grafana and Argo CD remain contextual, private, OIDC-authenticated, read-only investigation tools.

@@ -62,6 +62,16 @@ var (
 	ErrForbidden = errors.New("console role lacks the required permission")
 )
 
+// Permissions returns a copy of the permissions the role holds, weakest first.
+// The console advertises these to the browser so it can hide controls the user
+// cannot use — never as a substitute for the server-side Authorize check.
+func (role ConsoleRole) Permissions() []Permission {
+	held := rolePermissions[role]
+	out := make([]Permission, len(held))
+	copy(out, held)
+	return out
+}
+
 // Can reports whether the role holds the permission.
 func (role ConsoleRole) Can(permission Permission) bool {
 	for _, held := range rolePermissions[role] {
