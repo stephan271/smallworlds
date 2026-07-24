@@ -95,16 +95,32 @@ and ships unit tests.
   rejection, and rejection of weakened policies; HTTP test proves HTTPS-only +
   denied ingress and forged-Host rejection end to end. Full build/vet/test pass.
 
+- [x] **Pre-close handoff verification gate** — closes acceptance criterion 6.
+  New `internal/handoffverification` gates closing the temporary SSH/Kubernetes
+  path behind four externally-observed checks — private reachability, operator
+  DNS, operator TLS chaining to the Cluster CA root, and gateway identity —
+  composing the earlier tracers into a `Target` (CA root fingerprint + Private
+  Network hostnames + enrollment gateway identity). `Evaluate` verifies only
+  when all four pass; closure is permitted only then. Live probing is an
+  injectable `Verifier` (like `localbootstrap.Runner`); the production default
+  honestly returns `ErrVerificationUnavailable` (503) rather than fabricate a
+  pass. New `handoff_states` table (migration 16). Endpoints:
+  `POST /api/v1/handoff/verify`, `POST /api/v1/handoff/close-temporary-access`
+  (re-verifies freshly; 409 if incomplete; records closure only on full pass),
+  and `GET /api/v1/handoff`. OpenAPI contract updated. Unit tests cover the
+  all-pass/any-fail gate and target validation; HTTP test proves the
+  prerequisite gate, that a single failing check blocks closure, target
+  composition, closure only after full verification, and the 503 default.
+  Full build/vet/test pass.
+
 ### Remaining tracers (each still to build)
 
-1. Pre-close verification of private reachability, DNS, TLS, and gateway identity
-   before any temporary SSH/Kubernetes path is removed (criterion 6).
-2. Short-lived first-owner claim; successful passkey registration permanently
+1. Short-lived first-owner claim; successful passkey registration permanently
    disables the bootstrap grant (criterion 7).
-3. Final Setup Journey assessment explaining LAN-only limitations + in-cluster
-   console handoff URL (criterion 8), plus the browser acceptance test and the
-   Setup Journey UI wiring for the Cluster CA, Private Network, enrollment, and
-   gateway-access steps.
+2. Final Setup Journey assessment explaining LAN-only limitations + in-cluster
+   console handoff URL (criterion 8), plus the browser acceptance test, the live
+   handoff-verification Verifier, and the Setup Journey UI wiring for the Cluster
+   CA, Private Network, enrollment, gateway-access, and handoff steps.
 
 ## What to build
 
@@ -119,7 +135,7 @@ Covers PRD user stories 63, 66–75, and 78–80.
 - [x] The launcher detects the official Tailscale client, offers pinned verified acquisition with explicit elevation, and retains a manual fallback when automation is unavailable. _(API/contract + tests landed; Setup Journey UI wiring lands with the journey-integration tracer.)_
 - [x] The Launcher Host enrolls with a short-lived single-use credential while the Private Gateway uses a separate stable identity that survives pod restart or reschedule. _(API/contract + tests landed; Setup Journey UI wiring lands with the journey-integration tracer.)_
 - [x] Operator Console, Grafana, and Argo CD are reachable through standard HTTPS only via the Private Gateway and cannot be reached through LAN/public ingress or forged Host headers. _(API/contract + tests landed; Setup Journey UI wiring lands with the journey-integration tracer.)_
-- [ ] Private reachability, DNS, TLS, and gateway identity are verified before any temporary SSH or Kubernetes administration path is closed.
+- [x] Private reachability, DNS, TLS, and gateway identity are verified before any temporary SSH or Kubernetes administration path is closed. _(API/contract + tests landed; live probing Verifier and Setup Journey UI wiring land with later tracers.)_
 - [ ] The launcher displays a short-lived first-owner claim, and successful passkey registration permanently disables the bootstrap grant.
 - [ ] The final Setup Journey assessment explains LAN-only limitations and provides the in-cluster console handoff URL.
 

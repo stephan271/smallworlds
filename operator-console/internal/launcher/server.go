@@ -24,6 +24,7 @@ import (
 	"github.com/stephan271/smallworlds/operator-console/internal/gatewayaccess"
 	"github.com/stephan271/smallworlds/operator-console/internal/githttps"
 	"github.com/stephan271/smallworlds/operator-console/internal/github"
+	"github.com/stephan271/smallworlds/operator-console/internal/handoffverification"
 	"github.com/stephan271/smallworlds/operator-console/internal/localbootstrap"
 	"github.com/stephan271/smallworlds/operator-console/internal/nodeinspect"
 	"github.com/stephan271/smallworlds/operator-console/internal/privatenetwork"
@@ -46,6 +47,17 @@ type Config struct {
 	BootstrapAssets      *bootstrapassets.Manager
 	LocalBootstrapRunner localbootstrap.Runner
 	NodeInspector        NodeInspector
+	HandoffVerifier      handoffverification.Verifier
+}
+
+// productionHandoffVerifier is the default. Live private-reachability, DNS, TLS,
+// and gateway-identity probing against a running cluster is provided by an
+// injected Verifier; until one is wired the launcher honestly reports that
+// verification cannot be completed rather than fabricating a passing result.
+type productionHandoffVerifier struct{}
+
+func (productionHandoffVerifier) Observe(context.Context, handoffverification.Target) (handoffverification.Observations, error) {
+	return handoffverification.Observations{}, handoffverification.ErrVerificationUnavailable
 }
 
 // GenericGitClient permits deterministic Launcher contract tests while the
@@ -94,6 +106,7 @@ type Server struct {
 	genericGit GenericGitClient
 	assets     *bootstrapassets.Manager
 	nodes      NodeInspector
+	handoff    handoffverification.Verifier
 }
 
 func New(config Config) (*Server, error) {
@@ -135,6 +148,10 @@ func New(config Config) (*Server, error) {
 	if nodeInspector == nil {
 		nodeInspector = productionNodeInspector{}
 	}
+	handoffVerifier := config.HandoffVerifier
+	if handoffVerifier == nil {
+		handoffVerifier = productionHandoffVerifier{}
+	}
 	workflowEngine.RegisterExecutor("BootstrapLocalNode", bootstrapService.Execute)
 	server := &Server{
 		launchToken: config.LaunchToken,
@@ -146,6 +163,7 @@ func New(config Config) (*Server, error) {
 		genericGit:  genericGitClient,
 		assets:      assetManager,
 		nodes:       nodeInspector,
+		handoff:     handoffVerifier,
 	}
 	if err := workflowEngine.ResumeActive(context.Background()); err != nil {
 		store.Close()
@@ -230,6 +248,12 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.gatewayAccessStatus(response, request)
 	case request.URL.Path == "/api/v1/gateway-access/check":
 		server.checkGatewayAccessHost(response, request)
+	case request.URL.Path == "/api/v1/handoff":
+		server.handoffStatus(response, request)
+	case request.URL.Path == "/api/v1/handoff/verify":
+		server.verifyHandoff(response, request)
+	case request.URL.Path == "/api/v1/handoff/close-temporary-access":
+		server.closeTemporaryAccess(response, request)
 	case request.URL.Path == "/api/v1/profiles":
 		server.profiles(response, request)
 	case strings.HasPrefix(request.URL.Path, "/api/v1/profiles/"):
@@ -904,6 +928,211 @@ func (server *Server) installClusterCADeviceTrust(response http.ResponseWriter, 
 		"notAfter":             material.Reference.RootNotAfter,
 		"deviceTrustInstalled": true,
 	})
+}
+
+// handoffTarget assembles the verification target from the Cluster CA, Private
+// Network, and enrollment already established for a profile. A non-empty
+// prerequisite code names the first missing dependency.
+func (server *Server) handoffTarget(request *http.Request, profileID string) (handoffverification.Target, string, error) {
+	ctx := request.Context()
+	caRecord, err := server.store.GetClusterCAReference(ctx, profileID)
+	if errors.Is(err, state.ErrNotFound) {
+		return handoffverification.Target{}, "cluster_ca_required", nil
+	}
+	if err != nil {
+		return handoffverification.Target{}, "", err
+	}
+	var material clusterCAMaterial
+	if json.Unmarshal([]byte(caRecord.Material), &material) != nil {
+		return handoffverification.Target{}, "", fmt.Errorf("decode cluster CA material")
+	}
+	netRecord, err := server.store.GetPrivateNetwork(ctx, profileID)
+	if errors.Is(err, state.ErrNotFound) {
+		return handoffverification.Target{}, "private_network_required", nil
+	}
+	if err != nil {
+		return handoffverification.Target{}, "", err
+	}
+	networkReference, err := privatenetwork.ParseReference(netRecord.Reference)
+	if err != nil {
+		return handoffverification.Target{}, "", err
+	}
+	enrollmentRecord, err := server.store.GetEnrollment(ctx, profileID)
+	if errors.Is(err, state.ErrNotFound) {
+		return handoffverification.Target{}, "enrollment_required", nil
+	}
+	if err != nil {
+		return handoffverification.Target{}, "", err
+	}
+	enrollmentReference, err := enrollment.ParseReference(enrollmentRecord.Reference)
+	if err != nil {
+		return handoffverification.Target{}, "", err
+	}
+	hosts := make([]string, 0, len(networkReference.OperatorEndpoints))
+	for _, endpoint := range networkReference.OperatorEndpoints {
+		hosts = append(hosts, endpoint.FQDN)
+	}
+	target := handoffverification.Target{
+		BaseDomain:              networkReference.BaseDomain,
+		GatewayHostname:         networkReference.GatewayHostname,
+		OperatorHosts:           hosts,
+		RootFingerprint:         material.Reference.RootFingerprint,
+		GatewayIdentityHostname: enrollmentReference.Gateway.Hostname,
+	}
+	if err := target.Validate(); err != nil {
+		return handoffverification.Target{}, "", err
+	}
+	return target, "", nil
+}
+
+// runHandoffVerification builds the target, observes it, and returns the report.
+// It writes the appropriate error response and returns ok=false on failure.
+func (server *Server) runHandoffVerification(response http.ResponseWriter, request *http.Request, profileID string) (handoffverification.Report, bool) {
+	target, missing, err := server.handoffTarget(request, profileID)
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "handoff_verification_failed")
+		return handoffverification.Report{}, false
+	}
+	if missing != "" {
+		writeError(response, http.StatusConflict, missing)
+		return handoffverification.Report{}, false
+	}
+	observations, err := server.handoff.Observe(request.Context(), target)
+	if errors.Is(err, handoffverification.ErrVerificationUnavailable) {
+		writeError(response, http.StatusServiceUnavailable, "handoff_verification_unavailable")
+		return handoffverification.Report{}, false
+	}
+	if err != nil {
+		writeError(response, http.StatusBadGateway, "handoff_verification_failed")
+		return handoffverification.Report{}, false
+	}
+	report := handoffverification.Evaluate(observations)
+	encoded, err := report.Marshal()
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "handoff_verification_failed")
+		return handoffverification.Report{}, false
+	}
+	closed := false
+	if existing, existingErr := server.store.GetHandoffState(request.Context(), profileID); existingErr == nil {
+		closed = existing.Closed
+	} else if !errors.Is(existingErr, state.ErrNotFound) {
+		writeError(response, http.StatusInternalServerError, "handoff_verification_failed")
+		return handoffverification.Report{}, false
+	}
+	if err := server.store.RecordHandoffState(request.Context(), state.HandoffState{ProfileID: profileID, Closed: closed, Report: encoded, RecordedAt: time.Now().UTC()}); err != nil {
+		writeError(response, http.StatusInternalServerError, "handoff_verification_failed")
+		return handoffverification.Report{}, false
+	}
+	return report, true
+}
+
+func (server *Server) verifyHandoff(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		ProfileID string `json:"profileId"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 8*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" {
+		writeError(response, http.StatusBadRequest, "invalid_handoff_request")
+		return
+	}
+	report, ok := server.runHandoffVerification(response, request, input.ProfileID)
+	if !ok {
+		return
+	}
+	writeJSON(response, http.StatusOK, report)
+}
+
+func (server *Server) closeTemporaryAccess(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		ProfileID string `json:"profileId"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 8*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" {
+		writeError(response, http.StatusBadRequest, "invalid_handoff_request")
+		return
+	}
+	// The temporary administration path is closed only after a fresh, complete
+	// verification — never on a stale prior result.
+	report, ok := server.runHandoffVerification(response, request, input.ProfileID)
+	if !ok {
+		return
+	}
+	if !report.PermitsClosure() {
+		writeJSON(response, http.StatusConflict, map[string]any{"code": "handoff_verification_incomplete", "report": report})
+		return
+	}
+	encoded, err := report.Marshal()
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "handoff_verification_failed")
+		return
+	}
+	if err := server.store.RecordHandoffState(request.Context(), state.HandoffState{ProfileID: input.ProfileID, Closed: true, Report: encoded, RecordedAt: time.Now().UTC()}); err != nil {
+		writeError(response, http.StatusInternalServerError, "handoff_verification_failed")
+		return
+	}
+	writeJSON(response, http.StatusOK, map[string]any{"closed": true, "report": report})
+}
+
+func (server *Server) handoffStatus(response http.ResponseWriter, request *http.Request) {
+	if _, ok := server.authenticatedSession(request); !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodGet {
+		response.Header().Set("Allow", "GET")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	profileID := request.URL.Query().Get("profileId")
+	if profileID == "" {
+		writeError(response, http.StatusBadRequest, "profile_required")
+		return
+	}
+	record, err := server.store.GetHandoffState(request.Context(), profileID)
+	if errors.Is(err, state.ErrNotFound) {
+		writeJSON(response, http.StatusOK, map[string]any{"closed": false, "verified": false})
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "handoff_verification_failed")
+		return
+	}
+	var report handoffverification.Report
+	if json.Unmarshal([]byte(record.Report), &report) != nil {
+		writeError(response, http.StatusInternalServerError, "handoff_verification_failed")
+		return
+	}
+	writeJSON(response, http.StatusOK, map[string]any{"closed": record.Closed, "verified": report.Verified, "report": report})
 }
 
 func (server *Server) gatewayPolicy(request *http.Request, profileID string) (gatewayaccess.Policy, error) {

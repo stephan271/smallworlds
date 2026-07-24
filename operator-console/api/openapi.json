@@ -1522,6 +1522,109 @@
           }
         }
       }
+    },
+    "/api/v1/handoff": {
+      "get": {
+        "operationId": "getHandoffStatus",
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Whether the temporary administration path is closed and its last verification",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoffStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/handoff/verify": {
+      "post": {
+        "operationId": "verifyHandoff",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandoffInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Per-check verification report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoffReport"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/handoff/close-temporary-access": {
+      "post": {
+        "operationId": "closeTemporaryAccess",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandoffInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Temporary SSH/Kubernetes administration path closed after full verification",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoffClosure"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3442,6 +3545,81 @@
           },
           "allowed": {
             "type": "boolean"
+          }
+        }
+      },
+      "HandoffInput": {
+        "type": "object",
+        "required": [
+          "profileId"
+        ],
+        "properties": {
+          "profileId": {
+            "type": "string"
+          }
+        }
+      },
+      "HandoffReport": {
+        "type": "object",
+        "required": [
+          "checks",
+          "verified"
+        ],
+        "properties": {
+          "verified": {
+            "type": "boolean"
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "passed"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "passed": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      },
+      "HandoffStatus": {
+        "type": "object",
+        "required": [
+          "closed",
+          "verified"
+        ],
+        "properties": {
+          "closed": {
+            "type": "boolean"
+          },
+          "verified": {
+            "type": "boolean"
+          },
+          "report": {
+            "$ref": "#/components/schemas/HandoffReport"
+          }
+        }
+      },
+      "HandoffClosure": {
+        "type": "object",
+        "required": [
+          "closed",
+          "report"
+        ],
+        "properties": {
+          "closed": {
+            "type": "boolean",
+            "const": true
+          },
+          "report": {
+            "$ref": "#/components/schemas/HandoffReport"
           }
         }
       }

@@ -107,6 +107,16 @@ type BootstrapPlanRecord struct {
 	CreatedAt time.Time
 }
 
+// HandoffState persists whether a profile's temporary administration path has
+// been closed and the last verification report that gated it. Report is an
+// opaque JSON blob owned by the launcher.
+type HandoffState struct {
+	ProfileID  string
+	Closed     bool
+	Report     string
+	RecordedAt time.Time
+}
+
 // EnrollmentReference persists the secret-free tailnet enrollment state for a
 // profile (short-lived single-use Launcher credential + stable Private Gateway
 // identity). The credential secrets live only in the Launcher Vault. Reference
@@ -436,6 +446,37 @@ func (store *Store) GetBootstrapPlan(ctx context.Context, planID string) (Bootst
 		return BootstrapPlanRecord{}, fmt.Errorf("parse bootstrap plan creation: %w", err)
 	}
 	return record, nil
+}
+
+func (store *Store) RecordHandoffState(ctx context.Context, handoff HandoffState) error {
+	closed := 0
+	if handoff.Closed {
+		closed = 1
+	}
+	_, err := store.database.ExecContext(ctx, `INSERT INTO handoff_states (profile_id, closed, report_json, recorded_at) VALUES (?, ?, ?, ?) ON CONFLICT(profile_id) DO UPDATE SET closed=excluded.closed, report_json=excluded.report_json, recorded_at=excluded.recorded_at`, handoff.ProfileID, closed, handoff.Report, handoff.RecordedAt.UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return fmt.Errorf("record handoff state: %w", err)
+	}
+	return nil
+}
+
+func (store *Store) GetHandoffState(ctx context.Context, profileID string) (HandoffState, error) {
+	var handoff HandoffState
+	var closed int
+	var recordedAt string
+	err := store.database.QueryRowContext(ctx, `SELECT profile_id, closed, report_json, recorded_at FROM handoff_states WHERE profile_id = ?`, profileID).Scan(&handoff.ProfileID, &closed, &handoff.Report, &recordedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return HandoffState{}, ErrNotFound
+	}
+	if err != nil {
+		return HandoffState{}, fmt.Errorf("get handoff state: %w", err)
+	}
+	handoff.Closed = closed == 1
+	handoff.RecordedAt, err = time.Parse(time.RFC3339Nano, recordedAt)
+	if err != nil {
+		return HandoffState{}, fmt.Errorf("parse handoff state: %w", err)
+	}
+	return handoff, nil
 }
 
 func (store *Store) RecordEnrollment(ctx context.Context, reference EnrollmentReference) error {
@@ -1254,6 +1295,12 @@ func (store *Store) migrate(ctx context.Context) error {
 		{15, `CREATE TABLE enrollments (
 			profile_id TEXT PRIMARY KEY REFERENCES profiles(id),
 			reference_json TEXT NOT NULL,
+			recorded_at TEXT NOT NULL
+		)`},
+		{16, `CREATE TABLE handoff_states (
+			profile_id TEXT PRIMARY KEY REFERENCES profiles(id),
+			closed INTEGER NOT NULL DEFAULT 0,
+			report_json TEXT NOT NULL,
 			recorded_at TEXT NOT NULL
 		)`},
 	}
