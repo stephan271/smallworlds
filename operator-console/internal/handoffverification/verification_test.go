@@ -53,7 +53,8 @@ func TestEvaluateBlocksClosureWhenAnyCheckFails(t *testing.T) {
 func TestTargetValidateRequiresAllExpectations(t *testing.T) {
 	complete := handoffverification.Target{
 		BaseDomain: "smallworlds.internal", GatewayHostname: "gateway.smallworlds.internal",
-		OperatorHosts: []string{"console.smallworlds.internal"}, RootFingerprint: "SHA256:AA", GatewayIdentityHostname: "gateway.smallworlds.internal",
+		OperatorHosts: []string{"console.smallworlds.internal"}, RootFingerprint: "SHA256:AA",
+		RootCertificatePEM: "-----BEGIN CERTIFICATE-----", GatewayIdentityHostname: "gateway.smallworlds.internal",
 	}
 	if err := complete.Validate(); err != nil {
 		t.Fatalf("complete target rejected: %v", err)

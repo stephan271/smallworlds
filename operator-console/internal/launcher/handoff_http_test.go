@@ -98,7 +98,10 @@ func TestHandoffClosesTemporaryAccessOnlyAfterFullVerification(t *testing.T) {
 	}
 }
 
-func TestHandoffVerificationUnavailableByDefault(t *testing.T) {
+func TestHandoffVerificationWithLiveDefaultReportsUnverifiedForUnreachableCluster(t *testing.T) {
+	// No injected verifier: the production LiveVerifier probes the (non-existent)
+	// private cluster and must honestly report the handoff as unverified, which
+	// blocks closing the temporary administration path.
 	handler, err := launcher.New(launcher.Config{DataDir: t.TempDir(), LaunchToken: "handoff"})
 	if err != nil {
 		t.Fatal(err)
@@ -106,12 +109,23 @@ func TestHandoffVerificationUnavailableByDefault(t *testing.T) {
 	t.Cleanup(func() { _ = handler.Close() })
 	cookie, csrf := exchange(t, handler, "handoff")
 	profile := createProfile(t, handler, cookie, csrf, "Home", "en", "local-lan")
+	headers := map[string]string{"X-CSRF-Token": csrf}
 	unlockVaultForRecoveryTest(t, handler, cookie, csrf)
 	establishHandoffPrerequisites(t, handler, cookie, csrf, profile.ID)
 	body, _ := json.Marshal(map[string]string{"profileId": profile.ID})
-	response := request(t, handler, http.MethodPost, "/api/v1/handoff/verify", body, cookie, map[string]string{"X-CSRF-Token": csrf})
+
+	response := request(t, handler, http.MethodPost, "/api/v1/handoff/verify", body, cookie, headers)
+	verifyBody := readAll(t, response)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("live verify status = %d: %s", response.StatusCode, verifyBody)
+	}
+	if !bytes.Contains(verifyBody, []byte(`"verified":false`)) {
+		t.Fatalf("unreachable cluster should not verify: %s", verifyBody)
+	}
+
+	response = request(t, handler, http.MethodPost, "/api/v1/handoff/close-temporary-access", body, cookie, headers)
 	defer response.Body.Close()
-	if response.StatusCode != http.StatusServiceUnavailable {
-		t.Fatalf("default verifier status = %d, want 503", response.StatusCode)
+	if response.StatusCode != http.StatusConflict {
+		t.Fatalf("closure with an unverified live check status = %d, want 409", response.StatusCode)
 	}
 }

@@ -53,16 +53,6 @@ type Config struct {
 	PasskeyVerifier      firstowner.PasskeyVerifier
 }
 
-// productionHandoffVerifier is the default. Live private-reachability, DNS, TLS,
-// and gateway-identity probing against a running cluster is provided by an
-// injected Verifier; until one is wired the launcher honestly reports that
-// verification cannot be completed rather than fabricating a passing result.
-type productionHandoffVerifier struct{}
-
-func (productionHandoffVerifier) Observe(context.Context, handoffverification.Target) (handoffverification.Observations, error) {
-	return handoffverification.Observations{}, handoffverification.ErrVerificationUnavailable
-}
-
 // GenericGitClient permits deterministic Launcher contract tests while the
 // production client remains an embedded Go implementation with no git binary.
 type GenericGitClient interface {
@@ -154,7 +144,7 @@ func New(config Config) (*Server, error) {
 	}
 	handoffVerifier := config.HandoffVerifier
 	if handoffVerifier == nil {
-		handoffVerifier = productionHandoffVerifier{}
+		handoffVerifier = handoffverification.NewLiveVerifier()
 	}
 	passkeyVerifier := config.PasskeyVerifier
 	if passkeyVerifier == nil {
@@ -1248,6 +1238,7 @@ func (server *Server) handoffTarget(request *http.Request, profileID string) (ha
 		GatewayHostname:         networkReference.GatewayHostname,
 		OperatorHosts:           hosts,
 		RootFingerprint:         material.Reference.RootFingerprint,
+		RootCertificatePEM:      material.RootCertificatePEM,
 		GatewayIdentityHostname: enrollmentReference.Gateway.Hostname,
 	}
 	if err := target.Validate(); err != nil {

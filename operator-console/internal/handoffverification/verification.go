@@ -34,18 +34,20 @@ const (
 )
 
 // Target is the secret-free set of expectations verified before closing the
-// temporary administration path.
+// temporary administration path. RootCertificatePEM is the public Cluster CA
+// root used to verify that operator TLS leaves chain to it.
 type Target struct {
 	BaseDomain              string
 	GatewayHostname         string
 	OperatorHosts           []string
 	RootFingerprint         string
+	RootCertificatePEM      string
 	GatewayIdentityHostname string
 }
 
 // Validate ensures a target carries everything the four checks require.
 func (target Target) Validate() error {
-	if target.BaseDomain == "" || target.GatewayHostname == "" || len(target.OperatorHosts) == 0 || target.RootFingerprint == "" || target.GatewayIdentityHostname == "" {
+	if target.BaseDomain == "" || target.GatewayHostname == "" || len(target.OperatorHosts) == 0 || target.RootFingerprint == "" || target.RootCertificatePEM == "" || target.GatewayIdentityHostname == "" {
 		return ErrInvalidTarget
 	}
 	return nil

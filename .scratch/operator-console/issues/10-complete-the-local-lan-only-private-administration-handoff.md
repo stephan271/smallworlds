@@ -152,9 +152,21 @@ with unit + HTTP tests. What remains before the issue's acceptance boxes can be
 signed off against a live cluster (the parts intentionally deferred throughout,
 consistent with issue 09's outstanding qualification):
 
-1. **Live handoff-verification `Verifier`** — real private-reachability, DNS,
-   TLS-to-Cluster-CA, and gateway-identity probing (currently an injected
-   interface with a 503 production default).
+1. ~~**Live handoff-verification `Verifier`**~~ — **DONE.**
+   `handoffverification.LiveVerifier` performs real DNS resolution (operator
+   hostnames resolve), TCP reachability (Private Gateway on 443), TLS chain
+   verification (an operator leaf chains to the pinned Cluster CA root — the
+   `Target` now carries the root certificate PEM), and gateway identity
+   (operator hostnames resolve to the gateway's address). Network primitives are
+   injectable for deterministic tests; `NewLiveVerifier()` wires the stdlib
+   implementations and is now the launcher default (replacing the 503 stub). It
+   returns honest `false` observations for an unreachable/misconfigured cluster
+   (blocking closure) rather than an error. Unit tests (using a real `clusterca`
+   chain) cover all-healthy plus per-check failures (DNS, gateway identity,
+   reachability, untrusted TLS); the launcher HTTP test now exercises the live
+   default against an unreachable cluster and asserts it reports unverified and
+   blocks closure. Full build/vet/test pass. A green end-to-end run still
+   requires a real running LAN-only cluster (item 4).
 2. **Full WebAuthn attestation-signature verification** — the default passkey
    verifier checks the challenge binding + required fields; attestation
    signature/trust-anchor verification is still to add.
