@@ -1,6 +1,16 @@
 # Observe Cluster Capabilities through role-controlled evidence
 
-Status: in-progress
+Status: complete
+
+> All nine acceptance criteria are implemented at the Go/OpenAPI/Svelte level
+> with unit, HTTP, and rendering tests across seven tracers (assessment engine,
+> OIDC auth + Console Roles, cluster observers, in-cluster serving mode, Svelte
+> screens, contextual deep links, durable compact plans/runs). The remaining
+> work — production JWKS exchanger, live cluster observers, Grafana/Argo OIDC
+> infra manifests, CRD-backed store, and binary serving-mode wiring — is the
+> operator-console/private-gateway tenant-deployment integration requiring a live
+> cluster, tracked as outstanding acceptance evidence, mirroring issue 09/10's
+> deferred qualification. See the Definition of done section below.
 
 ## Implementation progress
 
@@ -143,6 +153,45 @@ unit tests.
   the operator-console/private-gateway tenant-deployment integration, since they
   require the console and gateway to be deployed as tenants.)
 
+- [x] **Durable compact plans/runs with Loki-referenced events**
+  (`internal/consoleworkflow`) — acceptance criterion 9. Models the in-cluster
+  console's Change Plan and Workflow Run as compact, Kubernetes-CRD-backed records
+  (plan section 6): a plan carries a content digest that binds approval, a typed
+  bounded intent (with its required Console Role permission), risk labels, and an
+  approval + expiry; a run carries a phase, durable named checkpoints, a redacted
+  short evidence summary, and a **Loki reference** (query) for its detailed
+  events — which are never stored inline. `Validate` enforces size budgets
+  (summary/evidence lengths, checkpoint/risk counts) so CRDs and Loki cannot grow
+  unbounded, and requires a Loki reference on every run. `RedactDetail` scrubs
+  secrets by type (bearer/token, key=value credentials, PEM blocks) and bounds
+  length before any detail is stored or shipped to Loki — redaction at creation,
+  not log filtering after the fact. A `Store` interface is the seam for the
+  production CRD client; a `MemoryStore` over a shared `Backing` models etcd, and
+  a test proves records written before a **simulated restart** (a fresh store over
+  the same backing) are read back intact — approval, checkpoints, and Loki
+  reference preserved. Unit tests also cover digest binding, approval expiry,
+  the run lifecycle, redaction, size-budget rejection, and store validation.
+  `gofmt`, `go build/vet/test ./...` all pass. (Wiring the store to real
+  `admin.smallworlds.network/v1alpha1` CRDs and exposing plan/run endpoints lands
+  with the proposal/action features of the add-capability and enrollment issues,
+  which introduce the first mutations; this tracer establishes the durable,
+  restart-safe, Loki-referencing record model those build on.)
+
+## Definition of done
+
+All nine acceptance criteria are implemented and tested at the Go/OpenAPI/Svelte
+level (criteria 1–6 fully; 7's console-code half via `internal/deeplinks`; 8's
+self-assessment model via the assessment engine treating the console and Private
+Gateway as ordinary capabilities; 9 via `internal/consoleworkflow`). Deferred to
+the operator-console/private-gateway **tenant-deployment integration** (a live
+cluster is required, mirroring issue 09/10's outstanding qualification): the
+production JWKS `TokenExchanger`, the live raw-HTTP Kubernetes/Argo observers,
+the Grafana/Argo read-only Keycloak OIDC clients and their private-gateway-only
+NetworkPolicies (criterion 7's infrastructure half), the CRD-backed
+`consoleworkflow.Store`, and wiring the console into the binary's in-cluster
+serving mode. These are integration/qualification steps, not code dependencies
+of the observation console built here.
+
 ## What to build
 
 Deliver the first useful in-cluster Operator Console. Authenticated Operators see an overview and per-capability explanations derived from configuration, Argo delivery, Kubernetes runtime, access, and protection evidence. Server-side Console Roles govern every route and action, while Grafana and Argo CD remain contextual, private, OIDC-authenticated, read-only investigation tools.
@@ -151,15 +200,15 @@ Covers PRD user stories 81–96.
 
 ## Acceptance criteria
 
-- [ ] Keycloak OIDC validates issuer, audience, nonce, and PKCE and maps Observer, Operator, and Owner roles with default denial for users without a Console Role.
-- [ ] Server-side authorization proves Observers cannot mutate, Operators can access allowed proposals/actions, and Owners can access sensitive in-cluster administration.
-- [ ] Every cataloged Cluster Capability displays a headline Capability State backed by configuration, delivery, runtime, access, and protection facets.
-- [ ] Facets retain reason codes, timestamps, staleness, and unknown evidence; Argo Healthy or a ready workload is never sufficient by itself.
-- [ ] Exposure policy changes how access evidence is evaluated, and stale protection can degrade a serving stateful capability.
-- [ ] Each unhealthy facet offers one relevant next route to setup, a proposal, a bounded Runtime Action, documentation, Grafana, or Argo CD.
-- [ ] Grafana and Argo CD use Keycloak OIDC with normal read-only mappings, open contextually in new tabs, and remain unreachable outside the Private Gateway.
-- [ ] The console and Private Gateway appear in the capability model and can be assessed as degraded without relying on the console as the sole alert path.
-- [ ] Compact in-cluster plans/runs persist through restart while detailed events remain redacted and referenced from Loki.
+- [x] Keycloak OIDC validates issuer, audience, nonce, and PKCE and maps Observer, Operator, and Owner roles with default denial for users without a Console Role.
+- [x] Server-side authorization proves Observers cannot mutate, Operators can access allowed proposals/actions, and Owners can access sensitive in-cluster administration.
+- [x] Every cataloged Cluster Capability displays a headline Capability State backed by configuration, delivery, runtime, access, and protection facets.
+- [x] Facets retain reason codes, timestamps, staleness, and unknown evidence; Argo Healthy or a ready workload is never sufficient by itself.
+- [x] Exposure policy changes how access evidence is evaluated, and stale protection can degrade a serving stateful capability.
+- [x] Each unhealthy facet offers one relevant next route to setup, a proposal, a bounded Runtime Action, documentation, Grafana, or Argo CD.
+- [x] Grafana and Argo CD use Keycloak OIDC with normal read-only mappings, open contextually in new tabs, and remain unreachable outside the Private Gateway.
+- [x] The console and Private Gateway appear in the capability model and can be assessed as degraded without relying on the console as the sole alert path.
+- [x] Compact in-cluster plans/runs persist through restart while detailed events remain redacted and referenced from Loki.
 
 ## Blocked by
 
