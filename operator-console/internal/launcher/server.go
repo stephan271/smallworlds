@@ -21,6 +21,7 @@ import (
 	"github.com/stephan271/smallworlds/operator-console/internal/capability"
 	"github.com/stephan271/smallworlds/operator-console/internal/clusterca"
 	"github.com/stephan271/smallworlds/operator-console/internal/enrollment"
+	"github.com/stephan271/smallworlds/operator-console/internal/firstowner"
 	"github.com/stephan271/smallworlds/operator-console/internal/gatewayaccess"
 	"github.com/stephan271/smallworlds/operator-console/internal/githttps"
 	"github.com/stephan271/smallworlds/operator-console/internal/github"
@@ -48,6 +49,7 @@ type Config struct {
 	LocalBootstrapRunner localbootstrap.Runner
 	NodeInspector        NodeInspector
 	HandoffVerifier      handoffverification.Verifier
+	PasskeyVerifier      firstowner.PasskeyVerifier
 }
 
 // productionHandoffVerifier is the default. Live private-reachability, DNS, TLS,
@@ -107,6 +109,7 @@ type Server struct {
 	assets     *bootstrapassets.Manager
 	nodes      NodeInspector
 	handoff    handoffverification.Verifier
+	passkey    firstowner.PasskeyVerifier
 }
 
 func New(config Config) (*Server, error) {
@@ -152,6 +155,10 @@ func New(config Config) (*Server, error) {
 	if handoffVerifier == nil {
 		handoffVerifier = productionHandoffVerifier{}
 	}
+	passkeyVerifier := config.PasskeyVerifier
+	if passkeyVerifier == nil {
+		passkeyVerifier = firstowner.StructuralPasskeyVerifier{}
+	}
 	workflowEngine.RegisterExecutor("BootstrapLocalNode", bootstrapService.Execute)
 	server := &Server{
 		launchToken: config.LaunchToken,
@@ -164,6 +171,7 @@ func New(config Config) (*Server, error) {
 		assets:      assetManager,
 		nodes:       nodeInspector,
 		handoff:     handoffVerifier,
+		passkey:     passkeyVerifier,
 	}
 	if err := workflowEngine.ResumeActive(context.Background()); err != nil {
 		store.Close()
@@ -254,6 +262,12 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.verifyHandoff(response, request)
 	case request.URL.Path == "/api/v1/handoff/close-temporary-access":
 		server.closeTemporaryAccess(response, request)
+	case request.URL.Path == "/api/v1/first-owner":
+		server.firstOwnerStatus(response, request)
+	case request.URL.Path == "/api/v1/first-owner/claim":
+		server.claimFirstOwner(response, request)
+	case request.URL.Path == "/api/v1/first-owner/register":
+		server.registerFirstOwner(response, request)
 	case request.URL.Path == "/api/v1/profiles":
 		server.profiles(response, request)
 	case strings.HasPrefix(request.URL.Path, "/api/v1/profiles/"):
@@ -928,6 +942,179 @@ func (server *Server) installClusterCADeviceTrust(response http.ResponseWriter, 
 		"notAfter":             material.Reference.RootNotAfter,
 		"deviceTrustInstalled": true,
 	})
+}
+
+func (server *Server) claimFirstOwner(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		ProfileID string `json:"profileId"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 8*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" {
+		writeError(response, http.StatusBadRequest, "invalid_first_owner_request")
+		return
+	}
+	if _, err := server.store.GetProfile(request.Context(), input.ProfileID); errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "profile_not_found")
+		return
+	} else if err != nil {
+		writeError(response, http.StatusInternalServerError, "first_owner_failed")
+		return
+	}
+	// A permanently disabled bootstrap grant can never issue a new claim.
+	if existing, existingErr := server.store.GetFirstOwnerState(request.Context(), input.ProfileID); existingErr == nil {
+		if current, parseErr := firstowner.ParseState(existing.State); parseErr == nil && current.BootstrapGrantDisabled {
+			writeError(response, http.StatusConflict, "bootstrap_grant_disabled")
+			return
+		}
+	} else if !errors.Is(existingErr, state.ErrNotFound) {
+		writeError(response, http.StatusInternalServerError, "first_owner_failed")
+		return
+	}
+	ownerState, err := firstowner.Plan(time.Now().UTC())
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "first_owner_failed")
+		return
+	}
+	encoded, err := ownerState.Marshal()
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "first_owner_failed")
+		return
+	}
+	if err := server.store.RecordFirstOwnerState(request.Context(), state.FirstOwnerState{ProfileID: input.ProfileID, State: encoded, RecordedAt: time.Now().UTC()}); err != nil {
+		writeError(response, http.StatusInternalServerError, "first_owner_failed")
+		return
+	}
+	writeJSON(response, http.StatusCreated, ownerState)
+}
+
+func (server *Server) registerFirstOwner(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		ProfileID    string `json:"profileId"`
+		CredentialID string `json:"credentialId"`
+		PublicKey    string `json:"publicKey"`
+		Challenge    string `json:"challenge"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 64*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" {
+		writeError(response, http.StatusBadRequest, "invalid_first_owner_request")
+		return
+	}
+	record, err := server.store.GetFirstOwnerState(request.Context(), input.ProfileID)
+	if errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusConflict, "first_owner_claim_required")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "first_owner_failed")
+		return
+	}
+	ownerState, err := firstowner.ParseState(record.State)
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "first_owner_failed")
+		return
+	}
+	if ownerState.BootstrapGrantDisabled {
+		writeError(response, http.StatusConflict, "bootstrap_grant_disabled")
+		return
+	}
+	credentialID, err := server.passkey.Verify(request.Context(), ownerState.Claim.Challenge, firstowner.Registration{CredentialID: input.CredentialID, PublicKey: input.PublicKey, Challenge: input.Challenge})
+	if errors.Is(err, firstowner.ErrChallengeMismatch) {
+		writeError(response, http.StatusConflict, "passkey_challenge_mismatch")
+		return
+	}
+	if errors.Is(err, firstowner.ErrInvalidRegistration) {
+		writeError(response, http.StatusBadRequest, "invalid_passkey_registration")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusBadGateway, "passkey_verification_failed")
+		return
+	}
+	registered, err := ownerState.RegisterOwner(time.Now().UTC(), credentialID)
+	if errors.Is(err, firstowner.ErrClaimExpired) {
+		writeError(response, http.StatusConflict, "first_owner_claim_expired")
+		return
+	}
+	if errors.Is(err, firstowner.ErrGrantAlreadyDisabled) {
+		writeError(response, http.StatusConflict, "bootstrap_grant_disabled")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "first_owner_failed")
+		return
+	}
+	encoded, err := registered.Marshal()
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "first_owner_failed")
+		return
+	}
+	if err := server.store.RecordFirstOwnerState(request.Context(), state.FirstOwnerState{ProfileID: input.ProfileID, State: encoded, RecordedAt: time.Now().UTC()}); err != nil {
+		writeError(response, http.StatusInternalServerError, "first_owner_failed")
+		return
+	}
+	writeJSON(response, http.StatusOK, registered)
+}
+
+func (server *Server) firstOwnerStatus(response http.ResponseWriter, request *http.Request) {
+	if _, ok := server.authenticatedSession(request); !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodGet {
+		response.Header().Set("Allow", "GET")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	profileID := request.URL.Query().Get("profileId")
+	if profileID == "" {
+		writeError(response, http.StatusBadRequest, "profile_required")
+		return
+	}
+	record, err := server.store.GetFirstOwnerState(request.Context(), profileID)
+	if errors.Is(err, state.ErrNotFound) {
+		writeJSON(response, http.StatusOK, map[string]any{"ownerRegistered": false, "bootstrapGrantDisabled": false})
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "first_owner_failed")
+		return
+	}
+	ownerState, err := firstowner.ParseState(record.State)
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "first_owner_failed")
+		return
+	}
+	writeJSON(response, http.StatusOK, map[string]any{"ownerRegistered": ownerState.OwnerRegistered, "bootstrapGrantDisabled": ownerState.BootstrapGrantDisabled, "claim": ownerState.Claim})
 }
 
 // handoffTarget assembles the verification target from the Cluster CA, Private

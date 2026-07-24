@@ -107,6 +107,15 @@ type BootstrapPlanRecord struct {
 	CreatedAt time.Time
 }
 
+// FirstOwnerState persists the secret-free first-owner claim and whether the
+// bootstrap grant has been permanently disabled. State is an opaque JSON blob
+// owned by the launcher.
+type FirstOwnerState struct {
+	ProfileID  string
+	State      string
+	RecordedAt time.Time
+}
+
 // HandoffState persists whether a profile's temporary administration path has
 // been closed and the last verification report that gated it. Report is an
 // opaque JSON blob owned by the launcher.
@@ -446,6 +455,31 @@ func (store *Store) GetBootstrapPlan(ctx context.Context, planID string) (Bootst
 		return BootstrapPlanRecord{}, fmt.Errorf("parse bootstrap plan creation: %w", err)
 	}
 	return record, nil
+}
+
+func (store *Store) RecordFirstOwnerState(ctx context.Context, owner FirstOwnerState) error {
+	_, err := store.database.ExecContext(ctx, `INSERT INTO first_owner_states (profile_id, state_json, recorded_at) VALUES (?, ?, ?) ON CONFLICT(profile_id) DO UPDATE SET state_json=excluded.state_json, recorded_at=excluded.recorded_at`, owner.ProfileID, owner.State, owner.RecordedAt.UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return fmt.Errorf("record first-owner state: %w", err)
+	}
+	return nil
+}
+
+func (store *Store) GetFirstOwnerState(ctx context.Context, profileID string) (FirstOwnerState, error) {
+	var owner FirstOwnerState
+	var recordedAt string
+	err := store.database.QueryRowContext(ctx, `SELECT profile_id, state_json, recorded_at FROM first_owner_states WHERE profile_id = ?`, profileID).Scan(&owner.ProfileID, &owner.State, &recordedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return FirstOwnerState{}, ErrNotFound
+	}
+	if err != nil {
+		return FirstOwnerState{}, fmt.Errorf("get first-owner state: %w", err)
+	}
+	owner.RecordedAt, err = time.Parse(time.RFC3339Nano, recordedAt)
+	if err != nil {
+		return FirstOwnerState{}, fmt.Errorf("parse first-owner state: %w", err)
+	}
+	return owner, nil
 }
 
 func (store *Store) RecordHandoffState(ctx context.Context, handoff HandoffState) error {
@@ -1301,6 +1335,11 @@ func (store *Store) migrate(ctx context.Context) error {
 			profile_id TEXT PRIMARY KEY REFERENCES profiles(id),
 			closed INTEGER NOT NULL DEFAULT 0,
 			report_json TEXT NOT NULL,
+			recorded_at TEXT NOT NULL
+		)`},
+		{17, `CREATE TABLE first_owner_states (
+			profile_id TEXT PRIMARY KEY REFERENCES profiles(id),
+			state_json TEXT NOT NULL,
 			recorded_at TEXT NOT NULL
 		)`},
 	}

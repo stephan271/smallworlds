@@ -1625,6 +1625,109 @@
           }
         }
       }
+    },
+    "/api/v1/first-owner": {
+      "get": {
+        "operationId": "getFirstOwner",
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "First-owner status and whether the bootstrap grant is disabled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirstOwnerStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/first-owner/claim": {
+      "post": {
+        "operationId": "claimFirstOwner",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FirstOwnerInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Short-lived single-use first-owner claim",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirstOwnerState"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/api/v1/first-owner/register": {
+      "post": {
+        "operationId": "registerFirstOwner",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyRegistrationInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Passkey registered; bootstrap grant permanently disabled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirstOwnerState"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3620,6 +3723,122 @@
           },
           "report": {
             "$ref": "#/components/schemas/HandoffReport"
+          }
+        }
+      },
+      "FirstOwnerInput": {
+        "type": "object",
+        "required": [
+          "profileId"
+        ],
+        "properties": {
+          "profileId": {
+            "type": "string"
+          }
+        }
+      },
+      "PasskeyRegistrationInput": {
+        "type": "object",
+        "required": [
+          "profileId",
+          "credentialId",
+          "publicKey",
+          "challenge"
+        ],
+        "properties": {
+          "profileId": {
+            "type": "string"
+          },
+          "credentialId": {
+            "type": "string"
+          },
+          "publicKey": {
+            "type": "string"
+          },
+          "challenge": {
+            "type": "string"
+          }
+        }
+      },
+      "FirstOwnerState": {
+        "type": "object",
+        "required": [
+          "claim",
+          "ownerRegistered",
+          "bootstrapGrantDisabled"
+        ],
+        "properties": {
+          "claim": {
+            "type": "object",
+            "required": [
+              "challenge",
+              "expiresAt",
+              "used"
+            ],
+            "properties": {
+              "challenge": {
+                "type": "string"
+              },
+              "issuedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "expiresAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "used": {
+                "type": "boolean"
+              }
+            }
+          },
+          "ownerRegistered": {
+            "type": "boolean"
+          },
+          "bootstrapGrantDisabled": {
+            "type": "boolean"
+          },
+          "credentialId": {
+            "type": "string"
+          }
+        }
+      },
+      "FirstOwnerStatus": {
+        "type": "object",
+        "required": [
+          "ownerRegistered",
+          "bootstrapGrantDisabled"
+        ],
+        "properties": {
+          "ownerRegistered": {
+            "type": "boolean"
+          },
+          "bootstrapGrantDisabled": {
+            "type": "boolean"
+          },
+          "claim": {
+            "type": "object",
+            "required": [
+              "challenge",
+              "expiresAt",
+              "used"
+            ],
+            "properties": {
+              "challenge": {
+                "type": "string"
+              },
+              "issuedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "expiresAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "used": {
+                "type": "boolean"
+              }
+            }
           }
         }
       }

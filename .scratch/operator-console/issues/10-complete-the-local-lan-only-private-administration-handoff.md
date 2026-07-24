@@ -113,14 +113,30 @@ and ships unit tests.
   composition, closure only after full verification, and the 503 default.
   Full build/vet/test pass.
 
+- [x] **First-owner claim + passkey registration** — closes acceptance
+  criterion 7. New `internal/firstowner` issues a short-lived (bounded ≤15m),
+  single-use first-owner claim with a fresh WebAuthn challenge; `RegisterOwner`
+  consumes the claim and **permanently and irreversibly** sets
+  `bootstrapGrantDisabled` — no operation can re-enable it. Passkey verification
+  is an injectable `PasskeyVerifier`; the default `StructuralPasskeyVerifier`
+  constant-time-checks the challenge binding + required public material (full
+  WebAuthn attestation-signature verification is a documented follow-up, not
+  fabricated). Stores only public state (credential id/public key) — no Vault
+  custody. New `first_owner_states` table (migration 17). Endpoints:
+  `POST /api/v1/first-owner/claim`, `POST /api/v1/first-owner/register`, and
+  `GET /api/v1/first-owner`. OpenAPI contract updated. Unit tests cover
+  irreversible disable, expiry rejection, state-consistency validation, and the
+  challenge-binding verifier; HTTP test proves the claim→register flow, challenge
+  mismatch rejection, permanent disable, and that neither re-registration nor a
+  new claim is allowed afterward. Full build/vet/test pass.
+
 ### Remaining tracers (each still to build)
 
-1. Short-lived first-owner claim; successful passkey registration permanently
-   disables the bootstrap grant (criterion 7).
-2. Final Setup Journey assessment explaining LAN-only limitations + in-cluster
+1. Final Setup Journey assessment explaining LAN-only limitations + in-cluster
    console handoff URL (criterion 8), plus the browser acceptance test, the live
-   handoff-verification Verifier, and the Setup Journey UI wiring for the Cluster
-   CA, Private Network, enrollment, gateway-access, and handoff steps.
+   handoff-verification Verifier, full WebAuthn attestation verification, and the
+   Setup Journey UI wiring for the Cluster CA, Private Network, enrollment,
+   gateway-access, handoff, and first-owner steps.
 
 ## What to build
 
@@ -136,7 +152,7 @@ Covers PRD user stories 63, 66–75, and 78–80.
 - [x] The Launcher Host enrolls with a short-lived single-use credential while the Private Gateway uses a separate stable identity that survives pod restart or reschedule. _(API/contract + tests landed; Setup Journey UI wiring lands with the journey-integration tracer.)_
 - [x] Operator Console, Grafana, and Argo CD are reachable through standard HTTPS only via the Private Gateway and cannot be reached through LAN/public ingress or forged Host headers. _(API/contract + tests landed; Setup Journey UI wiring lands with the journey-integration tracer.)_
 - [x] Private reachability, DNS, TLS, and gateway identity are verified before any temporary SSH or Kubernetes administration path is closed. _(API/contract + tests landed; live probing Verifier and Setup Journey UI wiring land with later tracers.)_
-- [ ] The launcher displays a short-lived first-owner claim, and successful passkey registration permanently disables the bootstrap grant.
+- [x] The launcher displays a short-lived first-owner claim, and successful passkey registration permanently disables the bootstrap grant. _(API/contract + tests landed; full WebAuthn attestation-signature verification and Setup Journey UI wiring land with later tracers.)_
 - [ ] The final Setup Journey assessment explains LAN-only limitations and provides the in-cluster console handoff URL.
 
 ## Blocked by
