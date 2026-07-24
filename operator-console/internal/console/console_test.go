@@ -50,6 +50,7 @@ func newTestServer(t *testing.T, exchanger consoleauth.TokenExchanger) *Server {
 			{ID: "nextcloud", Exposure: assessment.ExposurePrivate, Stateful: true},
 			{ID: "keycloak", Exposure: assessment.ExposurePrivate, Stateful: false},
 		},
+		BaseDomain: "sw.example.internal",
 		SessionKey: []byte("0123456789abcdef0123456789abcdef"),
 		Leeway:     30 * time.Second,
 		Now:        func() time.Time { return testNow },
@@ -269,6 +270,65 @@ func TestCallbackStateMismatch(t *testing.T) {
 	}
 	if location := recorder.Header().Get("Location"); !strings.Contains(location, "auth_error=state_mismatch") {
 		t.Fatalf("location = %q, want state_mismatch", location)
+	}
+}
+
+// degradedArgoAssessor returns a capability whose delivery facet failed and
+// routes to Argo CD, so the console must resolve a contextual deep link.
+type degradedArgoAssessor struct{}
+
+func (degradedArgoAssessor) Assess(_ context.Context, ref assessment.CapabilityRef) assessment.CapabilityAssessment {
+	return assessment.CapabilityAssessment{
+		CapabilityID: ref.ID,
+		State:        assessment.StateFailed,
+		ReasonCode:   assessment.ReasonDeliveryFailed,
+		Facets: []assessment.Facet{{
+			Kind:        assessment.FacetDelivery,
+			State:       assessment.FacetFailed,
+			ReasonCode:  assessment.ReasonDeliveryFailed,
+			Remediation: &assessment.Remediation{Kind: assessment.RemediateArgoCD, Reference: ref.ID},
+		}},
+	}
+}
+
+func TestCapabilityDetailResolvesDeepLink(t *testing.T) {
+	exchanger := &fakeExchanger{}
+	server, err := New(Config{
+		Issuer:                testIssuer,
+		ClientID:              testClientID,
+		AuthorizationEndpoint: testIssuer + "/protocol/openid-connect/auth",
+		RedirectURI:           "https://console.test/api/v1/auth/callback",
+		Exchanger:             exchanger,
+		Assessor:              degradedArgoAssessor{},
+		Catalog:               []assessment.CapabilityRef{{ID: "nextcloud", Exposure: assessment.ExposurePrivate}},
+		BaseDomain:            "sw.example.internal",
+		SessionKey:            []byte("0123456789abcdef0123456789abcdef"),
+		Leeway:                30 * time.Second,
+		Now:                   func() time.Time { return testNow },
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	session := loginSession(t, server, exchanger, "operator")
+
+	detail := get(t, server, "/api/v1/capabilities/nextcloud", session)
+	if detail.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", detail.Code)
+	}
+	var body struct {
+		Facets []struct {
+			Kind           string `json:"kind"`
+			RemediationURL string `json:"remediationUrl"`
+		} `json:"facets"`
+	}
+	if err := json.Unmarshal(detail.Body.Bytes(), &body); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(body.Facets) != 1 {
+		t.Fatalf("facets = %d, want 1", len(body.Facets))
+	}
+	if got := body.Facets[0].RemediationURL; got != "https://argocd.sw.example.internal/applications/nextcloud" {
+		t.Fatalf("remediationUrl = %q, want the private argocd app link", got)
 	}
 }
 

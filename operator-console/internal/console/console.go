@@ -28,6 +28,7 @@ import (
 
 	"github.com/stephan271/smallworlds/operator-console/internal/assessment"
 	"github.com/stephan271/smallworlds/operator-console/internal/consoleauth"
+	"github.com/stephan271/smallworlds/operator-console/internal/deeplinks"
 )
 
 const (
@@ -52,10 +53,14 @@ type Config struct {
 	Exchanger             consoleauth.TokenExchanger
 	Assessor              CapabilityAssessor
 	Catalog               []assessment.CapabilityRef
-	SessionKey            []byte
-	Leeway                time.Duration
-	Now                   func() time.Time
-	Random                io.Reader
+	// BaseDomain is the Private Network base domain used to build contextual
+	// Grafana/Argo CD deep links. When empty or invalid, the console omits those
+	// external links rather than fabricating them.
+	BaseDomain string
+	SessionKey []byte
+	Leeway     time.Duration
+	Now        func() time.Time
+	Random     io.Reader
 }
 
 // Server is the in-cluster console HTTP handler.
@@ -66,6 +71,7 @@ type Server struct {
 	sessionKey []byte
 	now        func() time.Time
 	random     io.Reader
+	links      deeplinks.Targets
 	mux        *http.ServeMux
 }
 
@@ -104,6 +110,11 @@ func New(config Config) (*Server, error) {
 	}
 	for _, ref := range server.catalog {
 		server.byID[ref.ID] = ref
+	}
+	if config.BaseDomain != "" {
+		if targets, err := deeplinks.New(config.BaseDomain); err == nil {
+			server.links = targets
+		}
 	}
 	server.routes()
 	return server, nil
@@ -278,7 +289,44 @@ func (server *Server) handleCapability(response http.ResponseWriter, request *ht
 		writeError(response, http.StatusNotFound, "capability_not_found")
 		return
 	}
-	writeJSON(response, http.StatusOK, server.config.Assessor.Assess(request.Context(), ref))
+	writeJSON(response, http.StatusOK, server.capabilityView(server.config.Assessor.Assess(request.Context(), ref)))
+}
+
+// facetView is a facet enriched with the resolved contextual URL for its
+// remediation route, when that route points at an external investigation tool.
+type facetView struct {
+	assessment.Facet
+	RemediationURL string `json:"remediationUrl,omitempty"`
+}
+
+// capabilityView is a Capability Assessment whose facets carry resolved
+// remediation deep links for the browser to open in a new tab.
+type capabilityView struct {
+	CapabilityID string                     `json:"capabilityId"`
+	State        assessment.CapabilityState `json:"state"`
+	ReasonCode   string                     `json:"reasonCode"`
+	Facets       []facetView                `json:"facets"`
+	ObservedAt   time.Time                  `json:"observedAt,omitempty"`
+}
+
+func (server *Server) capabilityView(result assessment.CapabilityAssessment) capabilityView {
+	facets := make([]facetView, 0, len(result.Facets))
+	for _, facet := range result.Facets {
+		view := facetView{Facet: facet}
+		if facet.Remediation != nil {
+			if url, ok := server.links.Resolve(*facet.Remediation); ok {
+				view.RemediationURL = url
+			}
+		}
+		facets = append(facets, view)
+	}
+	return capabilityView{
+		CapabilityID: result.CapabilityID,
+		State:        result.State,
+		ReasonCode:   result.ReasonCode,
+		Facets:       facets,
+		ObservedAt:   result.ObservedAt,
+	}
 }
 
 // handleProposals serves the GitOps proposal workspace, readable at Operator

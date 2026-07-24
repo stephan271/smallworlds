@@ -119,6 +119,30 @@ unit tests.
   tracer; wiring which landing screen the in-cluster deployment shows lands with
   the serving-mode binary integration.)
 
+- [x] **Contextual Grafana/Argo CD deep links** (`internal/deeplinks`) — the
+  console-code part of acceptance criterion 7. A pure builder turns a capability's
+  Grafana-dashboard or Argo-application remediation reference into a contextual
+  URL derived from the Private Network base domain: `https://grafana.<base>/
+  dashboards?query=<ref>` and `https://argocd.<base>/applications/<app>`. Because
+  every link is built from the private operator hostnames (which resolve only
+  through the Private Gateway), a public URL can never be produced — the builder
+  supports the "unreachable outside the Private Gateway" property structurally.
+  Only the external investigation tools resolve to a URL; setup-journey,
+  git-proposal, runtime-action, and documentation routes stay inside the console.
+  The console's capability-detail endpoint now returns a `facetView` enriching
+  each facet with its resolved `remediationUrl`, and the Svelte screen renders
+  those as `target="_blank" rel="noopener noreferrer"` new-tab links (no iframe,
+  per ADR 0024) with a screen-reader "opens in a new tab" hint; non-external
+  routes stay text chips. Unit tests cover host derivation, invalid-base-domain
+  rejection, per-kind resolution, and that a zero (unconfigured) builder omits
+  links rather than fabricating them; a console HTTP test proves the resolved
+  private Argo link reaches the browser. `gofmt`, `go build/vet/test ./...`,
+  `npm run check`, and `npm run build` all pass. (The Keycloak read-only OIDC
+  clients for Grafana/Argo and their NetworkPolicy/private-gateway-only ingress —
+  criterion 7's infrastructure half — are GitOps/init-job manifests deferred to
+  the operator-console/private-gateway tenant-deployment integration, since they
+  require the console and gateway to be deployed as tenants.)
+
 ## What to build
 
 Deliver the first useful in-cluster Operator Console. Authenticated Operators see an overview and per-capability explanations derived from configuration, Argo delivery, Kubernetes runtime, access, and protection evidence. Server-side Console Roles govern every route and action, while Grafana and Argo CD remain contextual, private, OIDC-authenticated, read-only investigation tools.

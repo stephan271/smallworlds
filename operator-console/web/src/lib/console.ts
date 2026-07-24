@@ -49,6 +49,9 @@ export interface Facet {
   observedAt?: string;
   stale: boolean;
   remediation?: Remediation;
+  /** Resolved contextual URL for the remediation route, set by the server for
+   *  external investigation tools (Grafana, Argo CD). Opened in a new tab. */
+  remediationUrl?: string;
 }
 
 export interface CapabilityAssessment {

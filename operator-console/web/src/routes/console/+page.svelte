@@ -201,8 +201,15 @@
               {#if facet.remediation}
                 <p class="remediation">
                   <span class="badge muted">{t('remediationLabel')}</span>
-                  {t(routeLabels[facet.remediation.kind])}
-                  {#if facet.remediation.reference}<code>{facet.remediation.reference}</code>{/if}
+                  {#if facet.remediationUrl}
+                    <a href={facet.remediationUrl} target="_blank" rel="noopener noreferrer">
+                      {t(routeLabels[facet.remediation.kind])}
+                      <span class="sr-label"> ({t('opensNewTab')})</span>
+                    </a>
+                  {:else}
+                    {t(routeLabels[facet.remediation.kind])}
+                    {#if facet.remediation.reference}<code>{facet.remediation.reference}</code>{/if}
+                  {/if}
                 </p>
               {/if}
             </li>
