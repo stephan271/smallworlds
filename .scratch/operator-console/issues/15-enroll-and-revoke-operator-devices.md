@@ -18,7 +18,25 @@ Status: in-progress
   alternative Owner access, labels lockout risk (last-owner-device dominant over
   self-revocation), and records the affected stable device identity (criterion 5).
   `gofmt`/`go vet`/`go test` clean.
-- [ ] Console device-administration endpoints + seams (criteria 1, 5, 6).
+- [x] **Console device-administration endpoints + seams**
+  (`internal/console/deviceadmin.go`, `console.go`) — covers criteria 1, 5, 6. All
+  device routes sit behind the server-side `Administer` permission, so only a
+  Console Owner is admitted (Observers/Operators 403, anonymous 401) — criterion
+  1. `POST /administration/invitations` mints a single-use join key through the
+  injected `InvitationIssuer`, records the issuance in the Activity Record by
+  fingerprint (never the key), and returns the one-time key plus the enrollment
+  guidance. `GET /administration/access` lists the devices from the injected
+  `DeviceDirectory` with an owner-access summary so alternative Owner access is
+  visible before acting. `POST /administration/revocations/plan|{id}/approve|{id}/execute`
+  is the bounded Runtime Action: plan assesses lockout and binds the affected
+  stable identity into the plan digest, approve binds the Owner's consent, and
+  execute re-inspects the inventory (409 on drift), removes exactly the selected
+  device through the injected `DeviceRevoker`, and records whether loss of access
+  was verified in a redacted Activity Record (criteria 5, 6). The three seams
+  default to honest-refusal (503 directory/invitation/revocation_unavailable),
+  deferred to the live-cluster integration like the console's other adapters.
+  Owner-level (device) Activity Records are filtered out of the Operator-visible
+  `/proposals` workspace. httptest-verified; `gofmt`/`go vet`/`go test ./...` pass.
 - [ ] Web UI device-access view (EN/DE).
 
 ## What to build

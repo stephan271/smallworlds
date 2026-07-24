@@ -222,9 +222,13 @@ func TestAuthorizationMatrix(t *testing.T) {
 		role                     string
 		overview, propose, admin int
 	}{
+		// The admin column checks the authorization gate, not the seam: observer and
+		// operator are forbidden (403); an owner is admitted and — with no device
+		// directory wired in this test server — honestly refuses with 503, which
+		// still proves the owner passed the gate rather than being forbidden.
 		{"observer", http.StatusOK, http.StatusForbidden, http.StatusForbidden},
 		{"operator", http.StatusOK, http.StatusOK, http.StatusForbidden},
-		{"owner", http.StatusOK, http.StatusOK, http.StatusOK},
+		{"owner", http.StatusOK, http.StatusOK, http.StatusServiceUnavailable},
 	}
 	for _, test := range tests {
 		t.Run(test.role, func(t *testing.T) {

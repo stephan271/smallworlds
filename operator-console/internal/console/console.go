@@ -85,6 +85,15 @@ type Config struct {
 	// Workflow persists compact Change Plans and Workflow Runs (the Activity
 	// Record). When nil, an in-memory store is used.
 	Workflow consoleworkflow.Store
+	// Directory lists the current Operator Devices for the Owner administration
+	// surface. When nil, the surface refuses honestly with directory_unavailable.
+	Directory DeviceDirectory
+	// Invitations mints single-use device-enrollment join keys. When nil, issuing
+	// refuses honestly with invitation_unavailable.
+	Invitations InvitationIssuer
+	// Revoker removes a single Operator Device and verifies loss of access. When
+	// nil, execution refuses honestly with revocation_unavailable.
+	Revoker DeviceRevoker
 	// BaseDomain is the Private Network base domain used to build contextual
 	// Grafana/Argo CD deep links. When empty or invalid, the console omits those
 	// external links rather than fabricating them.
@@ -111,6 +120,9 @@ type Server struct {
 	capacity       CapacityReporter
 	proposals      ProposalOpener
 	workflow       consoleworkflow.Store
+	directory      DeviceDirectory
+	invitations    InvitationIssuer
+	revoker        DeviceRevoker
 }
 
 // New builds a console Server. A missing SessionKey is filled with a fresh
@@ -149,6 +161,18 @@ func New(config Config) (*Server, error) {
 	if workflowStore == nil {
 		workflowStore = consoleworkflow.NewMemoryStore(nil)
 	}
+	deviceDirectory := config.Directory
+	if deviceDirectory == nil {
+		deviceDirectory = unavailableDirectory{}
+	}
+	invitationIssuer := config.Invitations
+	if invitationIssuer == nil {
+		invitationIssuer = unavailableIssuer{}
+	}
+	deviceRevoker := config.Revoker
+	if deviceRevoker == nil {
+		deviceRevoker = unavailableRevoker{}
+	}
 	server := &Server{
 		config:         config,
 		catalog:        append([]assessment.CapabilityRef(nil), config.Catalog...),
@@ -163,6 +187,9 @@ func New(config Config) (*Server, error) {
 		capacity:       capacityReporter,
 		proposals:      proposalOpener,
 		workflow:       workflowStore,
+		directory:      deviceDirectory,
+		invitations:    invitationIssuer,
+		revoker:        deviceRevoker,
 	}
 	for _, ref := range server.catalog {
 		server.byID[ref.ID] = ref
@@ -192,6 +219,11 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("POST /api/v1/additions/{id}/approve", server.require(consoleauth.PermissionPropose, server.handleAdditionApprove))
 	server.mux.HandleFunc("POST /api/v1/additions/{id}/propose", server.require(consoleauth.PermissionPropose, server.handleAdditionPropose))
 	server.mux.HandleFunc("GET /api/v1/administration/access", server.require(consoleauth.PermissionAdminister, server.handleAdministrationAccess))
+	server.mux.HandleFunc("GET /api/v1/administration/enrollment-guidance", server.require(consoleauth.PermissionAdminister, server.handleEnrollmentGuidance))
+	server.mux.HandleFunc("POST /api/v1/administration/invitations", server.require(consoleauth.PermissionAdminister, server.handleCreateInvitation))
+	server.mux.HandleFunc("POST /api/v1/administration/revocations/plan", server.require(consoleauth.PermissionAdminister, server.handleRevocationPlan))
+	server.mux.HandleFunc("POST /api/v1/administration/revocations/{id}/approve", server.require(consoleauth.PermissionAdminister, server.handleRevocationApprove))
+	server.mux.HandleFunc("POST /api/v1/administration/revocations/{id}/execute", server.require(consoleauth.PermissionAdminister, server.handleRevocationExecute))
 }
 
 func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Request) {
@@ -416,8 +448,14 @@ func (server *Server) handleProposals(response http.ResponseWriter, request *htt
 		writeError(response, http.StatusInternalServerError, "proposals_unavailable")
 		return
 	}
+	// This workspace is readable at Operator authority, so it shows only
+	// propose-level records; sensitive Owner administration (device enroll/revoke)
+	// is surfaced separately under the Owner-gated administration surface.
 	planViews := make([]additionPlanView, 0, len(plans))
 	for _, plan := range plans {
+		if plan.Intent.RequiredPermission() != consoleauth.PermissionPropose {
+			continue
+		}
 		planViews = append(planViews, additionPlanView{
 			ID:        plan.ID,
 			Summary:   plan.Summary,
@@ -429,6 +467,9 @@ func (server *Server) handleProposals(response http.ResponseWriter, request *htt
 	}
 	runViews := make([]additionRunView, 0, len(runs))
 	for _, run := range runs {
+		if run.Intent.RequiredPermission() != consoleauth.PermissionPropose {
+			continue
+		}
 		runViews = append(runViews, additionRunView{
 			ID:              run.ID,
 			PlanID:          run.PlanID,
@@ -439,13 +480,6 @@ func (server *Server) handleProposals(response http.ResponseWriter, request *htt
 		})
 	}
 	writeJSON(response, http.StatusOK, map[string]any{"proposals": planViews, "runs": runViews})
-}
-
-// handleAdministrationAccess serves the operator-access administration view,
-// reachable only at Owner authority. Device enrollment/revocation mutations
-// arrive with the enrollment issue.
-func (server *Server) handleAdministrationAccess(response http.ResponseWriter, request *http.Request) {
-	writeJSON(response, http.StatusOK, map[string]any{"operators": []any{}})
 }
 
 // --- signed cookies ---
