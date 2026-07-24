@@ -82,6 +82,41 @@ export interface Session {
   permissions: Permission[];
 }
 
+export type ProtectionLevel = 'unknown' | 'none' | 'local-only' | 'stale' | 'protected';
+
+export type DataType = 'database' | 'filesystem' | 'object-store' | 'cluster-resources';
+
+export interface ProtectionDataset {
+  id: string;
+  capability: string;
+  dataType: DataType;
+  producer: string;
+  schedule: string;
+  retention: string;
+}
+
+export interface DatasetProtection {
+  dataset: ProtectionDataset;
+  observed: boolean;
+  observedAt?: string;
+  jobCompletedAt?: string;
+  jobFailed: boolean;
+  localRecoveryPointAt?: string;
+  localRecoveryPointStale: boolean;
+  offsiteConfigured: boolean;
+  offsiteRecoveryPointAt?: string;
+  offsiteRecoveryPointStale: boolean;
+  retentionBreached: boolean;
+  restoreDrillAt?: string;
+  restoreDrillPassed: boolean;
+  level: ProtectionLevel;
+  disasterProtected: boolean;
+}
+
+export interface ProtectionReport {
+  datasets: DatasetProtection[];
+}
+
 export class ConsoleApiError extends Error {
   constructor(public readonly status: number) {
     super(`console api error: ${status}`);
@@ -102,6 +137,7 @@ export const consoleApi = {
   overview: () => getJSON<Overview>('/api/v1/overview'),
   capability: (id: string) =>
     getJSON<CapabilityAssessment>(`/api/v1/capabilities/${encodeURIComponent(id)}`),
+  protection: () => getJSON<ProtectionReport>('/api/v1/protection'),
   logout: () => fetch('/api/v1/auth/logout', { method: 'POST' })
 };
 

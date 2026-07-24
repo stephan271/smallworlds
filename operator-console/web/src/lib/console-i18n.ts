@@ -4,7 +4,14 @@
 // `de` is typed as Record<ConsoleMessageKey, string>, so svelte-check fails the
 // build if the German catalog drifts from the English keys.
 
-import type { CapabilityState, ConsoleRole, FacetKind, FacetState } from './console';
+import type {
+  CapabilityState,
+  ConsoleRole,
+  DataType,
+  FacetKind,
+  FacetState,
+  ProtectionLevel
+} from './console';
 
 export type Locale = 'en' | 'de';
 
@@ -41,6 +48,45 @@ const en = {
   routeGrafana: 'Open in Grafana',
   routeArgo: 'Open in Argo CD',
   opensNewTab: 'opens in a new tab',
+
+  navCapabilities: 'Capabilities',
+  navProtection: 'Protection',
+  protectionHeading: 'Dataset protection',
+  protectionIntro:
+    'Each dataset shows its producer Job, its local (in-cluster Garage) Recovery Point, and its offsite Recovery Point separately — a Job completing is not proof of a restorable point.',
+  protectionRoadmap:
+    'Restore, backup deletion, and retention changes are not available in this release; they are shown here only as planned work.',
+  disasterProtectedYes: 'Disaster protected',
+  disasterProtectedNo: 'Not disaster protected',
+  localOnlyWarning: 'Local Recovery Point only — same disk as the primary data, so not disaster protection.',
+  colOwner: 'Capability',
+  colType: 'Data type',
+  colProducer: 'Producer',
+  colSchedule: 'Schedule',
+  colRetention: 'Retention',
+  colJob: 'Producer Job',
+  colLocalRP: 'Local Recovery Point',
+  colOffsiteRP: 'Offsite Recovery Point',
+  colRestoreDrill: 'Restore Drill',
+  jobFailedLabel: 'Last Job failed',
+  jobNever: 'No Job recorded',
+  noRecoveryPoint: 'None',
+  staleSuffix: '(stale)',
+  restoreDrillNone: 'No Restore Drill recorded',
+  restoreDrillPassed: 'passed',
+  restoreDrillFailed: 'failed',
+  notObserved: 'Evidence unavailable',
+
+  plevel_unknown: 'Unknown',
+  plevel_none: 'No protection',
+  'plevel_local-only': 'Local only',
+  plevel_stale: 'Stale',
+  plevel_protected: 'Protected',
+
+  dtype_database: 'Database',
+  dtype_filesystem: 'Filesystem',
+  'dtype_object-store': 'Object store',
+  'dtype_cluster-resources': 'Cluster resources',
 
   role_observer: 'Observer',
   role_operator: 'Operator',
@@ -142,6 +188,46 @@ const de: Record<ConsoleMessageKey, string> = {
   routeArgo: 'In Argo CD öffnen',
   opensNewTab: 'öffnet in einem neuen Tab',
 
+  navCapabilities: 'Fähigkeiten',
+  navProtection: 'Schutz',
+  protectionHeading: 'Datensatzschutz',
+  protectionIntro:
+    'Jeder Datensatz zeigt seinen Producer-Job, seinen lokalen (clusterinternen Garage-)Wiederherstellungspunkt und seinen externen Wiederherstellungspunkt getrennt — ein abgeschlossener Job ist kein Nachweis eines wiederherstellbaren Punkts.',
+  protectionRoadmap:
+    'Wiederherstellung, Backup-Löschung und Aufbewahrungsänderungen sind in dieser Version nicht verfügbar; sie werden hier nur als geplante Arbeit gezeigt.',
+  disasterProtectedYes: 'Katastrophengeschützt',
+  disasterProtectedNo: 'Nicht katastrophengeschützt',
+  localOnlyWarning:
+    'Nur lokaler Wiederherstellungspunkt — dieselbe Festplatte wie die Primärdaten, also kein Katastrophenschutz.',
+  colOwner: 'Fähigkeit',
+  colType: 'Datentyp',
+  colProducer: 'Producer',
+  colSchedule: 'Zeitplan',
+  colRetention: 'Aufbewahrung',
+  colJob: 'Producer-Job',
+  colLocalRP: 'Lokaler Wiederherstellungspunkt',
+  colOffsiteRP: 'Externer Wiederherstellungspunkt',
+  colRestoreDrill: 'Wiederherstellungsübung',
+  jobFailedLabel: 'Letzter Job fehlgeschlagen',
+  jobNever: 'Kein Job erfasst',
+  noRecoveryPoint: 'Keiner',
+  staleSuffix: '(veraltet)',
+  restoreDrillNone: 'Keine Wiederherstellungsübung erfasst',
+  restoreDrillPassed: 'bestanden',
+  restoreDrillFailed: 'fehlgeschlagen',
+  notObserved: 'Nachweis nicht verfügbar',
+
+  plevel_unknown: 'Unbekannt',
+  plevel_none: 'Kein Schutz',
+  'plevel_local-only': 'Nur lokal',
+  plevel_stale: 'Veraltet',
+  plevel_protected: 'Geschützt',
+
+  dtype_database: 'Datenbank',
+  dtype_filesystem: 'Dateisystem',
+  'dtype_object-store': 'Objektspeicher',
+  'dtype_cluster-resources': 'Cluster-Ressourcen',
+
   role_observer: 'Beobachter',
   role_operator: 'Operator',
   role_owner: 'Eigentümer',
@@ -232,4 +318,12 @@ export function facetStateKey(state: FacetState): ConsoleMessageKey {
 
 export function roleKey(role: ConsoleRole | undefined): ConsoleMessageKey {
   return `role_${role ? role : 'none'}` as ConsoleMessageKey;
+}
+
+export function protectionLevelKey(level: ProtectionLevel): ConsoleMessageKey {
+  return `plevel_${level}` as ConsoleMessageKey;
+}
+
+export function dataTypeKey(dataType: DataType): ConsoleMessageKey {
+  return `dtype_${dataType}` as ConsoleMessageKey;
 }

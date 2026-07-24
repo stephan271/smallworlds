@@ -6,15 +6,19 @@
     hasPermission,
     type CapabilityAssessment,
     type CapabilityState,
+    type DatasetProtection,
     type FacetState,
     type Overview,
+    type ProtectionLevel,
     type RemediationKind,
     type Session
   } from '$lib/console';
   import {
     consoleTranslate,
+    dataTypeKey,
     facetKindKey,
     facetStateKey,
+    protectionLevelKey,
     reasonKey,
     roleKey,
     stateKey,
@@ -23,13 +27,17 @@
   } from '$lib/console-i18n';
 
   type Status = 'loading' | 'anon' | 'ready' | 'forbidden' | 'error';
+  type View = 'capabilities' | 'protection';
 
   let locale = $state<Locale>('en');
   let status = $state<Status>('loading');
+  let view = $state<View>('capabilities');
   let session = $state<Session | null>(null);
   let overview = $state<Overview | null>(null);
   let selected = $state<CapabilityAssessment | null>(null);
   let selecting = $state('');
+  let protection = $state<DatasetProtection[] | null>(null);
+  let protectionError = $state(false);
 
   const t = $derived((key: ConsoleMessageKey) => consoleTranslate(locale, key));
 
@@ -53,6 +61,13 @@
     blocked: '⊘',
     unknown: '?',
     'not-applicable': '—'
+  };
+  const protectionSymbols: Record<ProtectionLevel, string> = {
+    unknown: '?',
+    none: '✕',
+    'local-only': '△',
+    stale: '▲',
+    protected: '✓'
   };
   const routeLabels: Record<RemediationKind, ConsoleMessageKey> = {
     'setup-journey': 'routeSetup',
@@ -116,6 +131,18 @@
     }
   }
 
+  async function showProtection() {
+    view = 'protection';
+    if (protection !== null) return;
+    try {
+      protection = (await consoleApi.protection()).datasets;
+      protectionError = false;
+    } catch {
+      protection = [];
+      protectionError = true;
+    }
+  }
+
   async function signOut() {
     await consoleApi.logout();
     session = null;
@@ -175,7 +202,85 @@
       <button type="button" onclick={start}>{t('retry')}</button>
     </section>
   {:else if status === 'ready' && overview}
-    {#if selected}
+    <nav class="viewnav" aria-label={t('capabilitiesHeading')}>
+      <button type="button" aria-pressed={view === 'capabilities'} onclick={() => (view = 'capabilities')}>
+        {t('navCapabilities')}
+      </button>
+      <button type="button" aria-pressed={view === 'protection'} onclick={showProtection}>
+        {t('navProtection')}
+      </button>
+    </nav>
+    {#if view === 'protection'}
+      <section class="panel" aria-labelledby="protection-heading">
+        <h2 id="protection-heading">{t('protectionHeading')}</h2>
+        <p class="hint">{t('protectionIntro')}</p>
+        <p class="badge muted roadmap">{t('protectionRoadmap')}</p>
+        {#if protection === null}
+          <p>{t('loading')}</p>
+        {:else if protectionError}
+          <p role="alert">{t('loadError')}</p>
+        {:else if protection.length === 0}
+          <p>{t('noCapabilities')}</p>
+        {:else}
+          <ul class="datasets">
+            {#each protection as item}
+              <li class="dataset plevel-{item.level}">
+                <div class="facet-head">
+                  <span aria-hidden="true" class="sym">{protectionSymbols[item.level]}</span>
+                  <strong>{item.dataset.id}</strong>
+                  <span class="badge">{t(protectionLevelKey(item.level))}</span>
+                  <span class="badge {item.disasterProtected ? '' : 'warn'}">
+                    {item.disasterProtected ? t('disasterProtectedYes') : t('disasterProtectedNo')}
+                  </span>
+                </div>
+                {#if item.level === 'local-only'}
+                  <p class="reason">{t('localOnlyWarning')}</p>
+                {/if}
+                {#if !item.observed}
+                  <p class="meta">{t('notObserved')}</p>
+                {/if}
+                <dl class="evidence">
+                  <div><dt>{t('colOwner')}</dt><dd>{item.dataset.capability}</dd></div>
+                  <div><dt>{t('colType')}</dt><dd>{t(dataTypeKey(item.dataset.dataType))}</dd></div>
+                  <div><dt>{t('colProducer')}</dt><dd>{item.dataset.producer}</dd></div>
+                  <div><dt>{t('colSchedule')}</dt><dd>{item.dataset.schedule}</dd></div>
+                  <div><dt>{t('colRetention')}</dt><dd>{item.dataset.retention}</dd></div>
+                  <div>
+                    <dt>{t('colJob')}</dt>
+                    <dd>
+                      {#if item.jobFailed}{t('jobFailedLabel')}
+                      {:else if item.jobCompletedAt}{formatTime(item.jobCompletedAt)}
+                      {:else}{t('jobNever')}{/if}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{t('colLocalRP')}</dt>
+                    <dd>
+                      {#if item.localRecoveryPointAt}{formatTime(item.localRecoveryPointAt)}{#if item.localRecoveryPointStale} {t('staleSuffix')}{/if}
+                      {:else}{t('noRecoveryPoint')}{/if}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{t('colOffsiteRP')}</dt>
+                    <dd>
+                      {#if item.offsiteConfigured && item.offsiteRecoveryPointAt}{formatTime(item.offsiteRecoveryPointAt)}{#if item.offsiteRecoveryPointStale} {t('staleSuffix')}{/if}
+                      {:else}{t('noRecoveryPoint')}{/if}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{t('colRestoreDrill')}</dt>
+                    <dd>
+                      {#if item.restoreDrillAt}{formatTime(item.restoreDrillAt)} — {item.restoreDrillPassed ? t('restoreDrillPassed') : t('restoreDrillFailed')}
+                      {:else}{t('restoreDrillNone')}{/if}
+                    </dd>
+                  </div>
+                </dl>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </section>
+    {:else if selected}
       <section class="panel" aria-labelledby="detail-heading">
         <button type="button" class="link" onclick={() => (selected = null)}>← {t('backToOverview')}</button>
         <h2 id="detail-heading">{selected.capabilityId}</h2>
@@ -406,6 +511,62 @@
   }
   button.secondary {
     padding: 0.35rem 0.75rem;
+  }
+  .viewnav {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+  }
+  .viewnav button {
+    padding: 0.4rem 0.9rem;
+    border: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+    border-radius: 0.5rem;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+  }
+  .viewnav button[aria-pressed='true'] {
+    border-color: currentColor;
+    font-weight: 700;
+  }
+  .roadmap {
+    display: inline-block;
+    margin: 0.5rem 0;
+    border-style: dashed;
+  }
+  ul.datasets {
+    list-style: none;
+    padding: 0;
+    margin: 0.75rem 0 0;
+    display: grid;
+    gap: 0.6rem;
+  }
+  .dataset {
+    padding: 0.75rem 1rem;
+    border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+    border-radius: 0.5rem;
+  }
+  dl.evidence {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: 0.25rem 1rem;
+    margin: 0.5rem 0 0;
+  }
+  dl.evidence div {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: space-between;
+    padding: 0.15rem 0;
+    border-bottom: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+    font-size: 0.9rem;
+  }
+  dl.evidence dt {
+    opacity: 0.75;
+  }
+  dl.evidence dd {
+    margin: 0;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
   }
   @media (prefers-reduced-motion: reduce) {
     * {
