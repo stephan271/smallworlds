@@ -29,7 +29,14 @@ import (
 	"github.com/stephan271/smallworlds/operator-console/internal/assessment"
 	"github.com/stephan271/smallworlds/operator-console/internal/consoleauth"
 	"github.com/stephan271/smallworlds/operator-console/internal/deeplinks"
+	"github.com/stephan271/smallworlds/operator-console/internal/protection"
 )
+
+// ProtectionReporter reports the dataset protection inventory. The
+// protection.Inventory satisfies it; tests inject a deterministic implementation.
+type ProtectionReporter interface {
+	Report(ctx context.Context) []protection.DatasetProtection
+}
 
 const (
 	sessionCookieName = "sw_console_session"
@@ -53,6 +60,9 @@ type Config struct {
 	Exchanger             consoleauth.TokenExchanger
 	Assessor              CapabilityAssessor
 	Catalog               []assessment.CapabilityRef
+	// Protection reports the dataset protection inventory for the /protection
+	// endpoint. When nil, the endpoint returns an empty inventory.
+	Protection ProtectionReporter
 	// BaseDomain is the Private Network base domain used to build contextual
 	// Grafana/Argo CD deep links. When empty or invalid, the console omits those
 	// external links rather than fabricating them.
@@ -129,6 +139,7 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("GET /api/v1/overview", server.require(consoleauth.PermissionObserve, server.handleOverview))
 	server.mux.HandleFunc("GET /api/v1/capabilities", server.require(consoleauth.PermissionObserve, server.handleCapabilities))
 	server.mux.HandleFunc("GET /api/v1/capabilities/{id}", server.require(consoleauth.PermissionObserve, server.handleCapability))
+	server.mux.HandleFunc("GET /api/v1/protection", server.require(consoleauth.PermissionObserve, server.handleProtection))
 	server.mux.HandleFunc("GET /api/v1/proposals", server.require(consoleauth.PermissionPropose, server.handleProposals))
 	server.mux.HandleFunc("GET /api/v1/administration/access", server.require(consoleauth.PermissionAdminister, server.handleAdministrationAccess))
 }
@@ -327,6 +338,17 @@ func (server *Server) capabilityView(result assessment.CapabilityAssessment) cap
 		Facets:       facets,
 		ObservedAt:   result.ObservedAt,
 	}
+}
+
+// handleProtection serves the dataset protection inventory: every declared
+// dataset with its distinct Job-completion, local Recovery Point, offsite
+// Recovery Point, freshness, and Restore Drill evidence.
+func (server *Server) handleProtection(response http.ResponseWriter, request *http.Request) {
+	datasets := []protection.DatasetProtection{}
+	if server.config.Protection != nil {
+		datasets = server.config.Protection.Report(request.Context())
+	}
+	writeJSON(response, http.StatusOK, map[string]any{"datasets": datasets})
 }
 
 // handleProposals serves the GitOps proposal workspace, readable at Operator

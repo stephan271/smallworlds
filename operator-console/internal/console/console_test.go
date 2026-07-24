@@ -13,6 +13,7 @@ import (
 
 	"github.com/stephan271/smallworlds/operator-console/internal/assessment"
 	"github.com/stephan271/smallworlds/operator-console/internal/consoleauth"
+	"github.com/stephan271/smallworlds/operator-console/internal/protection"
 )
 
 const (
@@ -329,6 +330,58 @@ func TestCapabilityDetailResolvesDeepLink(t *testing.T) {
 	}
 	if got := body.Facets[0].RemediationURL; got != "https://argocd.sw.example.internal/applications/nextcloud" {
 		t.Fatalf("remediationUrl = %q, want the private argocd app link", got)
+	}
+}
+
+type fakeProtection struct {
+	datasets []protection.DatasetProtection
+}
+
+func (f fakeProtection) Report(context.Context) []protection.DatasetProtection { return f.datasets }
+
+func TestProtectionEndpoint(t *testing.T) {
+	exchanger := &fakeExchanger{}
+	server, err := New(Config{
+		Issuer:                testIssuer,
+		ClientID:              testClientID,
+		AuthorizationEndpoint: testIssuer + "/protocol/openid-connect/auth",
+		RedirectURI:           "https://console.test/api/v1/auth/callback",
+		Exchanger:             exchanger,
+		Assessor:              fakeAssessor{},
+		Catalog:               []assessment.CapabilityRef{{ID: "nextcloud"}},
+		Protection: fakeProtection{datasets: []protection.DatasetProtection{
+			{Dataset: protection.Dataset{ID: "nextcloud-db", Capability: "nextcloud"}, Level: protection.LevelLocalOnly},
+		}},
+		SessionKey: []byte("0123456789abcdef0123456789abcdef"),
+		Leeway:     30 * time.Second,
+		Now:        func() time.Time { return testNow },
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	// Observe permission is required.
+	if code := get(t, server, "/api/v1/protection").Code; code != http.StatusUnauthorized {
+		t.Fatalf("anonymous protection status = %d, want 401", code)
+	}
+	session := loginSession(t, server, exchanger, "observer")
+	recorder := get(t, server, "/api/v1/protection", session)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", recorder.Code)
+	}
+	var body struct {
+		Datasets []struct {
+			Level   string `json:"level"`
+			Dataset struct {
+				ID string `json:"id"`
+			} `json:"dataset"`
+		} `json:"datasets"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(body.Datasets) != 1 || body.Datasets[0].Level != "local-only" || body.Datasets[0].Dataset.ID != "nextcloud-db" {
+		t.Fatalf("unexpected protection body: %+v", body.Datasets)
 	}
 }
 

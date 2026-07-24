@@ -1,6 +1,35 @@
 # Inspect dataset protection and recovery evidence
 
-Status: ready-for-agent
+Status: in-progress
+
+## Implementation progress
+
+Landed incrementally (tracer-per-commit), building on issue 11's assessment
+engine and console.
+
+- [x] **Protection inventory domain + console endpoint** (`internal/protection`)
+  — covers acceptance criteria 1, 2, 4, 5, 7. Models the repository's real
+  two-hop backup chain (app data → in-cluster Garage S3 → offsite mirror, per
+  `doc/storage-and-backup.md` §4) as a declared dataset inventory, each dataset
+  naming its owning capability, data type, expected producer (CNPG Barman /
+  Velero / pv-backup rclone), schedule, and retention. Per-dataset `Assess`
+  encodes the central honesty rule (storage doc §3): Garage is a staging tier on
+  the **same disk** as primary data, so it keeps producer-Job-completion, a local
+  (same-disk) Recovery Point, and an offsite Recovery Point as three distinct
+  facts and reports `DisasterProtected` **only** when a fresh offsite Recovery
+  Point exists — a local-only Garage Recovery Point is `local-only`, never
+  disaster protection. A `Source` seam lets observers gather evidence without
+  deciding status; `CapabilityEvidence` aggregates a capability's datasets
+  (worst-case) into `assessment.ProtectionEvidence`, so a missing/stale offsite
+  leg degrades the stateful capability through the existing engine. Console
+  `GET /api/v1/protection` (Observe) serves the inventory. Tests prove the
+  two-hop chain, that same-disk Garage data is not described as disaster
+  protection, that Job completion is distinct from a Recovery Point, unknown on
+  read failure, and the capability-degradation bridge. `gofmt`, `go build/vet/
+  test ./...` all pass. (The production Source reading live CNPG/Velero/PV/Garage/
+  replicator resources is deferred with the other live observers; the inventory
+  screen and roadmap-only restore/delete/retention controls — criteria 3, 6 —
+  land in the screens tracer.)
 
 ## What to build
 
