@@ -158,13 +158,22 @@ consistent with issue 09's outstanding qualification):
 2. **Full WebAuthn attestation-signature verification** — the default passkey
    verifier checks the challenge binding + required fields; attestation
    signature/trust-anchor verification is still to add.
-3. **Setup Journey UI wiring** (Svelte) for all steps: Cluster CA + device-trust
-   install, Private Network, Tailscale client offer, enrollment + launcher
-   consume, gateway-access, handoff verify/close, first-owner passkey, and the
-   final assessment.
+3. ~~**Setup Journey UI wiring** (Svelte)~~ — **DONE.** A "Private administration
+   handoff" card (shown for `local-lan` profiles) renders the eight-step
+   assessment checklist, the LAN-only limitations, and the in-cluster console
+   handoff URL when complete, and drives every endpoint: Cluster CA create +
+   device-trust install, Private Network establish (base domain), Tailscale
+   client detect/offer, enrollment establish + single-use launcher consume,
+   handoff verify + close temporary access, and first-owner claim + passkey
+   register. English + German i18n. `npm run check` (0 errors), `npm run build`,
+   and the existing Playwright journey (EN + DE) all pass. The passkey step
+   submits a browser-generated credential echoing the claim challenge (matches
+   the current structural verifier). Note: the verify/close and final console-URL
+   steps only complete once the live verification Verifier (item 1) is wired —
+   against the production 503 default the UI surfaces the unavailable state.
 4. **Dedicated Linux-node browser acceptance test** exercising the whole handoff
    through the real browser/backend interface (the equivalent of issue 09's
-   remaining acceptance evidence).
+   remaining acceptance evidence; needs the live verifier from item 1).
 
 ## What to build
 

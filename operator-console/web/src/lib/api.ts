@@ -22,6 +22,15 @@ export type NodeTarget = components['schemas']['NodeTarget'];
 export type NodeProbeResult = components['schemas']['NodeProbeResult'];
 export type NodeInspectionResult = components['schemas']['NodeInspectionResult'];
 export type LocalBootstrapPlanResult = components['schemas']['LocalBootstrapPlanResult'];
+export type ClusterCAReferenceView = components['schemas']['ClusterCAReferenceView'];
+export type ClusterCADeviceTrust = components['schemas']['ClusterCADeviceTrust'];
+export type PrivateNetworkReferenceView = components['schemas']['PrivateNetworkReferenceView'];
+export type TailscaleClientOffer = components['schemas']['TailscaleClientOffer'];
+export type EnrollmentReferenceView = components['schemas']['EnrollmentReferenceView'];
+export type HandoffReport = components['schemas']['HandoffReport'];
+export type HandoffClosure = components['schemas']['HandoffClosure'];
+export type FirstOwnerState = components['schemas']['FirstOwnerState'];
+export type HandoffAssessment = components['schemas']['HandoffAssessment'];
 
 let csrfToken = '';
 
@@ -132,5 +141,17 @@ export const api = {
   createVerificationPlan: (profileId: string) => request<ChangePlan>('/api/v1/plans', { method: 'POST', body: JSON.stringify({ profileId, intent: 'VerifyLauncher' }) }),
   approvePlan: (planId: string) => request<WorkflowRun>(`/api/v1/plans/${planId}/approve`, { method: 'POST' }),
   getRun: (runId: string) => request<WorkflowRun>(`/api/v1/runs/${runId}`)
-  ,cancelRun: (runId: string) => request<WorkflowRun>(`/api/v1/runs/${runId}/cancel`, { method: 'POST' })
+  ,cancelRun: (runId: string) => request<WorkflowRun>(`/api/v1/runs/${runId}/cancel`, { method: 'POST' }),
+  establishClusterCA: (profileId: string) => request<ClusterCAReferenceView>('/api/v1/cluster-ca/establish', { method: 'POST', body: JSON.stringify({ profileId }) }),
+  installClusterCADeviceTrust: (profileId: string) => request<ClusterCADeviceTrust>('/api/v1/cluster-ca/device-trust', { method: 'POST', body: JSON.stringify({ profileId }) }),
+  establishPrivateNetwork: (profileId: string, baseDomain: string) => request<PrivateNetworkReferenceView>('/api/v1/private-network/establish', { method: 'POST', body: JSON.stringify({ profileId, baseDomain }) }),
+  getTailscaleClient: () => request<TailscaleClientOffer>('/api/v1/tailscale-client'),
+  establishEnrollment: (profileId: string) => request<EnrollmentReferenceView>('/api/v1/enrollment/establish', { method: 'POST', body: JSON.stringify({ profileId }) }),
+  consumeLauncherEnrollment: (profileId: string) => request<EnrollmentReferenceView>('/api/v1/enrollment/launcher/consume', { method: 'POST', body: JSON.stringify({ profileId }) }),
+  verifyHandoff: (profileId: string) => request<HandoffReport>('/api/v1/handoff/verify', { method: 'POST', body: JSON.stringify({ profileId }) }),
+  closeTemporaryAccess: (profileId: string) => request<HandoffClosure>('/api/v1/handoff/close-temporary-access', { method: 'POST', body: JSON.stringify({ profileId }) }),
+  claimFirstOwner: (profileId: string) => request<FirstOwnerState>('/api/v1/first-owner/claim', { method: 'POST', body: JSON.stringify({ profileId }) }),
+  registerFirstOwner: (profileId: string, registration: { credentialId: string; publicKey: string; challenge: string }) =>
+    request<FirstOwnerState>('/api/v1/first-owner/register', { method: 'POST', body: JSON.stringify({ profileId, ...registration }) }),
+  getHandoffAssessment: (profileId: string) => request<HandoffAssessment>(`/api/v1/handoff-assessment?profileId=${encodeURIComponent(profileId)}`)
 };

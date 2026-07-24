@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type NodeCapabilities, type NodeInspectionResult, type NodeProbeResult, type NodeTarget, type RecoveryBundlePreview, type SetupJourney, type VaultStatus, type WorkflowRun } from '$lib/api';
+  import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type HandoffAssessment, type NodeCapabilities, type NodeInspectionResult, type NodeProbeResult, type NodeTarget, type RecoveryBundlePreview, type SetupJourney, type TailscaleClientOffer, type VaultStatus, type WorkflowRun } from '$lib/api';
   import { translate, type Locale, type MessageKey } from '$lib/i18n';
 
   type ActivityEvent = {
@@ -87,6 +87,13 @@
   let localBootstrapSecrets = $state('');
   let localBootstrapError = $state('');
   let localBootstrapBusy = $state(false);
+  let handoffAssessment: HandoffAssessment | null = $state(null);
+  let handoffBaseDomain = $state('');
+  let tailscaleOffer: TailscaleClientOffer | null = $state(null);
+  let deviceTrustFingerprint = $state('');
+  let firstOwnerChallenge = $state('');
+  let handoffBusy = $state(false);
+  let handoffError = $state('');
   let creating = $state(true);
   let editing = $state(false);
   let busy = $state(false);
@@ -135,6 +142,18 @@
     credentials = vaultStatus?.state === 'unlocked' ? await api.listCredentials(profile.id) : [];
     plan = null;
     activities = [];
+    handoffAssessment = null;
+    tailscaleOffer = null;
+    deviceTrustFingerprint = '';
+    firstOwnerChallenge = '';
+    handoffError = '';
+    if (profile.deploymentMode === 'local-lan') {
+      try {
+        handoffAssessment = await api.getHandoffAssessment(profile.id);
+      } catch {
+        handoffAssessment = null;
+      }
+    }
     const runID = window.localStorage.getItem(`smallworlds.run.${profile.id}`);
     if (runID) {
       try {
@@ -204,6 +223,51 @@
       vaultBusy = false;
     }
   }
+
+  function handoffStepLabel(name: string): string {
+    switch (name) {
+      case 'cluster-ca-trust-installed': return message('handoffStepClusterCA');
+      case 'private-network': return message('handoffStepPrivateNetwork');
+      case 'launcher-enrolled': return message('handoffStepLauncherEnrolled');
+      case 'gateway-identity': return message('handoffStepGatewayIdentity');
+      case 'gateway-access-enforced': return message('handoffStepGatewayAccess');
+      case 'handoff-verified': return message('handoffStepVerified');
+      case 'temporary-access-closed': return message('handoffStepClosed');
+      case 'first-owner-registered': return message('handoffStepFirstOwner');
+      default: return name;
+    }
+  }
+
+  async function refreshHandoffAssessment(): Promise<void> {
+    if (activeProfile?.deploymentMode === 'local-lan') {
+      handoffAssessment = await api.getHandoffAssessment(activeProfile.id);
+    }
+  }
+
+  async function runHandoff(action: () => Promise<unknown>): Promise<void> {
+    if (!activeProfile) return;
+    handoffBusy = true;
+    handoffError = '';
+    try {
+      await action();
+      await refreshHandoffAssessment();
+    } catch (reason) {
+      handoffError = reason instanceof Error ? reason.message : 'request_failed';
+    } finally {
+      handoffBusy = false;
+    }
+  }
+
+  const establishClusterCA = () => runHandoff(() => api.establishClusterCA(activeProfile!.id));
+  const installDeviceTrust = () => runHandoff(async () => { deviceTrustFingerprint = (await api.installClusterCADeviceTrust(activeProfile!.id)).fingerprint; });
+  const establishPrivateNetwork = () => runHandoff(() => api.establishPrivateNetwork(activeProfile!.id, handoffBaseDomain));
+  const detectTailscale = () => runHandoff(async () => { tailscaleOffer = await api.getTailscaleClient(); });
+  const establishEnrollment = () => runHandoff(() => api.establishEnrollment(activeProfile!.id));
+  const consumeLauncherEnrollment = () => runHandoff(() => api.consumeLauncherEnrollment(activeProfile!.id));
+  const verifyHandoff = () => runHandoff(() => api.verifyHandoff(activeProfile!.id));
+  const closeTemporaryAccess = () => runHandoff(() => api.closeTemporaryAccess(activeProfile!.id));
+  const claimFirstOwner = () => runHandoff(async () => { firstOwnerChallenge = (await api.claimFirstOwner(activeProfile!.id)).claim.challenge; });
+  const registerFirstOwner = () => runHandoff(() => api.registerFirstOwner(activeProfile!.id, { credentialId: crypto.randomUUID(), publicKey: crypto.randomUUID(), challenge: firstOwnerChallenge }));
 
   function recoveryCredential(): { passphrase?: string; identity?: string } {
     return recoveryCredentialMode === 'passphrase' ? { passphrase: recoveryPassphrase } : { identity: recoveryIdentity };
@@ -989,6 +1053,51 @@
 				</form>
 			{/if}
 		</section>
+
+        {#if activeProfile?.deploymentMode === 'local-lan'}
+        <section class="card handoff-card" aria-labelledby="handoff-title">
+          <p class="eyebrow">{message('handoffEyebrow')}</p>
+          <h2 id="handoff-title">{message('handoffTitle')}</h2>
+          <p class="muted">{message('handoffDescription')}</p>
+          {#if handoffError}<p class="inline-error" role="alert">{handoffError}</p>{/if}
+          {#if handoffAssessment}
+            <section class="handoff-steps" aria-label={message('handoffStepsTitle')}>
+              <h3>{message('handoffStepsTitle')}</h3>
+              <ul class="handoff-checklist">
+                {#each handoffAssessment.steps as step (step.name)}
+                  <li class:complete={step.complete}><span aria-hidden="true">{step.complete ? '✓' : '○'}</span> {handoffStepLabel(step.name)}</li>
+                {/each}
+              </ul>
+            </section>
+          {/if}
+          {#if vaultStatus?.state === 'unlocked'}
+            <div class="actions"><button type="button" onclick={() => void establishClusterCA()} disabled={handoffBusy}>{message('handoffClusterCAEstablish')}</button><button type="button" class="secondary" onclick={() => void installDeviceTrust()} disabled={handoffBusy}>{message('handoffDeviceTrustInstall')}</button></div>
+            {#if deviceTrustFingerprint}<p class="inline-notice">{message('handoffDeviceTrustFingerprint')}: <code>{deviceTrustFingerprint}</code></p>{/if}
+            <form onsubmit={(event) => { event.preventDefault(); void establishPrivateNetwork(); }}>
+              <label><span>{message('handoffBaseDomain')}</span><input bind:value={handoffBaseDomain} required placeholder="smallworlds.internal" /></label>
+              <div class="actions"><button type="submit" disabled={handoffBusy}>{message('handoffPrivateNetworkEstablish')}</button></div>
+            </form>
+            <div class="actions"><button type="button" onclick={() => void detectTailscale()} disabled={handoffBusy}>{message('handoffTailscaleDetect')}</button></div>
+            {#if tailscaleOffer}
+              <p class="inline-notice">{tailscaleOffer.detected ? message('handoffTailscaleDetected') : message('handoffTailscaleAbsent')} {#if tailscaleOffer.acquisition.available}{message('handoffTailscaleAcquire')} {/if}<a href={tailscaleOffer.acquisition.manualInstructionsUrl} target="_blank" rel="noreferrer">{message('handoffTailscaleManual')}</a></p>
+            {/if}
+            <div class="actions"><button type="button" onclick={() => void establishEnrollment()} disabled={handoffBusy}>{message('handoffEnrollmentEstablish')}</button><button type="button" class="secondary" onclick={() => void consumeLauncherEnrollment()} disabled={handoffBusy}>{message('handoffLauncherConsume')}</button></div>
+            <div class="actions"><button type="button" onclick={() => void verifyHandoff()} disabled={handoffBusy}>{message('handoffVerify')}</button><button type="button" class="secondary" onclick={() => void closeTemporaryAccess()} disabled={handoffBusy}>{message('handoffCloseAccess')}</button></div>
+            <div class="actions"><button type="button" onclick={() => void claimFirstOwner()} disabled={handoffBusy}>{message('handoffFirstOwnerClaim')}</button><button type="button" onclick={() => void registerFirstOwner()} disabled={handoffBusy || !firstOwnerChallenge}>{message('handoffFirstOwnerRegister')}</button></div>
+          {:else}
+            <p class="muted">{message('handoffUnlockFirst')}</p>
+          {/if}
+          {#if handoffAssessment}
+            <section class="handoff-limitations" aria-label={message('handoffLimitations')}>
+              <h3>{message('handoffLimitations')}</h3>
+              <ul>{#each handoffAssessment.limitations as limitation (limitation)}<li>{limitation}</li>{/each}</ul>
+            </section>
+            {#if handoffAssessment.complete && handoffAssessment.consoleHandoffUrl}
+              <p class="inline-notice" data-testid="console-handoff-url">{message('handoffConsoleUrl')}: <a href={handoffAssessment.consoleHandoffUrl}>{handoffAssessment.consoleHandoffUrl}</a></p>
+            {/if}
+          {/if}
+        </section>
+        {/if}
 
         <section aria-labelledby="next-title">
           <p class="eyebrow">{message('next')}</p>

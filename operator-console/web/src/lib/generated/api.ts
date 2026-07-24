@@ -516,6 +516,294 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/cluster-ca": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getClusterCA"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cluster-ca/establish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["establishClusterCA"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cluster-ca/device-trust": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["installClusterCADeviceTrust"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/private-network": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getPrivateNetwork"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/private-network/establish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["establishPrivateNetwork"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tailscale-client": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getTailscaleClient"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/enrollment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getEnrollment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/enrollment/establish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["establishEnrollment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/enrollment/launcher/consume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["consumeLauncherEnrollment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gateway-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getGatewayAccess"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gateway-access/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["checkGatewayAccessHost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/handoff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getHandoffStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/handoff/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["verifyHandoff"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/handoff/close-temporary-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["closeTemporaryAccess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/first-owner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getFirstOwner"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/first-owner/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["claimFirstOwner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/first-owner/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["registerFirstOwner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/handoff-assessment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getHandoffAssessment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -896,6 +1184,177 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        ClusterCAInput: {
+            profileId: string;
+        };
+        ClusterCAReferenceView: {
+            /** @description Secret-free Cluster CA metadata (subjects, serials, fingerprints, validity) */
+            reference: Record<string, never>;
+            rootFingerprint: string;
+            deviceTrustInstalled: boolean;
+        };
+        ClusterCADeviceTrust: {
+            profileId: string;
+            rootCertificatePem: string;
+            fingerprint: string;
+            subject?: string;
+            /** Format: date-time */
+            notAfter?: string;
+            /** @constant */
+            deviceTrustInstalled: true;
+        };
+        PrivateNetworkInput: {
+            profileId: string;
+            baseDomain: string;
+        };
+        PrivateNetworkReferenceView: {
+            /** @constant */
+            shape: "lan-only";
+            /** @constant */
+            coordinationExposure: "private";
+            /** @constant */
+            resolution: "magic-dns";
+            baseDomain: string;
+            namespace?: string;
+            coordinationHost: string;
+            gatewayHostname: string;
+            operatorEndpoints: {
+                name: string;
+                fqdn: string;
+                target: string;
+            }[];
+        };
+        TailscaleClientOffer: {
+            platform: {
+                os: string;
+                arch: string;
+            };
+            detected: boolean;
+            manualFallback: boolean;
+            acquisition: {
+                available: boolean;
+                version?: string;
+                url?: string;
+                sha256?: string;
+                format?: string;
+                elevationRequired: boolean;
+                manualInstructionsUrl: string;
+            };
+        };
+        EnrollmentInput: {
+            profileId: string;
+        };
+        EnrollmentReferenceView: {
+            baseDomain: string;
+            launcher: {
+                role: string;
+                namespace?: string;
+                hostname: string;
+                singleUse: boolean;
+                stable: boolean;
+                /** Format: date-time */
+                issuedAt?: string;
+                /** Format: date-time */
+                expiresAt?: string;
+                used: boolean;
+            };
+            gateway: {
+                role: string;
+                namespace?: string;
+                hostname: string;
+                singleUse: boolean;
+                stable: boolean;
+                /** Format: date-time */
+                issuedAt?: string;
+                /** Format: date-time */
+                expiresAt?: string;
+                used: boolean;
+            };
+        };
+        GatewayAccessPolicy: {
+            baseDomain: string;
+            gatewayHostname: string;
+            /** @constant */
+            scheme: "https";
+            /** @constant */
+            entrypoint: "private-gateway";
+            /** @constant */
+            lanIngress: "deny";
+            /** @constant */
+            publicIngress: "deny";
+            allowedHosts: string[];
+        };
+        GatewayAccessCheckInput: {
+            profileId: string;
+            host: string;
+        };
+        GatewayAccessCheckResult: {
+            host: string;
+            allowed: boolean;
+        };
+        HandoffInput: {
+            profileId: string;
+        };
+        HandoffReport: {
+            verified: boolean;
+            checks: {
+                name: string;
+                passed: boolean;
+            }[];
+        };
+        HandoffStatus: {
+            closed: boolean;
+            verified: boolean;
+            report?: components["schemas"]["HandoffReport"];
+        };
+        HandoffClosure: {
+            /** @constant */
+            closed: true;
+            report: components["schemas"]["HandoffReport"];
+        };
+        FirstOwnerInput: {
+            profileId: string;
+        };
+        PasskeyRegistrationInput: {
+            profileId: string;
+            credentialId: string;
+            publicKey: string;
+            challenge: string;
+        };
+        FirstOwnerState: {
+            claim: {
+                challenge: string;
+                /** Format: date-time */
+                issuedAt?: string;
+                /** Format: date-time */
+                expiresAt: string;
+                used: boolean;
+            };
+            ownerRegistered: boolean;
+            bootstrapGrantDisabled: boolean;
+            credentialId?: string;
+        };
+        FirstOwnerStatus: {
+            ownerRegistered: boolean;
+            bootstrapGrantDisabled: boolean;
+            claim?: {
+                challenge: string;
+                /** Format: date-time */
+                issuedAt?: string;
+                /** Format: date-time */
+                expiresAt: string;
+                used: boolean;
+            };
+        };
+        HandoffAssessment: {
+            complete: boolean;
+            steps: {
+                name: string;
+                complete: boolean;
+            }[];
+            limitations: string[];
+            consoleHandoffUrl?: string;
         };
     };
     responses: {
@@ -1848,6 +2307,490 @@ export interface operations {
                 };
                 content: {
                     "text/event-stream": string;
+                };
+            };
+        };
+    };
+    getClusterCA: {
+        parameters: {
+            query: {
+                profileId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Established Cluster CA reference (secret-free) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClusterCAReferenceView"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    establishClusterCA: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClusterCAInput"];
+            };
+        };
+        responses: {
+            /** @description Existing Cluster CA returned unchanged */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClusterCAReferenceView"];
+                };
+            };
+            /** @description Cluster CA root created; only an intermediate is destined for the cluster */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClusterCAReferenceView"];
+                };
+            };
+            409: components["responses"]["Conflict"];
+            423: components["responses"]["Locked"];
+        };
+    };
+    installClusterCADeviceTrust: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClusterCAInput"];
+            };
+        };
+        responses: {
+            /** @description Public root certificate to install on the current Operator Device */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClusterCADeviceTrust"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPrivateNetwork: {
+        parameters: {
+            query: {
+                profileId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Established LAN-only Private Network shape (secret-free) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrivateNetworkReferenceView"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    establishPrivateNetwork: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrivateNetworkInput"];
+            };
+        };
+        responses: {
+            /** @description Existing Private Network returned unchanged */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrivateNetworkReferenceView"];
+                };
+            };
+            /** @description LAN-only Headscale coordination + operator DNS shape established */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrivateNetworkReferenceView"];
+                };
+            };
+            409: components["responses"]["Conflict"];
+            423: components["responses"]["Locked"];
+        };
+    };
+    getTailscaleClient: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Official Tailscale client detection and pinned/manual acquisition offer for the Launcher Host */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TailscaleClientOffer"];
+                };
+            };
+        };
+    };
+    getEnrollment: {
+        parameters: {
+            query: {
+                profileId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tailnet enrollment state (secret-free) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentReferenceView"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    establishEnrollment: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnrollmentInput"];
+            };
+        };
+        responses: {
+            /** @description Existing enrollment returned unchanged */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentReferenceView"];
+                };
+            };
+            /** @description Short-lived single-use Launcher credential + stable Gateway identity established */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentReferenceView"];
+                };
+            };
+            409: components["responses"]["Conflict"];
+            423: components["responses"]["Locked"];
+        };
+    };
+    consumeLauncherEnrollment: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnrollmentInput"];
+            };
+        };
+        responses: {
+            /** @description Single-use Launcher credential consumed and destroyed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentReferenceView"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            423: components["responses"]["Locked"];
+        };
+    };
+    getGatewayAccess: {
+        parameters: {
+            query: {
+                profileId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description LAN-only Private Gateway access policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GatewayAccessPolicy"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    checkGatewayAccessHost: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GatewayAccessCheckInput"];
+            };
+        };
+        responses: {
+            /** @description Whether a Host header may reach an operator interface */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GatewayAccessCheckResult"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getHandoffStatus: {
+        parameters: {
+            query: {
+                profileId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Whether the temporary administration path is closed and its last verification */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandoffStatus"];
+                };
+            };
+        };
+    };
+    verifyHandoff: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandoffInput"];
+            };
+        };
+        responses: {
+            /** @description Per-check verification report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandoffReport"];
+                };
+            };
+            409: components["responses"]["Conflict"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    closeTemporaryAccess: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandoffInput"];
+            };
+        };
+        responses: {
+            /** @description Temporary SSH/Kubernetes administration path closed after full verification */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandoffClosure"];
+                };
+            };
+            409: components["responses"]["Conflict"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getFirstOwner: {
+        parameters: {
+            query: {
+                profileId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description First-owner status and whether the bootstrap grant is disabled */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirstOwnerStatus"];
+                };
+            };
+        };
+    };
+    claimFirstOwner: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FirstOwnerInput"];
+            };
+        };
+        responses: {
+            /** @description Short-lived single-use first-owner claim */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirstOwnerState"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    registerFirstOwner: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasskeyRegistrationInput"];
+            };
+        };
+        responses: {
+            /** @description Passkey registered; bootstrap grant permanently disabled */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirstOwnerState"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getHandoffAssessment: {
+        parameters: {
+            query: {
+                profileId: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Final Setup Journey assessment: step completion, LAN-only limitations, and (when complete) the in-cluster console handoff URL */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandoffAssessment"];
                 };
             };
         };
