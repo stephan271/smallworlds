@@ -27,6 +27,7 @@ import (
 	"github.com/stephan271/smallworlds/operator-console/internal/privatenetwork"
 	"github.com/stephan271/smallworlds/operator-console/internal/recovery"
 	"github.com/stephan271/smallworlds/operator-console/internal/state"
+	"github.com/stephan271/smallworlds/operator-console/internal/tailscaleclient"
 	"github.com/stephan271/smallworlds/operator-console/internal/vault"
 	"github.com/stephan271/smallworlds/operator-console/internal/workflow"
 )
@@ -215,6 +216,8 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.privateNetworkStatus(response, request)
 	case request.URL.Path == "/api/v1/private-network/establish":
 		server.establishPrivateNetwork(response, request)
+	case request.URL.Path == "/api/v1/tailscale-client":
+		server.tailscaleClient(response, request)
 	case request.URL.Path == "/api/v1/profiles":
 		server.profiles(response, request)
 	case strings.HasPrefix(request.URL.Path, "/api/v1/profiles/"):
@@ -889,6 +892,24 @@ func (server *Server) installClusterCADeviceTrust(response http.ResponseWriter, 
 		"notAfter":             material.Reference.RootNotAfter,
 		"deviceTrustInstalled": true,
 	})
+}
+
+func (server *Server) tailscaleClient(response http.ResponseWriter, request *http.Request) {
+	if _, ok := server.authenticatedSession(request); !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodGet {
+		response.Header().Set("Allow", "GET")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	offer, err := tailscaleclient.Plan(tailscaleclient.Platform{OS: runtime.GOOS, Arch: runtime.GOARCH}, tailscaleclient.DetectInstalled(), tailscaleclient.DefaultCatalog())
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "tailscale_client_unavailable")
+		return
+	}
+	writeJSON(response, http.StatusOK, offer)
 }
 
 func privateNetworkCoordinationVaultKey(profileID string) string {

@@ -48,19 +48,33 @@ and ships unit tests.
   idempotency, credential visibility, and the LAN-only guard. Full build/vet/test
   pass.
 
+- [x] **Tailscale client detection + acquisition offer** — closes acceptance
+  criterion 3. New `internal/tailscaleclient` detects an installed official
+  client (injectable probe; API never leaks the host path), resolves a pinned,
+  integrity-verified acquisition descriptor from a trusted-host catalog
+  (`pkgs.tailscale.com`/`github.com`, HTTPS + SHA-256), always surfaces the
+  explicit-elevation requirement, and always retains the manual-install
+  fallback. `DefaultCatalog` ships empty — no fabricated/unverified pins — so it
+  honestly offers only manual fallback until release engineering pins reviewed
+  digests (mirroring how bootstrap asset digests are provided). Host-level
+  `GET /api/v1/tailscale-client` endpoint; OpenAPI contract updated. Unit tests
+  cover the verified-acquisition path, unsupported-platform fallback, descriptor
+  rejection (untrusted host/http/missing digest/bad version/format), and
+  path-free detection; HTTP test asserts platform reporting, retained fallback,
+  no automated acquisition from the empty default, and no path leakage. Full
+  build/vet/test pass.
+
 ### Remaining tracers (each still to build)
 
-1. Official Tailscale client detection + pinned verified acquisition with explicit
-   elevation and manual fallback (criterion 3).
-2. Launcher Host short-lived single-use enrollment + separate stable Private
+1. Launcher Host short-lived single-use enrollment + separate stable Private
    Gateway identity surviving pod restart/reschedule (criterion 4).
-3. HTTPS-only-via-Private-Gateway access with LAN/public-ingress and forged
+2. HTTPS-only-via-Private-Gateway access with LAN/public-ingress and forged
    Host-header rejection (criterion 5).
-4. Pre-close verification of private reachability, DNS, TLS, and gateway identity
+3. Pre-close verification of private reachability, DNS, TLS, and gateway identity
    before any temporary SSH/Kubernetes path is removed (criterion 6).
-5. Short-lived first-owner claim; successful passkey registration permanently
+4. Short-lived first-owner claim; successful passkey registration permanently
    disables the bootstrap grant (criterion 7).
-6. Final Setup Journey assessment explaining LAN-only limitations + in-cluster
+5. Final Setup Journey assessment explaining LAN-only limitations + in-cluster
    console handoff URL (criterion 8), plus the browser acceptance test and the
    Setup Journey UI wiring for the Cluster CA and Private Network steps.
 
@@ -74,7 +88,7 @@ Covers PRD user stories 63, 66–75, and 78–80.
 
 - [x] The Lifecycle Authority creates and protects the Cluster CA root, issues only an intermediate to the cluster, and can explicitly install trust on the current Operator Device. _(API/contract + tests landed; Setup Journey UI wiring lands with the journey-integration tracer.)_
 - [x] Headscale coordination and Private Network DNS are reachable only in the LAN-only shape and resolve stable operator hostnames without permanent hosts-file entries. _(API/contract + tests landed; Setup Journey UI wiring lands with the journey-integration tracer.)_
-- [ ] The launcher detects the official Tailscale client, offers pinned verified acquisition with explicit elevation, and retains a manual fallback when automation is unavailable.
+- [x] The launcher detects the official Tailscale client, offers pinned verified acquisition with explicit elevation, and retains a manual fallback when automation is unavailable. _(API/contract + tests landed; Setup Journey UI wiring lands with the journey-integration tracer.)_
 - [ ] The Launcher Host enrolls with a short-lived single-use credential while the Private Gateway uses a separate stable identity that survives pod restart or reschedule.
 - [ ] Operator Console, Grafana, and Argo CD are reachable through standard HTTPS only via the Private Gateway and cannot be reached through LAN/public ingress or forged Host headers.
 - [ ] Private reachability, DNS, TLS, and gateway identity are verified before any temporary SSH or Kubernetes administration path is closed.

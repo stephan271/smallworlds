@@ -1321,6 +1321,23 @@
           }
         }
       }
+    },
+    "/api/v1/tailscale-client": {
+      "get": {
+        "operationId": "getTailscaleClient",
+        "responses": {
+          "200": {
+            "description": "Official Tailscale client detection and pinned/manual acquisition offer for the Launcher Host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TailscaleClientOffer"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3004,6 +3021,69 @@
                 "target": {
                   "type": "string"
                 }
+              }
+            }
+          }
+        }
+      },
+      "TailscaleClientOffer": {
+        "type": "object",
+        "required": [
+          "platform",
+          "detected",
+          "acquisition",
+          "manualFallback"
+        ],
+        "properties": {
+          "platform": {
+            "type": "object",
+            "required": [
+              "os",
+              "arch"
+            ],
+            "properties": {
+              "os": {
+                "type": "string"
+              },
+              "arch": {
+                "type": "string"
+              }
+            }
+          },
+          "detected": {
+            "type": "boolean"
+          },
+          "manualFallback": {
+            "type": "boolean"
+          },
+          "acquisition": {
+            "type": "object",
+            "required": [
+              "available",
+              "elevationRequired",
+              "manualInstructionsUrl"
+            ],
+            "properties": {
+              "available": {
+                "type": "boolean"
+              },
+              "version": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "sha256": {
+                "type": "string"
+              },
+              "format": {
+                "type": "string"
+              },
+              "elevationRequired": {
+                "type": "boolean"
+              },
+              "manualInstructionsUrl": {
+                "type": "string"
               }
             }
           }
