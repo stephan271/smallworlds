@@ -21,6 +21,7 @@ import (
 	"github.com/stephan271/smallworlds/operator-console/internal/capability"
 	"github.com/stephan271/smallworlds/operator-console/internal/clusterca"
 	"github.com/stephan271/smallworlds/operator-console/internal/enrollment"
+	"github.com/stephan271/smallworlds/operator-console/internal/gatewayaccess"
 	"github.com/stephan271/smallworlds/operator-console/internal/githttps"
 	"github.com/stephan271/smallworlds/operator-console/internal/github"
 	"github.com/stephan271/smallworlds/operator-console/internal/localbootstrap"
@@ -225,6 +226,10 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.establishEnrollment(response, request)
 	case request.URL.Path == "/api/v1/enrollment/launcher/consume":
 		server.consumeLauncherEnrollment(response, request)
+	case request.URL.Path == "/api/v1/gateway-access":
+		server.gatewayAccessStatus(response, request)
+	case request.URL.Path == "/api/v1/gateway-access/check":
+		server.checkGatewayAccessHost(response, request)
 	case request.URL.Path == "/api/v1/profiles":
 		server.profiles(response, request)
 	case strings.HasPrefix(request.URL.Path, "/api/v1/profiles/"):
@@ -899,6 +904,86 @@ func (server *Server) installClusterCADeviceTrust(response http.ResponseWriter, 
 		"notAfter":             material.Reference.RootNotAfter,
 		"deviceTrustInstalled": true,
 	})
+}
+
+func (server *Server) gatewayPolicy(request *http.Request, profileID string) (gatewayaccess.Policy, error) {
+	network, err := server.store.GetPrivateNetwork(request.Context(), profileID)
+	if err != nil {
+		return gatewayaccess.Policy{}, err
+	}
+	reference, err := privatenetwork.ParseReference(network.Reference)
+	if err != nil {
+		return gatewayaccess.Policy{}, err
+	}
+	hosts := make([]string, 0, len(reference.OperatorEndpoints))
+	for _, endpoint := range reference.OperatorEndpoints {
+		hosts = append(hosts, endpoint.FQDN)
+	}
+	return gatewayaccess.Plan(reference.BaseDomain, reference.GatewayHostname, hosts)
+}
+
+func (server *Server) gatewayAccessStatus(response http.ResponseWriter, request *http.Request) {
+	if _, ok := server.authenticatedSession(request); !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodGet {
+		response.Header().Set("Allow", "GET")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	profileID := request.URL.Query().Get("profileId")
+	if profileID == "" {
+		writeError(response, http.StatusBadRequest, "profile_required")
+		return
+	}
+	policy, err := server.gatewayPolicy(request, profileID)
+	if errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "private_network_required")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "gateway_access_failed")
+		return
+	}
+	writeJSON(response, http.StatusOK, policy)
+}
+
+func (server *Server) checkGatewayAccessHost(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		ProfileID string `json:"profileId"`
+		Host      string `json:"host"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 8*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" || input.Host == "" {
+		writeError(response, http.StatusBadRequest, "invalid_gateway_access_check")
+		return
+	}
+	policy, err := server.gatewayPolicy(request, input.ProfileID)
+	if errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "private_network_required")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "gateway_access_failed")
+		return
+	}
+	writeJSON(response, http.StatusOK, map[string]any{"host": input.Host, "allowed": policy.HostAllowed(input.Host)})
 }
 
 func launcherEnrollmentVaultKey(profileID string) string {

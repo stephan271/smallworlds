@@ -53,6 +53,8 @@ func TestOpenAPIContractDescribesLauncherWorkflow(t *testing.T) {
 		"/api/v1/enrollment":                       {"get"},
 		"/api/v1/enrollment/establish":             {"post"},
 		"/api/v1/enrollment/launcher/consume":      {"post"},
+		"/api/v1/gateway-access":                   {"get"},
+		"/api/v1/gateway-access/check":             {"post"},
 		"/api/v1/profiles":                         {"get", "post"},
 		"/api/v1/profiles/{id}":                    {"put"},
 		"/api/v1/profiles/{id}/journey":            {"get"},

@@ -82,18 +82,29 @@ and ships unit tests.
   visibility, one-time consumption, and that the stable gateway survives
   launcher consumption. Full build/vet/test pass.
 
+- [x] **Private Gateway access policy + Host enforcement** — closes acceptance
+  criterion 5. New `internal/gatewayaccess` derives (from the established
+  Private Network, single source of truth) an HTTPS-only, private-gateway-only
+  access policy that denies LAN and public ingress and admits **only the exact
+  operator hostnames**. `HostAllowed` normalizes (case/port/trailing-dot) and
+  exact-matches, so forged, LAN-IP, public-domain, and suffix-trick Host headers
+  are rejected. No new persistence or secrets (derived on demand). Endpoints:
+  `GET /api/v1/gateway-access` (policy) and `POST /api/v1/gateway-access/check`
+  (Host verdict, supporting criterion 6 verification). OpenAPI contract updated.
+  Unit tests cover the policy shape, exact-host acceptance, forged-Host
+  rejection, and rejection of weakened policies; HTTP test proves HTTPS-only +
+  denied ingress and forged-Host rejection end to end. Full build/vet/test pass.
+
 ### Remaining tracers (each still to build)
 
-1. HTTPS-only-via-Private-Gateway access with LAN/public-ingress and forged
-   Host-header rejection (criterion 5).
-2. Pre-close verification of private reachability, DNS, TLS, and gateway identity
+1. Pre-close verification of private reachability, DNS, TLS, and gateway identity
    before any temporary SSH/Kubernetes path is removed (criterion 6).
-3. Short-lived first-owner claim; successful passkey registration permanently
+2. Short-lived first-owner claim; successful passkey registration permanently
    disables the bootstrap grant (criterion 7).
-4. Final Setup Journey assessment explaining LAN-only limitations + in-cluster
+3. Final Setup Journey assessment explaining LAN-only limitations + in-cluster
    console handoff URL (criterion 8), plus the browser acceptance test and the
-   Setup Journey UI wiring for the Cluster CA, Private Network, and enrollment
-   steps.
+   Setup Journey UI wiring for the Cluster CA, Private Network, enrollment, and
+   gateway-access steps.
 
 ## What to build
 
@@ -107,7 +118,7 @@ Covers PRD user stories 63, 66–75, and 78–80.
 - [x] Headscale coordination and Private Network DNS are reachable only in the LAN-only shape and resolve stable operator hostnames without permanent hosts-file entries. _(API/contract + tests landed; Setup Journey UI wiring lands with the journey-integration tracer.)_
 - [x] The launcher detects the official Tailscale client, offers pinned verified acquisition with explicit elevation, and retains a manual fallback when automation is unavailable. _(API/contract + tests landed; Setup Journey UI wiring lands with the journey-integration tracer.)_
 - [x] The Launcher Host enrolls with a short-lived single-use credential while the Private Gateway uses a separate stable identity that survives pod restart or reschedule. _(API/contract + tests landed; Setup Journey UI wiring lands with the journey-integration tracer.)_
-- [ ] Operator Console, Grafana, and Argo CD are reachable through standard HTTPS only via the Private Gateway and cannot be reached through LAN/public ingress or forged Host headers.
+- [x] Operator Console, Grafana, and Argo CD are reachable through standard HTTPS only via the Private Gateway and cannot be reached through LAN/public ingress or forged Host headers. _(API/contract + tests landed; Setup Journey UI wiring lands with the journey-integration tracer.)_
 - [ ] Private reachability, DNS, TLS, and gateway identity are verified before any temporary SSH or Kubernetes administration path is closed.
 - [ ] The launcher displays a short-lived first-owner claim, and successful passkey registration permanently disables the bootstrap grant.
 - [ ] The final Setup Journey assessment explains LAN-only limitations and provides the in-cluster console handoff URL.

@@ -1457,6 +1457,71 @@
           }
         }
       }
+    },
+    "/api/v1/gateway-access": {
+      "get": {
+        "operationId": "getGatewayAccess",
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "LAN-only Private Gateway access policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayAccessPolicy"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/gateway-access/check": {
+      "post": {
+        "operationId": "checkGatewayAccessHost",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GatewayAccessCheckInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Whether a Host header may reach an operator interface",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayAccessCheckResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3305,6 +3370,78 @@
                 "type": "boolean"
               }
             }
+          }
+        }
+      },
+      "GatewayAccessPolicy": {
+        "type": "object",
+        "required": [
+          "baseDomain",
+          "gatewayHostname",
+          "scheme",
+          "entrypoint",
+          "lanIngress",
+          "publicIngress",
+          "allowedHosts"
+        ],
+        "properties": {
+          "baseDomain": {
+            "type": "string"
+          },
+          "gatewayHostname": {
+            "type": "string"
+          },
+          "scheme": {
+            "type": "string",
+            "const": "https"
+          },
+          "entrypoint": {
+            "type": "string",
+            "const": "private-gateway"
+          },
+          "lanIngress": {
+            "type": "string",
+            "const": "deny"
+          },
+          "publicIngress": {
+            "type": "string",
+            "const": "deny"
+          },
+          "allowedHosts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "GatewayAccessCheckInput": {
+        "type": "object",
+        "required": [
+          "profileId",
+          "host"
+        ],
+        "properties": {
+          "profileId": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          }
+        }
+      },
+      "GatewayAccessCheckResult": {
+        "type": "object",
+        "required": [
+          "host",
+          "allowed"
+        ],
+        "properties": {
+          "host": {
+            "type": "string"
+          },
+          "allowed": {
+            "type": "boolean"
           }
         }
       }
