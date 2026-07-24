@@ -1,6 +1,25 @@
 # Enroll and revoke Operator Devices
 
-Status: ready-for-agent
+Status: in-progress
+
+## Implementation progress
+
+- [x] **operator-device domain** (`internal/operatordevice`) — the pure,
+  table-tested core. `Invitation` is the secret-free, single-use, attributable
+  Enrollment Invitation record (it stores only the SHA-256 fingerprint of the
+  one-time join key, never the key or any reusable cluster/Headscale admin
+  credential); its lifetime is clamped into `[MinInvitationTTL, MaxInvitationTTL]`
+  so it is always short-lived, and `Redeem`/`Revoke`/`State` give expired, reused,
+  and revoked invitations distinct, fail-closed errors (criteria 2, 7).
+  `EnrollmentGuidance` derives the ordered enrollment path (verified Tailscale
+  acquisition + elevation, Private Network join, MagicDNS, Cluster CA install only
+  where the Deployment Mode requires it, gateway-reachability verification) —
+  criteria 3, 4. `AssessRevocation` inspects the device inventory, counts
+  alternative Owner access, labels lockout risk (last-owner-device dominant over
+  self-revocation), and records the affected stable device identity (criterion 5).
+  `gofmt`/`go vet`/`go test` clean.
+- [ ] Console device-administration endpoints + seams (criteria 1, 5, 6).
+- [ ] Web UI device-access view (EN/DE).
 
 ## What to build
 
