@@ -117,8 +117,69 @@ export interface ProtectionReport {
   datasets: DatasetProtection[];
 }
 
+// --- Add-capability journey (internal/addcapability, internal/console) ---
+
+export interface Resources {
+  memoryMi: number;
+  storageGi: number;
+}
+
+/** An addable Community Application: disabled, optional, supported in the
+ *  cluster's deployment mode. `disabledDependencies` are the still-disabled
+ *  dependencies a proposal would pull in alongside it. */
+export interface AddCapabilityOffer {
+  id: string;
+  displayKey: string;
+  resources: Resources;
+  exposure: string;
+  protection: string;
+  stateful: boolean;
+  dependencies: string[] | null;
+  disabledDependencies: string[] | null;
+}
+
+export interface ResourceComparison {
+  requiredMemoryMi: number;
+  requiredStorageGi: number;
+  availableMemoryMi: number;
+  availableStorageGi: number;
+  fitsMemory: boolean;
+  fitsStorage: boolean;
+}
+
+export interface AddCapabilityPlan {
+  target: string;
+  addedCapabilities: string[];
+  presentDependencies: string[] | null;
+  resources: ResourceComparison;
+  exposure: string[] | null;
+  protection: string[] | null;
+  persistentData: string[] | null;
+  gitDiff: string;
+}
+
+export interface PlanResponse {
+  planId: string;
+  digest: string;
+  summary: string;
+  plan: AddCapabilityPlan;
+}
+
+export interface ProposeResponse {
+  runId: string;
+  provider: string;
+  branch?: string;
+  commit: string;
+  url?: string;
+  mergeObserved: boolean;
+  mergeInstructionKey: string;
+}
+
 export class ConsoleApiError extends Error {
-  constructor(public readonly status: number) {
+  constructor(
+    public readonly status: number,
+    public readonly code?: string
+  ) {
     super(`console api error: ${status}`);
   }
 }
@@ -131,6 +192,26 @@ async function getJSON<T>(path: string): Promise<T> {
   return (await response.json()) as T;
 }
 
+async function postJSON<T>(path: string, body?: unknown): Promise<T> {
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: body
+      ? { Accept: 'application/json', 'Content-Type': 'application/json' }
+      : { Accept: 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body)
+  });
+  if (!response.ok) {
+    let code: string | undefined;
+    try {
+      code = ((await response.json()) as { code?: string }).code;
+    } catch {
+      code = undefined;
+    }
+    throw new ConsoleApiError(response.status, code);
+  }
+  return (await response.json()) as T;
+}
+
 export const consoleApi = {
   loginPath: '/api/v1/auth/login',
   session: () => getJSON<Session>('/api/v1/session'),
@@ -138,6 +219,15 @@ export const consoleApi = {
   capability: (id: string) =>
     getJSON<CapabilityAssessment>(`/api/v1/capabilities/${encodeURIComponent(id)}`),
   protection: () => getJSON<ProtectionReport>('/api/v1/protection'),
+  additionOffers: () => getJSON<{ offers: AddCapabilityOffer[] }>('/api/v1/additions/offers'),
+  planAddition: (capabilityId: string) =>
+    postJSON<PlanResponse>('/api/v1/additions/plan', { capabilityId }),
+  approveAddition: (planId: string) =>
+    postJSON<{ planId: string; approvedBy: string }>(
+      `/api/v1/additions/${encodeURIComponent(planId)}/approve`
+    ),
+  proposeAddition: (planId: string) =>
+    postJSON<ProposeResponse>(`/api/v1/additions/${encodeURIComponent(planId)}/propose`),
   logout: () => fetch('/api/v1/auth/logout', { method: 'POST' })
 };
 

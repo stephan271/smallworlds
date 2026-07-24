@@ -77,6 +77,53 @@ const en = {
   restoreDrillFailed: 'failed',
   notObserved: 'Evidence unavailable',
 
+  navAdditions: 'Add application',
+  additionsHeading: 'Add a community application',
+  additionsIntro:
+    'Enable one more community application by opening a Git proposal against your overlay. The console never changes your cluster directly — you review and merge the proposal, and the new application then appears here with its own evidence.',
+  additionsEmpty: 'There are no community applications available to add right now.',
+  addPlanButton: 'Plan this addition',
+  offerAlsoEnables: 'Also enables',
+  offerStores: 'Stores data',
+  planHeading: 'Review the change',
+  planBackToOffers: 'Back to applications',
+  planAddsLabel: 'This proposal adds',
+  planPresentLabel: 'Already present',
+  planResourcesHeading: 'Estimated resources vs. capacity',
+  planMemory: 'Memory',
+  planStorage: 'Storage',
+  planNeeded: 'Needed',
+  planAvailable: 'Available',
+  planFitsYes: 'Fits current capacity',
+  planFitsNo: 'Exceeds available capacity — add resources before merging',
+  planExposureLabel: 'Exposure',
+  planDataLabel: 'Persistent data',
+  planDataNone: 'None',
+  planProtectionLabel: 'Protection',
+  planDiffHeading: 'Exact Git changes',
+  planDiffHint:
+    'These files are added to your GitOps overlay. No live Kubernetes resources are changed directly.',
+  approveButton: 'Approve this plan',
+  proposeButton: 'Open Git proposal',
+  proposalOpenedHeading: 'Proposal opened',
+  proposalMergeObserved:
+    'The console will not merge this for you. Review and merge the pull request; the new application then follows its Argo, runtime, access, and protection evidence here.',
+  proposalProvider: 'Provider',
+  proposalBranch: 'Branch',
+  proposalCommit: 'Commit',
+  proposalOpenLink: 'Open pull request',
+  addAnother: 'Add another application',
+  additionErrorGeneric: 'The change could not be completed.',
+  additionErrorMismatch: 'The cluster changed since you planned. Re-plan to continue.',
+  additionErrorCapacity: 'Live capacity is not available yet, so additions cannot be planned.',
+  additionErrorProposal: 'The overlay proposal path is not configured yet.',
+  additionErrorNotOffered: 'This application can no longer be added.',
+
+  'cat_application-policy': 'Application-defined access policy',
+  'cat_private-gateway': 'Private Gateway only',
+  'cat_capability-backup': 'Per-application backup',
+  'cat_cluster-backup': 'Cluster-wide backup',
+
   plevel_unknown: 'Unknown',
   plevel_none: 'No protection',
   'plevel_local-only': 'Local only',
@@ -217,6 +264,55 @@ const de: Record<ConsoleMessageKey, string> = {
   restoreDrillFailed: 'fehlgeschlagen',
   notObserved: 'Nachweis nicht verfügbar',
 
+  navAdditions: 'Anwendung hinzufügen',
+  additionsHeading: 'Community-Anwendung hinzufügen',
+  additionsIntro:
+    'Aktivieren Sie eine weitere Community-Anwendung, indem Sie einen Git-Vorschlag für Ihr Overlay öffnen. Die Console ändert Ihren Cluster nie direkt — Sie prüfen und mergen den Vorschlag, und die neue Anwendung erscheint dann hier mit ihren eigenen Nachweisen.',
+  additionsEmpty: 'Derzeit sind keine Community-Anwendungen zum Hinzufügen verfügbar.',
+  addPlanButton: 'Hinzufügen planen',
+  offerAlsoEnables: 'Aktiviert außerdem',
+  offerStores: 'Speichert Daten',
+  planHeading: 'Änderung prüfen',
+  planBackToOffers: 'Zurück zu den Anwendungen',
+  planAddsLabel: 'Dieser Vorschlag fügt hinzu',
+  planPresentLabel: 'Bereits vorhanden',
+  planResourcesHeading: 'Geschätzte Ressourcen vs. Kapazität',
+  planMemory: 'Arbeitsspeicher',
+  planStorage: 'Speicher',
+  planNeeded: 'Benötigt',
+  planAvailable: 'Verfügbar',
+  planFitsYes: 'Passt in die aktuelle Kapazität',
+  planFitsNo: 'Übersteigt die verfügbare Kapazität — vor dem Merge Ressourcen ergänzen',
+  planExposureLabel: 'Erreichbarkeit',
+  planDataLabel: 'Persistente Daten',
+  planDataNone: 'Keine',
+  planProtectionLabel: 'Schutz',
+  planDiffHeading: 'Genaue Git-Änderungen',
+  planDiffHint:
+    'Diese Dateien werden zu Ihrem GitOps-Overlay hinzugefügt. Keine laufenden Kubernetes-Ressourcen werden direkt geändert.',
+  approveButton: 'Plan genehmigen',
+  proposeButton: 'Git-Vorschlag öffnen',
+  proposalOpenedHeading: 'Vorschlag geöffnet',
+  proposalMergeObserved:
+    'Die Console merged dies nicht für Sie. Prüfen und mergen Sie den Pull Request; die neue Anwendung folgt dann hier ihren Argo-, Laufzeit-, Zugriffs- und Schutznachweisen.',
+  proposalProvider: 'Anbieter',
+  proposalBranch: 'Branch',
+  proposalCommit: 'Commit',
+  proposalOpenLink: 'Pull Request öffnen',
+  addAnother: 'Weitere Anwendung hinzufügen',
+  additionErrorGeneric: 'Die Änderung konnte nicht abgeschlossen werden.',
+  additionErrorMismatch:
+    'Der Cluster hat sich seit Ihrer Planung geändert. Bitte neu planen, um fortzufahren.',
+  additionErrorCapacity:
+    'Die Live-Kapazität ist noch nicht verfügbar, daher können keine Ergänzungen geplant werden.',
+  additionErrorProposal: 'Der Overlay-Vorschlagspfad ist noch nicht konfiguriert.',
+  additionErrorNotOffered: 'Diese Anwendung kann nicht mehr hinzugefügt werden.',
+
+  'cat_application-policy': 'Anwendungsdefinierte Zugriffsrichtlinie',
+  'cat_private-gateway': 'Nur Private Gateway',
+  'cat_capability-backup': 'Anwendungsspezifisches Backup',
+  'cat_cluster-backup': 'Clusterweites Backup',
+
   plevel_unknown: 'Unbekannt',
   plevel_none: 'Kein Schutz',
   'plevel_local-only': 'Nur lokal',
@@ -326,4 +422,12 @@ export function protectionLevelKey(level: ProtectionLevel): ConsoleMessageKey {
 
 export function dataTypeKey(dataType: DataType): ConsoleMessageKey {
   return `dtype_${dataType}` as ConsoleMessageKey;
+}
+
+/** catalogLabelKey resolves a catalog exposure/protection slug to a message key,
+ *  or null when this build has no friendly label for it (the caller then shows
+ *  the raw slug rather than inventing a translation). */
+export function catalogLabelKey(value: string): ConsoleMessageKey | null {
+  const key = `cat_${value}`;
+  return Object.prototype.hasOwnProperty.call(en, key) ? (key as ConsoleMessageKey) : null;
 }

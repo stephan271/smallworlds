@@ -4,16 +4,20 @@
     consoleApi,
     ConsoleApiError,
     hasPermission,
+    type AddCapabilityOffer,
     type CapabilityAssessment,
     type CapabilityState,
     type DatasetProtection,
     type FacetState,
     type Overview,
+    type PlanResponse,
+    type ProposeResponse,
     type ProtectionLevel,
     type RemediationKind,
     type Session
   } from '$lib/console';
   import {
+    catalogLabelKey,
     consoleTranslate,
     dataTypeKey,
     facetKindKey,
@@ -27,7 +31,8 @@
   } from '$lib/console-i18n';
 
   type Status = 'loading' | 'anon' | 'ready' | 'forbidden' | 'error';
-  type View = 'capabilities' | 'protection';
+  type View = 'capabilities' | 'protection' | 'additions';
+  type AdditionStage = 'offers' | 'plan' | 'proposed';
 
   let locale = $state<Locale>('en');
   let status = $state<Status>('loading');
@@ -39,7 +44,29 @@
   let protection = $state<DatasetProtection[] | null>(null);
   let protectionError = $state(false);
 
+  // Add-capability journey state.
+  let offers = $state<AddCapabilityOffer[] | null>(null);
+  let offersError = $state(false);
+  let additionStage = $state<AdditionStage>('offers');
+  let planning = $state('');
+  let currentPlan = $state<PlanResponse | null>(null);
+  let approving = $state(false);
+  let proposing = $state(false);
+  let approved = $state(false);
+  let proposal = $state<ProposeResponse | null>(null);
+  let additionError = $state<ConsoleMessageKey | null>(null);
+
   const t = $derived((key: ConsoleMessageKey) => consoleTranslate(locale, key));
+  const planFits = $derived(
+    currentPlan
+      ? currentPlan.plan.resources.fitsMemory && currentPlan.plan.resources.fitsStorage
+      : false
+  );
+
+  function catLabel(value: string): string {
+    const key = catalogLabelKey(value);
+    return key ? t(key) : value;
+  }
 
   // Non-color state cues: every state also carries a text symbol so status never
   // depends on color alone.
@@ -143,11 +170,100 @@
     }
   }
 
+  async function showAdditions() {
+    view = 'additions';
+    if (offers !== null) return;
+    await loadOffers();
+  }
+
+  async function loadOffers() {
+    try {
+      offers = (await consoleApi.additionOffers()).offers;
+      offersError = false;
+    } catch {
+      offers = [];
+      offersError = true;
+    }
+  }
+
+  function additionErrorFor(err: unknown): ConsoleMessageKey {
+    if (err instanceof ConsoleApiError) {
+      switch (err.code) {
+        case 'capacity_unavailable':
+          return 'additionErrorCapacity';
+        case 'proposal_unavailable':
+          return 'additionErrorProposal';
+        case 'capability_not_offered':
+          return 'additionErrorNotOffered';
+        case 'addition_plan_mismatch':
+          return 'additionErrorMismatch';
+      }
+    }
+    return 'additionErrorGeneric';
+  }
+
+  async function planAddition(id: string) {
+    planning = id;
+    additionError = null;
+    try {
+      currentPlan = await consoleApi.planAddition(id);
+      approved = false;
+      proposal = null;
+      additionStage = 'plan';
+    } catch (err) {
+      additionError = additionErrorFor(err);
+    } finally {
+      planning = '';
+    }
+  }
+
+  async function approvePlan() {
+    if (!currentPlan) return;
+    approving = true;
+    additionError = null;
+    try {
+      await consoleApi.approveAddition(currentPlan.planId);
+      approved = true;
+    } catch (err) {
+      additionError = additionErrorFor(err);
+    } finally {
+      approving = false;
+    }
+  }
+
+  async function proposePlan() {
+    if (!currentPlan) return;
+    proposing = true;
+    additionError = null;
+    try {
+      proposal = await consoleApi.proposeAddition(currentPlan.planId);
+      additionStage = 'proposed';
+    } catch (err) {
+      additionError = additionErrorFor(err);
+    } finally {
+      proposing = false;
+    }
+  }
+
+  function resetAdditions() {
+    additionStage = 'offers';
+    currentPlan = null;
+    approved = false;
+    proposal = null;
+    additionError = null;
+    offers = null; // reload so a just-proposed app drops off the offer list
+    void loadOffers();
+  }
+
   async function signOut() {
     await consoleApi.logout();
     session = null;
     overview = null;
     selected = null;
+    offers = null;
+    additionStage = 'offers';
+    currentPlan = null;
+    proposal = null;
     status = 'anon';
   }
 
@@ -209,6 +325,11 @@
       <button type="button" aria-pressed={view === 'protection'} onclick={showProtection}>
         {t('navProtection')}
       </button>
+      {#if hasPermission(session, 'propose')}
+        <button type="button" aria-pressed={view === 'additions'} onclick={showAdditions}>
+          {t('navAdditions')}
+        </button>
+      {/if}
     </nav>
     {#if view === 'protection'}
       <section class="panel" aria-labelledby="protection-heading">
@@ -278,6 +399,109 @@
               </li>
             {/each}
           </ul>
+        {/if}
+      </section>
+    {:else if view === 'additions'}
+      <section class="panel" aria-labelledby="additions-heading">
+        <h2 id="additions-heading">{t('additionsHeading')}</h2>
+        <p class="hint">{t('additionsIntro')}</p>
+        {#if additionError}
+          <p class="badge warn errorline" role="alert">{t(additionError)}</p>
+        {/if}
+
+        {#if additionStage === 'offers'}
+          {#if offers === null}
+            <p>{t('loading')}</p>
+          {:else if offersError}
+            <p role="alert">{t('loadError')}</p>
+          {:else if offers.length === 0}
+            <p>{t('additionsEmpty')}</p>
+          {:else}
+            <ul class="capabilities">
+              {#each offers as offer}
+                <li class="offer">
+                  <div class="offer-head">
+                    <span class="name">{offer.id}</span>
+                    <span class="badge">{catLabel(offer.exposure)}</span>
+                    {#if offer.stateful}<span class="badge">{t('offerStores')}</span>{/if}
+                    <span class="badge muted">{offer.resources.memoryMi} Mi · {offer.resources.storageGi} Gi</span>
+                  </div>
+                  {#if offer.disabledDependencies && offer.disabledDependencies.length > 0}
+                    <p class="meta">{t('offerAlsoEnables')}: {offer.disabledDependencies.join(', ')}</p>
+                  {/if}
+                  <button
+                    type="button"
+                    class="button"
+                    aria-busy={planning === offer.id}
+                    onclick={() => planAddition(offer.id)}
+                  >
+                    {t('addPlanButton')}
+                  </button>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        {:else if additionStage === 'plan' && currentPlan}
+          <button type="button" class="link" onclick={resetAdditions}>← {t('planBackToOffers')}</button>
+          <h3>{t('planHeading')}: {currentPlan.plan.target}</h3>
+          <p><strong>{t('planAddsLabel')}:</strong> {currentPlan.plan.addedCapabilities.join(', ')}</p>
+          {#if currentPlan.plan.presentDependencies && currentPlan.plan.presentDependencies.length > 0}
+            <p class="meta">{t('planPresentLabel')}: {currentPlan.plan.presentDependencies.join(', ')}</p>
+          {/if}
+
+          <h4>{t('planResourcesHeading')}</h4>
+          <dl class="evidence">
+            <div><dt>{t('planMemory')} — {t('planNeeded')}</dt><dd>{currentPlan.plan.resources.requiredMemoryMi} Mi</dd></div>
+            <div><dt>{t('planMemory')} — {t('planAvailable')}</dt><dd>{currentPlan.plan.resources.availableMemoryMi} Mi</dd></div>
+            <div><dt>{t('planStorage')} — {t('planNeeded')}</dt><dd>{currentPlan.plan.resources.requiredStorageGi} Gi</dd></div>
+            <div><dt>{t('planStorage')} — {t('planAvailable')}</dt><dd>{currentPlan.plan.resources.availableStorageGi} Gi</dd></div>
+          </dl>
+          <p class="badge {planFits ? '' : 'warn'} fitline">
+            <span aria-hidden="true" class="sym">{planFits ? '✓' : '▲'}</span>
+            {planFits ? t('planFitsYes') : t('planFitsNo')}
+          </p>
+
+          <dl class="evidence">
+            <div><dt>{t('planExposureLabel')}</dt><dd>{(currentPlan.plan.exposure ?? []).map(catLabel).join(', ')}</dd></div>
+            <div><dt>{t('planProtectionLabel')}</dt><dd>{(currentPlan.plan.protection ?? []).map(catLabel).join(', ')}</dd></div>
+            <div>
+              <dt>{t('planDataLabel')}</dt>
+              <dd>
+                {#if currentPlan.plan.persistentData && currentPlan.plan.persistentData.length > 0}
+                  {currentPlan.plan.persistentData.join(', ')}
+                {:else}{t('planDataNone')}{/if}
+              </dd>
+            </div>
+          </dl>
+
+          <h4>{t('planDiffHeading')}</h4>
+          <p class="hint">{t('planDiffHint')}</p>
+          <pre class="diff"><code>{currentPlan.plan.gitDiff}</code></pre>
+
+          <div class="actions">
+            <button type="button" class="button" disabled={approved} aria-busy={approving} onclick={approvePlan}>
+              {#if approved}✓ {/if}{t('approveButton')}
+            </button>
+            <button type="button" class="button" disabled={!approved} aria-busy={proposing} onclick={proposePlan}>
+              {t('proposeButton')}
+            </button>
+          </div>
+        {:else if additionStage === 'proposed' && proposal}
+          <h3>{t('proposalOpenedHeading')}</h3>
+          <dl class="evidence">
+            <div><dt>{t('proposalProvider')}</dt><dd>{proposal.provider}</dd></div>
+            {#if proposal.branch}<div><dt>{t('proposalBranch')}</dt><dd>{proposal.branch}</dd></div>{/if}
+            <div><dt>{t('proposalCommit')}</dt><dd><code>{proposal.commit}</code></dd></div>
+          </dl>
+          {#if proposal.url}
+            <p>
+              <a class="button" href={proposal.url} target="_blank" rel="noopener noreferrer">
+                {t('proposalOpenLink')} <span class="sr-label">({t('opensNewTab')})</span>
+              </a>
+            </p>
+          {/if}
+          <p class="reason">{t('proposalMergeObserved')}</p>
+          <button type="button" class="button" onclick={resetAdditions}>{t('addAnother')}</button>
         {/if}
       </section>
     {:else if selected}
@@ -567,6 +791,50 @@
     margin: 0;
     text-align: right;
     font-variant-numeric: tabular-nums;
+  }
+  .offer {
+    padding: 0.75rem 1rem;
+    border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+    border-radius: 0.5rem;
+  }
+  .offer-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .offer .name {
+    font-weight: 600;
+  }
+  .offer .button {
+    margin-top: 0.6rem;
+  }
+  .fitline,
+  .errorline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.75rem;
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+  .button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  pre.diff {
+    margin: 0.5rem 0 0;
+    padding: 0.75rem 1rem;
+    border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, currentColor 6%, transparent);
+    overflow-x: auto;
+    font-size: 0.82rem;
+    line-height: 1.45;
   }
   @media (prefers-reduced-motion: reduce) {
     * {
