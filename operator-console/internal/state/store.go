@@ -478,6 +478,34 @@ func (store *Store) GetBootstrapPlan(ctx context.Context, planID string) (Bootst
 	return record, nil
 }
 
+// RecordHetznerProvisioningPlan stores the immutable execution binding an
+// approved infrastructure plan is applied under. It is keyed by plan id, so a
+// binding cannot be swapped for another after approval.
+func (store *Store) RecordHetznerProvisioningPlan(ctx context.Context, record BootstrapPlanRecord) error {
+	_, err := store.database.ExecContext(ctx, `INSERT INTO hetzner_provisioning_plans (plan_id, profile_id, binding_json, created_at) VALUES (?, ?, ?, ?)`, record.PlanID, record.ProfileID, record.Binding, record.CreatedAt.UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return fmt.Errorf("record hetzner provisioning plan: %w", err)
+	}
+	return nil
+}
+
+func (store *Store) GetHetznerProvisioningPlan(ctx context.Context, planID string) (BootstrapPlanRecord, error) {
+	var record BootstrapPlanRecord
+	var createdAt string
+	err := store.database.QueryRowContext(ctx, `SELECT plan_id, profile_id, binding_json, created_at FROM hetzner_provisioning_plans WHERE plan_id = ?`, planID).Scan(&record.PlanID, &record.ProfileID, &record.Binding, &createdAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return BootstrapPlanRecord{}, ErrNotFound
+	}
+	if err != nil {
+		return BootstrapPlanRecord{}, fmt.Errorf("get hetzner provisioning plan: %w", err)
+	}
+	record.CreatedAt, err = time.Parse(time.RFC3339Nano, createdAt)
+	if err != nil {
+		return BootstrapPlanRecord{}, fmt.Errorf("parse hetzner provisioning plan creation: %w", err)
+	}
+	return record, nil
+}
+
 func (store *Store) RecordFirstOwnerState(ctx context.Context, owner FirstOwnerState) error {
 	_, err := store.database.ExecContext(ctx, `INSERT INTO first_owner_states (profile_id, state_json, recorded_at) VALUES (?, ?, ?) ON CONFLICT(profile_id) DO UPDATE SET state_json=excluded.state_json, recorded_at=excluded.recorded_at`, owner.ProfileID, owner.State, owner.RecordedAt.UTC().Format(time.RFC3339Nano))
 	if err != nil {
@@ -1422,6 +1450,12 @@ func (store *Store) migrate(ctx context.Context) error {
 			profile_id TEXT PRIMARY KEY REFERENCES profiles(id),
 			reference_json TEXT NOT NULL,
 			recorded_at TEXT NOT NULL
+		)`},
+		{20, `CREATE TABLE hetzner_provisioning_plans (
+			plan_id TEXT PRIMARY KEY REFERENCES plans(id),
+			profile_id TEXT NOT NULL REFERENCES profiles(id),
+			binding_json TEXT NOT NULL,
+			created_at TEXT NOT NULL
 		)`},
 	}
 	for _, migration := range migrations {

@@ -44,6 +44,13 @@ var (
 	// with one provider, not with whatever a range currently resolves to.
 	pinnedVersion = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
 	safeCIDR      = regexp.MustCompile(`^[0-9a-fA-F.:]{2,45}/[0-9]{1,3}$`)
+	safeNodeName  = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
+	safeHostname  = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$`)
+	safeLabel     = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
+	// safeProjectToken mirrors the provider's own token shape. The token is
+	// interpolated into a YAML document on the node, so a value carrying a
+	// newline would be a manifest-injection boundary.
+	safeProjectToken = regexp.MustCompile(`^[A-Za-z0-9]{64}$`)
 )
 
 // Binding is the immutable record of what an operator approved. It carries no
