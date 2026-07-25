@@ -182,7 +182,26 @@ func TestCloudInitOverridesResolutionForEveryServiceHostname(t *testing.T) {
 			t.Fatalf("%s is not overridden in the in-cluster resolver:\n%s", host, payload)
 		}
 	}
-	if !strings.Contains(payload, input.ServerAddress+" ") {
-		t.Fatal("the resolver override must point the hostnames at this node")
+	if !strings.Contains(payload, "$NODE_ADDRESS "+strings.Join([]string{"example.org"}, "")) && !strings.Contains(payload, "$NODE_ADDRESS ") {
+		t.Fatal("the resolver override must point the hostnames at this node's own address")
+	}
+	if !strings.Contains(payload, "echo "+input.ServerAddress+" > /etc/smallworlds/node-address") {
+		t.Fatalf("the approved address is not the one the node uses:\n%s", payload)
+	}
+}
+
+// On a first install the Primary IP does not exist until OpenTofu creates it,
+// so the node discovers its own address at boot rather than being given one —
+// the same fallback the shared k3s-node template has. A rendered payload that
+// hard-coded an empty address would leave k3s bound to nothing.
+func TestCloudInitDiscoversItsAddressWhenTheIPDoesNotExistYet(t *testing.T) {
+	input := bootstrapInput()
+	input.ServerAddress = ""
+	payload := renderBootstrap(t, input)
+	if !strings.Contains(payload, "hostname -I | awk '{print $1}' > /etc/smallworlds/node-address") {
+		t.Fatalf("the node does not discover its own address:\n%s", payload)
+	}
+	if strings.Contains(payload, "--node-ip= ") || strings.Contains(payload, "--node-ip=$(cat /etc/smallworlds/node-address)") == false {
+		t.Fatalf("k3s does not bind to the discovered address:\n%s", payload)
 	}
 }

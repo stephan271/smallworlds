@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type HandoffAssessment, type HetznerChangePlan, type HetznerPlanResult, type HetznerPresets, type HetznerPresetTier, type HetznerProject, type HetznerToolchain, type HetznerWorkspace, type NodeCapabilities, type NodeInspectionResult, type NodeProbeResult, type NodeTarget, type OffsitePlan, type OffsiteProposal, type OffsiteProtection, type RecoveryBundlePreview, type SetupJourney, type TailscaleClientOffer, type VaultStatus, type WorkflowRun } from '$lib/api';
+  import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type HandoffAssessment, type HetznerChangePlan, type HetznerPlanResult, type HetznerPresets, type HetznerPresetTier, type HetznerProject, type HetznerToolchain, type HetznerWorkspace, type TemporaryAccess, type NodeCapabilities, type NodeInspectionResult, type NodeProbeResult, type NodeTarget, type OffsitePlan, type OffsiteProposal, type OffsiteProtection, type RecoveryBundlePreview, type SetupJourney, type TailscaleClientOffer, type VaultStatus, type WorkflowRun } from '$lib/api';
   import { translate, type Locale, type MessageKey } from '$lib/i18n';
 
   type ActivityEvent = {
@@ -116,6 +116,9 @@
   let hetznerServerType = $state('');
   let hetznerVolumeGb = $state(0);
   let hetznerAdoptions: string[] = $state([]);
+  let hetznerAcmeEmail = $state('');
+  let hetznerOperatorAddress = $state('');
+  let hetznerTemporaryAccess: TemporaryAccess | null = $state(null);
   let hetznerToolchain: HetznerToolchain | null = $state(null);
   let hetznerWorkspace: HetznerWorkspace | null = $state(null);
   let hetznerPlan: HetznerPlanResult | null = $state(null);
@@ -192,6 +195,7 @@
     hetznerProject = null;
     hetznerToolchain = null;
     hetznerWorkspace = null;
+    hetznerTemporaryAccess = null;
     if (profile.deploymentMode === 'hetzner') {
       try {
         hetznerProject = await api.getHetznerProject(profile.id);
@@ -199,6 +203,7 @@
         hetznerEnvExt = hetznerProject.naming?.envExt ?? '';
         hetznerToolchain = hetznerProject.toolchain ?? null;
         hetznerWorkspace = hetznerProject.workspace ?? null;
+        hetznerTemporaryAccess = hetznerProject.temporaryAccess ?? null;
       } catch {
         hetznerProject = null;
       }
@@ -706,13 +711,43 @@
         tier: hetznerTier,
         location: hetznerLocation,
         ...(hetznerTier === 'advanced' ? { serverType: hetznerServerType, volumeGb: hetznerVolumeGb } : {}),
-        adoptions: hetznerAdoptions
+        adoptions: hetznerAdoptions,
+        acmeEmail: hetznerAcmeEmail
       });
+      // Planning an approvable change opens the temporary administration path,
+      // so the Operator can see and narrow it straight away.
+      hetznerTemporaryAccess = (await api.getHetznerProject(activeProfile.id)).temporaryAccess ?? null;
     } catch (reason) {
       hetznerPlan = null;
       hetznerError = reason instanceof Error ? reason.message : 'hetzner_plan_failed';
     } finally {
       hetznerBusy = false;
+    }
+  }
+
+  // Narrowing re-derives the scope from an address the Operator supplies. The
+  // launcher decides whether that address can actually serve as a scope, so a
+  // response reporting the path still open is a normal outcome, not an error.
+  async function narrowHetznerTemporaryAccess(): Promise<void> {
+    if (!activeProfile) return;
+    hetznerBusy = true;
+    hetznerError = '';
+    try {
+      hetznerTemporaryAccess = await api.narrowHetznerTemporaryAccess(activeProfile.id, hetznerOperatorAddress);
+    } catch (reason) {
+      hetznerError = reason instanceof Error ? reason.message : 'temporary_access_failed';
+    } finally {
+      hetznerBusy = false;
+    }
+  }
+
+  function hetznerAccessReasonLabel(reasonKey: string | undefined): string {
+    switch (reasonKey) {
+      case 'scoped-to-operator-address': return message('hetznerAccessReasonScoped');
+      case 'operator-address-not-observed': return message('hetznerAccessReasonUnobserved');
+      case 'operator-address-not-publicly-routable': return message('hetznerAccessReasonNotRoutable');
+      case 'operator-address-carrier-grade-nat': return message('hetznerAccessReasonShared');
+      default: return reasonKey ?? '';
     }
   }
 
@@ -762,7 +797,7 @@
   }
 
   function hetznerBlockerLabel(code: string | undefined): string {
-    const labels: Record<string, MessageKey> = { 'adoption-decision-required': 'hetznerBlockerAdoption', 'ownership-conflict': 'hetznerBlockerConflict', 'similar-name-unresolved': 'hetznerBlockerSimilar', 'nameserver-delegation-required': 'hetznerBlockerDelegation', 'server-type-unavailable': 'hetznerBlockerUnavailable', 'capacity-below-selected-capabilities': 'hetznerBlockerCapacity', 'inspection-incomplete': 'hetznerBlockerIncomplete' };
+    const labels: Record<string, MessageKey> = { 'adoption-decision-required': 'hetznerBlockerAdoption', 'ownership-conflict': 'hetznerBlockerConflict', 'similar-name-unresolved': 'hetznerBlockerSimilar', 'nameserver-delegation-required': 'hetznerBlockerDelegation', 'server-type-unavailable': 'hetznerBlockerUnavailable', 'capacity-below-selected-capabilities': 'hetznerBlockerCapacity', 'inspection-incomplete': 'hetznerBlockerIncomplete', 'shared-prerequisite-missing': 'hetznerBlockerSharedPrerequisite' };
     return code && labels[code] ? message(labels[code]) : (code ?? '');
   }
 
@@ -1416,7 +1451,9 @@
                 {/if}
               </div>
               <p class="muted">{message('hetznerPricesObservedAt')}: {hetznerPresets.observedAt}</p>
-              <div class="actions"><button type="button" onclick={() => void planHetznerInfrastructure()} disabled={hetznerBusy || !hetznerProject?.inventory}>{message('hetznerPlanBuild')}</button></div>
+              <label><span>{message('hetznerAcmeEmail')}</span><input type="email" bind:value={hetznerAcmeEmail} placeholder="operator@example.org" /></label>
+              <p class="muted">{message('hetznerAcmeEmailHint')}</p>
+              <div class="actions"><button type="button" onclick={() => void planHetznerInfrastructure()} disabled={hetznerBusy || !hetznerProject?.inventory || !hetznerAcmeEmail.includes('@')}>{message('hetznerPlanBuild')}</button></div>
             </section>
           {/if}
 
@@ -1440,6 +1477,23 @@
             {/if}
             <div class="actions"><button type="button" class="secondary" onclick={() => void acquireHetznerToolchain()} disabled={hetznerBusy}>{message('hetznerToolchainAcquire')}</button></div>
           </section>
+
+          {#if hetznerTemporaryAccess}
+            <section class="capability-preview" aria-labelledby="hetzner-access-title" data-testid="hetzner-temporary-access">
+              <h3 id="hetzner-access-title">{message('hetznerAccessTitle')}</h3>
+              <p class="muted">{message('hetznerAccessDescription')}</p>
+              <dl class="credential-metadata">
+                <div><dt>{message('hetznerAccessState')}</dt><dd><span class="badge">{hetznerTemporaryAccess.open ? message('hetznerAccessOpen') : message('hetznerAccessClosed')}</span></dd></div>
+                <div><dt>{message('hetznerAccessScope')}</dt><dd>{hetznerTemporaryAccess.scope?.scoped ? (hetznerTemporaryAccess.scope?.sources ?? []).join(', ') : message('hetznerAccessUnscoped')}</dd></div>
+                <div><dt>{message('hetznerAccessReason')}</dt><dd>{hetznerAccessReasonLabel(hetznerTemporaryAccess.scope?.reasonKey)}</dd></div>
+              </dl>
+              {#if hetznerTemporaryAccess.open}
+                <label><span>{message('hetznerAccessAddress')}</span><input type="text" bind:value={hetznerOperatorAddress} placeholder="198.51.100.7" /></label>
+                <p class="muted">{message('hetznerAccessAddressHint')}</p>
+                <div class="actions"><button type="button" class="secondary" onclick={() => void narrowHetznerTemporaryAccess()} disabled={hetznerBusy}>{message('hetznerAccessNarrow')}</button></div>
+              {/if}
+            </section>
+          {/if}
 
           {#if hetznerPlan}
             <section class="capability-preview" aria-labelledby="hetzner-plan-title">

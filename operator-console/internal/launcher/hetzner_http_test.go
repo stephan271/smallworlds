@@ -2,14 +2,22 @@ package launcher_test
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/stephan271/smallworlds/operator-console/internal/bootstrapassets"
 	"github.com/stephan271/smallworlds/operator-console/internal/hetzner"
+	"github.com/stephan271/smallworlds/operator-console/internal/hetznerprovision"
 	"github.com/stephan271/smallworlds/operator-console/internal/launcher"
+	"github.com/stephan271/smallworlds/operator-console/internal/tofu"
 )
 
 const hetznerTestToken = "abcdefghij0123456789ABCDEFGHIJabcdefghij0123456789ABCDEFGHIJ0123"
@@ -49,17 +57,71 @@ func (provider *fakeHetznerProvider) Nameservers(_ context.Context, token, _ str
 	return provider.nameservers, nil
 }
 
-// recordingProvisioner proves the provider is only ever changed through an
-// approved, still-current plan.
-type recordingProvisioner struct {
-	calls int
-	plan  hetzner.ChangePlan
-	err   error
+// recordingReconciler proves the provider is only ever changed through an
+// approved, still-current plan, and captures the configuration that would be
+// applied so a test can assert on what the plan actually renders.
+type recordingReconciler struct {
+	calls  int
+	module hetznerprovision.Module
+	files  map[string]string
+	err    error
 }
 
-func (provisioner *recordingProvisioner) Provision(_ context.Context, _ string, plan hetzner.ChangePlan) error {
-	provisioner.calls, provisioner.plan = provisioner.calls+1, plan
-	return provisioner.err
+func (reconciler *recordingReconciler) Apply(_ context.Context, request hetznerprovision.ReconcileRequest) (hetznerprovision.Outcome, error) {
+	reconciler.calls, reconciler.module, reconciler.files = reconciler.calls+1, request.Module, request.Module.Files
+	if reconciler.err != nil {
+		return hetznerprovision.Outcome{}, reconciler.err
+	}
+	return hetznerprovision.Outcome{Applied: true, ServerAddress: "203.0.113.9", ServerID: "srv-1", ObservedAt: time.Now().UTC()}, nil
+}
+
+// convergedObserver stands in for watching the node come up.
+type convergedObserver struct{ calls int }
+
+func (observer *convergedObserver) Observe(context.Context, hetznerprovision.Binding, string) (hetznerprovision.Convergence, error) {
+	observer.calls++
+	return hetznerprovision.Convergence{K3SReady: true, ArgoCDReady: true, OverlaySynced: true, ObservedAt: time.Now().UTC()}, nil
+}
+
+// hetznerToolchainAssets publishes fake but properly signed descriptors for the
+// pinned OpenTofu release, so a test can reach the states that require a
+// verified toolchain. Production ships no such descriptors, which is why the
+// launcher refuses there.
+func hetznerToolchainAssets(t *testing.T) *bootstrapassets.Manager {
+	t.Helper()
+	contents := []byte("pinned-toolchain-artifact")
+	digest := sha256.Sum256(contents)
+	digestText := fmt.Sprintf("%x", digest[:])
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signature := base64.StdEncoding.EncodeToString(ed25519.Sign(privateKey, []byte(digestText)))
+	descriptors := make([]bootstrapassets.Descriptor, 0, 2)
+	for _, id := range tofu.ArtifactIDs() {
+		descriptors = append(descriptors, bootstrapassets.Descriptor{
+			ID: id, Release: tofu.Release(), URL: "https://assets.example.invalid/" + id + ".tar.gz",
+			SHA256: digestText, Signature: signature, PublicKey: publicKey, Destination: "assets.example.invalid",
+		})
+	}
+	manager, err := bootstrapassets.NewManager(t.TempDir(), bootstrapassets.Catalog{Descriptors: descriptors}, assetFetcherStub{contents: contents})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.Acquire(context.Background(), tofu.Release()); err != nil {
+		t.Fatal(err)
+	}
+	return manager
+}
+
+// hetznerProjectPrerequisites are the two resources the whole project shares.
+// An installation reuses them and never owns them, so a plan is blocked until
+// they exist.
+func hetznerProjectPrerequisites() []hetzner.Resource {
+	return []hetzner.Resource{
+		{Kind: hetzner.KindDNSZone, ProviderID: "zone-1", Name: "example.org"},
+		{Kind: hetzner.KindSSHKey, ProviderID: "key-1", Name: hetzner.SharedAdminSSHKeyName},
+	}
 }
 
 func hetznerCatalogFixture() hetzner.PriceCatalog {
@@ -76,9 +138,36 @@ func hetznerCatalogFixture() hetzner.PriceCatalog {
 	}
 }
 
-func newHetznerLauncher(t *testing.T, provider *fakeHetznerProvider, provisioner launcher.HetznerProvisioner) (*launcher.Server, *http.Cookie, string, string) {
+// newHetznerLauncher builds a launcher whose Hetzner journey can be driven to
+// an approvable plan. It deliberately does *not* publish a toolchain: tests that
+// need one call newProvisionableHetznerLauncher, so the difference between "can
+// plan" and "can provision" stays visible.
+func newHetznerLauncher(t *testing.T, provider *fakeHetznerProvider, reconciler hetznerprovision.Reconciler) (*launcher.Server, *http.Cookie, string, string) {
 	t.Helper()
-	handler, err := launcher.New(launcher.Config{DataDir: t.TempDir(), LaunchToken: "hetzner", HetznerProvider: provider, HetznerProvisioner: provisioner})
+	return newHetznerLauncherWithAssets(t, provider, reconciler, nil, nil)
+}
+
+// newProvisionableHetznerLauncher adds a verified pinned toolchain and an
+// established GitOps Overlay — the two facts an approved plan is bound to
+// beyond the project itself.
+func newProvisionableHetznerLauncher(t *testing.T, provider *fakeHetznerProvider, reconciler hetznerprovision.Reconciler) (*launcher.Server, *http.Cookie, string, string) {
+	t.Helper()
+	handler, cookie, csrf, profileID := newHetznerLauncherWithAssets(t, provider, reconciler, hetznerToolchainAssets(t), &convergedObserver{})
+	establishHetznerOverlay(t, handler, cookie, csrf, profileID)
+	return handler, cookie, csrf, profileID
+}
+
+func newHetznerLauncherWithAssets(t *testing.T, provider *fakeHetznerProvider, reconciler hetznerprovision.Reconciler, assets *bootstrapassets.Manager, observer hetznerprovision.ConvergenceObserver) (*launcher.Server, *http.Cookie, string, string) {
+	t.Helper()
+	config := launcher.Config{
+		DataDir: t.TempDir(), LaunchToken: "hetzner",
+		HetznerProvider: provider, HetznerReconciler: reconciler, HetznerConvergence: observer,
+		GenericGitClient: &genericGitStub{commit: strings.Repeat("c", 40)},
+	}
+	if assets != nil {
+		config.BootstrapAssets = assets
+	}
+	handler, err := launcher.New(config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,6 +176,35 @@ func newHetznerLauncher(t *testing.T, provider *fakeHetznerProvider, provisioner
 	profile := createProfile(t, handler, cookie, csrf, "Community", "en", "hetzner")
 	unlockVaultForRecoveryTest(t, handler, cookie, csrf)
 	return handler, cookie, csrf, profile.ID
+}
+
+// establishHetznerOverlay records the pinned GitOps Overlay commit an approved
+// infrastructure plan is bound to.
+func establishHetznerOverlay(t *testing.T, handler *launcher.Server, cookie *http.Cookie, csrf, profileID string) {
+	t.Helper()
+	headers := map[string]string{"X-CSRF-Token": csrf}
+	credentials, _ := json.Marshal(map[string]string{"profileId": profileID, "repositoryUrl": "https://git.example/overlay.git", "username": "operator", "token": "git-secret"})
+	response := request(t, handler, http.MethodPost, "/api/v1/generic-git/token/validate", credentials, cookie, headers)
+	response.Body.Close()
+	planBody, _ := json.Marshal(map[string]any{"profileId": profileID, "mode": "minimal", "communityIds": []string{}, "release": "v1.2.27", "repositoryUrl": "https://git.example/overlay.git", "domain": "example.org"})
+	response = request(t, handler, http.MethodPost, "/api/v1/capabilities/plan", planBody, cookie, headers)
+	var capabilityPlan struct {
+		Plan struct {
+			ID string `json:"id"`
+		} `json:"plan"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&capabilityPlan); err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	response = request(t, handler, http.MethodPost, "/api/v1/plans/"+capabilityPlan.Plan.ID+"/approve", nil, cookie, headers)
+	response.Body.Close()
+	establishBody, _ := json.Marshal(map[string]any{"profileId": profileID, "planId": capabilityPlan.Plan.ID, "repositoryUrl": "https://git.example/overlay.git", "mode": "minimal", "communityIds": []string{}, "release": "v1.2.27", "domain": "example.org"})
+	response = request(t, handler, http.MethodPost, "/api/v1/generic-git/overlay/establish", establishBody, cookie, headers)
+	if response.StatusCode != http.StatusCreated {
+		t.Fatalf("overlay status = %d: %s", response.StatusCode, readAll(t, response))
+	}
+	response.Body.Close()
 }
 
 func postHetzner(t *testing.T, handler http.Handler, cookie *http.Cookie, csrf, path string, payload any) (int, string) {
@@ -303,7 +421,7 @@ func planHetzner(t *testing.T, handler http.Handler, cookie *http.Cookie, csrf, 
 	if status, body := postHetzner(t, handler, cookie, csrf, "/api/v1/hetzner/inspect", map[string]string{"profileId": profileID, "domain": "example.org"}); status != http.StatusOK {
 		t.Fatalf("inspect status = %d: %s", status, body)
 	}
-	request := map[string]any{"profileId": profileID, "mode": "minimal", "tier": "recommended", "location": "nbg1"}
+	request := map[string]any{"profileId": profileID, "mode": "minimal", "tier": "recommended", "location": "nbg1", "acmeEmail": "operator@example.org"}
 	for key, value := range payload {
 		request[key] = value
 	}
@@ -315,10 +433,10 @@ func TestHetznerPlanIsCostBearingAndChangesNothing(t *testing.T) {
 		probe:       hetzner.TokenProbe{ProjectID: "p", ReadAuthority: true, WriteAuthority: true},
 		catalog:     hetznerCatalogFixture(),
 		nameservers: hetzner.HetznerNameservers,
-		resources:   []hetzner.Resource{{Kind: hetzner.KindDNSZone, ProviderID: "zone-1", Name: "example.org"}},
+		resources:   hetznerProjectPrerequisites(),
 	}
-	provisioner := &recordingProvisioner{}
-	handler, cookie, csrf, profileID := newHetznerLauncher(t, provider, provisioner)
+	reconciler := &recordingReconciler{}
+	handler, cookie, csrf, profileID := newProvisionableHetznerLauncher(t, provider, reconciler)
 
 	status, body := planHetzner(t, handler, cookie, csrf, profileID, nil)
 	if status != http.StatusCreated {
@@ -350,11 +468,11 @@ func TestHetznerPlanIsCostBearingAndChangesNothing(t *testing.T) {
 	if !recurring {
 		t.Fatalf("plan does not declare the recurring cost risk: %s", body)
 	}
-	if provisioner.calls != 0 {
+	if reconciler.calls != 0 {
 		t.Fatal("planning must not touch the project")
 	}
 
-	// Only approval hands the plan to the provisioner, and only while it is
+	// Only approval hands the plan to the reconciler, and only while it is
 	// still current.
 	response := request(t, handler, http.MethodPost, "/api/v1/plans/"+view.Plan.ID+"/approve", nil, cookie, map[string]string{"X-CSRF-Token": csrf})
 	approved := string(readAll(t, response))
@@ -369,10 +487,20 @@ func TestHetznerPlanIsCostBearingAndChangesNothing(t *testing.T) {
 	}
 	settled := waitForOffsiteRun(t, handler, cookie, run.ID)
 	if settled.State != "verified" {
-		t.Fatalf("approved run state = %s", settled.State)
+		t.Fatalf("approved run state = %s, checkpoint = %s", settled.State, settled.CurrentCheckpoint)
 	}
-	if provisioner.calls != 1 || provisioner.plan.Digest != view.ChangePlan.Digest {
-		t.Fatalf("provisioner calls=%d plan digest mismatch", provisioner.calls)
+	if reconciler.calls != 1 {
+		t.Fatalf("reconciler calls = %d, want exactly one", reconciler.calls)
+	}
+	// What reached the reconciler is a configuration rendered from the reviewed
+	// plan, carrying this profile's ownership labels and the approved overlay
+	// commit in its bootstrap payload.
+	configuration := reconciler.files["smallworlds.tf"]
+	if !strings.Contains(configuration, `"smallworlds-profile" = "`+profileID+`"`) {
+		t.Fatalf("rendered configuration does not claim ownership for this profile:\n%s", configuration)
+	}
+	if bootstrap := reconciler.files["cloud-init.yaml"]; !strings.Contains(bootstrap, "targetRevision: '"+strings.Repeat("c", 40)+"'") {
+		t.Fatalf("bootstrap payload is not pinned to the approved overlay commit:\n%s", bootstrap)
 	}
 }
 
@@ -380,7 +508,7 @@ func TestHetznerPlanBlocksOnUnresolvedOwnershipAndDelegation(t *testing.T) {
 	provider := &fakeHetznerProvider{
 		probe:     hetzner.TokenProbe{ProjectID: "p", ReadAuthority: true, WriteAuthority: true},
 		catalog:   hetznerCatalogFixture(),
-		resources: []hetzner.Resource{{Kind: hetzner.KindFirewall, ProviderID: "fw-1", Name: "smallworlds-firewall"}},
+		resources: append(hetznerProjectPrerequisites(), hetzner.Resource{Kind: hetzner.KindFirewall, ProviderID: "fw-1", Name: "smallworlds-firewall"}),
 		// The registrar still points elsewhere.
 		nameservers: []string{"ns1.registrar.example"},
 	}
@@ -457,9 +585,10 @@ func TestHetznerApprovedPlanIsRefusedWhenTheProjectDrifted(t *testing.T) {
 		probe:       hetzner.TokenProbe{ProjectID: "p", ReadAuthority: true, WriteAuthority: true},
 		catalog:     hetznerCatalogFixture(),
 		nameservers: hetzner.HetznerNameservers,
+		resources:   hetznerProjectPrerequisites(),
 	}
-	provisioner := &recordingProvisioner{}
-	handler, cookie, csrf, profileID := newHetznerLauncher(t, provider, provisioner)
+	reconciler := &recordingReconciler{}
+	handler, cookie, csrf, profileID := newProvisionableHetznerLauncher(t, provider, reconciler)
 
 	status, body := planHetzner(t, handler, cookie, csrf, profileID, nil)
 	if status != http.StatusCreated {
@@ -489,22 +618,53 @@ func TestHetznerApprovedPlanIsRefusedWhenTheProjectDrifted(t *testing.T) {
 		t.Fatal(err)
 	}
 	settled := waitForOffsiteRun(t, handler, cookie, run.ID)
-	if settled.State != "failed" || settled.CurrentCheckpoint != "plan-stale" {
+	// The refusal names the fact that moved, so an Operator can see what changed
+	// rather than only that something did.
+	if settled.State != "failed" || !strings.Contains(settled.CurrentCheckpoint, hetznerprovision.InventoryCheck) {
 		t.Fatalf("stale plan run = %+v", settled)
 	}
-	if provisioner.calls != 0 {
-		t.Fatal("a stale plan reached the provisioner")
+	if reconciler.calls != 0 {
+		t.Fatal("a stale plan reached the provider")
 	}
 }
 
-func TestHetznerProvisioningRefusesHonestlyWhenUnwired(t *testing.T) {
+// Without a published pinned toolchain there is nothing verified to reconcile
+// with, and the launcher will not fall back to whatever OpenTofu is installed.
+// So an approvable plan cannot even be bound: the refusal happens at planning,
+// before an Operator can approve something that could never be applied.
+func TestHetznerPlanningRefusesHonestlyWithoutAVerifiedToolchain(t *testing.T) {
 	provider := &fakeHetznerProvider{
 		probe:       hetzner.TokenProbe{ProjectID: "p", ReadAuthority: true, WriteAuthority: true},
 		catalog:     hetznerCatalogFixture(),
 		nameservers: hetzner.HetznerNameservers,
 	}
-	// No provisioner injected: the launcher default refuses.
+	// The project itself is ready — only the launcher's own prerequisites are
+	// missing, so the refusal is unambiguously about them.
+	provider.resources = hetznerProjectPrerequisites()
+	// No toolchain assets and no overlay: the launcher default publishes none.
 	handler, cookie, csrf, profileID := newHetznerLauncher(t, provider, nil)
+	status, body := planHetzner(t, handler, cookie, csrf, profileID, nil)
+	if status != http.StatusConflict {
+		t.Fatalf("plan status = %d: %s", status, body)
+	}
+	if !strings.Contains(body, "gitops_overlay_required") && !strings.Contains(body, "hetzner_toolchain_unavailable") {
+		t.Fatalf("refusal does not name the missing prerequisite: %s", body)
+	}
+}
+
+// A blocked plan is still recorded and shown — the Operator must be able to see
+// what it would have cost and why it cannot proceed — but it is never bound, so
+// approving it can never reach the provider.
+func TestHetznerBlockedPlanIsShownButNeverBound(t *testing.T) {
+	provider := &fakeHetznerProvider{
+		probe:   hetzner.TokenProbe{ProjectID: "p", ReadAuthority: true, WriteAuthority: true},
+		catalog: hetznerCatalogFixture(),
+		// The registrar still points elsewhere, so the plan is blocked.
+		nameservers: []string{"ns1.registrar.example"},
+	}
+	reconciler := &recordingReconciler{}
+	handler, cookie, csrf, profileID := newProvisionableHetznerLauncher(t, provider, reconciler)
+
 	status, body := planHetzner(t, handler, cookie, csrf, profileID, nil)
 	if status != http.StatusCreated {
 		t.Fatalf("plan status = %d: %s", status, body)
@@ -513,12 +673,21 @@ func TestHetznerProvisioningRefusesHonestlyWhenUnwired(t *testing.T) {
 		Plan struct {
 			ID string `json:"id"`
 		} `json:"plan"`
+		ChangePlan hetzner.ChangePlan `json:"changePlan"`
+		Approvable bool               `json:"approvable"`
 	}
 	if err := json.Unmarshal([]byte(body), &view); err != nil {
 		t.Fatal(err)
 	}
+	if view.Approvable || view.ChangePlan.Cost.TotalMonthlyEUR <= 0 {
+		t.Fatalf("a blocked plan must still be shown with its cost: %s", body)
+	}
+
 	response := request(t, handler, http.MethodPost, "/api/v1/plans/"+view.Plan.ID+"/approve", nil, cookie, map[string]string{"X-CSRF-Token": csrf})
 	approved := string(readAll(t, response))
+	if response.StatusCode != http.StatusAccepted {
+		t.Fatalf("approve status = %d: %s", response.StatusCode, approved)
+	}
 	var run struct {
 		ID string `json:"id"`
 	}
@@ -526,8 +695,52 @@ func TestHetznerProvisioningRefusesHonestlyWhenUnwired(t *testing.T) {
 		t.Fatal(err)
 	}
 	settled := waitForOffsiteRun(t, handler, cookie, run.ID)
-	if settled.State != "failed" || settled.CurrentCheckpoint != "provisioning-unavailable" {
-		t.Fatalf("unwired provisioning run = %+v", settled)
+	if settled.State != "failed" || settled.CurrentCheckpoint != "binding-missing" {
+		t.Fatalf("blocked plan run = %+v, want it refused for lack of a binding", settled)
+	}
+	if reconciler.calls != 0 {
+		t.Fatal("a blocked plan reached the provider")
+	}
+}
+
+// The temporary administration path opens with the plan that creates the node —
+// the Operator needs it to watch the cluster converge — and it is scoped only
+// when their address can actually be observed.
+func TestHetznerTemporaryAccessOpensUnscopedAndNarrowsOnRequest(t *testing.T) {
+	provider := &fakeHetznerProvider{
+		probe:       hetzner.TokenProbe{ProjectID: "p", ReadAuthority: true, WriteAuthority: true},
+		catalog:     hetznerCatalogFixture(),
+		nameservers: hetzner.HetznerNameservers,
+		resources:   hetznerProjectPrerequisites(),
+	}
+	reconciler := &recordingReconciler{}
+	handler, cookie, csrf, profileID := newProvisionableHetznerLauncher(t, provider, reconciler)
+	if status, body := planHetzner(t, handler, cookie, csrf, profileID, nil); status != http.StatusCreated {
+		t.Fatalf("plan status = %d: %s", status, body)
+	}
+
+	response := request(t, handler, http.MethodGet, "/api/v1/hetzner?profileId="+profileID, nil, cookie, nil)
+	opened := string(readAll(t, response))
+	if !strings.Contains(opened, `"open":true`) || !strings.Contains(opened, "operator-address-not-observed") {
+		t.Fatalf("temporary access did not open unscoped with a stated reason: %s", opened)
+	}
+
+	status, narrowed := postHetzner(t, handler, cookie, csrf, "/api/v1/hetzner/temporary-access/narrow", map[string]string{"profileId": profileID, "operatorAddress": "198.51.100.7"})
+	if status != http.StatusOK {
+		t.Fatalf("narrow status = %d: %s", status, narrowed)
+	}
+	if !strings.Contains(narrowed, `"198.51.100.7/32"`) || !strings.Contains(narrowed, "scoped-to-operator-address") {
+		t.Fatalf("path was not narrowed to the Operator: %s", narrowed)
+	}
+
+	// An address that cannot serve as a scope leaves the path open and says so,
+	// rather than producing a rule that admits nobody.
+	status, unscoped := postHetzner(t, handler, cookie, csrf, "/api/v1/hetzner/temporary-access/narrow", map[string]string{"profileId": profileID, "operatorAddress": "192.168.178.52"})
+	if status != http.StatusOK || !strings.Contains(unscoped, "operator-address-not-publicly-routable") {
+		t.Fatalf("a private address should leave the path open with a reason: %d %s", status, unscoped)
+	}
+	if strings.Contains(unscoped, `"scoped":true`) {
+		t.Fatalf("a private address must not scope the path: %s", unscoped)
 	}
 }
 

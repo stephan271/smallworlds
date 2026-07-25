@@ -42,6 +42,7 @@ export type HetznerPreset = components['schemas']['HetznerPreset'];
 export type HetznerChangePlan = components['schemas']['HetznerChangePlan'];
 export type HetznerToolchain = components['schemas']['HetznerToolchain'];
 export type HetznerWorkspace = components['schemas']['HetznerWorkspace'];
+export type TemporaryAccess = components['schemas']['TemporaryAccess'];
 export type HetznerPresetTier = 'small' | 'recommended' | 'high' | 'advanced';
 export type HetznerPlanResult = { plan: ChangePlan; changePlan: HetznerChangePlan; approvable: boolean };
 
@@ -180,6 +181,10 @@ export const api = {
   acquireHetznerToolchain: (profileId: string) => request<{ toolchain: HetznerToolchain; workspace: HetznerWorkspace }>('/api/v1/hetzner/toolchain/acquire', { method: 'POST', body: JSON.stringify({ profileId }) }),
   getHetznerPresets: (input: { profileId: string; mode: CapabilityMode; communityIds: string[]; location: string }) =>
     request<HetznerPresets>('/api/v1/hetzner/presets', { method: 'POST', body: JSON.stringify(input) }),
-  planHetznerInfrastructure: (input: { profileId: string; mode: CapabilityMode; communityIds: string[]; tier: HetznerPresetTier; location: string; serverType?: string; volumeGb?: number; adoptions: string[] }) =>
-    request<HetznerPlanResult>('/api/v1/hetzner/plan', { method: 'POST', body: JSON.stringify(input) })
+  planHetznerInfrastructure: (input: { profileId: string; mode: CapabilityMode; communityIds: string[]; tier: HetznerPresetTier; location: string; serverType?: string; volumeGb?: number; adoptions: string[]; acmeEmail: string }) =>
+    request<HetznerPlanResult>('/api/v1/hetzner/plan', { method: 'POST', body: JSON.stringify(input) }),
+  // Narrowing cannot reopen a closed path, and an address that would produce a
+  // rule admitting nobody leaves it open with the reason stated instead.
+  narrowHetznerTemporaryAccess: (profileId: string, operatorAddress: string) =>
+    request<TemporaryAccess>('/api/v1/hetzner/temporary-access/narrow', { method: 'POST', body: JSON.stringify({ profileId, operatorAddress }) })
 };

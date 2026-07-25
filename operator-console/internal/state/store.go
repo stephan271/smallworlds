@@ -478,6 +478,28 @@ func (store *Store) GetBootstrapPlan(ctx context.Context, planID string) (Bootst
 	return record, nil
 }
 
+// RecordTemporaryAccess stores the state of a profile's temporary public
+// administration path.
+func (store *Store) RecordTemporaryAccess(ctx context.Context, profileID, encoded string, recordedAt time.Time) error {
+	_, err := store.database.ExecContext(ctx, `INSERT INTO temporary_access_states (profile_id, state_json, recorded_at) VALUES (?, ?, ?) ON CONFLICT(profile_id) DO UPDATE SET state_json=excluded.state_json, recorded_at=excluded.recorded_at`, profileID, encoded, recordedAt.UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return fmt.Errorf("record temporary access: %w", err)
+	}
+	return nil
+}
+
+func (store *Store) GetTemporaryAccess(ctx context.Context, profileID string) (string, error) {
+	var encoded string
+	err := store.database.QueryRowContext(ctx, `SELECT state_json FROM temporary_access_states WHERE profile_id = ?`, profileID).Scan(&encoded)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("get temporary access: %w", err)
+	}
+	return encoded, nil
+}
+
 // RecordHetznerProvisioningPlan stores the immutable execution binding an
 // approved infrastructure plan is applied under. It is keyed by plan id, so a
 // binding cannot be swapped for another after approval.
@@ -1456,6 +1478,11 @@ func (store *Store) migrate(ctx context.Context) error {
 			profile_id TEXT NOT NULL REFERENCES profiles(id),
 			binding_json TEXT NOT NULL,
 			created_at TEXT NOT NULL
+		)`},
+		{21, `CREATE TABLE temporary_access_states (
+			profile_id TEXT PRIMARY KEY REFERENCES profiles(id),
+			state_json TEXT NOT NULL,
+			recorded_at TEXT NOT NULL
 		)`},
 	}
 	for _, migration := range migrations {

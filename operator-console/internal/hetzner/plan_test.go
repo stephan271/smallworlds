@@ -44,8 +44,18 @@ func itemFor(t *testing.T, plan ChangePlan, kind ResourceKind, name string) Plan
 	return PlanItem{}
 }
 
+// projectPrerequisites are the two resources the whole project shares: the DNS
+// zone and the admin SSH key. An installation reuses them and never owns them,
+// so a project without them is not clean — it is incomplete.
+func projectPrerequisites() []Resource {
+	return []Resource{
+		{Kind: KindDNSZone, ProviderID: "zone-1", Name: "example.org"},
+		{Kind: KindSSHKey, ProviderID: "key-1", Name: SharedAdminSSHKeyName},
+	}
+}
+
 func TestBuildPlanIsApprovableOnACleanProject(t *testing.T) {
-	plan := planFixture(t, []Resource{{Kind: KindDNSZone, ProviderID: "zone-1", Name: "example.org"}}, nil, HetznerNameservers)
+	plan := planFixture(t, projectPrerequisites(), nil, HetznerNameservers)
 	if !plan.Approvable() {
 		t.Fatalf("blockers on a clean project: %+v", plan.Blockers)
 	}
@@ -132,8 +142,44 @@ func TestDelegationNotRequiredForLANOnly(t *testing.T) {
 	}
 }
 
+// The DNS zone and the admin SSH key belong to the project, not to this
+// installation. Planning must not quietly create them: an installation that
+// owned them would take them down with it when it was torn down, stranding
+// every other profile in the project.
+func TestBuildPlanBlocksOnMissingProjectPrerequisites(t *testing.T) {
+	plan := planFixture(t, nil, nil, HetznerNameservers)
+	missing := map[ResourceKind]bool{}
+	for _, blocker := range plan.Blockers {
+		if blocker.Code == "shared-prerequisite-missing" {
+			missing[blocker.Kind] = true
+		}
+	}
+	if !missing[KindDNSZone] || !missing[KindSSHKey] {
+		t.Fatalf("blockers %+v, want both project prerequisites reported", plan.Blockers)
+	}
+	if plan.Approvable() {
+		t.Fatal("a plan may not be approved while a project prerequisite is missing")
+	}
+	for _, kind := range []ResourceKind{KindDNSZone, KindSSHKey} {
+		for _, item := range plan.Items {
+			if item.Kind == kind && item.Action == ActionCreate {
+				t.Fatalf("%s is planned for creation; it is shared and must be reused", kind)
+			}
+		}
+	}
+
+	// With both present, the same plan is approvable and reuses them.
+	complete := planFixture(t, projectPrerequisites(), nil, HetznerNameservers)
+	if !complete.Approvable() {
+		t.Fatalf("blockers with the prerequisites present: %+v", complete.Blockers)
+	}
+	if item := itemFor(t, complete, KindSSHKey, SharedAdminSSHKeyName); item.Action != ActionReuseShared {
+		t.Fatalf("admin key item %+v, want it reused", item)
+	}
+}
+
 func TestBuildPlanBlocksUnavailableAndUndersizedInfrastructure(t *testing.T) {
-	inventory, err := Classify(testNaming(), nil)
+	inventory, err := Classify(testNaming(), projectPrerequisites())
 	if err != nil {
 		t.Fatalf("classify: %v", err)
 	}

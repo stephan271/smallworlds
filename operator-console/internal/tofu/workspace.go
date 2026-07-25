@@ -31,9 +31,16 @@ var (
 	ErrInvalidProfile = errors.New("tofu: invalid profile identifier")
 )
 
-// safeProfile keeps a profile id from escaping the workspace root; only ids the
-// state store already produces are accepted.
-var safeProfile = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$`)
+// safeProfile keeps a profile id from escaping the workspace root. Profile ids
+// are base64url, so they can legitimately begin with '-' or '_' — requiring an
+// alphanumeric first character rejected about one id in thirty at random. What
+// actually has to be excluded is path traversal, which is why '/' is absent from
+// the class and an all-dots name is rejected outright.
+var safeProfile = regexp.MustCompile(`^[A-Za-z0-9_-][A-Za-z0-9._-]{0,119}$`)
+
+// dotsOnly matches "." and ".." and any longer run of dots, none of which name a
+// directory of their own.
+var dotsOnly = regexp.MustCompile(`^\.+$`)
 
 // BackupRetention is how many previous state versions a workspace keeps. State
 // is the record of what exists in the provider, so losing it strands paid
@@ -81,7 +88,7 @@ type Status struct {
 // OpenWorkspace creates or opens the profile's workspace under the launcher's
 // data directory with owner-only permissions.
 func OpenWorkspace(dataDirectory, profileID string) (*Workspace, error) {
-	if !safeProfile.MatchString(profileID) {
+	if !safeProfile.MatchString(profileID) || dotsOnly.MatchString(profileID) || strings.Contains(profileID, "..") {
 		return nil, fmt.Errorf("%w: %q", ErrInvalidProfile, profileID)
 	}
 	root := filepath.Join(dataDirectory, "tofu-workspaces", profileID)

@@ -137,6 +137,16 @@ func BuildPlan(input PlanInput) (ChangePlan, error) {
 		switch finding.Ownership {
 		case OwnershipAbsent:
 			item.Action, item.ReasonKey = ActionCreate, "resource-will-be-created"
+			// A shared resource is one the whole project uses — the DNS zone and
+			// the admin SSH key. This installation reuses them and must never own
+			// them, because a later teardown of one profile would take a resource
+			// every other profile depends on with it. So an absent shared resource
+			// is a prerequisite the Operator establishes once in the project, not
+			// something planning can quietly create.
+			if finding.Expectation.Shared {
+				item.Action, item.ReasonKey = ActionBlocked, "shared-prerequisite-missing"
+				plan.Blockers = append(plan.Blockers, Blocker{Code: "shared-prerequisite-missing", Kind: item.Kind, Name: item.Name})
+			}
 		case OwnershipProfileOwned:
 			item.Action, item.ReasonKey = ActionKeep, "resource-already-owned-by-this-profile"
 		case OwnershipShared:

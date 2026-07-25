@@ -6,11 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/stephan271/smallworlds/operator-console/internal/bootstrapassets"
 	"github.com/stephan271/smallworlds/operator-console/internal/capability"
 	"github.com/stephan271/smallworlds/operator-console/internal/hetzner"
+	"github.com/stephan271/smallworlds/operator-console/internal/hetznerprovision"
 	"github.com/stephan271/smallworlds/operator-console/internal/state"
+	"github.com/stephan271/smallworlds/operator-console/internal/temporaryaccess"
 	"github.com/stephan271/smallworlds/operator-console/internal/tofu"
 	"github.com/stephan271/smallworlds/operator-console/internal/vault"
 	"github.com/stephan271/smallworlds/operator-console/internal/workflow"
@@ -53,27 +57,33 @@ type HetznerProvider interface {
 	Nameservers(ctx context.Context, token, domain string) ([]string, error)
 }
 
-// HetznerProvisioner applies an approved, still-current plan to the project. It
-// is deliberately *not* implemented here: this issue's journey ends at an
-// approved plan, and the launcher default refuses so that approving a plan can
-// never quietly become provisioning it.
-type HetznerProvisioner interface {
-	Provision(ctx context.Context, profileID string, plan hetzner.ChangePlan) error
-}
-
-// ErrHetznerProvisioningUnavailable is returned by the launcher default: no
-// provider resource change path is wired yet.
-var ErrHetznerProvisioningUnavailable = errors.New("launcher: hetzner provisioning path unavailable")
-
-type unavailableHetznerProvisioner struct{}
-
-func (unavailableHetznerProvisioner) Provision(context.Context, string, hetzner.ChangePlan) error {
-	return ErrHetznerProvisioningUnavailable
-}
-
 // hetznerProvisionIntent is the fixed plan intent the launcher owns for
 // applying an infrastructure plan. Browser input never selects it.
-const hetznerProvisionIntent = "ProvisionHetznerInfrastructure"
+const hetznerProvisionIntent = hetznerprovision.Intent
+
+// unavailableConvergenceObserver is the launcher default. Watching a
+// provisioned node converge needs an adapter that can reach it; without one the
+// launcher reports nothing observed rather than claiming a cluster is healthy,
+// which would complete the run and let the Operator close their only way in.
+type unavailableConvergenceObserver struct{}
+
+func (unavailableConvergenceObserver) Observe(context.Context, hetznerprovision.Binding, string) (hetznerprovision.Convergence, error) {
+	return hetznerprovision.Convergence{}, errors.New("launcher: convergence observation unavailable")
+}
+
+// assetBinaries resolves the verified pinned OpenTofu executable through the
+// bootstrap asset manager, so the reconciler can only ever run an artifact the
+// manager checked by digest and signature.
+type assetBinaries struct{ manager *bootstrapassets.Manager }
+
+func (binaries assetBinaries) VerifiedPath(release, id string) (string, error) {
+	file, _, err := binaries.manager.OpenVerified(release, id)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	return file.Name(), nil
+}
 
 // hetznerVaultKey is where the project token is custodied. The value never
 // leaves the Vault except into a provider call.
@@ -91,6 +101,35 @@ type hetznerRecord struct {
 	InspectedAt time.Time                `json:"inspectedAt,omitempty"`
 	Plan        *hetzner.ChangePlan      `json:"plan,omitempty"`
 	PlanID      string                   `json:"planId,omitempty"`
+	// ACMEEmail is the Let's Encrypt account address the node's issuer uses. It
+	// is an ordinary contact detail, not a credential.
+	ACMEEmail string `json:"acmeEmail,omitempty"`
+}
+
+// loadTemporaryAccess reads the profile's temporary administration path. A
+// profile with no record yet has no path at all — it is opened when
+// infrastructure is provisioned, not before.
+func (server *Server) loadTemporaryAccess(ctx context.Context, profileID string) temporaryaccess.State {
+	encoded, err := server.store.GetTemporaryAccess(ctx, profileID)
+	if err != nil {
+		return temporaryaccess.State{}
+	}
+	var access temporaryaccess.State
+	if json.Unmarshal([]byte(encoded), &access) != nil {
+		return temporaryaccess.State{}
+	}
+	return access
+}
+
+func (server *Server) storeTemporaryAccess(ctx context.Context, profileID string, access temporaryaccess.State) error {
+	if err := access.Validate(); err != nil {
+		return err
+	}
+	encoded, err := json.Marshal(access)
+	if err != nil {
+		return err
+	}
+	return server.store.RecordTemporaryAccess(ctx, profileID, string(encoded), time.Now().UTC())
 }
 
 // validateHetznerToken custodies a Hetzner project token in the Launcher Vault
@@ -202,6 +241,9 @@ func (server *Server) hetznerStatus(response http.ResponseWriter, request *http.
 		if status, err := workspace.Status(); err == nil {
 			view["workspace"] = status
 		}
+	}
+	if access := server.loadTemporaryAccess(request.Context(), profileID); !access.OpenedAt.IsZero() {
+		view["temporaryAccess"] = access
 	}
 	writeJSON(response, http.StatusOK, view)
 }
@@ -337,6 +379,7 @@ func (server *Server) planHetzner(response http.ResponseWriter, request *http.Re
 		ServerType   string   `json:"serverType"`
 		VolumeGB     int      `json:"volumeGb"`
 		Adoptions    []string `json:"adoptions"`
+		ACMEEmail    string   `json:"acmeEmail"`
 	}
 	if !decodeJSON(response, request, 32*1024, &input) || input.ProfileID == "" {
 		writeError(response, http.StatusBadRequest, "invalid_hetzner_plan_request")
@@ -409,18 +452,51 @@ func (server *Server) planHetzner(response http.ResponseWriter, request *http.Re
 
 	// The Change Plan is recorded whether or not it is approvable: an operator
 	// must be able to see the blocked plan and what it would cost.
-	record.Plan = &changePlan
+	record.Plan, record.ACMEEmail = &changePlan, strings.TrimSpace(input.ACMEEmail)
 	risks := []workflow.Risk{{Code: "hetzner.cost.recurring", MessageKey: "plan.risk.hetzner_recurring_cost"}}
 	for _, blocker := range changePlan.Blockers {
 		risks = append(risks, workflow.Risk{Code: "hetzner.blocked." + blocker.Code, MessageKey: "plan.risk.hetzner_blocked"})
 	}
-	workflowPlan, err := server.workflow.PlanChangeWithRisks(request.Context(), input.ProfileID, hetznerProvisionIntent, hetznerPlanDetail(changePlan), []workflow.Effect{
+	// An approvable plan is bound to every fact the approval rests on. The
+	// workflow plan's digest is computed over that same binding, so approving
+	// the plan approves exactly the reviewed project, release, overlay commit,
+	// toolchain, and state — and the executor can detect a binding swapped
+	// afterwards. A blocked plan is still recorded and shown, but it is not
+	// bound: there is nothing to approve.
+	binding, bindErr := server.bindHetznerPlan(request.Context(), profile, changePlan)
+	detail := hetznerPlanDetail(changePlan)
+	if bindErr == nil {
+		detail = binding.DigestDetail()
+	} else if changePlan.Approvable() {
+		writeError(response, http.StatusConflict, hetznerBindingErrorCode(bindErr))
+		return
+	}
+	workflowPlan, err := server.workflow.PlanChangeWithRisks(request.Context(), input.ProfileID, hetznerProvisionIntent, detail, []workflow.Effect{
 		{Code: "hetzner.resources.reconciled", MessageKey: "plan.effect.hetzner_resources"},
 		{Code: "hetzner.cost.recurring", MessageKey: "plan.effect.hetzner_cost"},
 	}, risks)
 	if err != nil {
 		writeError(response, http.StatusInternalServerError, "hetzner_plan_failed")
 		return
+	}
+	if bindErr == nil {
+		binding.PlanID = workflowPlan.ID
+		encoded, marshalErr := binding.Marshal()
+		if marshalErr != nil || server.store.RecordHetznerProvisioningPlan(request.Context(), state.BootstrapPlanRecord{PlanID: workflowPlan.ID, ProfileID: profile.ID, Binding: encoded, CreatedAt: workflowPlan.CreatedAt}) != nil {
+			writeError(response, http.StatusInternalServerError, "hetzner_plan_failed")
+			return
+		}
+		// The temporary administration path opens with the plan that will create
+		// the node, because the Operator needs it to watch the cluster converge.
+		// It opens unscoped unless something has already observed their address;
+		// narrowing it is a separate step, and closing it needs the handoff
+		// verified.
+		if existing := server.loadTemporaryAccess(request.Context(), profile.ID); existing.OpenedAt.IsZero() {
+			if err := server.storeTemporaryAccess(request.Context(), profile.ID, temporaryaccess.Open("", time.Now().UTC())); err != nil {
+				writeError(response, http.StatusInternalServerError, "hetzner_plan_failed")
+				return
+			}
+		}
 	}
 	record.PlanID = workflowPlan.ID
 	if !server.persistHetznerRecord(request.Context(), input.ProfileID, record) {
@@ -434,6 +510,105 @@ func (server *Server) planHetzner(response http.ResponseWriter, request *http.Re
 		"approvable":  changePlan.Approvable(),
 		"requirement": resolution.Requirement,
 	})
+}
+
+// bindHetznerPlan derives the execution binding from an approved Change Plan
+// plus the facts that live outside it: the profile revision, the selected
+// release and overlay commit, the pinned toolchain, and the workspace state as
+// it is right now.
+func (server *Server) bindHetznerPlan(ctx context.Context, profile state.Profile, changePlan hetzner.ChangePlan) (hetznerprovision.Binding, error) {
+	overlay, err := server.store.GetOverlayIdentity(ctx, profile.ID)
+	if err != nil {
+		return hetznerprovision.Binding{}, errHetznerOverlayRequired
+	}
+	toolchain, err := tofu.Inspect(server.assets)
+	if err != nil || !toolchain.Ready {
+		return hetznerprovision.Binding{}, errHetznerToolchainRequired
+	}
+	stateDigest := ""
+	if workspace, err := tofu.OpenWorkspace(server.dataDir, profile.ID); err == nil {
+		if status, err := workspace.Status(); err == nil && status.HasState {
+			stateDigest = status.StateDigest
+		}
+	}
+	publicAddress := ""
+	if record, found := server.loadHetznerRecord(ctx, profile.ID); found && record.Inventory != nil {
+		publicAddress = hetznerprovision.PublicAddressOf(*record.Inventory)
+	}
+	return hetznerprovision.BindPlan(changePlan, hetznerprovision.Environment{
+		PlanID:               "pending",
+		ProfileRevision:      profile.Revision,
+		PublicAddress:        publicAddress,
+		Release:              overlay.Release,
+		OverlayRepositoryURL: overlay.RepositoryURL,
+		OverlayCommit:        overlay.Commit,
+		OverlayRelease:       overlay.Release,
+		ToolchainRelease:     toolchain.Release,
+		StateDigest:          stateDigest,
+	})
+}
+
+var (
+	errHetznerOverlayRequired   = errors.New("launcher: a GitOps overlay must be established before provisioning")
+	errHetznerToolchainRequired = errors.New("launcher: the pinned toolchain must be verified before provisioning")
+)
+
+// hetznerBindingErrorCode maps a binding failure onto the response code that
+// tells the Operator which prerequisite is missing.
+func hetznerBindingErrorCode(err error) string {
+	switch {
+	case errors.Is(err, errHetznerOverlayRequired):
+		return "gitops_overlay_required"
+	case errors.Is(err, errHetznerToolchainRequired):
+		return "hetzner_toolchain_unavailable"
+	default:
+		return "invalid_hetzner_plan_request"
+	}
+}
+
+// hetznerTemporaryAccess narrows the temporary public administration path to
+// the Operator's own address, or reports why it could not be narrowed.
+//
+// It is a POST because it changes what the next reconciliation renders, and it
+// deliberately cannot *open* a closed path: reopening administrative access to a
+// handed-over cluster is a separate decision, not a side effect of an address
+// changing.
+func (server *Server) hetznerTemporaryAccess(response http.ResponseWriter, request *http.Request) {
+	if !server.mutatingRequest(response, request) {
+		return
+	}
+	var input struct {
+		ProfileID       string `json:"profileId"`
+		OperatorAddress string `json:"operatorAddress"`
+	}
+	if !decodeJSON(response, request, 4*1024, &input) || input.ProfileID == "" {
+		writeError(response, http.StatusBadRequest, "invalid_temporary_access_request")
+		return
+	}
+	if _, err := server.store.GetProfile(request.Context(), input.ProfileID); errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "profile_not_found")
+		return
+	} else if err != nil {
+		writeError(response, http.StatusInternalServerError, "temporary_access_failed")
+		return
+	}
+	access := server.loadTemporaryAccess(request.Context(), input.ProfileID)
+	if !access.Open {
+		writeError(response, http.StatusConflict, "temporary_access_not_open")
+		return
+	}
+	narrowed, err := access.Narrow(input.OperatorAddress, time.Now().UTC())
+	if err != nil {
+		writeError(response, http.StatusConflict, "temporary_access_not_open")
+		return
+	}
+	if err := server.storeTemporaryAccess(request.Context(), input.ProfileID, narrowed); err != nil {
+		writeError(response, http.StatusInternalServerError, "temporary_access_failed")
+		return
+	}
+	// The narrowed scope reaches the provider on the next reconciliation, which
+	// re-renders the firewall from the approved plan.
+	writeJSON(response, http.StatusOK, narrowed)
 }
 
 // hetznerPresets returns the Small, Recommended, and High capacity presets for
@@ -497,65 +672,131 @@ func (server *Server) hetznerPresets(response http.ResponseWriter, request *http
 	})
 }
 
-// executeHetznerProvision is the registered executor for an approved
-// infrastructure plan. It re-inspects the project first and refuses a plan that
-// no longer matches it, so a resource that appeared or changed since approval
-// cannot be created twice or adopted unseen. Only then does it hand the plan to
-// the provisioner, which is not wired in this release and refuses honestly.
-func (server *Server) executeHetznerProvision(runID string) {
-	ctx := context.Background()
-	run, err := server.store.GetRun(ctx, runID)
-	if err != nil || run.State != "running" {
-		return
-	}
-	record, found := server.loadHetznerRecord(ctx, run.ProfileID)
-	if !found || record.Plan == nil || record.Token == nil {
-		server.failHetznerRun(ctx, run, "plan-missing")
-		return
-	}
-	token, err := server.vault.Load(hetznerVaultKey(run.ProfileID))
-	if err != nil {
-		server.failHetznerRun(ctx, run, "token-unavailable")
-		return
-	}
-	resources, err := server.hetzner.Inventory(ctx, token, record.Naming.Domain)
-	if err != nil {
-		server.failHetznerRun(ctx, run, "re-inspection-failed")
-		return
-	}
-	current, err := hetzner.Classify(record.Naming, resources)
-	if err != nil {
-		server.failHetznerRun(ctx, run, "re-inspection-failed")
-		return
-	}
-	if !record.Plan.StillCurrent(current) {
-		server.failHetznerRun(ctx, run, "plan-stale")
-		return
-	}
-	if !record.Plan.Approvable() {
-		server.failHetznerRun(ctx, run, "plan-blocked")
-		return
-	}
-	if err := server.hetznerProvisioner.Provision(ctx, run.ProfileID, *record.Plan); err != nil {
-		server.failHetznerRun(ctx, run, "provisioning-unavailable")
-		return
-	}
-	_ = server.store.CompleteRunVerification(ctx, runID, "infrastructure-reconciled", "hetzner.infrastructure.reconciled", time.Now().UTC())
+// hetznerInspector adapts the server onto hetznerprovision.Inspector, so the
+// provisioning service can re-inspect before every attempt without depending on
+// the launcher's own type.
+type hetznerInspector struct{ server *Server }
+
+func (inspector hetznerInspector) Observe(ctx context.Context, binding hetznerprovision.Binding) (hetznerprovision.Observed, error) {
+	return inspector.server.observeHetznerProject(ctx, binding)
 }
 
-func (server *Server) failHetznerRun(ctx context.Context, run state.RunRecord, checkpoint string) {
-	if err := server.store.UpdateRun(ctx, run.ID, "failed", checkpoint, "", nil); err != nil {
-		return
+// observeHetznerProject re-runs the read-only inspection the preflight compares
+// an approved plan against. It is the launcher's hetznerprovision.Inspector: the
+// service knows that every attempt must re-inspect, and this is how it does so.
+func (server *Server) observeHetznerProject(ctx context.Context, binding hetznerprovision.Binding) (hetznerprovision.Observed, error) {
+	profile, err := server.store.GetProfile(ctx, binding.ProfileID)
+	if err != nil {
+		return hetznerprovision.Observed{}, err
 	}
-	_, _ = server.store.AppendEvent(ctx, state.EventRecord{
-		ProfileID:  run.ProfileID,
-		RunID:      run.ID,
-		Type:       "run.failed",
-		MessageKey: "activity.run.failed",
-		Parameters: `{"checkpoint":"` + checkpoint + `"}`,
-		OccurredAt: time.Now().UTC(),
-	})
+	token, err := server.vault.Load(hetznerVaultKey(binding.ProfileID))
+	if err != nil {
+		return hetznerprovision.Observed{}, err
+	}
+	resources, err := server.hetzner.Inventory(ctx, token, binding.Naming.Domain)
+	if err != nil {
+		return hetznerprovision.Observed{}, err
+	}
+	inventory, err := hetzner.Classify(binding.Naming, resources)
+	if err != nil {
+		return hetznerprovision.Observed{}, err
+	}
+	inventory.ProjectID = binding.ProjectID
+	nameservers, err := server.hetzner.Nameservers(ctx, token, binding.Naming.Domain)
+	if err != nil && !errors.Is(err, hetzner.ErrRateLimited) {
+		return hetznerprovision.Observed{}, err
+	}
+	observed := hetznerprovision.Observed{
+		ProfileRevision: profile.Revision,
+		Inventory:       inventory,
+		Delegation:      hetzner.CheckDelegation(binding.Naming.Domain, nameservers, capability.DeploymentMode(profile.DeploymentMode)),
+	}
+	if overlay, err := server.store.GetOverlayIdentity(ctx, binding.ProfileID); err == nil {
+		observed.Release = overlay.Release
+		observed.OverlayRepositoryURL, observed.OverlayCommit, observed.OverlayRelease = overlay.RepositoryURL, overlay.Commit, overlay.Release
+	}
+	toolchain, err := tofu.Inspect(server.assets)
+	if err == nil {
+		observed.ToolchainRelease, observed.ToolchainReady = toolchain.Release, toolchain.Ready
+	}
+	if workspace, err := tofu.OpenWorkspace(server.dataDir, binding.ProfileID); err == nil {
+		if status, err := workspace.Status(); err == nil {
+			observed.HasState, observed.StateDigest = status.HasState, status.StateDigest
+		}
+	}
+	return observed, nil
 }
+
+// loadApprovedHetznerPlan reads back the Change Plan the binding was derived
+// from. RenderModule re-checks it against the binding's digest, so a plan that
+// changed on disk after approval cannot be the one that gets applied.
+func (server *Server) loadApprovedHetznerPlan(ctx context.Context, binding hetznerprovision.Binding) (hetzner.ChangePlan, error) {
+	record, found := server.loadHetznerRecord(ctx, binding.ProfileID)
+	if !found || record.Plan == nil {
+		return hetzner.ChangePlan{}, errors.New("launcher: approved hetzner plan not found")
+	}
+	return *record.Plan, nil
+}
+
+// buildHetznerModuleInput renders the node's bootstrap payload and resolves the
+// current scope of the temporary administration path. The Cluster Secrets and
+// the project token travel from the Vault into cloud-init and no further.
+func (server *Server) buildHetznerModuleInput(ctx context.Context, binding hetznerprovision.Binding) (hetznerprovision.ModuleInput, error) {
+	record, found := server.loadHetznerRecord(ctx, binding.ProfileID)
+	if !found {
+		return hetznerprovision.ModuleInput{}, errors.New("launcher: hetzner project record not found")
+	}
+	token, err := server.vault.Load(hetznerVaultKey(binding.ProfileID))
+	if err != nil {
+		return hetznerprovision.ModuleInput{}, err
+	}
+	secrets, err := server.vault.Load(clusterSecretsVaultKey(binding.ProfileID))
+	if err != nil && !errors.Is(err, vault.ErrSecretNotFound) {
+		return hetznerprovision.ModuleInput{}, err
+	}
+	records := make([]string, 0, len(hetzner.DefaultRecordNames)+1)
+	if binding.Naming.EnvExt == "" {
+		records = append(records, "@")
+	}
+	records = append(records, hetzner.DefaultRecordNames...)
+	cloudInit, err := hetznerprovision.RenderCloudInit(hetznerprovision.BootstrapInput{
+		NodeName:       hetznerNodeName(binding.Naming),
+		Domain:         binding.Naming.Domain,
+		EnvExt:         binding.Naming.EnvExt,
+		ServerAddress:  binding.PublicAddress,
+		ACMEEmail:      record.ACMEEmail,
+		ProjectToken:   token,
+		OverlayGitURL:  binding.OverlayRepositoryURL,
+		OverlayCommit:  binding.OverlayCommit,
+		ClusterSecrets: secrets,
+		RecordNames:    records,
+	})
+	if err != nil {
+		return hetznerprovision.ModuleInput{}, err
+	}
+	return hetznerprovision.ModuleInput{
+		CloudInit:       cloudInit,
+		Access:          hetznerAccessFor(server.loadTemporaryAccess(ctx, binding.ProfileID)),
+		ProviderVersion: tofu.HcloudProviderVersion,
+	}, nil
+}
+
+// hetznerAccessFor projects the temporary access record onto what the OpenTofu
+// module needs: which source ranges, if any, reach SSH and the Kubernetes API.
+func hetznerAccessFor(access temporaryaccess.State) hetznerprovision.AdministrationAccess {
+	return hetznerprovision.AdministrationAccess{Open: access.Open, OperatorSources: access.Scope.Sources}
+}
+
+// hetznerNodeName is the node's k3s name, derived from the plan's server name so
+// it stays stable across a rebuild.
+func hetznerNodeName(naming hetzner.Naming) string {
+	name := "cc-pilot-node-01" + strings.ReplaceAll(naming.EnvExt, ".", "-")
+	return strings.ToLower(name)
+}
+
+// clusterSecretsVaultKey matches the key the Local Cluster Node bootstrap uses,
+// so an Operator supplies their Cluster Secrets once regardless of mode.
+func clusterSecretsVaultKey(profileID string) string { return profileID + "/cluster-secrets-manifest" }
 
 // hetznerPlanDetail is the stable, secret-free description bound into the
 // workflow plan's digest. It carries the infrastructure plan's own digest, so

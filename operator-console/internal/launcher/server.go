@@ -28,6 +28,7 @@ import (
 	"github.com/stephan271/smallworlds/operator-console/internal/handoffassessment"
 	"github.com/stephan271/smallworlds/operator-console/internal/handoffverification"
 	"github.com/stephan271/smallworlds/operator-console/internal/hetzner"
+	"github.com/stephan271/smallworlds/operator-console/internal/hetznerprovision"
 	"github.com/stephan271/smallworlds/operator-console/internal/localbootstrap"
 	"github.com/stephan271/smallworlds/operator-console/internal/nodeinspect"
 	"github.com/stephan271/smallworlds/operator-console/internal/offsite"
@@ -36,6 +37,7 @@ import (
 	"github.com/stephan271/smallworlds/operator-console/internal/recovery"
 	"github.com/stephan271/smallworlds/operator-console/internal/state"
 	"github.com/stephan271/smallworlds/operator-console/internal/tailscaleclient"
+	"github.com/stephan271/smallworlds/operator-console/internal/tofu"
 	"github.com/stephan271/smallworlds/operator-console/internal/vault"
 	"github.com/stephan271/smallworlds/operator-console/internal/workflow"
 )
@@ -58,7 +60,12 @@ type Config struct {
 	ClusterSecretApplier    ClusterSecretApplier
 	OffsiteValidationRunner OffsiteValidationRunner
 	HetznerProvider         HetznerProvider
-	HetznerProvisioner      HetznerProvisioner
+	// HetznerReconciler applies an approved infrastructure plan. The default
+	// refuses: without a verified pinned toolchain, applying with whatever
+	// OpenTofu happens to be installed would break reproducibility.
+	HetznerReconciler hetznerprovision.Reconciler
+	// HetznerConvergence watches a provisioned node come up.
+	HetznerConvergence hetznerprovision.ConvergenceObserver
 }
 
 // GenericGitClient permits deterministic Launcher contract tests while the
@@ -98,23 +105,23 @@ type Server struct {
 	launchToken string
 	dataDir     string
 
-	mu                 sync.RWMutex
-	tokenUsed          bool
-	sessions           map[string]session
-	store              *state.Store
-	vault              *vault.Vault
-	workflow           *workflow.Engine
-	github             *github.Client
-	genericGit         GenericGitClient
-	assets             *bootstrapassets.Manager
-	nodes              NodeInspector
-	handoff            handoffverification.Verifier
-	passkey            firstowner.PasskeyVerifier
-	offsite            offsite.Inspector
-	secrets            ClusterSecretApplier
-	offsiteValidator   OffsiteValidationRunner
-	hetzner            HetznerProvider
-	hetznerProvisioner HetznerProvisioner
+	mu               sync.RWMutex
+	tokenUsed        bool
+	sessions         map[string]session
+	store            *state.Store
+	vault            *vault.Vault
+	workflow         *workflow.Engine
+	github           *github.Client
+	genericGit       GenericGitClient
+	assets           *bootstrapassets.Manager
+	nodes            NodeInspector
+	handoff          handoffverification.Verifier
+	passkey          firstowner.PasskeyVerifier
+	offsite          offsite.Inspector
+	secrets          ClusterSecretApplier
+	offsiteValidator OffsiteValidationRunner
+	hetzner          HetznerProvider
+	hetznerProvision *hetznerprovision.Service
 }
 
 func New(config Config) (*Server, error) {
@@ -194,11 +201,21 @@ func New(config Config) (*Server, error) {
 		// provider itself rejects before it can create anything.
 		hetznerProvider = hetzner.NewClient(hetzner.DefaultAPIBaseURL, nil)
 	}
-	hetznerProvisioner := config.HetznerProvisioner
-	if hetznerProvisioner == nil {
-		// Applying a plan to the project is out of this journey's scope: the
-		// launcher refuses rather than letting an approval quietly provision.
-		hetznerProvisioner = unavailableHetznerProvisioner{}
+	hetznerReconciler := config.HetznerReconciler
+	if hetznerReconciler == nil {
+		// The pinned toolchain is not published yet, so the production
+		// reconciler resolves no verified binary and the launcher refuses
+		// honestly rather than reaching for an ambient tofu.
+		hetznerReconciler = hetznerprovision.TofuReconciler{
+			Workspaces: func(profileID string) (*tofu.Workspace, error) {
+				return tofu.OpenWorkspace(config.DataDir, profileID)
+			},
+			Binaries: assetBinaries{manager: assetManager},
+		}
+	}
+	hetznerConvergence := config.HetznerConvergence
+	if hetznerConvergence == nil {
+		hetznerConvergence = unavailableConvergenceObserver{}
 	}
 	workflowEngine.RegisterExecutor("BootstrapLocalNode", bootstrapService.Execute)
 	server := &Server{
@@ -218,13 +235,16 @@ func New(config Config) (*Server, error) {
 		secrets:          clusterSecretApplier,
 		offsiteValidator: offsiteValidationRunner,
 
-		hetzner:            hetznerProvider,
-		hetznerProvisioner: hetznerProvisioner,
+		hetzner: hetznerProvider,
 	}
 	// Registered after the server exists (the executor is a server method) and
 	// before ResumeActive, so a validation run interrupted by a restart resumes.
 	workflowEngine.RegisterExecutor(offsiteValidationIntent, server.executeOffsiteValidation)
-	workflowEngine.RegisterExecutor(hetznerProvisionIntent, server.executeHetznerProvision)
+	server.hetznerProvision = hetznerprovision.NewService(
+		store, hetznerInspector{server: server}, hetznerReconciler, hetznerConvergence,
+		vaultStore.Load, server.loadApprovedHetznerPlan, server.buildHetznerModuleInput,
+	)
+	workflowEngine.RegisterExecutor(hetznerProvisionIntent, server.hetznerProvision.Execute)
 	if err := workflowEngine.ResumeActive(context.Background()); err != nil {
 		store.Close()
 		return nil, err
@@ -330,6 +350,8 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.inspectHetzner(response, request)
 	case request.URL.Path == "/api/v1/hetzner/toolchain/acquire":
 		server.acquireHetznerToolchain(response, request)
+	case request.URL.Path == "/api/v1/hetzner/temporary-access/narrow":
+		server.hetznerTemporaryAccess(response, request)
 	case request.URL.Path == "/api/v1/hetzner/presets":
 		server.hetznerPresets(response, request)
 	case request.URL.Path == "/api/v1/hetzner/plan":
@@ -1517,6 +1539,17 @@ func (server *Server) closeTemporaryAccess(response http.ResponseWriter, request
 	if err := server.store.RecordHandoffState(request.Context(), state.HandoffState{ProfileID: input.ProfileID, Closed: true, Report: encoded, RecordedAt: time.Now().UTC()}); err != nil {
 		writeError(response, http.StatusInternalServerError, "handoff_verification_failed")
 		return
+	}
+	// A publicly addressed installation also has a provider-side path — the SSH
+	// and Kubernetes API firewall rules — that must actually be removed, not just
+	// recorded as closed. Marking it here makes the next reconciliation render a
+	// firewall without them. The gate is the same verification just performed.
+	if access := server.loadTemporaryAccess(request.Context(), input.ProfileID); access.Open {
+		closed, closeErr := access.Close(report.PermitsClosure(), time.Now().UTC())
+		if closeErr != nil || server.storeTemporaryAccess(request.Context(), input.ProfileID, closed) != nil {
+			writeError(response, http.StatusInternalServerError, "handoff_verification_failed")
+			return
+		}
 	}
 	writeJSON(response, http.StatusOK, map[string]any{"closed": true, "report": report})
 }

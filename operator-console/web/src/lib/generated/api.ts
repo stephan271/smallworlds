@@ -982,6 +982,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/hetzner/temporary-access/narrow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Narrow the temporary public administration path to the Operator's own address
+         * @description Re-derives the scope of the temporary SSH and Kubernetes API access from a freshly observed Operator address. It cannot reopen a closed path: restoring administrative access to a handed-over cluster is a separate decision. An address that is unobserved, privately routed, or carrier-grade NAT leaves the path open with the reason stated, because a scope that admits nobody — or that moves — would lock the Operator out.
+         */
+        post: operations["narrowHetznerTemporaryAccess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1169,6 +1189,7 @@ export interface components {
             approvable?: boolean;
             toolchain?: components["schemas"]["HetznerToolchain"];
             workspace?: components["schemas"]["HetznerWorkspace"];
+            temporaryAccess?: components["schemas"]["TemporaryAccess"];
         };
         /** @description Secret-free view of an offsite destination and its last bucket inspection. Never carries the access key or secret. */
         OffsiteProtection: {
@@ -1786,6 +1807,24 @@ export interface components {
             }[];
             limitations: string[];
             consoleHandoffUrl?: string;
+        };
+        /** @description The temporary public administration path (SSH and the Kubernetes API) that exists between provisioning a cluster and handing it over to private administration. */
+        TemporaryAccess: {
+            /** @description False once the path has been closed. Closing requires a verified handoff. */
+            open: boolean;
+            scope: {
+                /** @description True only when the path is genuinely narrowed. */
+                scoped: boolean;
+                /** @description CIDR ranges admitted to SSH and the Kubernetes API. Empty means open to the internet. */
+                sources?: string[];
+                /** @description Why the path is scoped, or why it could not be. */
+                reasonKey: string;
+            };
+            observedAddress?: string;
+            /** Format: date-time */
+            openedAt?: string;
+            /** Format: date-time */
+            closedAt?: string;
         };
     };
     responses: {
@@ -3428,6 +3467,8 @@ export interface operations {
                     serverType?: string;
                     volumeGb?: number;
                     adoptions?: string[];
+                    /** @description Let's Encrypt account address for the cluster issuer. Required before an approved plan can be provisioned. */
+                    acmeEmail?: string;
                 };
             };
         };
@@ -3611,6 +3652,48 @@ export interface operations {
                 };
             };
             409: components["responses"]["Conflict"];
+        };
+    };
+    narrowHetznerTemporaryAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    profileId: string;
+                    /** @description The Operator's observed public address. Empty leaves the path open and unscoped. */
+                    operatorAddress?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The temporary path's current scope */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemporaryAccess"];
+                };
+            };
+            /** @description Cluster Profile not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The temporary path is not open */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
 }

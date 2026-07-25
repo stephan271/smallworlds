@@ -58,6 +58,7 @@ func TestOpenAPIContractDescribesLauncherWorkflow(t *testing.T) {
 		"/api/v1/handoff":                          {"get"},
 		"/api/v1/handoff/verify":                   {"post"},
 		"/api/v1/handoff/close-temporary-access":   {"post"},
+		"/api/v1/hetzner/temporary-access/narrow":  {"post"},
 		"/api/v1/first-owner":                      {"get"},
 		"/api/v1/first-owner/claim":                {"post"},
 		"/api/v1/first-owner/register":             {"post"},

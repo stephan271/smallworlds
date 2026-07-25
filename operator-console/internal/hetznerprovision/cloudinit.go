@@ -59,7 +59,10 @@ func (input BootstrapInput) Validate() error {
 	if input.EnvExt != "" && (!strings.HasPrefix(input.EnvExt, ".") || !safeLabel.MatchString(strings.TrimPrefix(input.EnvExt, "."))) {
 		return fmt.Errorf("%w: environment extension", ErrInvalidBootstrap)
 	}
-	if !safeAddress.MatchString(input.ServerAddress) {
+	// An empty address is the ordinary first-install case: the Primary IP does
+	// not exist until OpenTofu creates it, so the node discovers its own address
+	// at boot — exactly as the shared k3s-node template does.
+	if input.ServerAddress != "" && !safeAddress.MatchString(input.ServerAddress) {
 		return fmt.Errorf("%w: server address", ErrInvalidBootstrap)
 	}
 	// A Hetzner installation always serves a public domain, so it always uses
@@ -127,6 +130,7 @@ write_files:
 	writeRootApplication(&out, input)
 	writeClusterSecrets(&out, input)
 	out.WriteString("runcmd:\n")
+	writeNodeAddress(&out, input)
 	writeStorage(&out)
 	writeIssuer(&out, input)
 	writeCoreDNS(&out, input)
@@ -188,6 +192,20 @@ func writeClusterSecrets(out *strings.Builder, input BootstrapInput) {
 	out.WriteString("  - path: /var/lib/smallworlds/cluster-secrets.yaml\n    permissions: '0600'\n    content: |\n")
 	writeIndented(out, input.ClusterSecrets, "      ")
 	out.WriteString("\n")
+}
+
+// writeNodeAddress resolves the address k3s binds to and the in-cluster
+// resolver points at. On a first install the Primary IP does not exist until
+// OpenTofu creates it, so the node discovers its own address; on a rebuild the
+// approved address is already known and is used verbatim, which keeps a node
+// that boots before its IP is attached from binding to the wrong one.
+func writeNodeAddress(out *strings.Builder, input BootstrapInput) {
+	out.WriteString("  - mkdir -p /etc/smallworlds /var/lib/smallworlds\n")
+	if input.ServerAddress != "" {
+		fmt.Fprintf(out, "  - echo %s > /etc/smallworlds/node-address\n\n", input.ServerAddress)
+		return
+	}
+	out.WriteString("  - hostname -I | awk '{print $1}' > /etc/smallworlds/node-address\n\n")
 }
 
 func writeStorage(out *strings.Builder) {
@@ -272,8 +290,11 @@ func writeCoreDNS(out *strings.Builder, input BootstrapInput) {
 		hosts = append(hosts, record+input.EnvExt+"."+input.Domain)
 	}
 	sort.Strings(hosts)
+	// The heredoc is unquoted so the node's own address is substituted; every
+	// other value is already validated and contains no shell metacharacters.
 	fmt.Fprintf(out, `  - |
-    cat > /var/lib/rancher/k3s/server/manifests/coredns-custom.yaml <<'COREDNS'
+    NODE_ADDRESS=$(cat /etc/smallworlds/node-address)
+    cat > /var/lib/rancher/k3s/server/manifests/coredns-custom.yaml <<COREDNS
     apiVersion: v1
     kind: ConfigMap
     metadata:
@@ -283,25 +304,26 @@ func writeCoreDNS(out *strings.Builder, input BootstrapInput) {
       smallworlds.server: |
         %s:53 {
           hosts {
-            %s %s
+            $NODE_ADDRESS %s
             fallthrough
           }
           forward . /etc/resolv.conf
         }
     COREDNS
 
-`, input.Domain, input.ServerAddress, strings.Join(hosts, " "))
+`, input.Domain, strings.Join(hosts, " "))
 }
 
 func writeK3S(out *strings.Builder, input BootstrapInput) {
 	fmt.Fprintf(out, `  # k3s. An explicit --node-name keeps a snapshot boot from registering a ghost
   # node under the image builder's transient hostname.
-  - curl -sfL https://get.k3s.io | sh -s - server --cluster-init --node-ip=%s --node-name=%s --disable traefik --kubelet-arg=registry-qps=50 --kubelet-arg=registry-burst=100
+  - |
+    curl -sfL https://get.k3s.io | sh -s - server --cluster-init --node-ip=$(cat /etc/smallworlds/node-address) --node-name=%s --disable traefik --kubelet-arg=registry-qps=50 --kubelet-arg=registry-burst=100
   - export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
   - until k3s kubectl get nodes | grep -v NotReady | grep -q Ready; do sleep 5; done
   - touch %s
 
-`, input.ServerAddress, input.NodeName, K3SReadyMarker)
+`, input.NodeName, K3SReadyMarker)
 }
 
 // writeClusterSecretsApply applies the operator's Cluster Secrets before Argo CD

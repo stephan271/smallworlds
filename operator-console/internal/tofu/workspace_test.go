@@ -28,8 +28,19 @@ func TestWorkspacesAreIsolatedPerProfile(t *testing.T) {
 	if strings.Contains(string(productionState), "dev") {
 		t.Fatal("profiles must not share state")
 	}
-	if _, err := OpenWorkspace(dataDirectory, "../escape"); !errors.Is(err, ErrInvalidProfile) {
-		t.Fatalf("path traversal accepted: %v", err)
+	for _, escape := range []string{"../escape", "..", ".", "a/b", "", "a..b/../c"} {
+		if _, err := OpenWorkspace(dataDirectory, escape); !errors.Is(err, ErrInvalidProfile) {
+			t.Fatalf("path traversal accepted for %q: %v", escape, err)
+		}
+	}
+
+	// Profile ids are base64url, so a real id can begin with '-' or '_'.
+	// Rejecting those made roughly one profile in thirty unable to open its own
+	// workspace, at random.
+	for _, profileID := range []string{"-Yh03QsVpVtAqEuCjUaKc8gKA", "_EEzBbooRTyXW3Ydzaw", "aB3-_.dEf"} {
+		if _, err := OpenWorkspace(dataDirectory, profileID); err != nil {
+			t.Fatalf("a valid profile id was rejected: %q: %v", profileID, err)
+		}
 	}
 }
 
