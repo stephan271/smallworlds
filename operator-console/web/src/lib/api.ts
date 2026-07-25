@@ -35,6 +35,15 @@ export type OffsiteProtection = components['schemas']['OffsiteProtection'];
 export type OffsitePlan = components['schemas']['OffsitePlan'];
 export type OffsiteProposal = components['schemas']['OffsiteProposal'];
 export type OffsiteDestinationInput = { profileId: string; endpoint: string; region: string; bucket: string; accessKeyId: string; secretAccessKey: string };
+export type HetznerProject = components['schemas']['HetznerProject'];
+export type HetznerTokenAssessment = components['schemas']['HetznerTokenAssessment'];
+export type HetznerPresets = components['schemas']['HetznerPresets'];
+export type HetznerPreset = components['schemas']['HetznerPreset'];
+export type HetznerChangePlan = components['schemas']['HetznerChangePlan'];
+export type HetznerToolchain = components['schemas']['HetznerToolchain'];
+export type HetznerWorkspace = components['schemas']['HetznerWorkspace'];
+export type HetznerPresetTier = 'small' | 'recommended' | 'high' | 'advanced';
+export type HetznerPlanResult = { plan: ChangePlan; changePlan: HetznerChangePlan; approvable: boolean };
 
 let csrfToken = '';
 
@@ -162,5 +171,15 @@ export const api = {
   inspectOffsiteDestination: (input: OffsiteDestinationInput) => request<OffsiteProtection>('/api/v1/offsite/inspect', { method: 'POST', body: JSON.stringify(input) }),
   planOffsiteProtection: (profileId: string, acknowledged: boolean) => request<OffsitePlan>('/api/v1/offsite/plan', { method: 'POST', body: JSON.stringify({ profileId, acknowledged }) }),
   proposeOffsiteProtection: (profileId: string, planId: string) => request<OffsiteProposal>('/api/v1/offsite/propose', { method: 'POST', body: JSON.stringify({ profileId, planId }) }),
-  validateOffsiteProtection: (profileId: string) => request<{ plan: ChangePlan }>('/api/v1/offsite/validate', { method: 'POST', body: JSON.stringify({ profileId }) })
+  validateOffsiteProtection: (profileId: string) => request<{ plan: ChangePlan }>('/api/v1/offsite/validate', { method: 'POST', body: JSON.stringify({ profileId }) }),
+  getHetznerProject: (profileId: string) => request<HetznerProject>(`/api/v1/hetzner?profileId=${encodeURIComponent(profileId)}`),
+  // The token is sent once and custodied in the Launcher Vault; only the
+  // fingerprint-bearing verdict comes back.
+  validateHetznerToken: (profileId: string, token: string) => request<HetznerTokenAssessment>('/api/v1/hetzner/token/validate', { method: 'POST', body: JSON.stringify({ profileId, token }) }),
+  inspectHetznerProject: (profileId: string, domain: string, envExt: string) => request<HetznerProject>('/api/v1/hetzner/inspect', { method: 'POST', body: JSON.stringify({ profileId, domain, envExt }) }),
+  acquireHetznerToolchain: (profileId: string) => request<{ toolchain: HetznerToolchain; workspace: HetznerWorkspace }>('/api/v1/hetzner/toolchain/acquire', { method: 'POST', body: JSON.stringify({ profileId }) }),
+  getHetznerPresets: (input: { profileId: string; mode: CapabilityMode; communityIds: string[]; location: string }) =>
+    request<HetznerPresets>('/api/v1/hetzner/presets', { method: 'POST', body: JSON.stringify(input) }),
+  planHetznerInfrastructure: (input: { profileId: string; mode: CapabilityMode; communityIds: string[]; tier: HetznerPresetTier; location: string; serverType?: string; volumeGb?: number; adoptions: string[] }) =>
+    request<HetznerPlanResult>('/api/v1/hetzner/plan', { method: 'POST', body: JSON.stringify(input) })
 };

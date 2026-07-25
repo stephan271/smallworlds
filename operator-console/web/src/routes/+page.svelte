@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type HandoffAssessment, type NodeCapabilities, type NodeInspectionResult, type NodeProbeResult, type NodeTarget, type OffsitePlan, type OffsiteProposal, type OffsiteProtection, type RecoveryBundlePreview, type SetupJourney, type TailscaleClientOffer, type VaultStatus, type WorkflowRun } from '$lib/api';
+  import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type HandoffAssessment, type HetznerChangePlan, type HetznerPlanResult, type HetznerPresets, type HetznerPresetTier, type HetznerProject, type HetznerToolchain, type HetznerWorkspace, type NodeCapabilities, type NodeInspectionResult, type NodeProbeResult, type NodeTarget, type OffsitePlan, type OffsiteProposal, type OffsiteProtection, type RecoveryBundlePreview, type SetupJourney, type TailscaleClientOffer, type VaultStatus, type WorkflowRun } from '$lib/api';
   import { translate, type Locale, type MessageKey } from '$lib/i18n';
 
   type ActivityEvent = {
@@ -106,6 +106,21 @@
   let offsiteProposal: OffsiteProposal | null = $state(null);
   let offsiteError = $state('');
   let offsiteBusy = $state(false);
+  let hetznerTokenValue = $state('');
+  let hetznerProject: HetznerProject | null = $state(null);
+  let hetznerDomain = $state('');
+  let hetznerEnvExt = $state('');
+  let hetznerPresets: HetznerPresets | null = $state(null);
+  let hetznerTier: HetznerPresetTier = $state('recommended');
+  let hetznerLocation = $state('');
+  let hetznerServerType = $state('');
+  let hetznerVolumeGb = $state(0);
+  let hetznerAdoptions: string[] = $state([]);
+  let hetznerToolchain: HetznerToolchain | null = $state(null);
+  let hetznerWorkspace: HetznerWorkspace | null = $state(null);
+  let hetznerPlan: HetznerPlanResult | null = $state(null);
+  let hetznerBusy = $state(false);
+  let hetznerError = $state('');
   let creating = $state(true);
   let editing = $state(false);
   let busy = $state(false);
@@ -168,6 +183,25 @@
       offsiteStatus = await api.getOffsiteProtection(profile.id);
     } catch {
       offsiteStatus = null;
+    }
+    hetznerTokenValue = '';
+    hetznerPresets = null;
+    hetznerPlan = null;
+    hetznerAdoptions = [];
+    hetznerError = '';
+    hetznerProject = null;
+    hetznerToolchain = null;
+    hetznerWorkspace = null;
+    if (profile.deploymentMode === 'hetzner') {
+      try {
+        hetznerProject = await api.getHetznerProject(profile.id);
+        hetznerDomain = hetznerProject.naming?.domain ?? '';
+        hetznerEnvExt = hetznerProject.naming?.envExt ?? '';
+        hetznerToolchain = hetznerProject.toolchain ?? null;
+        hetznerWorkspace = hetznerProject.workspace ?? null;
+      } catch {
+        hetznerProject = null;
+      }
     }
     if (profile.deploymentMode === 'local-lan') {
       try {
@@ -589,6 +623,162 @@
     } finally {
       offsiteBusy = false;
     }
+  }
+
+  // The token is handed to the launcher once. It is custodied in the Launcher
+  // Vault, and only a fingerprint-bearing verdict comes back — so the field is
+  // cleared immediately and the value is never held in component state.
+  async function validateHetznerToken(): Promise<void> {
+    if (!activeProfile) return;
+    hetznerBusy = true;
+    hetznerError = '';
+    try {
+      const assessment = await api.validateHetznerToken(activeProfile.id, hetznerTokenValue);
+      hetznerTokenValue = '';
+      hetznerProject = { ...(hetznerProject ?? {}), token: assessment };
+      if (assessment.state === 'valid') hetznerProject = await api.getHetznerProject(activeProfile.id);
+    } catch (reason) {
+      hetznerError = reason instanceof Error ? reason.message : 'hetzner_token_validation_failed';
+    } finally {
+      hetznerBusy = false;
+    }
+  }
+
+  async function inspectHetznerProject(): Promise<void> {
+    if (!activeProfile) return;
+    hetznerBusy = true;
+    hetznerError = '';
+    hetznerPlan = null;
+    try {
+      hetznerProject = await api.inspectHetznerProject(activeProfile.id, hetznerDomain, hetznerEnvExt);
+      hetznerAdoptions = [];
+      await loadHetznerPresets();
+    } catch (reason) {
+      hetznerError = reason instanceof Error ? reason.message : 'hetzner_inspection_failed';
+    } finally {
+      hetznerBusy = false;
+    }
+  }
+
+  async function loadHetznerPresets(): Promise<void> {
+    if (!activeProfile) return;
+    hetznerPresets = await api.getHetznerPresets({ profileId: activeProfile.id, mode: capabilityMode, communityIds: capabilityApps, location: hetznerLocation });
+    hetznerLocation = hetznerPresets.location ?? hetznerLocation;
+    const recommended = (hetznerPresets.presets ?? []).find((preset) => preset.tier === 'recommended');
+    if (recommended && !hetznerServerType) {
+      hetznerServerType = recommended.serverType ?? '';
+      hetznerVolumeGb = recommended.volumeGb ?? 0;
+    }
+  }
+
+  async function acquireHetznerToolchain(): Promise<void> {
+    if (!activeProfile) return;
+    hetznerBusy = true;
+    hetznerError = '';
+    try {
+      const acquired = await api.acquireHetznerToolchain(activeProfile.id);
+      hetznerToolchain = acquired.toolchain;
+      hetznerWorkspace = acquired.workspace;
+    } catch (reason) {
+      hetznerError = reason instanceof Error ? reason.message : 'hetzner_toolchain_unavailable';
+      // A refusal still carries the pinned versions and the prepared workspace.
+      try {
+        const current = await api.getHetznerProject(activeProfile.id);
+        hetznerToolchain = current.toolchain ?? null;
+        hetznerWorkspace = current.workspace ?? null;
+      } catch {
+        hetznerToolchain = null;
+      }
+    } finally {
+      hetznerBusy = false;
+    }
+  }
+
+  async function planHetznerInfrastructure(): Promise<void> {
+    if (!activeProfile) return;
+    hetznerBusy = true;
+    hetznerError = '';
+    try {
+      hetznerPlan = await api.planHetznerInfrastructure({
+        profileId: activeProfile.id,
+        mode: capabilityMode,
+        communityIds: capabilityApps,
+        tier: hetznerTier,
+        location: hetznerLocation,
+        ...(hetznerTier === 'advanced' ? { serverType: hetznerServerType, volumeGb: hetznerVolumeGb } : {}),
+        adoptions: hetznerAdoptions
+      });
+    } catch (reason) {
+      hetznerPlan = null;
+      hetznerError = reason instanceof Error ? reason.message : 'hetzner_plan_failed';
+    } finally {
+      hetznerBusy = false;
+    }
+  }
+
+  // Approval is the first step that can change the project, so it is a separate
+  // explicit action on an unblocked plan.
+  async function approveHetznerPlan(): Promise<void> {
+    if (!activeProfile || !hetznerPlan?.plan?.id) return;
+    hetznerBusy = true;
+    hetznerError = '';
+    try {
+      run = await api.approvePlan(hetznerPlan.plan.id);
+      window.localStorage.setItem(`smallworlds.run.${activeProfile.id}`, run.id);
+      startEventStream(activeProfile.id);
+      schedulePoll(run.id);
+    } catch (reason) {
+      hetznerError = reason instanceof Error ? reason.message : 'hetzner_plan_approval_failed';
+    } finally {
+      hetznerBusy = false;
+    }
+  }
+
+  function toggleHetznerAdoption(providerId: string | undefined): void {
+    if (!providerId) return;
+    hetznerAdoptions = hetznerAdoptions.includes(providerId)
+      ? hetznerAdoptions.filter((candidate) => candidate !== providerId)
+      : [...hetznerAdoptions, providerId];
+  }
+
+  function hetznerTokenLabel(state: string | undefined): string {
+    const labels: Record<string, MessageKey> = { valid: 'hetznerTokenValid', malformed: 'hetznerTokenMalformed', unauthorized: 'hetznerTokenUnauthorized', 'read-only': 'hetznerTokenReadOnly', inconclusive: 'hetznerTokenInconclusive', 'project-mismatch': 'hetznerTokenProjectMismatch' };
+    return state && labels[state] ? message(labels[state]) : '';
+  }
+
+  function hetznerOwnershipLabel(ownership: string | undefined): string {
+    const labels: Record<string, MessageKey> = { shared: 'hetznerOwnershipShared', 'profile-owned': 'hetznerOwnershipProfileOwned', adoptable: 'hetznerOwnershipAdoptable', conflicting: 'hetznerOwnershipConflicting', unknown: 'hetznerOwnershipUnknown', absent: 'hetznerOwnershipAbsent' };
+    return ownership && labels[ownership] ? message(labels[ownership]) : (ownership ?? '');
+  }
+
+  function hetznerActionLabel(action: string | undefined): string {
+    const labels: Record<string, MessageKey> = { create: 'hetznerActionCreate', adopt: 'hetznerActionAdopt', 'reuse-shared': 'hetznerActionReuseShared', keep: 'hetznerActionKeep', blocked: 'hetznerActionBlocked' };
+    return action && labels[action] ? message(labels[action]) : (action ?? '');
+  }
+
+  function hetznerDelegationLabel(status: string | undefined): string {
+    const labels: Record<string, MessageKey> = { confirmed: 'hetznerDelegationConfirmed', partial: 'hetznerDelegationPartial', missing: 'hetznerDelegationMissing', unknown: 'hetznerDelegationUnknown', 'not-required': 'hetznerDelegationNotRequired' };
+    return status && labels[status] ? message(labels[status]) : '';
+  }
+
+  function hetznerBlockerLabel(code: string | undefined): string {
+    const labels: Record<string, MessageKey> = { 'adoption-decision-required': 'hetznerBlockerAdoption', 'ownership-conflict': 'hetznerBlockerConflict', 'similar-name-unresolved': 'hetznerBlockerSimilar', 'nameserver-delegation-required': 'hetznerBlockerDelegation', 'server-type-unavailable': 'hetznerBlockerUnavailable', 'capacity-below-selected-capabilities': 'hetznerBlockerCapacity', 'inspection-incomplete': 'hetznerBlockerIncomplete' };
+    return code && labels[code] ? message(labels[code]) : (code ?? '');
+  }
+
+  function hetznerCostNoteLabel(note: string): string {
+    const labels: Record<string, MessageKey> = { 'volume-can-grow-but-never-shrink': 'hetznerCostNoteVolumeGrows', 'volume-remains-billable-until-deleted': 'hetznerCostNoteVolumeBillable', 'primary-ip-remains-billable-while-reserved': 'hetznerCostNotePrimaryIP', 'snapshots-and-backups-billed-separately': 'hetznerCostNoteSnapshots', 'prices-exclude-vat-and-traffic-overage': 'hetznerCostNoteVAT', 'estimate-from-observed-provider-catalog': 'hetznerCostNoteObserved' };
+    return labels[note] ? message(labels[note]) : note;
+  }
+
+  function hetznerPresetLabel(tier: string | undefined): string {
+    const labels: Record<string, MessageKey> = { small: 'hetznerPresetSmall', recommended: 'hetznerPresetRecommended', high: 'hetznerPresetHigh', advanced: 'hetznerPresetAdvanced' };
+    return tier && labels[tier] ? message(labels[tier]) : (tier ?? '');
+  }
+
+  function hetznerPlanCost(plan: HetznerChangePlan | undefined): string {
+    const total = plan?.cost?.totalMonthlyEur;
+    return total === undefined ? '' : `${total.toFixed(2)} ${plan?.cost?.currency ?? 'EUR'}`;
   }
 
   function offsiteVersioningLabel(value: string | undefined): string {
@@ -1139,6 +1329,150 @@
           {#if genericGitOverlayNotice}<p class="inline-notice" aria-live="polite">{genericGitOverlayNotice}</p>{/if}
           {#if genericGitProposal}<p class="inline-notice" aria-live="polite">{message('genericGitManualMerge')} <code>{genericGitProposal.branch}</code> · {genericGitProposal.commit}</p>{/if}
         </section>
+
+        {#if activeProfile?.deploymentMode === 'hetzner'}
+        <section class="card hetzner-card" aria-labelledby="hetzner-title">
+          <p class="eyebrow">{message('hetznerEyebrow')}</p>
+          <h2 id="hetzner-title">{message('hetznerTitle')}</h2>
+          <p class="muted">{message('hetznerDescription')}</p>
+          {#if hetznerError}<p class="inline-error" role="alert">{hetznerError}</p>{/if}
+
+          <form onsubmit={(event) => { event.preventDefault(); void validateHetznerToken(); }}>
+            <label><span>{message('hetznerToken')}</span><input type="password" bind:value={hetznerTokenValue} required autocomplete="off" /></label>
+            <p class="muted"><a href="https://console.hetzner.cloud/" target="_blank" rel="noreferrer">{message('hetznerTokenGuide')}</a></p>
+            <div class="actions"><button type="submit" disabled={hetznerBusy}>{message('hetznerTokenValidate')}</button></div>
+          </form>
+          {#if hetznerProject?.token}
+            <p class="inline-notice" aria-live="polite" data-testid="hetzner-token-verdict">{hetznerTokenLabel(hetznerProject.token.state)}</p>
+            {#if hetznerProject.token.fingerprint}
+              <dl class="credential-metadata"><div><dt>{message('hetznerTokenFingerprint')}</dt><dd><code>{hetznerProject.token.fingerprint}</code></dd></div>{#if hetznerProject.token.projectId}<div><dt>{message('hetznerProject')}</dt><dd><code>{hetznerProject.token.projectId}</code></dd></div>{/if}</dl>
+            {/if}
+          {/if}
+
+          {#if hetznerProject?.token?.state === 'valid'}
+            <form onsubmit={(event) => { event.preventDefault(); void inspectHetznerProject(); }}>
+              <div class="form-grid"><label><span>{message('hetznerDomain')}</span><input bind:value={hetznerDomain} required placeholder="example.org" autocomplete="off" /></label><label><span>{message('hetznerEnvExt')}</span><input bind:value={hetznerEnvExt} placeholder=".dev" autocomplete="off" /></label></div>
+              <div class="actions"><button type="submit" disabled={hetznerBusy}>{message('hetznerInspect')}</button></div>
+            </form>
+          {/if}
+
+          {#if hetznerProject?.inventory}
+            <section class="capability-preview" aria-labelledby="hetzner-inventory-title">
+              <h3 id="hetzner-inventory-title">{message('hetznerInventory')}</h3>
+              <p class="muted">{message('hetznerInspectedAt')}: {hetznerProject.inspectedAt}</p>
+              <ul class="hetzner-inventory" data-testid="hetzner-inventory">
+                {#each hetznerProject.inventory.findings ?? [] as finding (finding.expectation?.kind + '/' + finding.expectation?.name)}
+                  <li class:decision={finding.requiresDecision}>
+                    <code>{finding.expectation?.kind}</code> <strong>{finding.expectation?.name}</strong>
+                    <span class="badge">{hetznerOwnershipLabel(finding.ownership)}</span>
+                    {#if finding.match?.detail}<span class="muted">{finding.match.detail}</span>{/if}
+                    {#if finding.ownership === 'adoptable' && finding.match?.providerId}
+                      <label class="check"><input type="checkbox" checked={hetznerAdoptions.includes(finding.match.providerId)} onchange={() => toggleHetznerAdoption(finding.match?.providerId)} /><span>{message('hetznerAdoptSelected')}</span></label>
+                    {/if}
+                    {#if (finding.similar ?? []).length > 0}
+                      <p class="muted">{message('hetznerSimilarNames')}: {(finding.similar ?? []).map((resource) => resource.name).join(', ')}</p>
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+            </section>
+          {/if}
+
+          {#if hetznerProject?.delegation}
+            <dl class="credential-metadata">
+              <div><dt>{message('hetznerDelegation')}</dt><dd data-testid="hetzner-delegation">{hetznerDelegationLabel(hetznerProject.delegation.status)}</dd></div>
+              <div><dt>{message('hetznerExpectedNameservers')}</dt><dd>{(hetznerProject.delegation.expectedNameservers ?? []).join(', ')}</dd></div>
+              {#if (hetznerProject.delegation.observedNameservers ?? []).length > 0}<div><dt>{message('hetznerObservedNameservers')}</dt><dd>{(hetznerProject.delegation.observedNameservers ?? []).join(', ')}</dd></div>{/if}
+            </dl>
+          {/if}
+
+          {#if hetznerPresets}
+            <section class="capability-preview" aria-labelledby="hetzner-capacity-title">
+              <h3 id="hetzner-capacity-title">{message('hetznerCapacity')}</h3>
+              <p class="muted">{message('hetznerRequirement')}: {hetznerPresets.requirement?.memoryGb} GB · {hetznerPresets.requirement?.volumeGb} GB</p>
+              <ul class="hetzner-presets" data-testid="hetzner-presets">
+                {#each hetznerPresets.presets ?? [] as preset (preset.tier)}
+                  <li>
+                    <label class="check"><input type="radio" name="hetzner-preset" value={preset.tier} checked={hetznerTier === preset.tier} onchange={() => { hetznerTier = (preset.tier ?? 'recommended') as HetznerPresetTier; hetznerServerType = preset.serverType ?? ''; hetznerVolumeGb = preset.volumeGb ?? 0; }} /><span><strong>{hetznerPresetLabel(preset.tier)}</strong> · {preset.serverType} · {preset.memoryGb} GB · {preset.volumeGb} GB · {preset.cost?.totalMonthlyEur?.toFixed(2)} {preset.cost?.currency}</span></label>
+                    {#if preset.fits === false}<p class="muted">{message('hetznerPresetTooSmall')}</p>{/if}
+                    {#if preset.available === false}<p class="muted">{message('hetznerPresetUnavailable')}</p>{/if}
+                  </li>
+                {/each}
+              </ul>
+              <label class="check"><input type="radio" name="hetzner-preset" value="advanced" checked={hetznerTier === 'advanced'} onchange={() => { hetznerTier = 'advanced'; }} /><span>{message('hetznerAdvancedHint')}</span></label>
+              <div class="form-grid">
+                <label><span>{message('hetznerLocation')}</span>
+                  <select bind:value={hetznerLocation} onchange={() => void loadHetznerPresets()}>
+                    {#each hetznerPresets.locations ?? [] as location (location)}<option value={location}>{location}</option>{/each}
+                  </select>
+                </label>
+                {#if hetznerTier === 'advanced'}
+                  <label><span>{message('hetznerServerType')}</span>
+                    <select bind:value={hetznerServerType}>
+                      {#each hetznerPresets.offerings ?? [] as offering (offering.name)}<option value={offering.name}>{offering.name} · {offering.memoryGb} GB · {offering.monthlyEur?.toFixed(2)} EUR</option>{/each}
+                    </select>
+                  </label>
+                  <label><span>{message('hetznerVolume')}</span><input type="number" min="10" max="10240" step="10" bind:value={hetznerVolumeGb} /></label>
+                {/if}
+              </div>
+              <p class="muted">{message('hetznerPricesObservedAt')}: {hetznerPresets.observedAt}</p>
+              <div class="actions"><button type="button" onclick={() => void planHetznerInfrastructure()} disabled={hetznerBusy || !hetznerProject?.inventory}>{message('hetznerPlanBuild')}</button></div>
+            </section>
+          {/if}
+
+          <section class="capability-preview" aria-labelledby="hetzner-toolchain-title">
+            <h3 id="hetzner-toolchain-title">{message('hetznerToolchainTitle')}</h3>
+            <p class="muted">{message('hetznerToolchainDescription')}</p>
+            {#if hetznerToolchain}
+              <dl class="credential-metadata">
+                <div><dt>OpenTofu</dt><dd>{hetznerToolchain.openTofuVersion}</dd></div>
+                <div><dt>hcloud</dt><dd>{hetznerToolchain.hcloudProviderVersion}</dd></div>
+                <div><dt>{message('hetznerToolchainReady')}</dt><dd><span class="badge">{hetznerToolchain.ready ? message('hetznerToolchainReady') : message('hetznerToolchainPending')}</span></dd></div>
+              </dl>
+              {#if hetznerToolchain.reasonKey === 'toolchain-artifacts-unavailable'}<p class="muted">{message('hetznerToolchainUnavailable')}</p>{/if}
+            {/if}
+            {#if hetznerWorkspace}
+              <dl class="credential-metadata">
+                <div><dt>{message('hetznerWorkspace')}</dt><dd>{hetznerWorkspace.isolated ? message('hetznerWorkspaceIsolated') : ''}</dd></div>
+                <div><dt>{message('hetznerWorkspaceBackups')}</dt><dd>{hetznerWorkspace.backups ?? 0}</dd></div>
+                {#if hetznerWorkspace.locked}<div><dt>{message('hetznerWorkspaceLocked')}</dt><dd>{hetznerWorkspace.lockOwner}</dd></div>{/if}
+              </dl>
+            {/if}
+            <div class="actions"><button type="button" class="secondary" onclick={() => void acquireHetznerToolchain()} disabled={hetznerBusy}>{message('hetznerToolchainAcquire')}</button></div>
+          </section>
+
+          {#if hetznerPlan}
+            <section class="capability-preview" aria-labelledby="hetzner-plan-title">
+              <p class="eyebrow">{message('planTitle')}</p>
+              <h3 id="hetzner-plan-title">{message('hetznerPlanTitle')}</h3>
+              <dl class="credential-metadata">
+                <div><dt>{message('hetznerServerType')}</dt><dd>{hetznerPlan.changePlan?.choice?.serverType} · {hetznerPlan.changePlan?.choice?.location}</dd></div>
+                <div><dt>{message('hetznerVolume')}</dt><dd>{hetznerPlan.changePlan?.choice?.volumeGb} GB</dd></div>
+                <div><dt>{message('hetznerMonthlyCost')}</dt><dd data-testid="hetzner-cost">{hetznerPlanCost(hetznerPlan.changePlan)}</dd></div>
+                <div><dt>{message('digest')}</dt><dd><code>{hetznerPlan.changePlan?.digest}</code></dd></div>
+              </dl>
+              <p class="eyebrow">{message('hetznerPlanItems')}</p>
+              <ul class="hetzner-plan-items" data-testid="hetzner-plan-items">
+                {#each hetznerPlan.changePlan?.items ?? [] as item (item.kind + '/' + item.name)}
+                  <li><span class="badge">{hetznerActionLabel(item.action)}</span> <code>{item.kind}</code> {item.name}</li>
+                {/each}
+              </ul>
+              <ul class="hetzner-cost-notes">
+                {#each hetznerPlan.changePlan?.cost?.noteKeys ?? [] as note (note)}<li>{hetznerCostNoteLabel(note)}</li>{/each}
+              </ul>
+              {#if (hetznerPlan.changePlan?.blockers ?? []).length > 0}
+                <p class="eyebrow">{message('hetznerPlanBlockers')}</p>
+                <ul class="hetzner-blockers" data-testid="hetzner-blockers">
+                  {#each hetznerPlan.changePlan?.blockers ?? [] as blocker (blocker.code + (blocker.name ?? ''))}<li>{hetznerBlockerLabel(blocker.code)} {#if blocker.name}<code>{blocker.name}</code>{/if}</li>{/each}
+                </ul>
+              {:else}
+                <p class="inline-notice">{message('hetznerPlanApprovable')}</p>
+                <div class="actions"><button type="button" onclick={() => void approveHetznerPlan()} disabled={hetznerBusy}>{message('hetznerApprove')}</button></div>
+              {/if}
+            </section>
+          {/if}
+        </section>
+        {/if}
 
         <section class="card offsite-card" aria-labelledby="offsite-title">
           <p class="eyebrow">{message('offsiteEyebrow')}</p>
