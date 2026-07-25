@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/stephan271/smallworlds/operator-console/internal/bootstrapassets"
+	"github.com/stephan271/smallworlds/operator-console/internal/hetzner"
 	"github.com/stephan271/smallworlds/operator-console/internal/launcher"
 	"github.com/stephan271/smallworlds/operator-console/internal/localbootstrap"
 	"github.com/stephan271/smallworlds/operator-console/internal/nodeinspect"
@@ -73,7 +74,8 @@ func TestLocalBootstrapPlanReinspectsBindsAndExecutesWithoutSecretLeakage(t *tes
 	git := &genericGitStub{commit: strings.Repeat("c", 40)}
 	inspector := &readyNodeInspector{}
 	runner := &successfulBootstrapRunner{}
-	handler, err := launcher.New(launcher.Config{DataDir: t.TempDir(), LaunchToken: "bootstrap-plan", BootstrapAssets: assets, GenericGitClient: git, NodeInspector: inspector, LocalBootstrapRunner: runner})
+	dnsProvider := &fakeHetznerProvider{nameservers: append([]string(nil), hetzner.HetznerNameservers...)}
+	handler, err := launcher.New(launcher.Config{DataDir: t.TempDir(), LaunchToken: "bootstrap-plan", BootstrapAssets: assets, GenericGitClient: git, NodeInspector: inspector, LocalBootstrapRunner: runner, HetznerProvider: dnsProvider})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,6 +157,65 @@ func TestLocalBootstrapPlanReinspectsBindsAndExecutesWithoutSecretLeakage(t *tes
 	if runner.calls != 1 {
 		t.Fatalf("runner calls = %d", runner.calls)
 	}
+
+	publicProfile := createProfile(t, handler, cookie, csrf, "Public home", "en", "local-public")
+	publicGitCredentials, _ := json.Marshal(map[string]string{"profileId": publicProfile.ID, "repositoryUrl": "https://git.example/public-overlay.git", "username": "operator", "token": "public-git-secret"})
+	response = request(t, handler, http.MethodPost, "/api/v1/generic-git/token/validate", publicGitCredentials, cookie, map[string]string{"X-CSRF-Token": csrf})
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("public git credential status = %d", response.StatusCode)
+	}
+	response.Body.Close()
+	publicCapabilityBody, _ := json.Marshal(map[string]any{"profileId": publicProfile.ID, "mode": "minimal", "communityIds": []string{}, "release": descriptor.Release, "repositoryUrl": "https://git.example/public-overlay.git", "domain": "public.example"})
+	response = request(t, handler, http.MethodPost, "/api/v1/capabilities/plan", publicCapabilityBody, cookie, map[string]string{"X-CSRF-Token": csrf})
+	var publicCapabilityPlan struct {
+		Plan struct {
+			ID string `json:"id"`
+		} `json:"plan"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&publicCapabilityPlan); err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	response = request(t, handler, http.MethodPost, "/api/v1/plans/"+publicCapabilityPlan.Plan.ID+"/approve", nil, cookie, map[string]string{"X-CSRF-Token": csrf})
+	response.Body.Close()
+	publicEstablishBody, _ := json.Marshal(map[string]any{"profileId": publicProfile.ID, "planId": publicCapabilityPlan.Plan.ID, "repositoryUrl": "https://git.example/public-overlay.git", "mode": "minimal", "communityIds": []string{}, "release": descriptor.Release, "domain": "public.example"})
+	response = request(t, handler, http.MethodPost, "/api/v1/generic-git/overlay/establish", publicEstablishBody, cookie, map[string]string{"X-CSRF-Token": csrf})
+	if response.StatusCode != http.StatusCreated {
+		t.Fatalf("public overlay status = %d: %s", response.StatusCode, readAll(t, response))
+	}
+	response.Body.Close()
+	publicDNSSecret := "dns-token-secret-value"
+	unacknowledgedBody, _ := json.Marshal(map[string]any{
+		"profileId": publicProfile.ID, "target": map[string]any{"kind": "same-host"}, "authentication": map[string]any{"kind": "agent"}, "release": descriptor.Release,
+		"configuration":  map[string]any{"domain": "public.example", "dataDirectory": "/data/public", "nodeName": "public-node", "acmeEmail": "operator@public.example", "manageDns": false},
+		"publicExposure": map[string]any{"dns01Provider": "hetzner", "dnsZone": "public.example", "dnsToken": "unacknowledged-secret", "publicIpBehavior": "dynamic-ddns", "routerAcknowledged": false},
+	})
+	response = request(t, handler, http.MethodPost, "/api/v1/local-bootstrap/plan", unacknowledgedBody, cookie, map[string]string{"X-CSRF-Token": csrf})
+	if response.StatusCode != http.StatusConflict || !bytes.Contains(readAll(t, response), []byte("router_forwarding_acknowledgement_required")) || dnsProvider.seenToken == "unacknowledged-secret" {
+		t.Fatal("unacknowledged router rules were not rejected before provider access")
+	}
+	publicPlanBody, _ := json.Marshal(map[string]any{
+		"profileId": publicProfile.ID, "target": map[string]any{"kind": "same-host"}, "authentication": map[string]any{"kind": "agent"}, "release": descriptor.Release,
+		"configuration":  map[string]any{"domain": "public.example", "dataDirectory": "/data/public", "nodeName": "public-node", "acmeEmail": "operator@public.example", "manageDns": false},
+		"publicExposure": map[string]any{"dns01Provider": "hetzner", "dnsZone": "public.example", "dnsToken": publicDNSSecret, "publicIpBehavior": "dynamic-ddns", "routerAcknowledged": true},
+	})
+	response = request(t, handler, http.MethodPost, "/api/v1/local-bootstrap/plan", publicPlanBody, cookie, map[string]string{"X-CSRF-Token": csrf})
+	if response.StatusCode != http.StatusCreated {
+		t.Fatalf("public bootstrap plan status = %d: %s", response.StatusCode, readAll(t, response))
+	}
+	publicPlanResponse := readAll(t, response)
+	for _, expected := range []string{`"externalPort":80`, `"externalPort":443`, `"externalPort":10000`, `"automaticConfiguration":false`, `"dedicatedVerification":false`, `"code":"headscale.public_coordination.enabled"`} {
+		if !bytes.Contains(publicPlanResponse, []byte(expected)) {
+			t.Fatalf("public plan missing %s: %s", expected, publicPlanResponse)
+		}
+	}
+	if bytes.Contains(publicPlanResponse, []byte(publicDNSSecret)) {
+		t.Fatalf("public plan leaked DNS token: %s", publicPlanResponse)
+	}
+	if dnsProvider.seenToken != publicDNSSecret {
+		t.Fatal("DNS provider did not receive the write-only token")
+	}
+
 	response = request(t, handler, http.MethodGet, "/api/v1/events?profileId="+profile.ID, nil, cookie, nil)
 	if body := readAll(t, response); bytes.Contains(body, []byte("cluster-secret-value")) || bytes.Contains(body, []byte("git-secret")) {
 		t.Fatalf("activity leaked secrets: %s", body)

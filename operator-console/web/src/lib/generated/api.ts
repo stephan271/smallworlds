@@ -1534,10 +1534,36 @@ export interface components {
             configuration: components["schemas"]["LocalBootstrapConfiguration"];
             /** Format: password */
             secretsManifest?: string;
+            publicExposure?: components["schemas"]["LocalPublicExposureInput"];
+        };
+        LocalPublicExposureInput: {
+            /** @constant */
+            dns01Provider: "hetzner";
+            dnsZone: string;
+            /** Format: password */
+            dnsToken: string;
+            /** @constant */
+            publicIpBehavior: "dynamic-ddns";
+            routerAcknowledged: boolean;
         };
         LocalBootstrapPlanResult: {
             plan: components["schemas"]["ChangePlan"];
             inspection: components["schemas"]["NodeInspectionResult"];
+            routerForwarding?: components["schemas"]["RouterForwardingInstructions"];
+        };
+        RouterForwardingInstructions: {
+            acknowledged: boolean;
+            /** @constant */
+            automaticConfiguration: false;
+            /** @constant */
+            dedicatedVerification: false;
+            rules: {
+                /** @enum {string} */
+                protocol: "tcp" | "udp";
+                externalPort: number;
+                targetPort: number;
+                purpose: string;
+            }[];
         };
         OverlayIdentity: {
             profileId: string;

@@ -2948,6 +2948,13 @@ func (server *Server) planLocalBootstrap(response http.ResponseWriter, request *
 		Release         string                       `json:"release"`
 		Configuration   localbootstrap.Configuration `json:"configuration"`
 		SecretsManifest string                       `json:"secretsManifest"`
+		PublicExposure  *struct {
+			DNS01Provider      string `json:"dns01Provider"`
+			DNSZone            string `json:"dnsZone"`
+			DNSToken           string `json:"dnsToken"`
+			PublicIPBehavior   string `json:"publicIpBehavior"`
+			RouterAcknowledged bool   `json:"routerAcknowledged"`
+		} `json:"publicExposure"`
 	}
 	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 2*1024*1024))
 	decoder.DisallowUnknownFields()
@@ -2965,17 +2972,92 @@ func (server *Server) planLocalBootstrap(response http.ResponseWriter, request *
 	if input.Configuration.NodeName == "" {
 		input.Configuration.NodeName = "smallworlds-local-node"
 	}
-	if err := input.Configuration.Validate(); err != nil {
-		writeError(response, http.StatusBadRequest, "invalid_local_bootstrap_plan")
-		return
-	}
 	profile, err := server.store.GetProfile(request.Context(), input.ProfileID)
 	if errors.Is(err, state.ErrNotFound) {
 		writeError(response, http.StatusNotFound, "profile_not_found")
 		return
 	}
-	if err != nil || profile.DeploymentMode != "local-lan" {
+	if err != nil || profile.DeploymentMode != "local-lan" && profile.DeploymentMode != "local-public" {
 		writeError(response, http.StatusConflict, "local_bootstrap_profile_incompatible")
+		return
+	}
+	if profile.DeploymentMode == "local-public" {
+		if input.PublicExposure == nil {
+			writeError(response, http.StatusBadRequest, "local_public_configuration_required")
+			return
+		}
+		if input.PublicExposure.PublicIPBehavior == "" {
+			input.PublicExposure.PublicIPBehavior = "dynamic-ddns"
+		}
+		credentialKey := profile.ID + "/local-public-dns-token"
+		input.Configuration.ManageDNS = true
+		input.Configuration.Public = &localbootstrap.PublicConfiguration{
+			DNS01Provider: input.PublicExposure.DNS01Provider, DNSZone: input.PublicExposure.DNSZone,
+			DNSCredentialKey: credentialKey, PublicIPBehavior: input.PublicExposure.PublicIPBehavior,
+			RouterAcknowledged: input.PublicExposure.RouterAcknowledged,
+		}
+		if err := input.Configuration.Validate(); err != nil {
+			if !input.PublicExposure.RouterAcknowledged {
+				writeError(response, http.StatusConflict, "router_forwarding_acknowledgement_required")
+			} else {
+				writeError(response, http.StatusBadRequest, "invalid_local_bootstrap_plan")
+			}
+			return
+		}
+		tokenPresent := strings.TrimSpace(input.PublicExposure.DNSToken) != ""
+		if tokenPresent {
+			if len(input.PublicExposure.DNSToken) < 16 || len(input.PublicExposure.DNSToken) > 1024 || strings.ContainsAny(input.PublicExposure.DNSToken, "\r\n") {
+				writeError(response, http.StatusBadRequest, "invalid_dns_provider_token")
+				return
+			}
+			if err := server.vault.Store(credentialKey, input.PublicExposure.DNSToken); errors.Is(err, vault.ErrLocked) {
+				writeError(response, http.StatusLocked, "vault_locked")
+				return
+			} else if err != nil {
+				writeError(response, http.StatusInternalServerError, "dns_provider_storage_failed")
+				return
+			}
+			if err := server.store.UpsertCredentialReference(request.Context(), state.CredentialReference{ProfileID: profile.ID, Kind: "local-public-dns-token", VaultKey: credentialKey, Source: "operator", ExpiresAt: time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC), RotationStatus: "current"}); err != nil {
+				writeError(response, http.StatusInternalServerError, "dns_provider_storage_failed")
+				return
+			}
+		} else if present, containsErr := server.vault.Contains(credentialKey); containsErr != nil || !present {
+			if errors.Is(containsErr, vault.ErrLocked) {
+				writeError(response, http.StatusLocked, "vault_locked")
+			} else {
+				writeError(response, http.StatusBadRequest, "dns_provider_token_required")
+			}
+			return
+		}
+		dnsToken := input.PublicExposure.DNSToken
+		if dnsToken == "" {
+			dnsToken, err = server.vault.Load(credentialKey)
+			if err != nil {
+				writeError(response, http.StatusLocked, "vault_locked")
+				return
+			}
+		}
+		nameservers, lookupErr := server.hetzner.Nameservers(request.Context(), dnsToken, input.PublicExposure.DNSZone)
+		if lookupErr != nil {
+			if ok := server.writeProviderError(response, lookupErr); !ok {
+				return
+			}
+		}
+		delegation := hetzner.CheckDelegation(input.PublicExposure.DNSZone, nameservers, capability.LocalPublic)
+		if !delegation.Satisfied() {
+			writeJSON(response, http.StatusConflict, map[string]any{"code": "public_dns_delegation_required", "delegation": delegation})
+			return
+		}
+	} else if input.PublicExposure != nil || input.Configuration.ManageDNS || input.Configuration.Public != nil {
+		writeError(response, http.StatusConflict, "local_public_configuration_not_allowed")
+		return
+	}
+	if err := input.Configuration.Validate(); err != nil {
+		if profile.DeploymentMode == "local-public" && input.PublicExposure != nil && !input.PublicExposure.RouterAcknowledged {
+			writeError(response, http.StatusConflict, "router_forwarding_acknowledgement_required")
+		} else {
+			writeError(response, http.StatusBadRequest, "invalid_local_bootstrap_plan")
+		}
 		return
 	}
 	overlay, err := server.store.GetOverlayIdentity(request.Context(), profile.ID)
@@ -3125,17 +3207,31 @@ func (server *Server) planLocalBootstrap(response http.ResponseWriter, request *
 		writeError(response, http.StatusBadRequest, "invalid_local_bootstrap_plan")
 		return
 	}
-	plan, err := server.workflow.PlanChangeWithRisks(request.Context(), profile.ID, "BootstrapLocalNode", binding.DigestDetail(), []workflow.Effect{
+	effects := []workflow.Effect{
 		{Code: "node.privileged.bootstrap", MessageKey: "plan.effect.local_bootstrap_privileged"},
 		{Code: "node.data_paths.prepared", MessageKey: "plan.effect.local_bootstrap_data"},
 		{Code: "kubernetes.k3s.installed", MessageKey: "plan.effect.local_bootstrap_k3s"},
 		{Code: "gitops.argocd.configured", MessageKey: "plan.effect.local_bootstrap_argocd"},
-	}, []workflow.Risk{
+	}
+	risks := []workflow.Risk{
 		{Code: "node.network_ports.changed", MessageKey: "plan.risk.local_bootstrap_exposure"},
 		{Code: "node.services.may_restart", MessageKey: "plan.risk.local_bootstrap_downtime"},
 		{Code: "node.atomic_install", MessageKey: "plan.risk.local_bootstrap_cancellation"},
 		{Code: "node.data_preserved_on_retry", MessageKey: "plan.risk.local_bootstrap_recovery"},
-	})
+	}
+	if profile.DeploymentMode == "local-public" {
+		effects = append(effects,
+			workflow.Effect{Code: "dns.dynamic_records.managed", MessageKey: "plan.effect.local_public_ddns"},
+			workflow.Effect{Code: "certificates.public.issued", MessageKey: "plan.effect.local_public_certificates"},
+			workflow.Effect{Code: "members.public_ingress.enabled", MessageKey: "plan.effect.local_public_member_ingress"},
+			workflow.Effect{Code: "headscale.public_coordination.enabled", MessageKey: "plan.effect.local_public_headscale"},
+		)
+		risks = append(risks,
+			workflow.Risk{Code: "router.manual_forwarding", MessageKey: "plan.risk.local_public_router"},
+			workflow.Risk{Code: "dns.certificate.propagation_wait", MessageKey: "plan.risk.local_public_propagation"},
+		)
+	}
+	plan, err := server.workflow.PlanChangeWithRisks(request.Context(), profile.ID, "BootstrapLocalNode", binding.DigestDetail(), effects, risks)
 	if err != nil {
 		writeError(response, http.StatusInternalServerError, "local_bootstrap_plan_failed")
 		return
@@ -3153,7 +3249,20 @@ func (server *Server) planLocalBootstrap(response http.ResponseWriter, request *
 	plan.Preconditions.BootstrapRelease = input.Release
 	plan.Preconditions.OverlayCommit = overlay.Commit
 	plan.Preconditions.DataDirectory = input.Configuration.DataDirectory
-	writeJSON(response, http.StatusCreated, map[string]any{"plan": plan, "inspection": map[string]any{"target": target, "report": report, "assessment": nodeAssessment}})
+	result := map[string]any{"plan": plan, "inspection": map[string]any{"target": target, "report": report, "assessment": nodeAssessment}}
+	if profile.DeploymentMode == "local-public" {
+		result["routerForwarding"] = map[string]any{
+			"acknowledged":           true,
+			"automaticConfiguration": false,
+			"dedicatedVerification":  false,
+			"rules": []map[string]any{
+				{"protocol": "tcp", "externalPort": 80, "targetPort": 80, "purpose": "http-acme-and-member-redirect"},
+				{"protocol": "tcp", "externalPort": 443, "targetPort": 443, "purpose": "https-member-applications-and-headscale"},
+				{"protocol": "udp", "externalPort": 10000, "targetPort": 10000, "purpose": "jitsi-media"},
+			},
+		}
+	}
+	writeJSON(response, http.StatusCreated, result)
 }
 
 func (server *Server) storeNodeCredentials(ctx context.Context, profileID string, input nodeAuthenticationRequest) (nodeinspect.Credentials, error) {

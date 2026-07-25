@@ -53,6 +53,21 @@ npm run test:e2e
 
 The Playwright journey covers English and German, keyboard submission, automated axe checks, workflow progress, and browser reload recovery.
 
+The Local internet-exposed stable-release check must run against a real router
+and public IPv4. It verifies trusted public member endpoints, public Headscale
+coordination, private Console access from an enrolled Launcher Host, and denial
+of a forged operator Host header on the public IP. Its HTML report includes a
+timestamped `local-public-stable-release-evidence.json` attachment:
+
+```bash
+cd web
+SMALLWORLDS_RELEASE=v1.2.27 \
+SMALLWORLDS_PUBLIC_DOMAIN=community.example \
+SMALLWORLDS_PUBLIC_IPV4=203.0.113.10 \
+SMALLWORLDS_PRIVATE_CONSOLE_URL=https://console.operator.internal \
+npm run test:e2e:local-public
+```
+
 ## Public interface
 
 The contract is defined in [`api/openapi.json`](api/openapi.json). Regenerate the browser types after changing it:

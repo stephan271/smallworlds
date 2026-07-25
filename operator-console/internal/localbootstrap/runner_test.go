@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
+	"encoding/base64"
 	"errors"
 	"io"
 	"strings"
@@ -34,6 +35,48 @@ func TestSameHostExecutionRejectsChangedNodeIdentityBeforePrivilegeUse(t *testin
 	_, err := runner.Run(context.Background(), RunRequest{Binding: binding})
 	if !errors.Is(err, ErrExecutionPrecondition) {
 		t.Fatalf("expected changed identity precondition error, got %v", err)
+	}
+}
+
+func TestRuntimeArchiveGeneratesWriteOnlyDNSSecret(t *testing.T) {
+	request := RunRequest{RunID: "run-public", DNSCredential: "dns-secret-value", Binding: Binding{
+		PlanID: "plan-public", ProfileID: "profile-public", ProfileRevision: 1,
+		Target: nodeinspect.Target{Kind: nodeinspect.SameHostTarget}, NodeIdentity: "sha256:pinned",
+		InspectionDigest: strings.Repeat("a", 64), InspectedAt: time.Now().UTC(), Release: "v1.2.27", AssetID: "bootstrap-linux-amd64", AssetSHA256: strings.Repeat("b", 64),
+		OverlayRepositoryURL: "https://github.com/example/config", OverlayCommit: strings.Repeat("c", 40), OverlayRelease: "v1.2.27", AuthenticationKind: "same-host",
+		Configuration: Configuration{Domain: "community.example", DataDirectory: "/var/lib/smallworlds-data", NodeName: "node-1", ACMEEmail: "operator@community.example", ManageDNS: true,
+			Public: &PublicConfiguration{DNS01Provider: "hetzner", DNSZone: "community.example", DNSCredentialKey: "profile-public/local-public-dns-token", PublicIPBehavior: "dynamic-ddns", RouterAcknowledged: true}},
+	}}
+	archive, err := buildRuntimeArchive(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gzipReader, err := gzip.NewReader(archive)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tarReader := tar.NewReader(gzipReader)
+	files := map[string]string{}
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		contents, err := io.ReadAll(tarReader)
+		if err != nil {
+			t.Fatal(err)
+		}
+		files[header.Name] = string(contents)
+	}
+	if strings.Contains(files["config.env"], request.DNSCredential) {
+		t.Fatal("DNS credential leaked into shell configuration")
+	}
+	if !strings.Contains(files["secrets.yaml"], "name: hetzner-dns-token") ||
+		!strings.Contains(files["secrets.yaml"], base64.StdEncoding.EncodeToString([]byte(request.DNSCredential))) {
+		t.Fatalf("generated DNS Secret missing: %s", files["secrets.yaml"])
 	}
 }
 

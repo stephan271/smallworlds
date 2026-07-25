@@ -4264,6 +4264,40 @@
             "type": "string",
             "format": "password",
             "writeOnly": true
+          },
+          "publicExposure": {
+            "$ref": "#/components/schemas/LocalPublicExposureInput"
+          }
+        }
+      },
+      "LocalPublicExposureInput": {
+        "type": "object",
+        "required": [
+          "dns01Provider",
+          "dnsZone",
+          "dnsToken",
+          "publicIpBehavior",
+          "routerAcknowledged"
+        ],
+        "properties": {
+          "dns01Provider": {
+            "type": "string",
+            "const": "hetzner"
+          },
+          "dnsZone": {
+            "type": "string"
+          },
+          "dnsToken": {
+            "type": "string",
+            "format": "password",
+            "writeOnly": true
+          },
+          "publicIpBehavior": {
+            "type": "string",
+            "const": "dynamic-ddns"
+          },
+          "routerAcknowledged": {
+            "type": "boolean"
           }
         }
       },
@@ -4279,6 +4313,44 @@
           },
           "inspection": {
             "$ref": "#/components/schemas/NodeInspectionResult"
+          },
+          "routerForwarding": {
+            "$ref": "#/components/schemas/RouterForwardingInstructions"
+          }
+        }
+      },
+      "RouterForwardingInstructions": {
+        "type": "object",
+        "required": [
+          "acknowledged",
+          "automaticConfiguration",
+          "dedicatedVerification",
+          "rules"
+        ],
+        "properties": {
+          "acknowledged": {
+            "type": "boolean"
+          },
+          "automaticConfiguration": {
+            "type": "boolean",
+            "const": false
+          },
+          "dedicatedVerification": {
+            "type": "boolean",
+            "const": false
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["protocol", "externalPort", "targetPort", "purpose"],
+              "properties": {
+                "protocol": {"type": "string", "enum": ["tcp", "udp"]},
+                "externalPort": {"type": "integer"},
+                "targetPort": {"type": "integer"},
+                "purpose": {"type": "string"}
+              }
+            }
           }
         }
       },

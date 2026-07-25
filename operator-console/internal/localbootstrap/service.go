@@ -18,21 +18,25 @@ var ErrInterrupted = errors.New("local bootstrap execution interrupted")
 var ErrExecutionPrecondition = errors.New("local bootstrap execution precondition changed")
 
 type Observation struct {
-	CommandCompleted bool
-	K3SReady         bool
-	ArgoCDReady      bool
-	OverlaySynced    bool
-	ObservedAt       time.Time
+	CommandCompleted        bool
+	K3SReady                bool
+	ArgoCDReady             bool
+	OverlaySynced           bool
+	DDNSReady               bool
+	CertificatesReady       bool
+	PublicApplicationsReady bool
+	ObservedAt              time.Time
 }
 
 type RunRequest struct {
-	Binding     Binding
-	RunID       string
-	Archive     io.Reader
-	Credentials nodeinspect.Credentials
-	Secrets     string
-	Checkpoint  func(string) error
-	Cancelled   func() bool
+	Binding       Binding
+	RunID         string
+	Archive       io.Reader
+	Credentials   nodeinspect.Credentials
+	Secrets       string
+	DNSCredential string
+	Checkpoint    func(string) error
+	Cancelled     func() bool
 }
 
 type Runner interface {
@@ -144,6 +148,18 @@ func (service *Service) Execute(runID string) {
 			return
 		}
 	}
+	dnsCredential := ""
+	if binding.Configuration.Public != nil {
+		dnsCredential, err = service.loadSecret(binding.Configuration.Public.DNSCredentialKey)
+		if errors.Is(err, vault.ErrLocked) {
+			_ = service.checkpoint(ctx, run, "waiting-for-vault")
+			return
+		}
+		if err != nil {
+			service.fail(ctx, run, "dns-credentials-unavailable", "local_bootstrap.dns_credentials_unavailable")
+			return
+		}
+	}
 	if service.cancelled(ctx, run.ID) {
 		_ = service.store.CompleteRunCancellation(ctx, run.ID, "approved")
 		return
@@ -152,7 +168,7 @@ func (service *Service) Execute(runID string) {
 		return
 	}
 	observation, err := service.runner.Run(ctx, RunRequest{
-		Binding: binding, RunID: run.ID, Archive: archive, Credentials: credentials, Secrets: secrets,
+		Binding: binding, RunID: run.ID, Archive: archive, Credentials: credentials, Secrets: secrets, DNSCredential: dnsCredential,
 		Checkpoint: func(checkpoint string) error { return service.checkpoint(ctx, run, checkpoint) },
 		Cancelled:  func() bool { return service.cancelled(ctx, run.ID) },
 	})
@@ -191,7 +207,18 @@ func completedExecutionCheckpoint(checkpoint string) bool {
 }
 
 func (service *Service) completeOrRetryConvergence(ctx context.Context, run state.RunRecord, observation Observation) {
-	if !observation.K3SReady || !observation.ArgoCDReady || !observation.OverlaySynced {
+	planRecord, err := service.store.GetBootstrapPlan(ctx, run.PlanID)
+	if err != nil {
+		service.fail(ctx, run, "binding-missing", "local_bootstrap.binding_missing")
+		return
+	}
+	binding, err := ParseBinding(planRecord.Binding)
+	if err != nil {
+		service.fail(ctx, run, "binding-invalid", "local_bootstrap.binding_invalid")
+		return
+	}
+	publicReady := binding.Configuration.Public == nil || observation.DDNSReady && observation.CertificatesReady && observation.PublicApplicationsReady
+	if !observation.K3SReady || !observation.ArgoCDReady || !observation.OverlaySynced || !publicReady {
 		_ = service.checkpoint(ctx, run, "awaiting-convergence")
 		service.scheduleRetry(run.ID)
 		return

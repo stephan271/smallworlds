@@ -84,6 +84,8 @@
   let localBootstrapNodeName = $state('smallworlds-local-node');
   let localBootstrapACMEEmail = $state('');
   let localBootstrapManageDNS = $state(false);
+  let localPublicDNSToken = $state('');
+  let localPublicRouterAcknowledged = $state(false);
   let localBootstrapSecrets = $state('');
   let localBootstrapError = $state('');
   let localBootstrapBusy = $state(false);
@@ -935,11 +937,13 @@
         authentication: { kind: nodeAuthentication, ...(nodePassword ? { password: nodePassword } : {}), ...(nodePrivateKey ? { privateKey: nodePrivateKey } : {}), ...(nodeKeyPassphrase ? { keyPassphrase: nodeKeyPassphrase } : {}), ...(nodeSudoPassword ? { sudoPassword: nodeSudoPassword } : {}) },
         release: 'v1.2.27',
         configuration: { domain: localBootstrapDomain, environmentExtension: localBootstrapEnvironment, dataDirectory: localBootstrapDataDirectory, nodeName: localBootstrapNodeName, acmeEmail: localBootstrapACMEEmail, manageDns: localBootstrapManageDNS },
+        ...(activeProfile.deploymentMode === 'local-public' ? { publicExposure: { dns01Provider: 'hetzner' as const, dnsZone: localBootstrapDomain, dnsToken: localPublicDNSToken, publicIpBehavior: 'dynamic-ddns' as const, routerAcknowledged: localPublicRouterAcknowledged } } : {}),
         ...(localBootstrapSecrets ? { secretsManifest: localBootstrapSecrets } : {})
       });
       plan = result.plan;
       nodeInspection = result.inspection;
       localBootstrapSecrets = '';
+      localPublicDNSToken = '';
       nodePassword = '';
       nodePrivateKey = '';
       nodeKeyPassphrase = '';
@@ -1074,10 +1078,16 @@
       'node.data_paths.prepared': 'localBootstrapEffectData',
       'kubernetes.k3s.installed': 'localBootstrapEffectK3S',
       'gitops.argocd.configured': 'localBootstrapEffectArgoCD',
+      'dns.dynamic_records.managed': 'localPublicEffectDDNS',
+      'certificates.public.issued': 'localPublicEffectCertificates',
+      'members.public_ingress.enabled': 'localPublicEffectMemberIngress',
+      'headscale.public_coordination.enabled': 'localPublicEffectHeadscale',
       'node.network_ports.changed': 'localBootstrapRiskExposure',
       'node.services.may_restart': 'localBootstrapRiskDowntime',
       'node.atomic_install': 'localBootstrapRiskCancellation',
-      'node.data_preserved_on_retry': 'localBootstrapRiskRecovery'
+      'node.data_preserved_on_retry': 'localBootstrapRiskRecovery',
+      'router.manual_forwarding': 'localPublicRiskRouter',
+      'dns.certificate.propagation_wait': 'localPublicRiskPropagation'
     };
     return labels[code] ? message(labels[code]) : code;
   }
@@ -1297,7 +1307,7 @@
           {#if nodeError}<p class="inline-error" role="alert">{nodeError}</p>{/if}
           <form onsubmit={(event) => { event.preventDefault(); void inspectNode(); }}>
             <label><span>{message('nodeTarget')}</span><select bind:value={nodeTargetKind}><option value="remote">{message('nodeRemote')}</option>{#if nodeCapabilities?.sameHostSupported}<option value="same-host">{message('nodeSameHost')}</option>{/if}</select></label>
-            {#if activeProfile?.deploymentMode === 'local-lan'}<label><span>{message('localBootstrapDataDirectory')}</span><input bind:value={localBootstrapDataDirectory} required /></label>{/if}
+            {#if activeProfile?.deploymentMode === 'local-lan' || activeProfile?.deploymentMode === 'local-public'}<label><span>{message('localBootstrapDataDirectory')}</span><input bind:value={localBootstrapDataDirectory} required /></label>{/if}
             {#if nodeTargetKind === 'remote'}
               <div class="form-grid"><label><span>{message('nodeHost')}</span><input bind:value={nodeHost} required autocomplete="off" /></label><label><span>{message('nodePort')}</span><input type="number" bind:value={nodePort} min="1" max="65535" required /></label></div>
               <label><span>{message('nodeUsername')}</span><input bind:value={nodeUsername} required autocomplete="username" /></label>
@@ -1310,7 +1320,7 @@
             <div class="actions"><button type="submit" disabled={nodeBusy}>{message('nodeInspect')}</button></div>
           </form>
           {#if nodeInspection}<dl class="credential-metadata"><div><dt>{message('nodeOperatingSystem')}</dt><dd>{nodeInspection.report.operatingSystem} / {nodeInspection.report.architecture}</dd></div><div><dt>{message('nodeCapacity')}</dt><dd>{nodeInspection.report.capacity.memoryMi} MiB · {nodeInspection.report.capacity.diskGi} GiB</dd></div><div><dt>{message('nodeAssessment')}</dt><dd>{nodeInspection.assessment.ready ? message('nodeReady') : nodeInspection.assessment.blockers.map((blocker) => blocker.code).join(', ')}</dd></div></dl>{#if nodeTargetKind === 'remote'}<div class="actions"><button class="secondary" onclick={() => void planNodeSSHKey()} disabled={nodeBusy}>{message('nodePlanSSHKey')}</button></div>{/if}{/if}
-          {#if nodeInspection?.assessment.ready && activeProfile?.deploymentMode === 'local-lan'}
+          {#if nodeInspection?.assessment.ready && (activeProfile?.deploymentMode === 'local-lan' || activeProfile?.deploymentMode === 'local-public')}
             <section class="capability-preview" aria-labelledby="local-bootstrap-title">
               <p class="eyebrow">{message('localBootstrapEyebrow')}</p>
               <h3 id="local-bootstrap-title">{message('localBootstrapTitle')}</h3>
@@ -1319,8 +1329,26 @@
               <form onsubmit={(event) => { event.preventDefault(); void planLocalBootstrap(); }}>
                 <div class="form-grid"><label><span>{message('capabilityDomain')}</span><input bind:value={localBootstrapDomain} required placeholder="home.example" /></label><label><span>{message('localBootstrapEnvironment')}</span><input bind:value={localBootstrapEnvironment} placeholder=".dev" /></label></div>
                 <label><span>{message('localBootstrapNodeName')}</span><input bind:value={localBootstrapNodeName} required /></label>
-                <label><span>{message('localBootstrapACMEEmail')}</span><input type="email" bind:value={localBootstrapACMEEmail} /></label>
-                <label class="check"><input type="checkbox" bind:checked={localBootstrapManageDNS} /><span>{message('localBootstrapManageDNS')}</span></label>
+                <label><span>{message('localBootstrapACMEEmail')}</span><input type="email" bind:value={localBootstrapACMEEmail} required={activeProfile?.deploymentMode === 'local-public'} /></label>
+                {#if activeProfile?.deploymentMode === 'local-public'}
+                  <section class="handoff-steps" aria-labelledby="router-forwarding-title">
+                    <h4 id="router-forwarding-title">{message('localPublicRouterTitle')}</h4>
+                    <p class="muted">{message('localPublicRouterDescription')}</p>
+                    <ul>
+                      <li><code>80/tcp → 80/tcp</code> — {message('localPublicRouterHTTP')}</li>
+                      <li><code>443/tcp → 443/tcp</code> — {message('localPublicRouterHTTPS')}</li>
+                      <li><code>10000/udp → 10000/udp</code> — {message('localPublicRouterJitsi')}</li>
+                    </ul>
+                    <p class="muted">{message('localPublicRouterNoAutomation')}</p>
+                  </section>
+                  <label><span>{message('localPublicDNSProvider')}</span><input value="Hetzner DNS (DNS-01)" readonly /></label>
+                  <label><span>{message('localPublicDNSToken')}</span><input type="password" bind:value={localPublicDNSToken} required autocomplete="off" /></label>
+                  <p class="muted">{message('localPublicDDNS')}</p>
+                  <label class="check"><input type="checkbox" bind:checked={localPublicRouterAcknowledged} required /><span>{message('localPublicRouterAcknowledge')}</span></label>
+                  <ul><li>{message('localPublicMailWarning')}</li><li>{message('localPublicJitsiWarning')}</li></ul>
+                {:else}
+                  <label class="check"><input type="checkbox" bind:checked={localBootstrapManageDNS} /><span>{message('localBootstrapManageDNS')}</span></label>
+                {/if}
                 <label><span>{message('localBootstrapSecrets')}</span><textarea bind:value={localBootstrapSecrets} autocomplete="off" placeholder="apiVersion: v1&#10;kind: Secret&#10;…"></textarea></label>
                 {#if nodeTargetKind === 'same-host'}<label><span>{message('nodeSudoPassword')}</span><input type="password" bind:value={nodeSudoPassword} autocomplete="off" /></label>{/if}
                 <div class="actions"><button type="submit" disabled={localBootstrapBusy}>{message('localBootstrapReview')}</button></div>
@@ -1626,11 +1654,11 @@
 			{/if}
 		</section>
 
-        {#if activeProfile?.deploymentMode === 'local-lan'}
+        {#if activeProfile?.deploymentMode === 'local-lan' || activeProfile?.deploymentMode === 'local-public'}
         <section class="card handoff-card" aria-labelledby="handoff-title">
           <p class="eyebrow">{message('handoffEyebrow')}</p>
-          <h2 id="handoff-title">{message('handoffTitle')}</h2>
-          <p class="muted">{message('handoffDescription')}</p>
+          <h2 id="handoff-title">{activeProfile.deploymentMode === 'local-public' ? message('localPublicHandoffTitle') : message('handoffTitle')}</h2>
+          <p class="muted">{activeProfile.deploymentMode === 'local-public' ? message('localPublicHandoffDescription') : message('handoffDescription')}</p>
           {#if handoffError}<p class="inline-error" role="alert">{handoffError}</p>{/if}
           {#if handoffAssessment}
             <section class="handoff-steps" aria-label={message('handoffStepsTitle')}>
@@ -1643,8 +1671,10 @@
             </section>
           {/if}
           {#if vaultStatus?.state === 'unlocked'}
-            <div class="actions"><button type="button" onclick={() => void establishClusterCA()} disabled={handoffBusy}>{message('handoffClusterCAEstablish')}</button><button type="button" class="secondary" onclick={() => void installDeviceTrust()} disabled={handoffBusy}>{message('handoffDeviceTrustInstall')}</button></div>
-            {#if deviceTrustFingerprint}<p class="inline-notice">{message('handoffDeviceTrustFingerprint')}: <code>{deviceTrustFingerprint}</code></p>{/if}
+            {#if activeProfile.deploymentMode === 'local-lan'}
+              <div class="actions"><button type="button" onclick={() => void establishClusterCA()} disabled={handoffBusy}>{message('handoffClusterCAEstablish')}</button><button type="button" class="secondary" onclick={() => void installDeviceTrust()} disabled={handoffBusy}>{message('handoffDeviceTrustInstall')}</button></div>
+              {#if deviceTrustFingerprint}<p class="inline-notice">{message('handoffDeviceTrustFingerprint')}: <code>{deviceTrustFingerprint}</code></p>{/if}
+            {/if}
             <form onsubmit={(event) => { event.preventDefault(); void establishPrivateNetwork(); }}>
               <label><span>{message('handoffBaseDomain')}</span><input bind:value={handoffBaseDomain} required placeholder="smallworlds.internal" /></label>
               <div class="actions"><button type="submit" disabled={handoffBusy}>{message('handoffPrivateNetworkEstablish')}</button></div>

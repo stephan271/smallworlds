@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
@@ -63,7 +64,7 @@ func (runner ProductionRunner) observeRemote(ctx context.Context, request RunReq
 		}
 		return runSSHSession(client, command, nil)
 	}
-	return runner.observe(ctx, privileged, request.Cancelled)
+	return runner.observe(ctx, request.Binding, privileged, request.Cancelled)
 }
 
 func (runner ProductionRunner) observeSameHost(ctx context.Context, request RunRequest) (Observation, error) {
@@ -92,7 +93,7 @@ func (runner ProductionRunner) observeSameHost(ctx context.Context, request RunR
 		process.Stderr = io.Discard
 		return process.Run()
 	}
-	return runner.observe(ctx, privileged, request.Cancelled)
+	return runner.observe(ctx, request.Binding, privileged, request.Cancelled)
 }
 
 func (runner ProductionRunner) runRemote(ctx context.Context, request RunRequest) (Observation, error) {
@@ -155,7 +156,7 @@ func (runner ProductionRunner) runRemote(ctx context.Context, request RunRequest
 	if request.Cancelled() {
 		return Observation{}, ErrInterrupted
 	}
-	return runner.observe(ctx, func(command string) error { return privileged(command, nil) }, request.Cancelled)
+	return runner.observe(ctx, request.Binding, func(command string) error { return privileged(command, nil) }, request.Cancelled)
 }
 
 func (runner ProductionRunner) runSameHost(ctx context.Context, request RunRequest) (Observation, error) {
@@ -223,10 +224,10 @@ func (runner ProductionRunner) runSameHost(ctx context.Context, request RunReque
 	if request.Cancelled() {
 		return Observation{}, ErrInterrupted
 	}
-	return runner.observe(ctx, func(command string) error { return privileged(command, nil) }, request.Cancelled)
+	return runner.observe(ctx, request.Binding, func(command string) error { return privileged(command, nil) }, request.Cancelled)
 }
 
-func (runner ProductionRunner) observe(ctx context.Context, execute func(string) error, cancelled func() bool) (Observation, error) {
+func (runner ProductionRunner) observe(ctx context.Context, binding Binding, execute func(string) error, cancelled func() bool) (Observation, error) {
 	timeout := runner.ConvergenceTimeout
 	if timeout <= 0 {
 		timeout = 20 * time.Minute
@@ -244,8 +245,17 @@ func (runner ProductionRunner) observe(ctx context.Context, execute func(string)
 		observation.K3SReady = execute(observeK3SCommand) == nil
 		observation.ArgoCDReady = execute(observeArgoCDCommand) == nil
 		observation.OverlaySynced = execute(observeOverlayCommand) == nil
+		if binding.Configuration.Public != nil {
+			observation.DDNSReady = execute(observeDDNSCommand) == nil
+			observation.CertificatesReady = execute(observeCertificatesCommand) == nil
+			observation.PublicApplicationsReady = execute(observePublicApplicationsCommand) == nil
+		} else {
+			observation.DDNSReady = true
+			observation.CertificatesReady = true
+			observation.PublicApplicationsReady = true
+		}
 		observation.ObservedAt = time.Now().UTC()
-		if observation.K3SReady && observation.ArgoCDReady && observation.OverlaySynced {
+		if observation.K3SReady && observation.ArgoCDReady && observation.OverlaySynced && observation.DDNSReady && observation.CertificatesReady && observation.PublicApplicationsReady {
 			return observation, nil
 		}
 		if time.Now().After(deadline) {
@@ -262,6 +272,9 @@ func (runner ProductionRunner) observe(ctx context.Context, execute func(string)
 const observeK3SCommand = `test -f /etc/smallworlds/k3s-ready && k3s kubectl get nodes -o jsonpath='{range .items[*]}{range .status.conditions[?(@.type=="Ready")]}{.status}{end}{end}' | grep -q True`
 const observeArgoCDCommand = `test -f /etc/smallworlds/argocd-ready && k3s kubectl -n argocd rollout status deployment/argocd-server --timeout=1s >/dev/null 2>&1`
 const observeOverlayCommand = `test -f /etc/smallworlds/overlay-applied && test "$(k3s kubectl -n argocd get application smallworlds-root -o jsonpath='{.status.sync.status}:{.status.health.status}' 2>/dev/null)" = 'Synced:Healthy'`
+const observeDDNSCommand = `test -n "$(k3s kubectl -n ddns get cronjob ddns -o jsonpath='{.status.lastSuccessfulTime}' 2>/dev/null)"`
+const observeCertificatesCommand = `test "$(k3s kubectl get certificate -A -o jsonpath='{range .items[*]}{range .status.conditions[?(@.type=="Ready")]}{.status}{"\n"}{end}{end}' 2>/dev/null | grep -vc '^True$')" = 0 && test "$(k3s kubectl get certificate -A --no-headers 2>/dev/null | wc -l)" -gt 0`
+const observePublicApplicationsCommand = `k3s kubectl get ingress -A -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null | grep -q .`
 
 func remoteAssetDirectory(binding Binding) string {
 	return "/var/lib/smallworlds-launcher/bootstrap/" + binding.AssetSHA256
@@ -296,6 +309,19 @@ func buildRuntimeArchive(request RunRequest) (*bytes.Reader, error) {
 	if request.Secrets != "" {
 		entries = append(entries, struct{ name, contents string }{name: "secrets.yaml", contents: request.Secrets})
 	}
+	if request.DNSCredential != "" {
+		if len(entries) == 1 {
+			entries = append(entries, struct{ name, contents string }{name: "secrets.yaml"})
+		}
+		index := len(entries) - 1
+		if entries[index].name != "secrets.yaml" {
+			return nil, fmt.Errorf("internal secrets archive layout")
+		}
+		if entries[index].contents != "" && !strings.HasSuffix(entries[index].contents, "\n") {
+			entries[index].contents += "\n"
+		}
+		entries[index].contents += "---\napiVersion: v1\nkind: Namespace\nmetadata:\n  name: ddns\n---\napiVersion: v1\nkind: Secret\nmetadata:\n  name: hetzner-dns-token\n  namespace: ddns\ntype: Opaque\ndata:\n  HCLOUD_TOKEN: " + base64.StdEncoding.EncodeToString([]byte(request.DNSCredential)) + "\n"
+	}
 	for _, entry := range entries {
 		header := &tar.Header{Name: entry.name, Mode: 0600, Size: int64(len(entry.contents)), ModTime: time.Unix(0, 0)}
 		if err := tarWriter.WriteHeader(header); err != nil {
@@ -328,7 +354,7 @@ func renderConfiguration(request RunRequest) string {
 		{"PROFILE_ID", request.Binding.ProfileID},
 		{"BOOTSTRAP_RUN_ID", request.RunID},
 	}
-	if request.Secrets != "" {
+	if request.Secrets != "" || request.DNSCredential != "" {
 		values = append(values, [2]string{"SECRETS_MANIFEST", remoteRunDirectory(request.RunID) + "/secrets.yaml"})
 	}
 	var result strings.Builder

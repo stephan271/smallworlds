@@ -28,12 +28,24 @@ var safeDomain = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0
 var safeDataPath = regexp.MustCompile(`^/[A-Za-z0-9._/-]{1,254}$`)
 
 type Configuration struct {
-	Domain               string `json:"domain"`
-	EnvironmentExtension string `json:"environmentExtension,omitempty"`
-	DataDirectory        string `json:"dataDirectory"`
-	NodeName             string `json:"nodeName"`
-	ACMEEmail            string `json:"acmeEmail,omitempty"`
-	ManageDNS            bool   `json:"manageDns"`
+	Domain               string               `json:"domain"`
+	EnvironmentExtension string               `json:"environmentExtension,omitempty"`
+	DataDirectory        string               `json:"dataDirectory"`
+	NodeName             string               `json:"nodeName"`
+	ACMEEmail            string               `json:"acmeEmail,omitempty"`
+	ManageDNS            bool                 `json:"manageDns"`
+	Public               *PublicConfiguration `json:"public,omitempty"`
+}
+
+// PublicConfiguration is the secret-free, immutable contract for an
+// internet-exposed Local installation. The DNS token itself is referenced by
+// vault key and is never included in a plan, event, or browser response.
+type PublicConfiguration struct {
+	DNS01Provider      string `json:"dns01Provider"`
+	DNSZone            string `json:"dnsZone"`
+	DNSCredentialKey   string `json:"dnsCredentialKey"`
+	PublicIPBehavior   string `json:"publicIpBehavior"`
+	RouterAcknowledged bool   `json:"routerAcknowledged"`
 }
 
 func (configuration Configuration) Validate() error {
@@ -51,6 +63,24 @@ func (configuration Configuration) Validate() error {
 	}
 	if configuration.ACMEEmail != "" && (!strings.Contains(configuration.ACMEEmail, "@") || strings.ContainsAny(configuration.ACMEEmail, "\r\n'\"`$\\")) {
 		return fmt.Errorf("%w: ACME email", ErrInvalidBinding)
+	}
+	if configuration.Public == nil {
+		if configuration.ManageDNS {
+			return fmt.Errorf("%w: public configuration required", ErrInvalidBinding)
+		}
+		return nil
+	}
+	public := configuration.Public
+	if !configuration.ManageDNS || configuration.ACMEEmail == "" ||
+		public.DNS01Provider != "hetzner" ||
+		!safeDomain.MatchString(public.DNSZone) || strings.Contains(public.DNSZone, "..") ||
+		!strings.Contains(public.DNSZone, ".") ||
+		!strings.EqualFold(public.DNSZone, configuration.Domain) ||
+		public.PublicIPBehavior != "dynamic-ddns" ||
+		!public.RouterAcknowledged ||
+		!strings.HasSuffix(public.DNSCredentialKey, "/local-public-dns-token") ||
+		!safeOpaqueID.MatchString(strings.TrimSuffix(public.DNSCredentialKey, "/local-public-dns-token")) {
+		return fmt.Errorf("%w: public configuration", ErrInvalidBinding)
 	}
 	return nil
 }

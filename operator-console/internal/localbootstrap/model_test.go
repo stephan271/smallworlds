@@ -59,3 +59,40 @@ func TestBindingRejectsMutableOverlayAndShellUnsafeConfiguration(t *testing.T) {
 		})
 	}
 }
+
+func TestPublicConfigurationRequiresExactSecretFreeExposureContract(t *testing.T) {
+	binding := validBinding()
+	binding.Configuration = localbootstrap.Configuration{
+		Domain: "community.example", DataDirectory: "/var/lib/smallworlds-data",
+		NodeName: "smallworlds-node", ACMEEmail: "operator@community.example", ManageDNS: true,
+		Public: &localbootstrap.PublicConfiguration{
+			DNS01Provider: "hetzner", DNSZone: "community.example",
+			DNSCredentialKey: "profile-1/local-public-dns-token",
+			PublicIPBehavior: "dynamic-ddns", RouterAcknowledged: true,
+		},
+	}
+	encoded, err := binding.Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(encoded, "dns-secret-value") {
+		t.Fatalf("binding contains DNS credential: %s", encoded)
+	}
+	for name, mutate := range map[string]func(*localbootstrap.PublicConfiguration){
+		"provider":       func(public *localbootstrap.PublicConfiguration) { public.DNS01Provider = "unknown" },
+		"zone":           func(public *localbootstrap.PublicConfiguration) { public.DNSZone = "other.example" },
+		"credential key": func(public *localbootstrap.PublicConfiguration) { public.DNSCredentialKey = "other/token" },
+		"public IP":      func(public *localbootstrap.PublicConfiguration) { public.PublicIPBehavior = "static" },
+		"router ack":     func(public *localbootstrap.PublicConfiguration) { public.RouterAcknowledged = false },
+	} {
+		t.Run(name, func(t *testing.T) {
+			candidate := binding
+			public := *binding.Configuration.Public
+			candidate.Configuration.Public = &public
+			mutate(&public)
+			if _, err := candidate.Marshal(); err == nil {
+				t.Fatal("invalid public exposure contract accepted")
+			}
+		})
+	}
+}
