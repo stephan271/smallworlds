@@ -324,6 +324,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/nodes/clean": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cleanNode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/nodes/ssh-key/plan": {
         parameters: {
             query?: never;
@@ -2605,6 +2621,31 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["NodeInspectionResult"];
                 };
+            };
+            409: components["responses"]["Conflict"];
+        };
+    };
+    cleanNode: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NodeInspectionInput"];
+            };
+        };
+        responses: {
+            /** @description Foreign installation removed successfully */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             409: components["responses"]["Conflict"];
         };

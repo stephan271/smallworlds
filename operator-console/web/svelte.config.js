@@ -14,7 +14,7 @@ const config = {
         'default-src': ['self'],
         'script-src': ['self'],
         'style-src': ['self', 'unsafe-inline'],
-        'connect-src': ['self'],
+        'connect-src': ['self', 'https://api.github.com'],
         'img-src': ['self'],
         'font-src': ['self'],
         'base-uri': ['none'],

@@ -42,7 +42,7 @@
   let capabilityCatalog: CapabilityCatalog | null = $state(null);
   let capabilityMode: CapabilityMode = $state('minimal');
   let capabilityApps: string[] = $state([]);
-  let capabilityRelease = $state('v1.0.0');
+  let capabilityRelease = $state('v1.2.27');
   let capabilityRepositoryURL = $state('');
   let capabilityDomain = $state('');
   let capabilityPlan: CapabilityPlanResult | null = $state(null);
@@ -80,6 +80,8 @@
   let nodeInspection: NodeInspectionResult | null = $state(null);
   let nodeError = $state('');
   let nodeBusy = $state(false);
+  let cleanNodeBusy = $state(false);
+  let sshKeyPlanned = $state(false);
   let localBootstrapDomain = $state('');
   let localBootstrapEnvironment = $state('');
   let localBootstrapDataDirectory = $state('/var/lib/smallworlds-data');
@@ -140,6 +142,7 @@
   let fullDecommissionBusy = $state(false);
   let fullDecommissionError = $state('');
   let activeStep = $state('capabilities');
+  let showRecovery = $state(false);
   let creating = $state(true);
   let editing = $state(false);
   let busy = $state(false);
@@ -160,6 +163,19 @@
     try {
       await initializeSession();
       [profiles, vaultStatus, capabilityCatalog, nodeCapabilities] = await Promise.all([api.listProfiles(), api.getVaultStatus(), api.getCapabilities(), api.getNodeCapabilities()]);
+      
+      try {
+        const res = await fetch('https://api.github.com/repos/stephan271/smallworlds/releases/latest');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.tag_name) {
+            capabilityRelease = data.tag_name;
+            bootstrapAssetRelease = data.tag_name;
+          }
+        }
+      } catch (e) {
+        // Fallback to default versions if offline
+      }
       const remembered = window.localStorage.getItem('smallworlds.activeProfile');
       const selected = profiles.find((profile) => profile.id === remembered) ?? profiles[0];
       if (selected) {
@@ -1068,10 +1084,26 @@
     nodeError = '';
     try {
       plan = await api.planNodeSSHKey(activeProfile.id);
+      sshKeyPlanned = true;
     } catch (reason) {
       nodeError = reason instanceof Error ? reason.message : 'node_ssh_key_plan_failed';
     } finally {
       nodeBusy = false;
+    }
+  }
+
+  async function cleanNode(): Promise<void> {
+    if (!activeProfile) return;
+    cleanNodeBusy = true;
+    nodeError = '';
+    try {
+      await api.cleanNode(activeProfile.id, currentNodeTarget(), { kind: nodeAuthentication, ...(nodePassword ? { password: nodePassword } : {}), ...(nodePrivateKey ? { privateKey: nodePrivateKey } : {}), ...(nodeKeyPassphrase ? { keyPassphrase: nodeKeyPassphrase } : {}), ...(nodeSudoPassword ? { sudoPassword: nodeSudoPassword } : {}) }, localBootstrapDataDirectory);
+      // Re-inspect to clear blockers
+      await inspectNode();
+    } catch (reason) {
+      nodeError = reason instanceof Error ? reason.message : 'node_clean_failed';
+    } finally {
+      cleanNodeBusy = false;
     }
   }
 
@@ -1291,6 +1323,11 @@
         </div>
       {/if}
 
+      {#if !showRecovery}
+        <div class="actions" style="margin-bottom: 1.5rem; text-align: right;">
+          <button type="button" class="secondary" onclick={() => showRecovery = true}>{message('recoveryTitle')}...</button>
+        </div>
+      {:else}
       <section class="card recovery-card" aria-labelledby="recovery-title">
         <div class="vault-heading">
           <div>
@@ -1361,7 +1398,9 @@
             <div class="actions"><button type="button" onclick={() => void importRecoveryBundle()} disabled={recoveryBusy}>{message('recoveryConfirmImport')}</button></div>
           </section>
         {/if}
+        <div class="actions" style="margin-top: 1rem;"><button type="button" class="secondary" onclick={() => showRecovery = false}>{message('cancel')}</button></div>
       </section>
+      {/if}
 
       {#if creating || editing}
         <section class="card form-card" aria-labelledby="profile-form-title">
@@ -1413,6 +1452,69 @@
           {#if run}<small>{run.currentCheckpoint || message('running')}</small>{/if}
           {#if run?.state === 'running' && run.cancellationState === 'not-requested'}<button class="secondary" onclick={() => void cancelRun()} disabled={busy}>{message('cancel')}</button>{/if}
         </div>
+
+        {#if vaultStatus?.state !== 'unlocked' || activeStep === 'execute'}
+		<section class="card vault-card" aria-labelledby="vault-title">
+			<div class="vault-heading">
+				<div>
+					<p class="eyebrow">{message('vaultTitle')}</p>
+					<h2 id="vault-title">{message('vaultTitle')}</h2>
+				</div>
+				<span class:unlocked={vaultStatus?.state === 'unlocked'} class="badge">
+					{vaultStatus?.state === 'unlocked' ? message('vaultUnlocked') : message('vaultLocked')}
+				</span>
+			</div>
+			<p class="muted">{message('vaultDescription')}</p>
+			{#if vaultError}<p class="inline-error" role="alert">{vaultError}</p>{/if}
+			{#if vaultStatus?.state !== 'unlocked'}
+				<p class="facility-state">
+					<span aria-hidden="true">{vaultStatus?.osCredentialStoreAvailable ? '✓' : '!'}</span>
+					{vaultStatus?.osCredentialStoreAvailable ? message('osStoreAvailable') : message('osStoreUnavailable')}
+				</p>
+				{#if vaultStatus?.osCredentialStoreAvailable}
+					<button onclick={() => void unlockVault('operating-system')} disabled={vaultBusy}>{message('unlockWithOSStore')}</button>
+				{/if}
+				<div class="fallback">
+					<h3>{message('passphraseFallback')}</h3>
+					<p class="muted">{message('passphraseFallbackDescription')}</p>
+					<form onsubmit={(event) => { event.preventDefault(); void unlockVault('passphrase'); }}>
+						<label>
+							<span>{message('vaultPassphrase')}</span>
+							<input type="password" bind:value={vaultPassphrase} required minlength="12" autocomplete="current-password" />
+						</label>
+						<div class="actions"><button type="submit" disabled={vaultBusy}>{message('unlockVault')}</button></div>
+					</form>
+				</div>
+			{:else}
+				{#if credentials.length > 0}
+					{#each credentials as credential (credential.kind)}
+						<dl class="credential-metadata">
+							<div><dt>{message('gitProviderToken')}</dt><dd><span class="badge">{credential.present ? message('credentialPresent') : message('noCredential')}</span></dd></div>
+							<div><dt>{message('credentialSource')}</dt><dd>{credential.source === 'operator' ? message('sourceOperator') : credential.source}</dd></div>
+							<div><dt>{message('credentialExpires')}</dt><dd>{credential.expiresAt}</dd></div>
+							<div><dt>{message('rotationStatus')}</dt><dd>{rotationLabel(credential.rotationStatus)}</dd></div>
+						</dl>
+					{/each}
+				{:else}
+					<p class="muted">{message('noCredential')}</p>
+				{/if}
+				<form class="credential-form" onsubmit={(event) => { event.preventDefault(); void storeCredential(); }}>
+					<label>
+						<span>{message('gitProviderToken')}</span>
+						<input type="password" bind:value={credentialValue} required autocomplete="off" />
+					</label>
+					<label>
+						<span>{message('credentialExpiry')}</span>
+						<input bind:value={credentialExpiresAt} required placeholder="2030-01-02T03:04:05Z" />
+					</label>
+					<div class="actions">
+						{#if credentials.length > 0}<button type="button" class="danger" onclick={() => void removeCredential()} disabled={vaultBusy}>{message('removeCredential')}</button>{/if}
+						<button type="submit" disabled={vaultBusy}>{credentials.length > 0 ? message('replaceCredential') : message('storeCredential')}</button>
+					</div>
+				</form>
+			{/if}
+		</section>
+        {/if}
 
         {#if activeStep === 'capabilities'}
         <section class="card capability-card" aria-labelledby="capability-title">
@@ -1479,7 +1581,32 @@
             {#if nodeProbe}<p class="inline-notice">{message('nodeFingerprint')}: <code>{nodeProbe.fingerprint}</code> <button type="button" onclick={() => void trustNode()} disabled={nodeBusy}>{message('nodeTrust')}</button></p>{/if}
             <div class="actions"><button type="submit" disabled={nodeBusy}>{message('nodeInspect')}</button></div>
           </form>
-          {#if nodeInspection}<dl class="credential-metadata"><div><dt>{message('nodeOperatingSystem')}</dt><dd>{nodeInspection.report.operatingSystem} / {nodeInspection.report.architecture}</dd></div><div><dt>{message('nodeCapacity')}</dt><dd>{formatNumber(locale, nodeInspection.report.capacity.memoryMi)} MiB · {formatNumber(locale, nodeInspection.report.capacity.diskGi)} GiB</dd></div><div><dt>{message('nodeAssessment')}</dt><dd>{nodeInspection.assessment.ready ? message('nodeReady') : nodeInspection.assessment.blockers.map((blocker) => blocker.code).join(', ')}</dd></div></dl>{#if nodeTargetKind === 'remote'}<div class="actions"><button class="secondary" onclick={() => void planNodeSSHKey()} disabled={nodeBusy}>{message('nodePlanSSHKey')}</button></div>{/if}{/if}
+          {#if nodeInspection}
+            <dl class="credential-metadata">
+              <div><dt>{message('nodeOperatingSystem')}</dt><dd>{nodeInspection.report.operatingSystem} / {nodeInspection.report.architecture}</dd></div>
+              <div><dt>{message('nodeCapacity')}</dt><dd>{formatNumber(locale, nodeInspection.report.capacity.memoryMi)} MiB · {formatNumber(locale, nodeInspection.report.capacity.diskGi)} GiB</dd></div>
+              <div><dt>{message('nodeAssessment')}</dt><dd>{nodeInspection.assessment.ready ? message('nodeReady') : nodeInspection.assessment.blockers.map((blocker) => blocker.code).join(', ')}</dd></div>
+            </dl>
+            {#if !nodeInspection.assessment.ready && nodeInspection.assessment.blockers.some(b => b.code === 'installation.kubernetes.foreign' || b.code === 'installation.data.foreign')}
+              <div class="actions" style="margin-top: 1rem; border-top: 1px solid var(--border-subtle); padding-top: 1rem;">
+                <p class="inline-error" style="margin-bottom: 0.5rem; font-size: 0.875rem;">Achtung: Es wurden Fremdinstallationen gefunden, die SmallWorlds blockieren.</p>
+                <button class="secondary danger" style="color: var(--text-error); border-color: var(--text-error);" onclick={() => void cleanNode()} disabled={cleanNodeBusy}>
+                  {cleanNodeBusy ? 'Wird entfernt...' : 'Fremde Installation entfernen'}
+                </button>
+              </div>
+            {/if}
+            {#if nodeTargetKind === 'remote'}
+              <div class="actions">
+                <button class="secondary" onclick={() => void planNodeSSHKey()} disabled={nodeBusy || sshKeyPlanned}>
+                  {#if sshKeyPlanned}
+                    ✓ Schlüssel geplant
+                  {:else}
+                    {message('nodePlanSSHKey')}
+                  {/if}
+                </button>
+              </div>
+            {/if}
+          {/if}
           {#if nodeInspection?.assessment.ready && (activeProfile?.deploymentMode === 'local-lan' || activeProfile?.deploymentMode === 'local-public')}
             <section class="capability-preview" aria-labelledby="local-bootstrap-title">
               <p class="eyebrow">{message('localBootstrapEyebrow')}</p>
@@ -1858,66 +1985,7 @@
           {/if}
         </section>
 
-		<section class="card vault-card" aria-labelledby="vault-title">
-			<div class="vault-heading">
-				<div>
-					<p class="eyebrow">{message('vaultTitle')}</p>
-					<h2 id="vault-title">{message('vaultTitle')}</h2>
-				</div>
-				<span class:unlocked={vaultStatus?.state === 'unlocked'} class="badge">
-					{vaultStatus?.state === 'unlocked' ? message('vaultUnlocked') : message('vaultLocked')}
-				</span>
-			</div>
-			<p class="muted">{message('vaultDescription')}</p>
-			{#if vaultError}<p class="inline-error" role="alert">{vaultError}</p>{/if}
-			{#if vaultStatus?.state !== 'unlocked'}
-				<p class="facility-state">
-					<span aria-hidden="true">{vaultStatus?.osCredentialStoreAvailable ? '✓' : '!'}</span>
-					{vaultStatus?.osCredentialStoreAvailable ? message('osStoreAvailable') : message('osStoreUnavailable')}
-				</p>
-				{#if vaultStatus?.osCredentialStoreAvailable}
-					<button onclick={() => void unlockVault('operating-system')} disabled={vaultBusy}>{message('unlockWithOSStore')}</button>
-				{/if}
-				<div class="fallback">
-					<h3>{message('passphraseFallback')}</h3>
-					<p class="muted">{message('passphraseFallbackDescription')}</p>
-					<form onsubmit={(event) => { event.preventDefault(); void unlockVault('passphrase'); }}>
-						<label>
-							<span>{message('vaultPassphrase')}</span>
-							<input type="password" bind:value={vaultPassphrase} required minlength="12" autocomplete="current-password" />
-						</label>
-						<div class="actions"><button type="submit" disabled={vaultBusy}>{message('unlockVault')}</button></div>
-					</form>
-				</div>
-			{:else}
-				{#if credentials.length > 0}
-					{#each credentials as credential (credential.kind)}
-						<dl class="credential-metadata">
-							<div><dt>{message('gitProviderToken')}</dt><dd><span class="badge">{credential.present ? message('credentialPresent') : message('noCredential')}</span></dd></div>
-							<div><dt>{message('credentialSource')}</dt><dd>{credential.source === 'operator' ? message('sourceOperator') : credential.source}</dd></div>
-							<div><dt>{message('credentialExpires')}</dt><dd>{credential.expiresAt}</dd></div>
-							<div><dt>{message('rotationStatus')}</dt><dd>{rotationLabel(credential.rotationStatus)}</dd></div>
-						</dl>
-					{/each}
-				{:else}
-					<p class="muted">{message('noCredential')}</p>
-				{/if}
-				<form class="credential-form" onsubmit={(event) => { event.preventDefault(); void storeCredential(); }}>
-					<label>
-						<span>{message('gitProviderToken')}</span>
-						<input type="password" bind:value={credentialValue} required autocomplete="off" />
-					</label>
-					<label>
-						<span>{message('credentialExpiry')}</span>
-						<input bind:value={credentialExpiresAt} required placeholder="2030-01-02T03:04:05Z" />
-					</label>
-					<div class="actions">
-						{#if credentials.length > 0}<button type="button" class="danger" onclick={() => void removeCredential()} disabled={vaultBusy}>{message('removeCredential')}</button>{/if}
-						<button type="submit" disabled={vaultBusy}>{credentials.length > 0 ? message('replaceCredential') : message('storeCredential')}</button>
-					</div>
-				</form>
-			{/if}
-		</section>
+
 
         {#if activeProfile?.deploymentMode === 'local-lan' || activeProfile?.deploymentMode === 'local-public'}
         <section class="card handoff-card" aria-labelledby="handoff-title">

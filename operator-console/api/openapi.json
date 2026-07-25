@@ -434,8 +434,8 @@
           }
         },
         "responses": {
-          "201": {
-            "description": "Existing empty HTTPS repository initialized from its exact approved plan",
+          "200": {
+            "description": "Previously recorded remote commit verified; no duplicate push",
             "content": {
               "application/json": {
                 "schema": {
@@ -444,8 +444,8 @@
               }
             }
           },
-          "200": {
-            "description": "Previously recorded remote commit verified; no duplicate push",
+          "201": {
+            "description": "Existing empty HTTPS repository initialized from its exact approved plan",
             "content": {
               "application/json": {
                 "schema": {
@@ -686,6 +686,34 @@
         }
       }
     },
+    "/api/v1/nodes/clean": {
+      "post": {
+        "operationId": "cleanNode",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NodeInspectionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Foreign installation removed successfully"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
     "/api/v1/nodes/ssh-key/plan": {
       "post": {
         "operationId": "planNodeSSHKey",
@@ -762,64 +790,187 @@
     "/api/v1/decommission": {
       "get": {
         "operationId": "inspectPreserveDataDecommission",
-        "parameters": [{"name":"profileId","in":"query","required":true,"schema":{"type":"string"}}],
-        "responses": {"200":{"description":"Fresh preserve-data inspection and preview"},"401":{"$ref":"#/components/responses/Unauthorized"}}
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Fresh preserve-data inspection and preview"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
       }
     },
     "/api/v1/decommission/inspect": {
       "post": {
         "operationId": "refreshPreserveDataDecommissionInspection",
-        "parameters": [{"$ref":"#/components/parameters/CSRFToken"}],
-        "responses": {"200":{"description":"Fresh provider and cluster ownership inspection"}}
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Fresh provider and cluster ownership inspection"
+          }
+        }
       }
     },
     "/api/v1/decommission/plan": {
       "post": {
         "operationId": "planPreserveDataDecommission",
-        "parameters": [{"$ref":"#/components/parameters/CSRFToken"}],
-        "responses": {"201":{"description":"Approved-plan-ready preserve-data decommission plan"},"409":{"$ref":"#/components/responses/Conflict"}}
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Approved-plan-ready preserve-data decommission plan"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
       }
     },
     "/api/v1/decommission/runs/{id}/resume": {
       "post": {
         "operationId": "resumePreserveDataDecommission",
-        "parameters": [{"$ref":"#/components/parameters/CSRFToken"},{"$ref":"#/components/parameters/RunID"}],
-        "responses": {"202":{"description":"Reinspected preserve-data decommission resumed"},"409":{"$ref":"#/components/responses/Conflict"}}
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          },
+          {
+            "$ref": "#/components/parameters/RunID"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Reinspected preserve-data decommission resumed"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
       }
     },
     "/api/v1/full-decommission": {
       "get": {
         "operationId": "inspectFullDecommission",
-        "parameters": [{"name":"profileId","in":"query","required":true,"schema":{"type":"string"}}],
-        "responses": {"200":{"description":"Fresh ownership, protection, and Recovery Bundle inspection with full-deletion preview"},"401":{"$ref":"#/components/responses/Unauthorized"},"503":{"$ref":"#/components/responses/Unavailable"}}
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Fresh ownership, protection, and Recovery Bundle inspection with full-deletion preview"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
       }
     },
     "/api/v1/full-decommission/plan": {
       "post": {
         "operationId": "planFullDecommission",
-        "parameters": [{"$ref":"#/components/parameters/CSRFToken"}],
-        "responses": {"201":{"description":"Freshly bound irreversible full-decommission plan"},"409":{"$ref":"#/components/responses/Conflict"},"503":{"$ref":"#/components/responses/Unavailable"}}
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Freshly bound irreversible full-decommission plan"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
       }
     },
     "/api/v1/full-decommission/approve": {
       "post": {
         "operationId": "approveFullDecommission",
-        "parameters": [{"$ref":"#/components/parameters/CSRFToken"}],
-        "responses": {"202":{"description":"Typed-confirmed irreversible decommission started"},"409":{"$ref":"#/components/responses/Conflict"}}
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Typed-confirmed irreversible decommission started"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
       }
     },
     "/api/v1/full-decommission/runs/{id}/resume": {
       "post": {
         "operationId": "resumeFullDecommission",
-        "parameters": [{"$ref":"#/components/parameters/CSRFToken"},{"$ref":"#/components/parameters/RunID"}],
-        "responses": {"202":{"description":"Freshly reinspected full decommission resumed"},"409":{"$ref":"#/components/responses/Conflict"}}
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          },
+          {
+            "$ref": "#/components/parameters/RunID"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Freshly reinspected full decommission resumed"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
       }
     },
     "/api/v1/full-decommission/activity": {
       "get": {
         "operationId": "exportFullDecommissionActivity",
-        "parameters": [{"name":"profileId","in":"query","required":true,"schema":{"type":"string"}}],
-        "responses": {"200":{"description":"Final redacted Activity Record export"},"409":{"$ref":"#/components/responses/Conflict"}}
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Final redacted Activity Record export"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
       }
     },
     "/api/v1/profiles": {
@@ -925,8 +1076,22 @@
     "/api/v1/profiles/{id}/forget": {
       "post": {
         "operationId": "forgetClusterProfile",
-        "parameters": [{"$ref":"#/components/parameters/ProfileID"},{"$ref":"#/components/parameters/CSRFToken"}],
-        "responses": {"200":{"description":"Launcher-local profile reference forgotten; no external mutation occurred"},"404":{"$ref":"#/components/responses/NotFound"}}
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProfileID"
+          },
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Launcher-local profile reference forgotten; no external mutation occurred"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
       }
     },
     "/api/v1/profiles/{id}/journey": {
@@ -2363,7 +2528,7 @@
       "post": {
         "operationId": "narrowHetznerTemporaryAccess",
         "summary": "Narrow the temporary public administration path to the Operator's own address",
-        "description": "Re-derives the scope of the temporary SSH and Kubernetes API access from a freshly observed Operator address. It cannot reopen a closed path: restoring administrative access to a handed-over cluster is a separate decision. An address that is unobserved, privately routed, or carrier-grade NAT leaves the path open with the reason stated, because a scope that admits nobody \u2014 or that moves \u2014 would lock the Operator out.",
+        "description": "Re-derives the scope of the temporary SSH and Kubernetes API access from a freshly observed Operator address. It cannot reopen a closed path: restoring administrative access to a handed-over cluster is a separate decision. An address that is unobserved, privately routed, or carrier-grade NAT leaves the path open with the reason stated, because a scope that admits nobody — or that moves — would lock the Operator out.",
         "requestBody": {
           "required": true,
           "content": {
@@ -4413,12 +4578,29 @@
             "type": "array",
             "items": {
               "type": "object",
-              "required": ["protocol", "externalPort", "targetPort", "purpose"],
+              "required": [
+                "protocol",
+                "externalPort",
+                "targetPort",
+                "purpose"
+              ],
               "properties": {
-                "protocol": {"type": "string", "enum": ["tcp", "udp"]},
-                "externalPort": {"type": "integer"},
-                "targetPort": {"type": "integer"},
-                "purpose": {"type": "string"}
+                "protocol": {
+                  "type": "string",
+                  "enum": [
+                    "tcp",
+                    "udp"
+                  ]
+                },
+                "externalPort": {
+                  "type": "integer"
+                },
+                "targetPort": {
+                  "type": "integer"
+                },
+                "purpose": {
+                  "type": "string"
+                }
               }
             }
           }

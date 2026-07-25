@@ -339,6 +339,8 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.trustNode(response, request)
 	case request.URL.Path == "/api/v1/nodes/inspect":
 		server.inspectNode(response, request)
+	case request.URL.Path == "/api/v1/nodes/clean":
+		server.cleanNode(response, request)
 	case request.URL.Path == "/api/v1/nodes/ssh-key/plan":
 		server.planNodeSSHKey(response, request)
 	case request.URL.Path == "/api/v1/local-bootstrap/plan":
