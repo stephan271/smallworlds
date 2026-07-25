@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type HandoffAssessment, type HetznerChangePlan, type HetznerPlanResult, type HetznerPresets, type HetznerPresetTier, type HetznerProject, type HetznerToolchain, type HetznerWorkspace, type TemporaryAccess, type NodeCapabilities, type NodeInspectionResult, type NodeProbeResult, type NodeTarget, type OffsitePlan, type OffsiteProposal, type OffsiteProtection, type RecoveryBundlePreview, type SetupJourney, type TailscaleClientOffer, type VaultStatus, type WorkflowRun } from '$lib/api';
+  import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type HandoffAssessment, type HetznerChangePlan, type HetznerPlanResult, type HetznerPresets, type HetznerPresetTier, type HetznerProject, type HetznerToolchain, type HetznerWorkspace, type TemporaryAccess, type NodeCapabilities, type NodeInspectionResult, type NodeProbeResult, type NodeTarget, type OffsitePlan, type OffsiteProposal, type OffsiteProtection, type PreserveDataDecommissionResult, type RecoveryBundlePreview, type SetupJourney, type TailscaleClientOffer, type VaultStatus, type WorkflowRun } from '$lib/api';
   import { translate, type Locale, type MessageKey } from '$lib/i18n';
 
   type ActivityEvent = {
@@ -126,6 +126,10 @@
   let hetznerPlan: HetznerPlanResult | null = $state(null);
   let hetznerBusy = $state(false);
   let hetznerError = $state('');
+  let decommissionPlan: PreserveDataDecommissionResult | null = $state(null);
+  let decommissionRun: WorkflowRun | null = $state(null);
+  let decommissionBusy = $state(false);
+  let decommissionError = $state('');
   let creating = $state(true);
   let editing = $state(false);
   let busy = $state(false);
@@ -724,6 +728,65 @@
       hetznerError = reason instanceof Error ? reason.message : 'hetzner_plan_failed';
     } finally {
       hetznerBusy = false;
+    }
+  }
+
+  async function planPreserveDataDecommission(): Promise<void> {
+    if (!activeProfile) return;
+    decommissionBusy = true;
+    decommissionError = '';
+    try {
+      decommissionPlan = await api.planPreserveDataDecommission(activeProfile.id);
+      decommissionRun = null;
+    } catch (reason) {
+      decommissionError = reason instanceof Error ? reason.message : 'decommission_plan_failed';
+    } finally {
+      decommissionBusy = false;
+    }
+  }
+
+  async function approvePreserveDataDecommission(): Promise<void> {
+    if (!decommissionPlan) return;
+    decommissionBusy = true;
+    decommissionError = '';
+    try {
+      decommissionRun = await api.approvePlan(decommissionPlan.plan.id);
+    } catch (reason) {
+      decommissionError = reason instanceof Error ? reason.message : 'decommission_approval_failed';
+    } finally {
+      decommissionBusy = false;
+    }
+  }
+
+  async function resumePreserveDataDecommission(): Promise<void> {
+    if (!decommissionRun) return;
+    decommissionBusy = true;
+    decommissionError = '';
+    try {
+      decommissionRun = await api.resumePreserveDataDecommission(decommissionRun.id);
+    } catch (reason) {
+      decommissionError = reason instanceof Error ? reason.message : 'decommission_resume_failed';
+    } finally {
+      decommissionBusy = false;
+    }
+  }
+
+  async function forgetActiveProfile(): Promise<void> {
+    if (!activeProfile || !window.confirm(`Forget local profile “${activeProfile.name}”? This does not change any cluster or provider resource.`)) return;
+    decommissionBusy = true;
+    decommissionError = '';
+    try {
+      await api.forgetProfile(activeProfile.id);
+      profiles = profiles.filter((profile) => profile.id !== activeProfile!.id);
+      activeProfile = profiles[0] ?? null;
+      decommissionPlan = null;
+      decommissionRun = null;
+      if (activeProfile) await selectProfile(activeProfile);
+      else creating = true;
+    } catch (reason) {
+      decommissionError = reason instanceof Error ? reason.message : 'profile_forget_failed';
+    } finally {
+      decommissionBusy = false;
     }
   }
 
@@ -1593,6 +1656,45 @@
           {/if}
         </section>
 
+        <section class="card decommission-card" aria-labelledby="decommission-title">
+          <p class="eyebrow">Lifecycle authority</p>
+          <h2 id="decommission-title">Preserve-data decommission</h2>
+          <p class="muted">Freshly inspect provider and cluster identity, then stop or remove only proven profile-owned compute and workloads. Persistent data, shared DNS zones, GitOps overlay, and unknown resources are retained.</p>
+          {#if decommissionError}<p class="inline-error" role="alert">{decommissionError}</p>{/if}
+          {#if !decommissionPlan}
+            <button type="button" class="danger" onclick={() => void planPreserveDataDecommission()} disabled={decommissionBusy}>Inspect and prepare preserve-data plan</button>
+          {:else}
+            <dl>
+              <div><dt>Plan digest</dt><dd><code>{decommissionPlan.decommission.digest}</code></dd></div>
+              <div><dt>Expected downtime</dt><dd>{decommissionPlan.decommission.expectedDowntime}</dd></div>
+              <div><dt>Recovery path</dt><dd>{decommissionPlan.decommission.recoveryPath}</dd></div>
+              <div><dt>Retained data</dt><dd>{decommissionPlan.decommission.retainedData.join(', ') || 'None declared'}</dd></div>
+              <div><dt>Continuing provider cost</dt><dd>{decommissionPlan.decommission.continuingCosts.map((cost) => `${cost.kind} €${cost.monthlyEur.toFixed(2)}/month`).join('; ') || 'None'}</dd></div>
+            </dl>
+            {#if decommissionPlan.decommission.blockers?.length}
+              <p class="inline-error"><strong>Deletion blocked:</strong> {decommissionPlan.decommission.blockers.join('; ')}</p>
+            {/if}
+            <ul class="handoff-checklist">
+              {#each decommissionPlan.decommission.items as item (item.providerId)}
+                <li><span aria-hidden="true">{item.action === 'remove' ? '!' : '✓'}</span> <code>{item.kind}/{item.providerId}</code> — {item.action} ({item.ownership})</li>
+              {/each}
+            </ul>
+            <div class="actions">
+              <button type="button" class="secondary" onclick={() => void planPreserveDataDecommission()} disabled={decommissionBusy}>Reinspect and re-plan</button>
+              <button type="button" class="danger" onclick={() => void approvePreserveDataDecommission()} disabled={decommissionBusy || !decommissionPlan.approvable}>Approve preserve-data decommission</button>
+            </div>
+            {#if decommissionRun}
+              <p class="inline-notice">Run: <code>{decommissionRun.id}</code> — {decommissionRun.state} at {decommissionRun.currentCheckpoint}</p>
+              {#if decommissionRun.state === 'running' && decommissionRun.currentCheckpoint === 'interrupted'}
+                <button type="button" onclick={() => void resumePreserveDataDecommission()} disabled={decommissionBusy}>Reinspect and resume</button>
+              {/if}
+            {/if}
+          {/if}
+          <hr />
+          <p class="muted">Forget profile only removes this Launcher’s local reference. It performs no provider, cluster, DNS, overlay, or data mutation.</p>
+          <button type="button" class="secondary" onclick={() => void forgetActiveProfile()} disabled={decommissionBusy}>Forget local Cluster Profile</button>
+        </section>
+
 		<section class="card vault-card" aria-labelledby="vault-title">
 			<div class="vault-heading">
 				<div>
@@ -1801,6 +1903,8 @@
   .status-icon { display: grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: currentColor; color: white; }
   .verified .status-icon { background: #176b45; }
   .plan-card { margin: 0 0 2rem; }
+	.decommission-card { margin: 0 0 2rem; border-left: 5px solid #b5473b; }
+	.decommission-card hr { border: 0; border-top: 1px solid #dce5de; margin: 1.5rem 0; }
 	.vault-card { margin: 0 0 2rem; border-left: 5px solid #176b45; }
 	.vault-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 	.vault-heading h2 { margin-bottom: 0; }

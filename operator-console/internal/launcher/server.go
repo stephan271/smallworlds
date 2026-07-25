@@ -66,6 +66,11 @@ type Config struct {
 	HetznerReconciler hetznerprovision.Reconciler
 	// HetznerConvergence watches a provisioned node come up.
 	HetznerConvergence hetznerprovision.ConvergenceObserver
+	// PreserveDecommissionInspector and Executor are deliberately separate:
+	// inspection is read-only and may be available before the narrowly-scoped
+	// provider/local-node mutation adapter is installed.
+	PreserveDecommissionInspector PreserveDecommissionInspector
+	PreserveDecommissionExecutor  PreserveDecommissionExecutor
 }
 
 // GenericGitClient permits deterministic Launcher contract tests while the
@@ -105,23 +110,26 @@ type Server struct {
 	launchToken string
 	dataDir     string
 
-	mu               sync.RWMutex
-	tokenUsed        bool
-	sessions         map[string]session
-	store            *state.Store
-	vault            *vault.Vault
-	workflow         *workflow.Engine
-	github           *github.Client
-	genericGit       GenericGitClient
-	assets           *bootstrapassets.Manager
-	nodes            NodeInspector
-	handoff          handoffverification.Verifier
-	passkey          firstowner.PasskeyVerifier
-	offsite          offsite.Inspector
-	secrets          ClusterSecretApplier
-	offsiteValidator OffsiteValidationRunner
-	hetzner          HetznerProvider
-	hetznerProvision *hetznerprovision.Service
+	mu                    sync.RWMutex
+	tokenUsed             bool
+	sessions              map[string]session
+	store                 *state.Store
+	vault                 *vault.Vault
+	workflow              *workflow.Engine
+	github                *github.Client
+	genericGit            GenericGitClient
+	assets                *bootstrapassets.Manager
+	nodes                 NodeInspector
+	handoff               handoffverification.Verifier
+	passkey               firstowner.PasskeyVerifier
+	offsite               offsite.Inspector
+	secrets               ClusterSecretApplier
+	offsiteValidator      OffsiteValidationRunner
+	hetzner               HetznerProvider
+	hetznerProvision      *hetznerprovision.Service
+	decommissionInspector PreserveDecommissionInspector
+	decommissionExecutor  PreserveDecommissionExecutor
+	decommissionActive    sync.Map
 }
 
 func New(config Config) (*Server, error) {
@@ -217,6 +225,14 @@ func New(config Config) (*Server, error) {
 	if hetznerConvergence == nil {
 		hetznerConvergence = unavailableConvergenceObserver{}
 	}
+	decommissionInspector := config.PreserveDecommissionInspector
+	if decommissionInspector == nil {
+		decommissionInspector = unavailablePreserveDecommissionInspector{}
+	}
+	decommissionExecutor := config.PreserveDecommissionExecutor
+	if decommissionExecutor == nil {
+		decommissionExecutor = unavailablePreserveDecommissionExecutor{}
+	}
 	workflowEngine.RegisterExecutor("BootstrapLocalNode", bootstrapService.Execute)
 	server := &Server{
 		launchToken:      config.LaunchToken,
@@ -235,7 +251,9 @@ func New(config Config) (*Server, error) {
 		secrets:          clusterSecretApplier,
 		offsiteValidator: offsiteValidationRunner,
 
-		hetzner: hetznerProvider,
+		hetzner:               hetznerProvider,
+		decommissionInspector: decommissionInspector,
+		decommissionExecutor:  decommissionExecutor,
 	}
 	// Registered after the server exists (the executor is a server method) and
 	// before ResumeActive, so a validation run interrupted by a restart resumes.
@@ -245,6 +263,7 @@ func New(config Config) (*Server, error) {
 		vaultStore.Load, server.loadApprovedHetznerPlan, server.buildHetznerModuleInput,
 	)
 	workflowEngine.RegisterExecutor(hetznerProvisionIntent, server.hetznerProvision.Execute)
+	workflowEngine.RegisterExecutor(preserveDecommissionIntent, server.executePreserveDecommission)
 	if err := workflowEngine.ResumeActive(context.Background()); err != nil {
 		store.Close()
 		return nil, err
@@ -366,6 +385,14 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.proposeOffsite(response, request)
 	case request.URL.Path == "/api/v1/offsite/validate":
 		server.validateOffsite(response, request)
+	case request.URL.Path == "/api/v1/decommission":
+		server.decommissionStatus(response, request)
+	case request.URL.Path == "/api/v1/decommission/inspect":
+		server.inspectDecommission(response, request)
+	case request.URL.Path == "/api/v1/decommission/plan":
+		server.planPreserveDecommission(response, request)
+	case strings.HasPrefix(request.URL.Path, "/api/v1/decommission/runs/"):
+		server.resumePreserveDecommission(response, request)
 	case request.URL.Path == "/api/v1/profiles":
 		server.profiles(response, request)
 	case strings.HasPrefix(request.URL.Path, "/api/v1/profiles/"):
@@ -3360,6 +3387,16 @@ func (server *Server) plan(response http.ResponseWriter, request *http.Request) 
 		writeError(response, http.StatusForbidden, "csrf_required")
 		return
 	}
+	// Preserve-data plans with unresolved ownership remain reviewable but cannot
+	// be approved. This is a server-side gate; a browser cannot turn an unknown
+	// provider resource into a deletion by enabling a button.
+	if record, err := server.store.GetDecommissionPlan(request.Context(), parts[0]); err == nil {
+		var binding preserveDecommissionBinding
+		if json.Unmarshal([]byte(record.Binding), &binding) != nil || !binding.Plan.Approvable() {
+			writeError(response, http.StatusConflict, "decommission_ownership_unresolved")
+			return
+		}
+	}
 	run, err := server.workflow.Approve(request.Context(), parts[0])
 	if errors.Is(err, workflow.ErrPreconditionChanged) {
 		writeError(response, http.StatusConflict, "plan_precondition_changed")
@@ -3388,6 +3425,28 @@ func (server *Server) profile(response http.ResponseWriter, request *http.Reques
 		return
 	}
 	profileID := parts[0]
+	if len(parts) == 2 && parts[1] == "forget" && request.Method == http.MethodPost {
+		if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+			writeError(response, http.StatusForbidden, "csrf_required")
+			return
+		}
+		var input struct {
+			ConfirmProfileID string `json:"confirmProfileId"`
+		}
+		if !decodeJSON(response, request, 4*1024, &input) || input.ConfirmProfileID != profileID {
+			writeError(response, http.StatusBadRequest, "profile_forget_confirmation_required")
+			return
+		}
+		if err := server.store.ForgetProfile(request.Context(), profileID); errors.Is(err, state.ErrNotFound) {
+			writeError(response, http.StatusNotFound, "profile_not_found")
+			return
+		} else if err != nil {
+			writeError(response, http.StatusInternalServerError, "profile_forget_failed")
+			return
+		}
+		writeJSON(response, http.StatusOK, map[string]any{"profileId": profileID, "forgotten": true, "externalMutation": false})
+		return
+	}
 
 	if len(parts) == 2 && parts[1] == "journey" && request.Method == http.MethodGet {
 		journey, err := server.workflow.Journey(request.Context(), profileID)

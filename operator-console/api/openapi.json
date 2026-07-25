@@ -759,6 +759,34 @@
         }
       }
     },
+    "/api/v1/decommission": {
+      "get": {
+        "operationId": "inspectPreserveDataDecommission",
+        "parameters": [{"name":"profileId","in":"query","required":true,"schema":{"type":"string"}}],
+        "responses": {"200":{"description":"Fresh preserve-data inspection and preview"},"401":{"$ref":"#/components/responses/Unauthorized"}}
+      }
+    },
+    "/api/v1/decommission/inspect": {
+      "post": {
+        "operationId": "refreshPreserveDataDecommissionInspection",
+        "parameters": [{"$ref":"#/components/parameters/CSRFToken"}],
+        "responses": {"200":{"description":"Fresh provider and cluster ownership inspection"}}
+      }
+    },
+    "/api/v1/decommission/plan": {
+      "post": {
+        "operationId": "planPreserveDataDecommission",
+        "parameters": [{"$ref":"#/components/parameters/CSRFToken"}],
+        "responses": {"201":{"description":"Approved-plan-ready preserve-data decommission plan"},"409":{"$ref":"#/components/responses/Conflict"}}
+      }
+    },
+    "/api/v1/decommission/runs/{id}/resume": {
+      "post": {
+        "operationId": "resumePreserveDataDecommission",
+        "parameters": [{"$ref":"#/components/parameters/CSRFToken"},{"$ref":"#/components/parameters/RunID"}],
+        "responses": {"202":{"description":"Reinspected preserve-data decommission resumed"},"409":{"$ref":"#/components/responses/Conflict"}}
+      }
+    },
     "/api/v1/profiles": {
       "get": {
         "operationId": "listProfiles",
@@ -857,6 +885,13 @@
             "$ref": "#/components/responses/Conflict"
           }
         }
+      }
+    },
+    "/api/v1/profiles/{id}/forget": {
+      "post": {
+        "operationId": "forgetClusterProfile",
+        "parameters": [{"$ref":"#/components/parameters/ProfileID"},{"$ref":"#/components/parameters/CSRFToken"}],
+        "responses": {"200":{"description":"Launcher-local profile reference forgotten; no external mutation occurred"},"404":{"$ref":"#/components/responses/NotFound"}}
       }
     },
     "/api/v1/profiles/{id}/journey": {

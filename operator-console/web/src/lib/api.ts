@@ -45,6 +45,9 @@ export type HetznerWorkspace = components['schemas']['HetznerWorkspace'];
 export type TemporaryAccess = components['schemas']['TemporaryAccess'];
 export type HetznerPresetTier = 'small' | 'recommended' | 'high' | 'advanced';
 export type HetznerPlanResult = { plan: ChangePlan; changePlan: HetznerChangePlan; approvable: boolean };
+export type DecommissionItem = { kind: string; providerId: string; name: string; state: string; ownership: 'profile-owned' | 'shared' | 'retained' | 'unknown'; action: 'remove' | 'retain'; reason: string; monthlyEur?: number; detail?: string };
+export type PreserveDataDecommissionPlan = { profileId: string; deploymentMode: string; inspectionDigest: string; items: DecommissionItem[]; retainedData: string[]; continuingCosts: Array<{ providerId: string; kind: string; monthlyEur: number }>; expectedDowntime: string; recoveryPath: string; blockers?: string[]; digest: string };
+export type PreserveDataDecommissionResult = { plan: ChangePlan; decommission: PreserveDataDecommissionPlan; approvable: boolean };
 
 let csrfToken = '';
 
@@ -186,5 +189,13 @@ export const api = {
   // Narrowing cannot reopen a closed path, and an address that would produce a
   // rule admitting nobody leaves it open with the reason stated instead.
   narrowHetznerTemporaryAccess: (profileId: string, operatorAddress: string) =>
-    request<TemporaryAccess>('/api/v1/hetzner/temporary-access/narrow', { method: 'POST', body: JSON.stringify({ profileId, operatorAddress }) })
+    request<TemporaryAccess>('/api/v1/hetzner/temporary-access/narrow', { method: 'POST', body: JSON.stringify({ profileId, operatorAddress }) }),
+  inspectPreserveDataDecommission: (profileId: string) =>
+    request<{ inspection: unknown; preview: PreserveDataDecommissionPlan }>(`/api/v1/decommission?profileId=${encodeURIComponent(profileId)}`),
+  planPreserveDataDecommission: (profileId: string) =>
+    request<PreserveDataDecommissionResult>('/api/v1/decommission/plan', { method: 'POST', body: JSON.stringify({ profileId }) }),
+  resumePreserveDataDecommission: (runId: string) =>
+    request<WorkflowRun>(`/api/v1/decommission/runs/${encodeURIComponent(runId)}/resume`, { method: 'POST' }),
+  forgetProfile: (profileId: string) =>
+    request<{ profileId: string; forgotten: boolean; externalMutation: false }>(`/api/v1/profiles/${encodeURIComponent(profileId)}/forget`, { method: 'POST', body: JSON.stringify({ confirmProfileId: profileId }) })
 };
