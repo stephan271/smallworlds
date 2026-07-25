@@ -39,6 +39,7 @@ type IntentType string
 const (
 	IntentAddCapability    IntentType = "AddCapability"
 	IntentConfigureBackup  IntentType = "ConfigureBackup"
+	IntentUpdateRelease    IntentType = "UpdateRelease"
 	IntentEnrollDevice     IntentType = "EnrollDevice"
 	IntentRevokeDevice     IntentType = "RevokeDevice"
 	IntentRotateCredential IntentType = "RotateCredential"
@@ -58,7 +59,7 @@ func (intent IntentType) RequiredPermission() consoleauth.Permission {
 // Valid reports whether the intent is a recognized, bounded first-release intent.
 func (intent IntentType) Valid() bool {
 	switch intent {
-	case IntentAddCapability, IntentConfigureBackup, IntentEnrollDevice, IntentRevokeDevice, IntentRotateCredential:
+	case IntentAddCapability, IntentConfigureBackup, IntentUpdateRelease, IntentEnrollDevice, IntentRevokeDevice, IntentRotateCredential:
 		return true
 	default:
 		return false

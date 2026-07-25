@@ -175,6 +175,89 @@ export interface ProposeResponse {
   mergeInstructionKey: string;
 }
 
+// --- Explicit SmallWorlds release updates (internal/releaseupdate) ---
+
+export interface ClusterProfile {
+  launcherVersion: string;
+  clusterVersion: string;
+  baseTag: string;
+  catalogVersion: number;
+  deploymentMode: string;
+  capabilities: string[];
+  images?: Record<string, string>;
+  tools?: Record<string, string>;
+}
+
+export interface ReleaseCompatibility {
+  compatible: boolean;
+  reasons: string[];
+}
+
+export interface ReleaseMetadata {
+  release: string;
+  baseTag: string;
+  catalogVersion: number;
+  images: Record<string, string>;
+  tools: Record<string, string>;
+  compatibility: {
+    launcherMin: string;
+    launcherMax: string;
+    clusterMin: string;
+    clusterMax: string;
+    catalogMin: number;
+    catalogMax: number;
+  };
+  releaseNotes: string[];
+  capabilityChanges: Array<{ id: string; change: string; detail: string }>;
+  risks: { downtime: string[]; data: string[]; exposure: string[] };
+  recovery: { expected: string; steps: string[] };
+}
+
+export interface AvailableRelease {
+  metadata: ReleaseMetadata;
+  compatibility: ReleaseCompatibility;
+  signatureValid: true;
+}
+
+export interface ReleasePlan extends Omit<ReleaseMetadata, 'release' | 'baseTag' | 'compatibility'> {
+  fromBaseTag: string;
+  toBaseTag: string;
+  compatibility: ReleaseCompatibility;
+  gitDiff: string;
+}
+
+export interface ReleasePlanResponse {
+  planId: string;
+  digest: string;
+  summary: string;
+  plan: ReleasePlan;
+}
+
+export interface ReleaseProposalResponse {
+  runId: string;
+  provider: string;
+  branch?: string;
+  commit: string;
+  url?: string;
+  automaticMerge: false;
+  liveClusterMutated: false;
+}
+
+export type AdoptionState = 'awaiting-merge' | 'converging' | 'adopted' | 'partial' | 'failed';
+
+export interface ReleaseAdoption {
+  targetRelease: string;
+  merged: boolean;
+  mergedCommit?: string;
+  argoRevision?: string;
+  argoSynced: boolean;
+  argoHealthy: boolean;
+  argoFailed: boolean;
+  capabilities: CapabilityAssessment[];
+  state: AdoptionState;
+  reasons: string[];
+}
+
 // --- Device access administration (internal/operatordevice, internal/console) ---
 
 export type EnrollmentStepKind =
@@ -319,6 +402,19 @@ export const consoleApi = {
     ),
   proposeAddition: (planId: string) =>
     postJSON<ProposeResponse>(`/api/v1/additions/${encodeURIComponent(planId)}/propose`),
+  clusterProfile: () => getJSON<ClusterProfile>('/api/v1/updates/profile'),
+  availableRelease: () =>
+    getJSON<{ available: AvailableRelease | null }>('/api/v1/updates/available'),
+  planRelease: (release: string) =>
+    postJSON<ReleasePlanResponse>('/api/v1/updates/plan', { release }),
+  approveRelease: (planId: string) =>
+    postJSON<{ planId: string; approvedBy: string }>(
+      `/api/v1/updates/${encodeURIComponent(planId)}/approve`
+    ),
+  proposeRelease: (planId: string) =>
+    postJSON<ReleaseProposalResponse>(`/api/v1/updates/${encodeURIComponent(planId)}/propose`),
+  releaseAdoption: (release: string) =>
+    getJSON<ReleaseAdoption>(`/api/v1/updates/${encodeURIComponent(release)}/adoption`),
   administrationAccess: () => getJSON<AdminAccess>('/api/v1/administration/access'),
   createInvitation: (label: string) =>
     postJSON<InvitationResponse>('/api/v1/administration/invitations', { label }),

@@ -16,6 +16,11 @@
     type PlanResponse,
     type ProposeResponse,
     type ProtectionLevel,
+    type AvailableRelease,
+    type ClusterProfile,
+    type ReleaseAdoption,
+    type ReleasePlanResponse,
+    type ReleaseProposalResponse,
     type RemediationKind,
     type RevocationExecuteResponse,
     type RevocationPlanResponse,
@@ -38,8 +43,9 @@
   } from '$lib/console-i18n';
 
   type Status = 'loading' | 'anon' | 'ready' | 'forbidden' | 'error';
-  type View = 'capabilities' | 'protection' | 'additions' | 'access';
+  type View = 'capabilities' | 'protection' | 'additions' | 'updates' | 'access';
   type AdditionStage = 'offers' | 'plan' | 'proposed';
+  type UpdateStage = 'available' | 'plan' | 'proposed';
   type RevokeStage = 'idle' | 'planned' | 'done';
 
   let locale = $state<Locale>('en');
@@ -63,6 +69,17 @@
   let approved = $state(false);
   let proposal = $state<ProposeResponse | null>(null);
   let additionError = $state<ConsoleMessageKey | null>(null);
+
+  // Explicit release-update journey state.
+  let clusterProfile = $state<ClusterProfile | null>(null);
+  let availableRelease = $state<AvailableRelease | null>(null);
+  let updateStage = $state<UpdateStage>('available');
+  let updatePlan = $state<ReleasePlanResponse | null>(null);
+  let updateApproved = $state(false);
+  let updateProposal = $state<ReleaseProposalResponse | null>(null);
+  let updateAdoption = $state<ReleaseAdoption | null>(null);
+  let updateLoading = $state(false);
+  let updateError = $state<ConsoleMessageKey | null>(null);
 
   // Device-access (Administer) journey state.
   let access = $state<AdminAccess | null>(null);
@@ -277,6 +294,96 @@
     void loadOffers();
   }
 
+  function updateErrorFor(err: unknown): ConsoleMessageKey {
+    if (err instanceof ConsoleApiError) {
+      switch (err.code) {
+        case 'release_incompatible':
+          return 'updateErrorIncompatible';
+        case 'update_plan_mismatch':
+        case 'release_metadata_changed':
+          return 'updateErrorMismatch';
+        case 'proposal_unavailable':
+          return 'additionErrorProposal';
+      }
+    }
+    return 'updateErrorGeneric';
+  }
+
+  async function showUpdates() {
+    view = 'updates';
+    if (clusterProfile !== null) return;
+    updateLoading = true;
+    updateError = null;
+    try {
+      [clusterProfile, { available: availableRelease }] = await Promise.all([
+        consoleApi.clusterProfile(),
+        consoleApi.availableRelease()
+      ]);
+    } catch (err) {
+      updateError = updateErrorFor(err);
+    } finally {
+      updateLoading = false;
+    }
+  }
+
+  async function planUpdate() {
+    if (!availableRelease) return;
+    updateLoading = true;
+    updateError = null;
+    try {
+      updatePlan = await consoleApi.planRelease(availableRelease.metadata.release);
+      updateApproved = false;
+      updateStage = 'plan';
+    } catch (err) {
+      updateError = updateErrorFor(err);
+    } finally {
+      updateLoading = false;
+    }
+  }
+
+  async function approveUpdate() {
+    if (!updatePlan) return;
+    updateLoading = true;
+    updateError = null;
+    try {
+      await consoleApi.approveRelease(updatePlan.planId);
+      updateApproved = true;
+    } catch (err) {
+      updateError = updateErrorFor(err);
+    } finally {
+      updateLoading = false;
+    }
+  }
+
+  async function proposeUpdate() {
+    if (!updatePlan) return;
+    updateLoading = true;
+    updateError = null;
+    try {
+      updateProposal = await consoleApi.proposeRelease(updatePlan.planId);
+      updateStage = 'proposed';
+    } catch (err) {
+      updateError = updateErrorFor(err);
+    } finally {
+      updateLoading = false;
+    }
+  }
+
+  async function refreshAdoption() {
+    const release = updatePlan?.plan.toBaseTag ?? availableRelease?.metadata.release;
+    if (!release) return;
+    updateLoading = true;
+    updateError = null;
+    try {
+      updateAdoption = await consoleApi.releaseAdoption(release);
+    } catch {
+      updateAdoption = null;
+      updateError = 'updateAdoptionUnavailable';
+    } finally {
+      updateLoading = false;
+    }
+  }
+
   function deviceErrorFor(err: unknown): ConsoleMessageKey {
     if (err instanceof ConsoleApiError) {
       switch (err.code) {
@@ -395,6 +502,12 @@
     additionStage = 'offers';
     currentPlan = null;
     proposal = null;
+    clusterProfile = null;
+    availableRelease = null;
+    updateStage = 'available';
+    updatePlan = null;
+    updateProposal = null;
+    updateAdoption = null;
     access = null;
     invitation = null;
     revokeStage = 'idle';
@@ -462,6 +575,9 @@
       </button>
       <button type="button" aria-pressed={view === 'protection'} onclick={showProtection}>
         {t('navProtection')}
+      </button>
+      <button type="button" aria-pressed={view === 'updates'} onclick={showUpdates}>
+        {t('navUpdates')}
       </button>
       {#if hasPermission(session, 'propose')}
         <button type="button" aria-pressed={view === 'additions'} onclick={showAdditions}>
@@ -645,6 +761,152 @@
           {/if}
           <p class="reason">{t('proposalMergeObserved')}</p>
           <button type="button" class="button" onclick={resetAdditions}>{t('addAnother')}</button>
+        {/if}
+      </section>
+    {:else if view === 'updates'}
+      <section class="panel" aria-labelledby="updates-heading">
+        <h2 id="updates-heading">{t('updatesHeading')}</h2>
+        <p class="hint">{t('updatesIntro')}</p>
+        {#if updateError}
+          <p class="badge warn errorline" role="alert">{t(updateError)}</p>
+        {/if}
+        {#if updateLoading && !clusterProfile}
+          <p>{t('loading')}</p>
+        {:else if clusterProfile}
+          <h3>{t('updateProfileHeading')}</h3>
+          <dl class="evidence">
+            <div><dt>{t('updateCurrentRelease')}</dt><dd><code>{clusterProfile.baseTag}</code></dd></div>
+            <div><dt>{t('updateLauncherVersion')}</dt><dd><code>{clusterProfile.launcherVersion}</code></dd></div>
+            <div><dt>{t('updateClusterVersion')}</dt><dd><code>{clusterProfile.clusterVersion}</code></dd></div>
+            <div><dt>{t('updateCatalogVersion')}</dt><dd>{clusterProfile.catalogVersion}</dd></div>
+          </dl>
+          <p>
+            <a class="button" href="/api/v1/updates/profile/export" download="smallworlds-cluster-profile.json">
+              {t('updateExportProfile')}
+            </a>
+          </p>
+
+          {#if updateStage === 'available'}
+            {#if !availableRelease}
+              <p>{t('updateNoRelease')}</p>
+            {:else}
+              <h3>{t('updateAvailableHeading')}: {availableRelease.metadata.release}</h3>
+              <p class="badge">
+                <span aria-hidden="true" class="sym">✓</span>{t('updateSignatureValid')}
+              </p>
+              <p class="badge {availableRelease.compatibility.compatible ? '' : 'warn'} fitline">
+                <span aria-hidden="true" class="sym">{availableRelease.compatibility.compatible ? '✓' : '▲'}</span>
+                {availableRelease.compatibility.compatible ? t('updateCompatibilityYes') : t('updateCompatibilityNo')}
+              </p>
+              {#if !availableRelease.compatibility.compatible}
+                <ul>
+                  {#each availableRelease.compatibility.reasons as reason}<li><code>{reason}</code></li>{/each}
+                </ul>
+              {/if}
+              <dl class="evidence">
+                <div><dt>{t('updateCurrentRelease')}</dt><dd><code>{availableRelease.metadata.baseTag}</code></dd></div>
+                <div><dt>{t('updateCatalogVersion')}</dt><dd>{availableRelease.metadata.catalogVersion}</dd></div>
+              </dl>
+              <h4>{t('updateNotesHeading')}</h4>
+              <ul>{#each availableRelease.metadata.releaseNotes as note}<li>{note}</li>{/each}</ul>
+              {#if availableRelease.metadata.capabilityChanges.length > 0}
+                <h4>{t('updateCapabilitiesHeading')}</h4>
+                <ul>
+                  {#each availableRelease.metadata.capabilityChanges as change}
+                    <li><strong>{change.id}</strong> — {change.change}: {change.detail}</li>
+                  {/each}
+                </ul>
+              {/if}
+              {#if hasPermission(session, 'propose')}
+                <button
+                  type="button"
+                  class="button"
+                  disabled={!availableRelease.compatibility.compatible}
+                  aria-busy={updateLoading}
+                  onclick={planUpdate}
+                >
+                  {t('updatePlanButton')}
+                </button>
+              {/if}
+            {/if}
+          {:else if updateStage === 'plan' && updatePlan}
+            <h3>{t('planHeading')}: {updatePlan.plan.fromBaseTag} → {updatePlan.plan.toBaseTag}</h3>
+            <h4>{t('updateNotesHeading')}</h4>
+            <ul>{#each updatePlan.plan.releaseNotes as note}<li>{note}</li>{/each}</ul>
+
+            <h4>{t('updateCapabilitiesHeading')}</h4>
+            {#if updatePlan.plan.capabilityChanges.length === 0}
+              <p>{t('noCapabilities')}</p>
+            {:else}
+              <ul>
+                {#each updatePlan.plan.capabilityChanges as change}
+                  <li><strong>{change.id}</strong> — {change.change}: {change.detail}</li>
+                {/each}
+              </ul>
+            {/if}
+
+            <h4>{t('updatePinsHeading')}</h4>
+            <dl class="evidence pins">
+              {#each Object.entries(updatePlan.plan.images) as [name, pin]}
+                <div><dt>image/{name}</dt><dd><code>{pin}</code></dd></div>
+              {/each}
+              {#each Object.entries(updatePlan.plan.tools) as [name, pin]}
+                <div><dt>tool/{name}</dt><dd><code>{pin}</code></dd></div>
+              {/each}
+            </dl>
+
+            <h4>{t('updateRisksHeading')}</h4>
+            <dl class="evidence">
+              <div><dt>{t('updateDowntimeRisks')}</dt><dd>{updatePlan.plan.risks.downtime.join(' · ')}</dd></div>
+              <div><dt>{t('updateDataRisks')}</dt><dd>{updatePlan.plan.risks.data.join(' · ')}</dd></div>
+              <div><dt>{t('updateExposureRisks')}</dt><dd>{updatePlan.plan.risks.exposure.join(' · ')}</dd></div>
+            </dl>
+            <h4>{t('updateRecoveryHeading')}</h4>
+            <p>{updatePlan.plan.recovery.expected}</p>
+            <ol>{#each updatePlan.plan.recovery.steps as step}<li>{step}</li>{/each}</ol>
+
+            <h4>{t('planDiffHeading')}</h4>
+            <pre class="diff"><code>{updatePlan.plan.gitDiff}</code></pre>
+            <p class="reason">{t('updateProposalSafety')}</p>
+            <div class="actions">
+              <button type="button" class="button" disabled={updateApproved} aria-busy={updateLoading} onclick={approveUpdate}>
+                {#if updateApproved}✓ {/if}{t('approveButton')}
+              </button>
+              <button type="button" class="button" disabled={!updateApproved} aria-busy={updateLoading} onclick={proposeUpdate}>
+                {t('proposeButton')}
+              </button>
+            </div>
+          {:else if updateStage === 'proposed' && updateProposal}
+            <h3>{t('updateProposalOpened')}</h3>
+            <dl class="evidence">
+              <div><dt>{t('proposalProvider')}</dt><dd>{updateProposal.provider}</dd></div>
+              {#if updateProposal.branch}<div><dt>{t('proposalBranch')}</dt><dd>{updateProposal.branch}</dd></div>{/if}
+              <div><dt>{t('proposalCommit')}</dt><dd><code>{updateProposal.commit}</code></dd></div>
+            </dl>
+            {#if updateProposal.url}
+              <p><a class="button" href={updateProposal.url} target="_blank" rel="noopener noreferrer">{t('proposalOpenLink')}</a></p>
+            {/if}
+            <p class="reason">{t('updateProposalSafety')}</p>
+            <h4>{t('updateAdoptionHeading')}</h4>
+            <button type="button" class="button" aria-busy={updateLoading} onclick={refreshAdoption}>
+              {t('updateRefreshAdoption')}
+            </button>
+            {#if updateAdoption}
+              <p class="badge {updateAdoption.state === 'failed' || updateAdoption.state === 'partial' ? 'warn' : ''} fitline">
+                <strong>{updateAdoption.state}</strong>
+              </p>
+              <dl class="evidence">
+                <div>
+                  <dt>{t('updateArgoEvidence')}</dt>
+                  <dd>{updateAdoption.argoSynced ? 'Synced' : 'OutOfSync'} · {updateAdoption.argoHealthy ? 'Healthy' : 'Not healthy'}</dd>
+                </div>
+                {#if updateAdoption.argoRevision}<div><dt>Revision</dt><dd><code>{updateAdoption.argoRevision}</code></dd></div>{/if}
+              </dl>
+              {#if updateAdoption.reasons.length > 0}
+                <ul>{#each updateAdoption.reasons as reason}<li><code>{reason}</code></li>{/each}</ul>
+              {/if}
+            {/if}
+          {/if}
         {/if}
       </section>
     {:else if view === 'access'}

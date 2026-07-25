@@ -33,6 +33,7 @@ import (
 	"github.com/stephan271/smallworlds/operator-console/internal/consoleworkflow"
 	"github.com/stephan271/smallworlds/operator-console/internal/deeplinks"
 	"github.com/stephan271/smallworlds/operator-console/internal/protection"
+	"github.com/stephan271/smallworlds/operator-console/internal/releaseupdate"
 )
 
 // ProtectionReporter reports the dataset protection inventory. The
@@ -82,6 +83,15 @@ type Config struct {
 	// Proposals opens Git proposals against the operator's overlay. When nil,
 	// proposing refuses honestly with proposal_unavailable.
 	Proposals ProposalOpener
+	// ReleaseCatalog is the trusted, signed source of available SmallWorlds
+	// releases. An empty catalog makes update discovery unavailable.
+	ReleaseCatalog releaseupdate.Catalog
+	// ClusterProfile reports the current non-secret release identity used for
+	// compatibility checks and profile export.
+	ClusterProfile ClusterProfileReporter
+	// ReleaseAdoption reports the post-merge Git/Argo/capability evidence for a
+	// proposed release.
+	ReleaseAdoption ReleaseAdoptionReporter
 	// Workflow persists compact Change Plans and Workflow Runs (the Activity
 	// Record). When nil, an in-memory store is used.
 	Workflow consoleworkflow.Store
@@ -106,23 +116,26 @@ type Config struct {
 
 // Server is the in-cluster console HTTP handler.
 type Server struct {
-	config         Config
-	catalog        []assessment.CapabilityRef
-	byID           map[string]assessment.CapabilityRef
-	sessionKey     []byte
-	now            func() time.Time
-	random         io.Reader
-	links          deeplinks.Targets
-	mux            *http.ServeMux
-	richCatalog    capability.Catalog
-	deploymentMode capability.DeploymentMode
-	overlayTarget  addcapability.OverlayTarget
-	capacity       CapacityReporter
-	proposals      ProposalOpener
-	workflow       consoleworkflow.Store
-	directory      DeviceDirectory
-	invitations    InvitationIssuer
-	revoker        DeviceRevoker
+	config          Config
+	catalog         []assessment.CapabilityRef
+	byID            map[string]assessment.CapabilityRef
+	sessionKey      []byte
+	now             func() time.Time
+	random          io.Reader
+	links           deeplinks.Targets
+	mux             *http.ServeMux
+	richCatalog     capability.Catalog
+	deploymentMode  capability.DeploymentMode
+	overlayTarget   addcapability.OverlayTarget
+	capacity        CapacityReporter
+	proposals       ProposalOpener
+	releaseCatalog  releaseupdate.Catalog
+	clusterProfile  ClusterProfileReporter
+	releaseAdoption ReleaseAdoptionReporter
+	workflow        consoleworkflow.Store
+	directory       DeviceDirectory
+	invitations     InvitationIssuer
+	revoker         DeviceRevoker
 }
 
 // New builds a console Server. A missing SessionKey is filled with a fresh
@@ -157,6 +170,14 @@ func New(config Config) (*Server, error) {
 	if proposalOpener == nil {
 		proposalOpener = unavailableProposalOpener{}
 	}
+	clusterProfile := config.ClusterProfile
+	if clusterProfile == nil {
+		clusterProfile = unavailableClusterProfileReporter{}
+	}
+	releaseAdoption := config.ReleaseAdoption
+	if releaseAdoption == nil {
+		releaseAdoption = unavailableReleaseAdoptionReporter{}
+	}
 	workflowStore := config.Workflow
 	if workflowStore == nil {
 		workflowStore = consoleworkflow.NewMemoryStore(nil)
@@ -174,22 +195,25 @@ func New(config Config) (*Server, error) {
 		deviceRevoker = unavailableRevoker{}
 	}
 	server := &Server{
-		config:         config,
-		catalog:        append([]assessment.CapabilityRef(nil), config.Catalog...),
-		byID:           make(map[string]assessment.CapabilityRef, len(config.Catalog)),
-		sessionKey:     sessionKey,
-		now:            now,
-		random:         random,
-		mux:            http.NewServeMux(),
-		richCatalog:    config.RichCatalog,
-		deploymentMode: capabilityDeploymentModeOrDefault(config.DeploymentMode),
-		overlayTarget:  config.OverlayTarget,
-		capacity:       capacityReporter,
-		proposals:      proposalOpener,
-		workflow:       workflowStore,
-		directory:      deviceDirectory,
-		invitations:    invitationIssuer,
-		revoker:        deviceRevoker,
+		config:          config,
+		catalog:         append([]assessment.CapabilityRef(nil), config.Catalog...),
+		byID:            make(map[string]assessment.CapabilityRef, len(config.Catalog)),
+		sessionKey:      sessionKey,
+		now:             now,
+		random:          random,
+		mux:             http.NewServeMux(),
+		richCatalog:     config.RichCatalog,
+		deploymentMode:  capabilityDeploymentModeOrDefault(config.DeploymentMode),
+		overlayTarget:   config.OverlayTarget,
+		capacity:        capacityReporter,
+		proposals:       proposalOpener,
+		releaseCatalog:  config.ReleaseCatalog,
+		clusterProfile:  clusterProfile,
+		releaseAdoption: releaseAdoption,
+		workflow:        workflowStore,
+		directory:       deviceDirectory,
+		invitations:     invitationIssuer,
+		revoker:         deviceRevoker,
 	}
 	for _, ref := range server.catalog {
 		server.byID[ref.ID] = ref
@@ -218,6 +242,13 @@ func (server *Server) routes() {
 	server.mux.HandleFunc("POST /api/v1/additions/plan", server.require(consoleauth.PermissionPropose, server.handleAdditionPlan))
 	server.mux.HandleFunc("POST /api/v1/additions/{id}/approve", server.require(consoleauth.PermissionPropose, server.handleAdditionApprove))
 	server.mux.HandleFunc("POST /api/v1/additions/{id}/propose", server.require(consoleauth.PermissionPropose, server.handleAdditionPropose))
+	server.mux.HandleFunc("GET /api/v1/updates/profile", server.require(consoleauth.PermissionObserve, server.handleUpdateProfile))
+	server.mux.HandleFunc("GET /api/v1/updates/profile/export", server.require(consoleauth.PermissionObserve, server.handleUpdateProfileExport))
+	server.mux.HandleFunc("GET /api/v1/updates/available", server.require(consoleauth.PermissionObserve, server.handleUpdateAvailable))
+	server.mux.HandleFunc("POST /api/v1/updates/plan", server.require(consoleauth.PermissionPropose, server.handleUpdatePlan))
+	server.mux.HandleFunc("POST /api/v1/updates/{id}/approve", server.require(consoleauth.PermissionPropose, server.handleUpdateApprove))
+	server.mux.HandleFunc("POST /api/v1/updates/{id}/propose", server.require(consoleauth.PermissionPropose, server.handleUpdatePropose))
+	server.mux.HandleFunc("GET /api/v1/updates/{release}/adoption", server.require(consoleauth.PermissionObserve, server.handleUpdateAdoption))
 	server.mux.HandleFunc("GET /api/v1/administration/access", server.require(consoleauth.PermissionAdminister, server.handleAdministrationAccess))
 	server.mux.HandleFunc("GET /api/v1/administration/enrollment-guidance", server.require(consoleauth.PermissionAdminister, server.handleEnrollmentGuidance))
 	server.mux.HandleFunc("POST /api/v1/administration/invitations", server.require(consoleauth.PermissionAdminister, server.handleCreateInvitation))
