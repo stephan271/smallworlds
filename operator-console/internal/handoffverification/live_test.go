@@ -45,12 +45,81 @@ func liveChain(t *testing.T) (rootPEM string, chain []*x509.Certificate) {
 
 func liveTarget(rootPEM string) handoffverification.Target {
 	return handoffverification.Target{
+		Anchor:                  handoffverification.ClusterCARoot,
 		BaseDomain:              "smallworlds.internal",
 		GatewayHostname:         "gateway.smallworlds.internal",
 		OperatorHosts:           []string{"console.smallworlds.internal"},
 		RootFingerprint:         "SHA256:AA",
 		RootCertificatePEM:      rootPEM,
 		GatewayIdentityHostname: "gateway.smallworlds.internal",
+	}
+}
+
+// A publicly addressed installation has no root to pin: its operator interfaces
+// hold publicly trusted ACME certificates, and verification must apply the same
+// trust an Operator's browser will. Presenting the private Cluster CA chain
+// there must fail — a certificate no browser accepts is not a verified handoff.
+func TestLiveVerifierUsesPublicTrustWhenThereIsNoPinnedRoot(t *testing.T) {
+	_, chain := liveChain(t)
+	verifier := &handoffverification.LiveVerifier{
+		LookupHost:    func(context.Context, string) ([]string, error) { return []string{"100.64.0.1"}, nil },
+		DialReachable: func(context.Context, string) error { return nil },
+		DialTLS:       func(context.Context, string, string) ([]*x509.Certificate, error) { return chain, nil },
+		Port:          "443",
+	}
+	target := handoffverification.Target{
+		Anchor:                  handoffverification.PublicTrust,
+		BaseDomain:              "ops.smallworlds.internal",
+		GatewayHostname:         "gateway.ops.smallworlds.internal",
+		OperatorHosts:           []string{"console.smallworlds.internal"},
+		GatewayIdentityHostname: "gateway.ops.smallworlds.internal",
+	}
+	observations, err := verifier.Observe(context.Background(), target)
+	if err != nil {
+		t.Fatalf("observe: %v", err)
+	}
+	if observations.TLSTrusted {
+		t.Fatal("a privately signed certificate was accepted against the public trust store")
+	}
+	// The other three checks are unaffected by the anchor.
+	if !observations.PrivateReachable || !observations.DNSResolves || !observations.GatewayIdentityMatches {
+		t.Fatalf("observations = %+v, want only the TLS check failing", observations)
+	}
+	if handoffverification.Evaluate(observations).PermitsClosure() {
+		t.Fatal("closure permitted with untrusted operator TLS")
+	}
+}
+
+// A target must carry exactly the trust material its anchor calls for: a pinned
+// root alongside PublicTrust would silently widen what verification accepts,
+// and a missing root under ClusterCARoot leaves nothing to verify against.
+func TestTargetRejectsTrustMaterialThatDoesNotMatchItsAnchor(t *testing.T) {
+	rootPEM, _ := liveChain(t)
+	base := handoffverification.Target{
+		BaseDomain:              "smallworlds.internal",
+		GatewayHostname:         "gateway.smallworlds.internal",
+		OperatorHosts:           []string{"console.smallworlds.internal"},
+		GatewayIdentityHostname: "gateway.smallworlds.internal",
+	}
+	public := base
+	public.Anchor = handoffverification.PublicTrust
+	if err := public.Validate(); err != nil {
+		t.Fatalf("a public-trust target with no pinned root was rejected: %v", err)
+	}
+	public.RootCertificatePEM = rootPEM
+	if err := public.Validate(); !errors.Is(err, handoffverification.ErrInvalidTarget) {
+		t.Fatal("a pinned root alongside public trust was accepted")
+	}
+
+	private := base
+	private.Anchor = handoffverification.ClusterCARoot
+	if err := private.Validate(); !errors.Is(err, handoffverification.ErrInvalidTarget) {
+		t.Fatal("a Cluster CA target with no root was accepted")
+	}
+
+	unset := base
+	if err := unset.Validate(); !errors.Is(err, handoffverification.ErrInvalidTarget) {
+		t.Fatal("a target with no trust anchor was accepted")
 	}
 }
 
@@ -125,7 +194,7 @@ func TestLiveVerifierReportsIndividualFailures(t *testing.T) {
 		verifier := base()
 		verifier.DialTLS = func(context.Context, string, string) ([]*x509.Certificate, error) { return otherChain, nil }
 		observations, _ := verifier.Observe(context.Background(), liveTarget(rootPEM))
-		if observations.TLSChainsToClusterCA {
+		if observations.TLSTrusted {
 			t.Fatalf("leaf not chaining to the pinned root reported trusted: %#v", observations)
 		}
 	})

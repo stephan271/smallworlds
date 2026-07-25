@@ -1,9 +1,20 @@
-// Package privatenetwork owns the LAN-only Private Network shape for the Local
-// private administration handoff: a privately reachable Headscale coordination
-// server and MagicDNS-style resolution of stable operator hostnames onto the
-// Private Gateway. It deliberately encodes only the LAN-only shape — the
-// coordination endpoint is never public and the launcher never writes permanent
-// hosts-file entries; operator hostnames resolve through the tailnet's DNS.
+// Package privatenetwork owns the Private Network shape behind every private
+// administration handoff: a Headscale coordination server and MagicDNS-style
+// resolution of stable operator hostnames onto a single Private Gateway.
+//
+// Two shapes exist, and the difference between them is exactly one thing — where
+// coordination is reachable. A LAN-only installation has no public address at
+// all, so coordination is private and the whole tailnet is reachable only from
+// the local network. A publicly addressed installation (Hetzner, or a local node
+// exposed to the internet) must publish coordination so an Operator can join
+// their device from anywhere; that is what makes remote administration possible
+// at all.
+//
+// What does *not* differ, in either shape, is the property the handoff depends
+// on: operator interfaces resolve only through the tailnet's DNS onto the
+// Private Gateway, never through a public record and never through a permanent
+// hosts-file entry. A publicly reachable coordination endpoint is not a publicly
+// reachable console.
 package privatenetwork
 
 import (
@@ -15,6 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -22,18 +34,36 @@ import (
 // validation.
 var ErrInvalidReference = errors.New("private network reference is invalid")
 
+// Shape is how a Private Network's coordination endpoint is reached.
+type Shape string
+
 const (
-	// Shape is the only Deployment Mode this package models. Internet-exposed and
-	// Hetzner modes expose Headscale coordination publicly and are handled
-	// elsewhere.
-	Shape = "lan-only"
-	// coordinationExposure records that the Headscale coordination server is
-	// reachable only on the private network in the LAN-only shape.
-	coordinationExposure = "private"
+	// LANOnly keeps Headscale coordination on the local network. Nothing about
+	// the installation is reachable from the internet.
+	LANOnly Shape = "lan-only"
+	// PublicCoordination publishes the Headscale coordination endpoint under the
+	// installation's public domain, so an Operator Device can join the tailnet
+	// from outside the local network. Operator interfaces stay private.
+	PublicCoordination Shape = "public-coordination"
+)
+
+// Valid reports whether a shape is one this package models.
+func (shape Shape) Valid() bool { return shape == LANOnly || shape == PublicCoordination }
+
+const (
+	// exposurePrivate and exposurePublic record where coordination is reachable.
+	// The value is derived from the shape and validated against it, so a
+	// reference cannot claim to be LAN-only while publishing coordination.
+	exposurePrivate = "private"
+	exposurePublic  = "public"
 	// resolution records that operator hostnames resolve through tailnet MagicDNS
 	// rather than any permanent hosts-file entry.
 	resolution = "magic-dns"
 	namespace  = "smallworlds"
+	// coordinationLabel is the subdomain coordination is published at in the
+	// public shape. It matches the `vpn` record the installation's DNS already
+	// maintains, so coordination needs no record of its own.
+	coordinationLabel = "vpn"
 )
 
 // operatorServices are the operator interfaces that must resolve to the Private
@@ -52,11 +82,11 @@ type OperatorEndpoint struct {
 	Target string `json:"target"`
 }
 
-// Reference is the secret-free description of a profile's LAN-only Private
-// Network. It is safe to persist and to bind into a Change Plan; it contains no
-// Headscale key material.
+// Reference is the secret-free description of a profile's Private Network. It is
+// safe to persist and to bind into a Change Plan; it contains no Headscale key
+// material.
 type Reference struct {
-	Shape                string             `json:"shape"`
+	Shape                Shape              `json:"shape"`
 	CoordinationExposure string             `json:"coordinationExposure"`
 	Resolution           string             `json:"resolution"`
 	BaseDomain           string             `json:"baseDomain"`
@@ -64,29 +94,71 @@ type Reference struct {
 	CoordinationHost     string             `json:"coordinationHost"`
 	GatewayHostname      string             `json:"gatewayHostname"`
 	OperatorEndpoints    []OperatorEndpoint `json:"operatorEndpoints"`
+	// PublicDomain is the installation's publicly resolvable domain, set only in
+	// the public-coordination shape. Coordination is published under it.
+	PublicDomain string `json:"publicDomain,omitempty"`
+	// PublishedHostnames are the names that genuinely have public DNS records —
+	// the community's own services. No operator hostname may be one of them, and
+	// Validate enforces that: an operator interface sharing a name with a
+	// published record is an operator interface with a public route.
+	PublishedHostnames []string `json:"publishedHostnames,omitempty"`
 }
 
-// Plan deterministically derives the LAN-only Private Network reference for a
-// profile under a private base domain. Every operator hostname is derived from
-// the base domain and targets the single stable Private Gateway hostname.
-func Plan(profileID, baseDomain string) (Reference, error) {
-	if !safeProfileID.MatchString(profileID) {
+// Input is what a Private Network is derived from.
+type Input struct {
+	Shape     Shape
+	ProfileID string
+	// BaseDomain is where the operator hostnames live. It is resolved only
+	// through the tailnet, in both shapes.
+	BaseDomain string
+	// PublicDomain is required in the public-coordination shape and rejected in
+	// the LAN-only one, where no public name exists to publish under.
+	PublicDomain string
+	// PublishedHostnames are the installation's public DNS records, used to prove
+	// no operator hostname collides with one.
+	PublishedHostnames []string
+}
+
+// Plan deterministically derives a profile's Private Network reference. Every
+// operator hostname is derived from the base domain and targets the single
+// stable Private Gateway hostname; only the coordination endpoint differs
+// between the two shapes.
+func Plan(input Input) (Reference, error) {
+	if !input.Shape.Valid() {
+		return Reference{}, fmt.Errorf("%w: shape", ErrInvalidReference)
+	}
+	if !safeProfileID.MatchString(input.ProfileID) {
 		return Reference{}, fmt.Errorf("%w: profile", ErrInvalidReference)
 	}
-	baseDomain = strings.ToLower(strings.TrimSpace(baseDomain))
+	baseDomain := strings.ToLower(strings.TrimSpace(input.BaseDomain))
 	if !safeDomain.MatchString(baseDomain) || strings.Contains(baseDomain, "..") || !strings.Contains(baseDomain, ".") {
 		return Reference{}, fmt.Errorf("%w: base domain", ErrInvalidReference)
 	}
 	gateway := "gateway." + baseDomain
 	reference := Reference{
-		Shape:                Shape,
-		CoordinationExposure: coordinationExposure,
-		Resolution:           resolution,
-		BaseDomain:           baseDomain,
-		Namespace:            namespace,
-		CoordinationHost:     "headscale." + baseDomain,
-		GatewayHostname:      gateway,
+		Shape:           input.Shape,
+		Resolution:      resolution,
+		BaseDomain:      baseDomain,
+		Namespace:       namespace,
+		GatewayHostname: gateway,
 	}
+	switch input.Shape {
+	case LANOnly:
+		if strings.TrimSpace(input.PublicDomain) != "" {
+			return Reference{}, fmt.Errorf("%w: a LAN-only network publishes no public domain", ErrInvalidReference)
+		}
+		reference.CoordinationExposure = exposurePrivate
+		reference.CoordinationHost = "headscale." + baseDomain
+	case PublicCoordination:
+		publicDomain := strings.ToLower(strings.TrimSpace(input.PublicDomain))
+		if !safeDomain.MatchString(publicDomain) || strings.Contains(publicDomain, "..") || !strings.Contains(publicDomain, ".") {
+			return Reference{}, fmt.Errorf("%w: public domain", ErrInvalidReference)
+		}
+		reference.CoordinationExposure = exposurePublic
+		reference.PublicDomain = publicDomain
+		reference.CoordinationHost = coordinationLabel + "." + publicDomain
+	}
+	reference.PublishedHostnames = normalizeHosts(input.PublishedHostnames)
 	for _, service := range operatorServices {
 		reference.OperatorEndpoints = append(reference.OperatorEndpoints, OperatorEndpoint{Name: service, FQDN: service + "." + baseDomain, Target: gateway})
 	}
@@ -96,14 +168,32 @@ func Plan(profileID, baseDomain string) (Reference, error) {
 	return reference, nil
 }
 
-// Validate enforces the LAN-only invariants: private coordination, MagicDNS
-// resolution, and every operator hostname resolving to the Private Gateway.
-func (reference Reference) Validate() error {
-	if reference.Shape != Shape {
-		return fmt.Errorf("%w: shape", ErrInvalidReference)
+func normalizeHosts(hosts []string) []string {
+	if len(hosts) == 0 {
+		return nil
 	}
-	if reference.CoordinationExposure != coordinationExposure {
-		return fmt.Errorf("%w: coordination must be private in the LAN-only shape", ErrInvalidReference)
+	normalized := make([]string, 0, len(hosts))
+	seen := make(map[string]bool, len(hosts))
+	for _, host := range hosts {
+		value := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(host), "."))
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		normalized = append(normalized, value)
+	}
+	sort.Strings(normalized)
+	return normalized
+}
+
+// Validate enforces the invariants every shape shares — MagicDNS resolution and
+// every operator hostname resolving to the Private Gateway — plus the ones that
+// distinguish the shapes, so a reference can never claim to be LAN-only while
+// publishing coordination, or claim public coordination without a public domain
+// to publish it under.
+func (reference Reference) Validate() error {
+	if !reference.Shape.Valid() {
+		return fmt.Errorf("%w: shape", ErrInvalidReference)
 	}
 	if reference.Resolution != resolution {
 		return fmt.Errorf("%w: resolution", ErrInvalidReference)
@@ -114,8 +204,11 @@ func (reference Reference) Validate() error {
 	if !safeLabel.MatchString(reference.Namespace) {
 		return fmt.Errorf("%w: namespace", ErrInvalidReference)
 	}
-	if !isSubdomainOf(reference.CoordinationHost, reference.BaseDomain) {
-		return fmt.Errorf("%w: coordination host", ErrInvalidReference)
+	if err := reference.validateCoordination(); err != nil {
+		return err
+	}
+	if err := reference.validateNoPublicOperatorRoute(); err != nil {
+		return err
 	}
 	if !isSubdomainOf(reference.GatewayHostname, reference.BaseDomain) {
 		return fmt.Errorf("%w: gateway hostname", ErrInvalidReference)
@@ -138,6 +231,59 @@ func (reference Reference) Validate() error {
 			return fmt.Errorf("%w: duplicate operator endpoint", ErrInvalidReference)
 		}
 		seen[endpoint.FQDN] = true
+	}
+	return nil
+}
+
+// validateCoordination pins the coordination endpoint to its shape: private and
+// under the operator base domain when LAN-only, public and under the public
+// domain when publicly coordinated.
+func (reference Reference) validateCoordination() error {
+	switch reference.Shape {
+	case LANOnly:
+		if reference.CoordinationExposure != exposurePrivate {
+			return fmt.Errorf("%w: coordination must be private in the LAN-only shape", ErrInvalidReference)
+		}
+		if reference.PublicDomain != "" {
+			return fmt.Errorf("%w: a LAN-only network has no public domain", ErrInvalidReference)
+		}
+		if !isSubdomainOf(reference.CoordinationHost, reference.BaseDomain) {
+			return fmt.Errorf("%w: coordination host", ErrInvalidReference)
+		}
+	case PublicCoordination:
+		if reference.CoordinationExposure != exposurePublic {
+			return fmt.Errorf("%w: coordination must be public in the public-coordination shape", ErrInvalidReference)
+		}
+		if !safeDomain.MatchString(reference.PublicDomain) || strings.Contains(reference.PublicDomain, "..") || !strings.Contains(reference.PublicDomain, ".") {
+			return fmt.Errorf("%w: public domain", ErrInvalidReference)
+		}
+		if !isSubdomainOf(reference.CoordinationHost, reference.PublicDomain) {
+			return fmt.Errorf("%w: coordination host must be published under the public domain", ErrInvalidReference)
+		}
+	}
+	return nil
+}
+
+// validateNoPublicOperatorRoute is the invariant that keeps a publicly addressed
+// installation from acquiring a public console. Publishing coordination is
+// necessary — an Operator has to be able to join the tailnet from outside — but
+// an operator interface that shares a name with a published DNS record has a
+// public route to it, which is precisely what must not exist.
+func (reference Reference) validateNoPublicOperatorRoute() error {
+	if len(reference.PublishedHostnames) == 0 {
+		return nil
+	}
+	published := make(map[string]bool, len(reference.PublishedHostnames))
+	for _, host := range reference.PublishedHostnames {
+		published[host] = true
+	}
+	for _, endpoint := range reference.OperatorEndpoints {
+		if published[endpoint.FQDN] {
+			return fmt.Errorf("%w: operator hostname %q also has a public DNS record", ErrInvalidReference, endpoint.FQDN)
+		}
+	}
+	if published[reference.GatewayHostname] {
+		return fmt.Errorf("%w: the Private Gateway must not have a public DNS record", ErrInvalidReference)
 	}
 	return nil
 }

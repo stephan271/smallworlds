@@ -7,7 +7,7 @@ import (
 )
 
 func allPass() handoffverification.Observations {
-	return handoffverification.Observations{PrivateReachable: true, DNSResolves: true, TLSChainsToClusterCA: true, GatewayIdentityMatches: true}
+	return handoffverification.Observations{PrivateReachable: true, DNSResolves: true, TLSTrusted: true, GatewayIdentityMatches: true}
 }
 
 func TestEvaluateVerifiesOnlyWhenAllChecksPass(t *testing.T) {
@@ -35,7 +35,7 @@ func TestEvaluateBlocksClosureWhenAnyCheckFails(t *testing.T) {
 	mutators := map[string]func(*handoffverification.Observations){
 		"reachability": func(o *handoffverification.Observations) { o.PrivateReachable = false },
 		"dns":          func(o *handoffverification.Observations) { o.DNSResolves = false },
-		"tls":          func(o *handoffverification.Observations) { o.TLSChainsToClusterCA = false },
+		"tls":          func(o *handoffverification.Observations) { o.TLSTrusted = false },
 		"identity":     func(o *handoffverification.Observations) { o.GatewayIdentityMatches = false },
 	}
 	for name, mutate := range mutators {
@@ -52,6 +52,7 @@ func TestEvaluateBlocksClosureWhenAnyCheckFails(t *testing.T) {
 
 func TestTargetValidateRequiresAllExpectations(t *testing.T) {
 	complete := handoffverification.Target{
+		Anchor:     handoffverification.ClusterCARoot,
 		BaseDomain: "smallworlds.internal", GatewayHostname: "gateway.smallworlds.internal",
 		OperatorHosts: []string{"console.smallworlds.internal"}, RootFingerprint: "SHA256:AA",
 		RootCertificatePEM: "-----BEGIN CERTIFICATE-----", GatewayIdentityHostname: "gateway.smallworlds.internal",

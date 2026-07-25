@@ -1,9 +1,9 @@
 // Package handoffverification gates closing the temporary SSH/Kubernetes
 // administration path behind four externally observed checks: private
-// reachability, operator DNS resolution, operator TLS chaining to the Cluster CA
-// root, and the Private Gateway presenting its expected stable identity. The
-// gate logic is deterministic and testable; the live probing is an injectable
-// Verifier, mirroring localbootstrap.Runner.
+// reachability, operator DNS resolution, operator TLS chaining to the Deployment
+// Mode's trust anchor, and the Private Gateway presenting its expected stable
+// identity. The gate logic is deterministic and testable; the live probing is an
+// injectable Verifier, mirroring localbootstrap.Runner.
 package handoffverification
 
 import (
@@ -26,28 +26,60 @@ const (
 	ReachabilityCheck = "private-reachability"
 	// DNSCheck confirms operator hostnames resolve to the Private Gateway.
 	DNSCheck = "operator-dns"
-	// TLSCheck confirms an operator TLS leaf chains to the Cluster CA root.
+	// TLSCheck confirms an operator TLS leaf chains to the mode's trust anchor.
 	TLSCheck = "operator-tls"
 	// GatewayIdentityCheck confirms the gateway presents its expected stable
 	// identity.
 	GatewayIdentityCheck = "gateway-identity"
 )
 
+// TrustAnchor is what operator TLS is required to chain to. It differs by
+// Deployment Mode, and getting it wrong in either direction is a real failure:
+// verifying a private CA against the public trust store always fails, and
+// verifying a public certificate against a pinned private root would too.
+type TrustAnchor string
+
+const (
+	// ClusterCARoot is the LAN-only anchor: a private Cluster CA root the
+	// Operator installed on their device, pinned here by certificate.
+	ClusterCARoot TrustAnchor = "cluster-ca-root"
+	// PublicTrust is the anchor for publicly addressed installations, whose
+	// operator interfaces hold publicly trusted ACME certificates.
+	PublicTrust TrustAnchor = "public"
+)
+
 // Target is the secret-free set of expectations verified before closing the
-// temporary administration path. RootCertificatePEM is the public Cluster CA
-// root used to verify that operator TLS leaves chain to it.
+// temporary administration path.
 type Target struct {
+	Anchor                  TrustAnchor
 	BaseDomain              string
 	GatewayHostname         string
 	OperatorHosts           []string
-	RootFingerprint         string
-	RootCertificatePEM      string
 	GatewayIdentityHostname string
+	// RootFingerprint and RootCertificatePEM identify the private Cluster CA
+	// root. They are required for ClusterCARoot and must be absent for
+	// PublicTrust — a stray pinned root there would silently widen what the
+	// verification accepts.
+	RootFingerprint    string
+	RootCertificatePEM string
 }
 
-// Validate ensures a target carries everything the four checks require.
+// Validate ensures a target carries everything the four checks require, and
+// exactly the trust material its anchor calls for.
 func (target Target) Validate() error {
-	if target.BaseDomain == "" || target.GatewayHostname == "" || len(target.OperatorHosts) == 0 || target.RootFingerprint == "" || target.RootCertificatePEM == "" || target.GatewayIdentityHostname == "" {
+	if target.BaseDomain == "" || target.GatewayHostname == "" || len(target.OperatorHosts) == 0 || target.GatewayIdentityHostname == "" {
+		return ErrInvalidTarget
+	}
+	switch target.Anchor {
+	case ClusterCARoot:
+		if target.RootFingerprint == "" || target.RootCertificatePEM == "" {
+			return ErrInvalidTarget
+		}
+	case PublicTrust:
+		if target.RootFingerprint != "" || target.RootCertificatePEM != "" {
+			return ErrInvalidTarget
+		}
+	default:
 		return ErrInvalidTarget
 	}
 	return nil
@@ -57,7 +89,7 @@ func (target Target) Validate() error {
 type Observations struct {
 	PrivateReachable       bool
 	DNSResolves            bool
-	TLSChainsToClusterCA   bool
+	TLSTrusted             bool
 	GatewayIdentityMatches bool
 }
 
@@ -85,7 +117,7 @@ func Evaluate(observations Observations) Report {
 	checks := []Check{
 		{Name: ReachabilityCheck, Passed: observations.PrivateReachable},
 		{Name: DNSCheck, Passed: observations.DNSResolves},
-		{Name: TLSCheck, Passed: observations.TLSChainsToClusterCA},
+		{Name: TLSCheck, Passed: observations.TLSTrusted},
 		{Name: GatewayIdentityCheck, Passed: observations.GatewayIdentityMatches},
 	}
 	verified := true

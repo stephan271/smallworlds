@@ -40,7 +40,7 @@ func establishHandoffPrerequisites(t *testing.T, handler *launcher.Server, cooki
 }
 
 func TestHandoffClosesTemporaryAccessOnlyAfterFullVerification(t *testing.T) {
-	verifier := &stubHandoffVerifier{observations: handoffverification.Observations{PrivateReachable: true, DNSResolves: true, TLSChainsToClusterCA: false, GatewayIdentityMatches: true}}
+	verifier := &stubHandoffVerifier{observations: handoffverification.Observations{PrivateReachable: true, DNSResolves: true, TLSTrusted: false, GatewayIdentityMatches: true}}
 	handler, err := launcher.New(launcher.Config{DataDir: t.TempDir(), LaunchToken: "handoff", HandoffVerifier: verifier})
 	if err != nil {
 		t.Fatal(err)
@@ -82,7 +82,7 @@ func TestHandoffClosesTemporaryAccessOnlyAfterFullVerification(t *testing.T) {
 	}
 
 	// Once every check passes, closure is permitted.
-	verifier.observations.TLSChainsToClusterCA = true
+	verifier.observations.TLSTrusted = true
 	response = request(t, handler, http.MethodPost, "/api/v1/handoff/close-temporary-access", body, cookie, headers)
 	closed := readAll(t, response)
 	if response.StatusCode != http.StatusOK {

@@ -95,7 +95,7 @@ func (verifier *LiveVerifier) Observe(ctx context.Context, target Target) (Obser
 	observations.GatewayIdentityMatches = identityMatches
 
 	observations.PrivateReachable = verifier.reachable(ctx, target.GatewayHostname)
-	observations.TLSChainsToClusterCA = verifier.tlsChainsToRoot(ctx, target)
+	observations.TLSTrusted = verifier.tlsChainsToAnchor(ctx, target)
 	return observations, nil
 }
 
@@ -111,7 +111,13 @@ func (verifier *LiveVerifier) reachable(ctx context.Context, host string) bool {
 	return verifier.DialReachable(ctx, net.JoinHostPort(host, verifier.Port)) == nil
 }
 
-func (verifier *LiveVerifier) tlsChainsToRoot(ctx context.Context, target Target) bool {
+// tlsChainsToAnchor verifies the presented operator chain against whichever
+// anchor the Deployment Mode uses: the pinned private Cluster CA root for a
+// LAN-only installation, or the device's own public trust store for a publicly
+// addressed one. Passing nil roots to Verify uses the system pool, which is the
+// same trust an Operator's browser will apply — so a certificate that passes
+// here is one they will actually be able to use.
+func (verifier *LiveVerifier) tlsChainsToAnchor(ctx context.Context, target Target) bool {
 	if len(target.OperatorHosts) == 0 {
 		return false
 	}
@@ -122,17 +128,19 @@ func (verifier *LiveVerifier) tlsChainsToRoot(ctx context.Context, target Target
 	if err != nil || len(certificates) == 0 {
 		return false
 	}
-	root, err := parseRootCertificate(target.RootCertificatePEM)
-	if err != nil {
-		return false
-	}
-	roots := x509.NewCertPool()
-	roots.AddCert(root)
-	intermediates := x509.NewCertPool()
+	options := x509.VerifyOptions{DNSName: host, Intermediates: x509.NewCertPool()}
 	for _, certificate := range certificates[1:] {
-		intermediates.AddCert(certificate)
+		options.Intermediates.AddCert(certificate)
 	}
-	_, err = certificates[0].Verify(x509.VerifyOptions{DNSName: host, Roots: roots, Intermediates: intermediates})
+	if target.Anchor == ClusterCARoot {
+		root, err := parseRootCertificate(target.RootCertificatePEM)
+		if err != nil {
+			return false
+		}
+		options.Roots = x509.NewCertPool()
+		options.Roots.AddCert(root)
+	}
+	_, err = certificates[0].Verify(options)
 	return err == nil
 }
 

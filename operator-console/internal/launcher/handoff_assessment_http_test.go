@@ -12,7 +12,7 @@ import (
 )
 
 func TestHandoffAssessmentCompletesAndProvidesConsoleURL(t *testing.T) {
-	verifier := &stubHandoffVerifier{observations: handoffverification.Observations{PrivateReachable: true, DNSResolves: true, TLSChainsToClusterCA: true, GatewayIdentityMatches: true}}
+	verifier := &stubHandoffVerifier{observations: handoffverification.Observations{PrivateReachable: true, DNSResolves: true, TLSTrusted: true, GatewayIdentityMatches: true}}
 	handler, err := launcher.New(launcher.Config{DataDir: t.TempDir(), LaunchToken: "assessment", HandoffVerifier: verifier})
 	if err != nil {
 		t.Fatal(err)

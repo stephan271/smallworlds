@@ -31,6 +31,7 @@ import (
 	"github.com/stephan271/smallworlds/operator-console/internal/localbootstrap"
 	"github.com/stephan271/smallworlds/operator-console/internal/nodeinspect"
 	"github.com/stephan271/smallworlds/operator-console/internal/offsite"
+	"github.com/stephan271/smallworlds/operator-console/internal/operatordevice"
 	"github.com/stephan271/smallworlds/operator-console/internal/privatenetwork"
 	"github.com/stephan271/smallworlds/operator-console/internal/recovery"
 	"github.com/stephan271/smallworlds/operator-console/internal/state"
@@ -1035,6 +1036,16 @@ func (server *Server) handoffAssessment(response http.ResponseWriter, request *h
 		return
 	}
 	ctx := request.Context()
+	profile, err := server.store.GetProfile(ctx, profileID)
+	if errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "profile_not_found")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "handoff_assessment_failed")
+		return
+	}
+	mode := handoffAssessmentMode(profile.DeploymentMode)
 	var inputs handoffassessment.Inputs
 
 	if record, err := server.store.GetClusterCAReference(ctx, profileID); err == nil {
@@ -1092,7 +1103,7 @@ func (server *Server) handoffAssessment(response http.ResponseWriter, request *h
 		return
 	}
 
-	assessment, err := handoffassessment.Evaluate(inputs)
+	assessment, err := handoffassessment.Evaluate(mode, inputs)
 	if err != nil {
 		writeError(response, http.StatusInternalServerError, "handoff_assessment_failed")
 		return
@@ -1276,18 +1287,70 @@ func (server *Server) firstOwnerStatus(response http.ResponseWriter, request *ht
 // handoffTarget assembles the verification target from the Cluster CA, Private
 // Network, and enrollment already established for a profile. A non-empty
 // prerequisite code names the first missing dependency.
+// privateNetworkShape maps a profile's Deployment Mode onto the Private Network
+// shape it uses. Only the LAN-only mode keeps coordination private; every
+// publicly addressed installation publishes it so an Operator can join a device
+// from outside the local network.
+func privateNetworkShape(deploymentMode string) privatenetwork.Shape {
+	switch deploymentMode {
+	case "local-lan":
+		return privatenetwork.LANOnly
+	case "hetzner", "local-public":
+		return privatenetwork.PublicCoordination
+	default:
+		return privatenetwork.Shape("")
+	}
+}
+
+// handoffAssessmentMode maps a Deployment Mode onto the assessment shape, which
+// decides which steps apply and which limitations the Operator is told about.
+func handoffAssessmentMode(deploymentMode string) handoffassessment.Mode {
+	if deploymentMode == "local-lan" {
+		return handoffassessment.LANOnly
+	}
+	return handoffassessment.PubliclyAddressed
+}
+
+// publishedHostnames are the names an installation genuinely publishes in public
+// DNS. The Private Network is validated against them so an operator interface
+// can never share a name with a record that has a public route to it.
+func publishedHostnames(domain string) []string {
+	hosts := make([]string, 0, len(hetzner.DefaultRecordNames)+1)
+	hosts = append(hosts, domain)
+	for _, record := range hetzner.DefaultRecordNames {
+		hosts = append(hosts, record+"."+domain)
+	}
+	return hosts
+}
+
 func (server *Server) handoffTarget(request *http.Request, profileID string) (handoffverification.Target, string, error) {
 	ctx := request.Context()
-	caRecord, err := server.store.GetClusterCAReference(ctx, profileID)
+	profile, err := server.store.GetProfile(ctx, profileID)
 	if errors.Is(err, state.ErrNotFound) {
-		return handoffverification.Target{}, "cluster_ca_required", nil
+		return handoffverification.Target{}, "profile_not_found", nil
 	}
 	if err != nil {
 		return handoffverification.Target{}, "", err
 	}
+	// A LAN-only installation's operator interfaces are signed by the private
+	// Cluster CA, so verification pins that root. A publicly addressed one holds
+	// publicly trusted ACME certificates and has no root to pin — verifying
+	// against the device's own trust store is what proves the Operator's browser
+	// will accept them.
+	anchor := handoffverification.PublicTrust
 	var material clusterCAMaterial
-	if json.Unmarshal([]byte(caRecord.Material), &material) != nil {
-		return handoffverification.Target{}, "", fmt.Errorf("decode cluster CA material")
+	if operatordevice.DeploymentMode(profile.DeploymentMode).RequiresClusterCATrust() {
+		anchor = handoffverification.ClusterCARoot
+		caRecord, caErr := server.store.GetClusterCAReference(ctx, profileID)
+		if errors.Is(caErr, state.ErrNotFound) {
+			return handoffverification.Target{}, "cluster_ca_required", nil
+		}
+		if caErr != nil {
+			return handoffverification.Target{}, "", caErr
+		}
+		if json.Unmarshal([]byte(caRecord.Material), &material) != nil {
+			return handoffverification.Target{}, "", fmt.Errorf("decode cluster CA material")
+		}
 	}
 	netRecord, err := server.store.GetPrivateNetwork(ctx, profileID)
 	if errors.Is(err, state.ErrNotFound) {
@@ -1316,6 +1379,7 @@ func (server *Server) handoffTarget(request *http.Request, profileID string) (ha
 		hosts = append(hosts, endpoint.FQDN)
 	}
 	target := handoffverification.Target{
+		Anchor:                  anchor,
 		BaseDomain:              networkReference.BaseDomain,
 		GatewayHostname:         networkReference.GatewayHostname,
 		OperatorHosts:           hosts,
@@ -1847,11 +1911,27 @@ func (server *Server) establishPrivateNetwork(response http.ResponseWriter, requ
 		writeError(response, http.StatusInternalServerError, "private_network_failed")
 		return
 	}
-	// The private, non-public Headscale coordination shape is specific to the
-	// LAN-only mode; internet-exposed and Hetzner expose coordination publicly.
-	if profile.DeploymentMode != "local-lan" {
-		writeError(response, http.StatusConflict, "private_network_lan_only")
+	shape := privateNetworkShape(profile.DeploymentMode)
+	if !shape.Valid() {
+		writeError(response, http.StatusConflict, "private_network_mode_unsupported")
 		return
+	}
+	// A publicly addressed installation publishes its coordination endpoint under
+	// the public domain, so an Operator can join a device from anywhere. It needs
+	// that domain; a LAN-only installation must not be given one.
+	publicDomain, published := "", []string(nil)
+	if shape == privatenetwork.PublicCoordination {
+		overlay, overlayErr := server.store.GetOverlayIdentity(request.Context(), input.ProfileID)
+		if errors.Is(overlayErr, state.ErrNotFound) || overlayErr == nil && overlay.Domain == "" {
+			writeError(response, http.StatusConflict, "public_domain_required")
+			return
+		}
+		if overlayErr != nil {
+			writeError(response, http.StatusInternalServerError, "private_network_failed")
+			return
+		}
+		publicDomain = overlay.Domain
+		published = publishedHostnames(overlay.Domain)
 	}
 	// Resumable: a previously established network is returned unchanged so the
 	// coordination identity and operator hostnames stay stable.
@@ -1867,7 +1947,13 @@ func (server *Server) establishPrivateNetwork(response http.ResponseWriter, requ
 		writeError(response, http.StatusInternalServerError, "private_network_failed")
 		return
 	}
-	reference, err := privatenetwork.Plan(input.ProfileID, input.BaseDomain)
+	reference, err := privatenetwork.Plan(privatenetwork.Input{
+		Shape:              shape,
+		ProfileID:          input.ProfileID,
+		BaseDomain:         input.BaseDomain,
+		PublicDomain:       publicDomain,
+		PublishedHostnames: published,
+	})
 	if err != nil {
 		writeError(response, http.StatusBadRequest, "invalid_private_network_request")
 		return
