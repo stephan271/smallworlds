@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type FullDecommissionResult, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type HandoffAssessment, type HetznerChangePlan, type HetznerPlanResult, type HetznerPresets, type HetznerPresetTier, type HetznerProject, type HetznerToolchain, type HetznerWorkspace, type TemporaryAccess, type NodeCapabilities, type NodeInspectionResult, type NodeProbeResult, type NodeTarget, type OffsitePlan, type OffsiteProposal, type OffsiteProtection, type PreserveDataDecommissionResult, type RecoveryBundlePreview, type SetupJourney, type TailscaleClientOffer, type VaultStatus, type WorkflowRun } from '$lib/api';
+  import { decommissionCopy } from '$lib/decommission-copy';
+  import { formatCurrency, formatDateTime, formatNumber } from '$lib/format';
   import { translate, type Locale, type MessageKey } from '$lib/i18n';
 
   type ActivityEvent = {
@@ -137,6 +139,7 @@
   let fullDecommissionOverrideReason = $state('');
   let fullDecommissionBusy = $state(false);
   let fullDecommissionError = $state('');
+  let activeStep = $state('capabilities');
   let creating = $state(true);
   let editing = $state(false);
   let busy = $state(false);
@@ -147,6 +150,7 @@
   let pollTimer: number | undefined;
 
   const message = (key: MessageKey) => translate(locale, key);
+  const decommissionMessage = (key: Parameters<typeof decommissionCopy>[1]) => decommissionCopy(locale, key);
 
   $effect(() => {
     document.documentElement.lang = locale;
@@ -850,11 +854,11 @@
       } catch (reason) {
         fullDecommissionError = reason instanceof Error ? reason.message : 'full_decommission_status_failed';
       }
-    }, 80);
+    }, 1000);
   }
 
   async function forgetActiveProfile(): Promise<void> {
-    if (!activeProfile || !window.confirm(`Forget local profile “${activeProfile.name}”? This does not change any cluster or provider resource.`)) return;
+    if (!activeProfile || !window.confirm(decommissionMessage('forgetConfirm').replace('{name}', activeProfile.name))) return;
     decommissionBusy = true;
     decommissionError = '';
     try {
@@ -960,7 +964,7 @@
 
   function hetznerPlanCost(plan: HetznerChangePlan | undefined): string {
     const total = plan?.cost?.totalMonthlyEur;
-    return total === undefined ? '' : `${total.toFixed(2)} ${plan?.cost?.currency ?? 'EUR'}`;
+    return formatCurrency(locale, total, plan?.cost?.currency ?? 'EUR');
   }
 
   function offsiteVersioningLabel(value: string | undefined): string {
@@ -1251,17 +1255,19 @@
       <small>{message('subtitle')}</small>
     </span>
   </a>
-  <label class="locale-control">
+  <label class="locale-control" for="launcher-locale">
     <span>{message('language')}</span>
-    <select bind:value={locale} onchange={() => profileLanguage = locale}>
+    <select id="launcher-locale" aria-label={message('language')} bind:value={locale} onchange={() => profileLanguage = locale}>
       <option value="en">English</option>
       <option value="de">Deutsch</option>
     </select>
   </label>
 </header>
 
+<a class="skip-link" href="#main-content">{locale === 'de' ? 'Zum Inhalt springen' : 'Skip to main content'}</a>
+
 {#if !ready}
-  <main class="centered"><p role="status">{message('loading')}</p></main>
+  <main id="main-content" class="centered" tabindex="-1"><p role="status">{message('loading')}</p></main>
 {:else}
   <div class="shell">
     <aside aria-label={message('profiles')}>
@@ -1277,7 +1283,7 @@
       <button class="secondary full" onclick={showCreateProfile}>{message('createAnother')}</button>
     </aside>
 
-    <main>
+    <main id="main-content" tabindex="-1">
       {#if error}
         <div class="error" role="alert">
           <strong>{message('failed')}</strong>
@@ -1404,10 +1410,11 @@
         <div role="status" aria-live="polite" aria-atomic="true" class:verified={run?.state === 'verified'} class="run-status">
           <span class="status-icon" aria-hidden="true">{run?.state === 'verified' ? '✓' : '•'}</span>
           <span>{run ? runLabel(run.state) : message('ready')}</span>
-          {#if run}<small>{run.currentCheckpoint}</small>{/if}
+          {#if run}<small>{run.currentCheckpoint || message('running')}</small>{/if}
           {#if run?.state === 'running' && run.cancellationState === 'not-requested'}<button class="secondary" onclick={() => void cancelRun()} disabled={busy}>{message('cancel')}</button>{/if}
         </div>
 
+        {#if activeStep === 'capabilities'}
         <section class="card capability-card" aria-labelledby="capability-title">
           <p class="eyebrow">{message('capabilityEyebrow')}</p>
           <h2 id="capability-title">{message('capabilityTitle')}</h2>
@@ -1429,9 +1436,12 @@
           </form>
           {#if capabilityPlan}
             <section class="capability-preview" aria-labelledby="capability-preview-title"><p class="eyebrow">{message('capabilityPreview')}</p><h3 id="capability-preview-title">{message('capabilityPlanReady')}</h3><dl><div><dt>{message('capabilityMemory')}</dt><dd>{capabilityPlan.overlay.assessment.resources.memoryMi} MiB</dd></div><div><dt>{message('capabilityStorage')}</dt><dd>{capabilityPlan.overlay.assessment.resources.storageGi} GiB</dd></div><div><dt>{message('capabilityExposure')}</dt><dd>{capabilityPlan.overlay.assessment.exposure.join(', ')}</dd></div><div><dt>{message('capabilityProtection')}</dt><dd>{capabilityPlan.overlay.assessment.protection.join(', ')}</dd></div></dl><div data-testid="overlay-diff" class="overlay-diff" role="textbox" aria-readonly="true" tabindex="0" aria-label={message('capabilityOverlayDiff')}>{capabilityPlan.overlay.diff}</div></section>
+            <div class="actions" style="margin-top: 1rem;"><button type="button" onclick={() => activeStep = 'assets'}>{message('continue')}</button></div>
           {/if}
         </section>
+        {/if}
 
+        {#if activeStep === 'assets'}
         <section class="card asset-card" aria-labelledby="asset-title">
           <p class="eyebrow">{message('bootstrapAssetEyebrow')}</p>
           <h2 id="asset-title">{message('bootstrapAssetTitle')}</h2>
@@ -1442,9 +1452,14 @@
           {#if bootstrapAssets}
             <dl class="credential-metadata">{#each bootstrapAssets.assets as asset (asset.id)}<div><dt>{asset.id}</dt><dd>{asset.destination} · {asset.state} · <code>{asset.sha256.slice(0, 16)}…</code></dd></div>{/each}</dl>
             <div class="actions"><button onclick={() => void acquireBootstrapAssets()} disabled={bootstrapAssetBusy || bootstrapAssets.assets.every((asset) => asset.state === 'ready')}>{message('bootstrapAssetAcquire')}</button></div>
+            {#if bootstrapAssets.assets.every((asset) => asset.state === 'ready')}
+              <div class="actions" style="margin-top: 1rem;"><button type="button" onclick={() => activeStep = activeProfile?.deploymentMode === 'hetzner' ? 'hetzner' : 'node'}>{message('continue')}</button></div>
+            {/if}
           {/if}
         </section>
+        {/if}
 
+        {#if activeStep === 'node'}
         <section class="card node-card" aria-labelledby="node-title">
           <p class="eyebrow">{message('nodeEyebrow')}</p>
           <h2 id="node-title">{message('nodeTitle')}</h2>
@@ -1464,7 +1479,7 @@
             {#if nodeProbe}<p class="inline-notice">{message('nodeFingerprint')}: <code>{nodeProbe.fingerprint}</code> <button type="button" onclick={() => void trustNode()} disabled={nodeBusy}>{message('nodeTrust')}</button></p>{/if}
             <div class="actions"><button type="submit" disabled={nodeBusy}>{message('nodeInspect')}</button></div>
           </form>
-          {#if nodeInspection}<dl class="credential-metadata"><div><dt>{message('nodeOperatingSystem')}</dt><dd>{nodeInspection.report.operatingSystem} / {nodeInspection.report.architecture}</dd></div><div><dt>{message('nodeCapacity')}</dt><dd>{nodeInspection.report.capacity.memoryMi} MiB · {nodeInspection.report.capacity.diskGi} GiB</dd></div><div><dt>{message('nodeAssessment')}</dt><dd>{nodeInspection.assessment.ready ? message('nodeReady') : nodeInspection.assessment.blockers.map((blocker) => blocker.code).join(', ')}</dd></div></dl>{#if nodeTargetKind === 'remote'}<div class="actions"><button class="secondary" onclick={() => void planNodeSSHKey()} disabled={nodeBusy}>{message('nodePlanSSHKey')}</button></div>{/if}{/if}
+          {#if nodeInspection}<dl class="credential-metadata"><div><dt>{message('nodeOperatingSystem')}</dt><dd>{nodeInspection.report.operatingSystem} / {nodeInspection.report.architecture}</dd></div><div><dt>{message('nodeCapacity')}</dt><dd>{formatNumber(locale, nodeInspection.report.capacity.memoryMi)} MiB · {formatNumber(locale, nodeInspection.report.capacity.diskGi)} GiB</dd></div><div><dt>{message('nodeAssessment')}</dt><dd>{nodeInspection.assessment.ready ? message('nodeReady') : nodeInspection.assessment.blockers.map((blocker) => blocker.code).join(', ')}</dd></div></dl>{#if nodeTargetKind === 'remote'}<div class="actions"><button class="secondary" onclick={() => void planNodeSSHKey()} disabled={nodeBusy}>{message('nodePlanSSHKey')}</button></div>{/if}{/if}
           {#if nodeInspection?.assessment.ready && (activeProfile?.deploymentMode === 'local-lan' || activeProfile?.deploymentMode === 'local-public')}
             <section class="capability-preview" aria-labelledby="local-bootstrap-title">
               <p class="eyebrow">{message('localBootstrapEyebrow')}</p>
@@ -1498,10 +1513,13 @@
                 {#if nodeTargetKind === 'same-host'}<label><span>{message('nodeSudoPassword')}</span><input type="password" bind:value={nodeSudoPassword} autocomplete="off" /></label>{/if}
                 <div class="actions"><button type="submit" disabled={localBootstrapBusy}>{message('localBootstrapReview')}</button></div>
               </form>
+              <div class="actions" style="margin-top: 1rem;"><button type="button" onclick={() => activeStep = 'github'}>{message('continue')}</button></div>
             </section>
           {/if}
         </section>
+        {/if}
 
+        {#if activeStep === 'github'}
         <section class="card github-card" aria-labelledby="github-title">
           <p class="eyebrow">{message('githubEyebrow')}</p>
           <h2 id="github-title">{message('githubTitle')}</h2>
@@ -1517,8 +1535,13 @@
             <form class="github-establish" onsubmit={(event) => { event.preventDefault(); void establishGitHubOverlay(); }}><label><span>{message('githubRepositoryName')}</span><input bind:value={gitHubRepositoryName} required pattern="[A-Za-z0-9._-]+" /></label><div class="actions"><button type="submit" disabled={gitHubBusy}>{message('githubEstablish')}</button></div></form>
           {/if}
           {#if gitHubOverlayNotice}<p class="inline-notice" aria-live="polite">{gitHubOverlayNotice}</p>{/if}
+          <div class="actions" style="margin-top: 1rem;">
+            <button type="button" onclick={() => activeStep = 'generic-git'}>{gitHubStatus ? message('continue') : 'Skip GitHub'}</button>
+          </div>
         </section>
+        {/if}
 
+        {#if activeStep === 'generic-git'}
         <section class="card generic-git-card" aria-labelledby="generic-git-title">
           <p class="eyebrow">{message('genericGitEyebrow')}</p>
           <h2 id="generic-git-title">{message('genericGitTitle')}</h2>
@@ -1536,9 +1559,13 @@
           {/if}
           {#if genericGitOverlayNotice}<p class="inline-notice" aria-live="polite">{genericGitOverlayNotice}</p>{/if}
           {#if genericGitProposal}<p class="inline-notice" aria-live="polite">{message('genericGitManualMerge')} <code>{genericGitProposal.branch}</code> · {genericGitProposal.commit}</p>{/if}
+          <div class="actions" style="margin-top: 1rem;">
+            <button type="button" onclick={() => activeStep = 'execute'}>{genericGitStatus ? message('continue') : 'Skip Generic Git'}</button>
+          </div>
         </section>
+        {/if}
 
-        {#if activeProfile?.deploymentMode === 'hetzner'}
+        {#if activeProfile?.deploymentMode === 'hetzner' && activeStep === 'hetzner'}
         <section class="card hetzner-card" aria-labelledby="hetzner-title">
           <p class="eyebrow">{message('hetznerEyebrow')}</p>
           <h2 id="hetzner-title">{message('hetznerTitle')}</h2>
@@ -1567,7 +1594,7 @@
           {#if hetznerProject?.inventory}
             <section class="capability-preview" aria-labelledby="hetzner-inventory-title">
               <h3 id="hetzner-inventory-title">{message('hetznerInventory')}</h3>
-              <p class="muted">{message('hetznerInspectedAt')}: {hetznerProject.inspectedAt}</p>
+              <p class="muted">{message('hetznerInspectedAt')}: {formatDateTime(locale, hetznerProject.inspectedAt)}</p>
               <ul class="hetzner-inventory" data-testid="hetzner-inventory">
                 {#each hetznerProject.inventory.findings ?? [] as finding (finding.expectation?.kind + '/' + finding.expectation?.name)}
                   <li class:decision={finding.requiresDecision}>
@@ -1597,11 +1624,11 @@
           {#if hetznerPresets}
             <section class="capability-preview" aria-labelledby="hetzner-capacity-title">
               <h3 id="hetzner-capacity-title">{message('hetznerCapacity')}</h3>
-              <p class="muted">{message('hetznerRequirement')}: {hetznerPresets.requirement?.memoryGb} GB · {hetznerPresets.requirement?.volumeGb} GB</p>
+              <p class="muted">{message('hetznerRequirement')}: {formatNumber(locale, hetznerPresets.requirement?.memoryGb)} GB · {formatNumber(locale, hetznerPresets.requirement?.volumeGb)} GB</p>
               <ul class="hetzner-presets" data-testid="hetzner-presets">
                 {#each hetznerPresets.presets ?? [] as preset (preset.tier)}
                   <li>
-                    <label class="check"><input type="radio" name="hetzner-preset" value={preset.tier} checked={hetznerTier === preset.tier} onchange={() => { hetznerTier = (preset.tier ?? 'recommended') as HetznerPresetTier; hetznerServerType = preset.serverType ?? ''; hetznerVolumeGb = preset.volumeGb ?? 0; }} /><span><strong>{hetznerPresetLabel(preset.tier)}</strong> · {preset.serverType} · {preset.memoryGb} GB · {preset.volumeGb} GB · {preset.cost?.totalMonthlyEur?.toFixed(2)} {preset.cost?.currency}</span></label>
+                    <label class="check"><input type="radio" name="hetzner-preset" value={preset.tier} checked={hetznerTier === preset.tier} onchange={() => { hetznerTier = (preset.tier ?? 'recommended') as HetznerPresetTier; hetznerServerType = preset.serverType ?? ''; hetznerVolumeGb = preset.volumeGb ?? 0; }} /><span><strong>{hetznerPresetLabel(preset.tier)}</strong> · {preset.serverType} · {formatNumber(locale, preset.memoryGb)} GB · {formatNumber(locale, preset.volumeGb)} GB · {formatCurrency(locale, preset.cost?.totalMonthlyEur, preset.cost?.currency ?? 'EUR')}</span></label>
                     {#if preset.fits === false}<p class="muted">{message('hetznerPresetTooSmall')}</p>{/if}
                     {#if preset.available === false}<p class="muted">{message('hetznerPresetUnavailable')}</p>{/if}
                   </li>
@@ -1617,13 +1644,13 @@
                 {#if hetznerTier === 'advanced'}
                   <label><span>{message('hetznerServerType')}</span>
                     <select bind:value={hetznerServerType}>
-                      {#each hetznerPresets.offerings ?? [] as offering (offering.name)}<option value={offering.name}>{offering.name} · {offering.memoryGb} GB · {offering.monthlyEur?.toFixed(2)} EUR</option>{/each}
+                      {#each hetznerPresets.offerings ?? [] as offering (offering.name)}<option value={offering.name}>{offering.name} · {formatNumber(locale, offering.memoryGb)} GB · {formatCurrency(locale, offering.monthlyEur)}</option>{/each}
                     </select>
                   </label>
                   <label><span>{message('hetznerVolume')}</span><input type="number" min="10" max="10240" step="10" bind:value={hetznerVolumeGb} /></label>
                 {/if}
               </div>
-              <p class="muted">{message('hetznerPricesObservedAt')}: {hetznerPresets.observedAt}</p>
+              <p class="muted">{message('hetznerPricesObservedAt')}: {formatDateTime(locale, hetznerPresets.observedAt)}</p>
               <label><span>{message('hetznerAcmeEmail')}</span><input type="email" bind:value={hetznerAcmeEmail} placeholder="operator@example.org" /></label>
               <p class="muted">{message('hetznerAcmeEmailHint')}</p>
               <div class="actions"><button type="button" onclick={() => void planHetznerInfrastructure()} disabled={hetznerBusy || !hetznerProject?.inventory || !hetznerAcmeEmail.includes('@')}>{message('hetznerPlanBuild')}</button></div>
@@ -1644,7 +1671,7 @@
             {#if hetznerWorkspace}
               <dl class="credential-metadata">
                 <div><dt>{message('hetznerWorkspace')}</dt><dd>{hetznerWorkspace.isolated ? message('hetznerWorkspaceIsolated') : ''}</dd></div>
-                <div><dt>{message('hetznerWorkspaceBackups')}</dt><dd>{hetznerWorkspace.backups ?? 0}</dd></div>
+                <div><dt>{message('hetznerWorkspaceBackups')}</dt><dd>{formatNumber(locale, hetznerWorkspace.backups ?? 0)}</dd></div>
                 {#if hetznerWorkspace.locked}<div><dt>{message('hetznerWorkspaceLocked')}</dt><dd>{hetznerWorkspace.lockOwner}</dd></div>{/if}
               </dl>
             {/if}
@@ -1674,7 +1701,7 @@
               <h3 id="hetzner-plan-title">{message('hetznerPlanTitle')}</h3>
               <dl class="credential-metadata">
                 <div><dt>{message('hetznerServerType')}</dt><dd>{hetznerPlan.changePlan?.choice?.serverType} · {hetznerPlan.changePlan?.choice?.location}</dd></div>
-                <div><dt>{message('hetznerVolume')}</dt><dd>{hetznerPlan.changePlan?.choice?.volumeGb} GB</dd></div>
+                <div><dt>{message('hetznerVolume')}</dt><dd>{formatNumber(locale, hetznerPlan.changePlan?.choice?.volumeGb)} GB</dd></div>
                 <div><dt>{message('hetznerMonthlyCost')}</dt><dd data-testid="hetzner-cost">{hetznerPlanCost(hetznerPlan.changePlan)}</dd></div>
                 <div><dt>{message('digest')}</dt><dd><code>{hetznerPlan.changePlan?.digest}</code></dd></div>
               </dl>
@@ -1698,9 +1725,11 @@
               {/if}
             </section>
           {/if}
+          <div class="actions" style="margin-top: 1rem;"><button type="button" onclick={() => activeStep = 'github'}>{message('continue')}</button></div>
         </section>
         {/if}
 
+        {#if activeStep === 'execute'}
         <section class="card offsite-card" aria-labelledby="offsite-title">
           <p class="eyebrow">{message('offsiteEyebrow')}</p>
           <h2 id="offsite-title">{message('offsiteTitle')}</h2>
@@ -1734,27 +1763,27 @@
             <div class="actions"><button type="button" class="secondary" onclick={() => void validateOffsiteProtection()} disabled={offsiteBusy}>{message('offsiteValidate')}</button></div>
           {/if}
           {#if offsiteStatus?.validation}
-            <dl class="credential-metadata"><div><dt>{message('offsiteValidationVerdict')}</dt><dd>{offsiteResultLabel(offsiteStatus.validation.result)}</dd></div><div><dt>{message('offsiteRemediation')}</dt><dd>{offsiteRemediationLabel(offsiteStatus.validation.remediationKey)}</dd></div>{#if offsiteStatus.validation.recoveryPointAt}<div><dt>{message('offsiteRecoveryPoint')}</dt><dd>{offsiteStatus.validation.recoveryPointAt}</dd></div>{/if}</dl>
+            <dl class="credential-metadata"><div><dt>{message('offsiteValidationVerdict')}</dt><dd>{offsiteResultLabel(offsiteStatus.validation.result)}</dd></div><div><dt>{message('offsiteRemediation')}</dt><dd>{offsiteRemediationLabel(offsiteStatus.validation.remediationKey)}</dd></div>{#if offsiteStatus.validation.recoveryPointAt}<div><dt>{message('offsiteRecoveryPoint')}</dt><dd>{formatDateTime(locale, offsiteStatus.validation.recoveryPointAt)}</dd></div>{/if}</dl>
           {/if}
         </section>
 
         <section class="card decommission-card" aria-labelledby="decommission-title">
-          <p class="eyebrow">Lifecycle authority</p>
-          <h2 id="decommission-title">Preserve-data decommission</h2>
-          <p class="muted">Freshly inspect provider and cluster identity, then stop or remove only proven profile-owned compute and workloads. Persistent data, shared DNS zones, GitOps overlay, and unknown resources are retained.</p>
+          <p class="eyebrow">{decommissionMessage('eyebrow')}</p>
+          <h2 id="decommission-title">{decommissionMessage('preserveTitle')}</h2>
+          <p class="muted">{decommissionMessage('preserveDescription')}</p>
           {#if decommissionError}<p class="inline-error" role="alert">{decommissionError}</p>{/if}
           {#if !decommissionPlan}
-            <button type="button" class="danger" onclick={() => void planPreserveDataDecommission()} disabled={decommissionBusy}>Inspect and prepare preserve-data plan</button>
+            <button type="button" class="danger" onclick={() => void planPreserveDataDecommission()} disabled={decommissionBusy}>{decommissionMessage('preservePlan')}</button>
           {:else}
             <dl>
-              <div><dt>Plan digest</dt><dd><code>{decommissionPlan.decommission.digest}</code></dd></div>
-              <div><dt>Expected downtime</dt><dd>{decommissionPlan.decommission.expectedDowntime}</dd></div>
-              <div><dt>Recovery path</dt><dd>{decommissionPlan.decommission.recoveryPath}</dd></div>
-              <div><dt>Retained data</dt><dd>{decommissionPlan.decommission.retainedData.join(', ') || 'None declared'}</dd></div>
-              <div><dt>Continuing provider cost</dt><dd>{decommissionPlan.decommission.continuingCosts.map((cost) => `${cost.kind} €${cost.monthlyEur.toFixed(2)}/month`).join('; ') || 'None'}</dd></div>
+              <div><dt>{decommissionMessage('planDigest')}</dt><dd><code>{decommissionPlan.decommission.digest}</code></dd></div>
+              <div><dt>{decommissionMessage('expectedDowntime')}</dt><dd>{decommissionPlan.decommission.expectedDowntime}</dd></div>
+              <div><dt>{decommissionMessage('recoveryPath')}</dt><dd>{decommissionPlan.decommission.recoveryPath}</dd></div>
+              <div><dt>{decommissionMessage('retainedData')}</dt><dd>{decommissionPlan.decommission.retainedData.join(', ') || decommissionMessage('noneDeclared')}</dd></div>
+              <div><dt>{decommissionMessage('continuingCost')}</dt><dd>{decommissionPlan.decommission.continuingCosts.map((cost) => `${cost.kind} ${formatCurrency(locale, cost.monthlyEur)}`).join('; ') || decommissionMessage('none')}</dd></div>
             </dl>
             {#if decommissionPlan.decommission.blockers?.length}
-              <p class="inline-error"><strong>Deletion blocked:</strong> {decommissionPlan.decommission.blockers.join('; ')}</p>
+              <p class="inline-error"><strong>{decommissionMessage('deletionBlocked')}</strong> {decommissionPlan.decommission.blockers.join('; ')}</p>
             {/if}
             <ul class="handoff-checklist">
               {#each decommissionPlan.decommission.items as item (item.providerId)}
@@ -1762,43 +1791,43 @@
               {/each}
             </ul>
             <div class="actions">
-              <button type="button" class="secondary" onclick={() => void planPreserveDataDecommission()} disabled={decommissionBusy}>Reinspect and re-plan</button>
-              <button type="button" class="danger" onclick={() => void approvePreserveDataDecommission()} disabled={decommissionBusy || !decommissionPlan.approvable}>Approve preserve-data decommission</button>
+              <button type="button" class="secondary" onclick={() => void planPreserveDataDecommission()} disabled={decommissionBusy}>{decommissionMessage('reinspectPlan')}</button>
+              <button type="button" class="danger" onclick={() => void approvePreserveDataDecommission()} disabled={decommissionBusy || !decommissionPlan.approvable}>{decommissionMessage('approvePreserve')}</button>
             </div>
             {#if decommissionRun}
-              <p class="inline-notice">Run: <code>{decommissionRun.id}</code> — {decommissionRun.state} at {decommissionRun.currentCheckpoint}</p>
+              <p class="inline-notice">{decommissionMessage('run')}: <code>{decommissionRun.id}</code> — {runLabel(decommissionRun.state)} {decommissionMessage('at')} {decommissionRun.currentCheckpoint}</p>
               {#if decommissionRun.state === 'running' && decommissionRun.currentCheckpoint === 'interrupted'}
-                <button type="button" onclick={() => void resumePreserveDataDecommission()} disabled={decommissionBusy}>Reinspect and resume</button>
+                <button type="button" onclick={() => void resumePreserveDataDecommission()} disabled={decommissionBusy}>{decommissionMessage('resume')}</button>
               {/if}
             {/if}
           {/if}
           <hr />
-          <p class="muted">Forget profile only removes this Launcher’s local reference. It performs no provider, cluster, DNS, overlay, or data mutation.</p>
-          <button type="button" class="secondary" onclick={() => void forgetActiveProfile()} disabled={decommissionBusy}>Forget local Cluster Profile</button>
+          <p class="muted">{decommissionMessage('forgetDescription')}</p>
+          <button type="button" class="secondary" onclick={() => void forgetActiveProfile()} disabled={decommissionBusy}>{decommissionMessage('forget')}</button>
         </section>
 
         <section class="card decommission-card full-decommission-card" aria-labelledby="full-decommission-title">
-          <p class="eyebrow">Lifecycle authority · irreversible</p>
-          <h2 id="full-decommission-title">Full decommission</h2>
-          <p class="muted">This separately inspected journey permanently removes only resources proven to belong to this Cluster Profile, including persistent data. Shared DNS zones, the GitOps Overlay, and anything with unknown ownership remain retained.</p>
+          <p class="eyebrow">{decommissionMessage('irreversible')}</p>
+          <h2 id="full-decommission-title">{decommissionMessage('fullTitle')}</h2>
+          <p class="muted">{decommissionMessage('fullDescription')}</p>
           {#if fullDecommissionError}<p class="inline-error" role="alert">{fullDecommissionError}</p>{/if}
           {#if !fullDecommissionPlan}
-            <button type="button" class="danger" onclick={() => void planFullDecommission()} disabled={fullDecommissionBusy}>Inspect protection and prepare full-decommission plan</button>
+            <button type="button" class="danger" onclick={() => void planFullDecommission()} disabled={fullDecommissionBusy}>{decommissionMessage('fullPlan')}</button>
           {:else}
             <dl>
-              <div><dt>Plan digest</dt><dd><code>{fullDecommissionPlan.decommission.digest}</code></dd></div>
-              <div><dt>Backup freshness</dt><dd>{fullDecommissionPlan.decommission.protection.backupFreshness}</dd></div>
-              <div><dt>Offsite Recovery Points</dt><dd>{fullDecommissionPlan.decommission.protection.offsiteRecoveryPoints.join(', ') || 'None observed'}</dd></div>
-              <div><dt>Recovery Bundle</dt><dd>{fullDecommissionPlan.decommission.protection.recoveryBundleStatus}</dd></div>
+              <div><dt>{decommissionMessage('planDigest')}</dt><dd><code>{fullDecommissionPlan.decommission.digest}</code></dd></div>
+              <div><dt>{decommissionMessage('backupFreshness')}</dt><dd>{fullDecommissionPlan.decommission.protection.backupFreshness}</dd></div>
+              <div><dt>{decommissionMessage('offsitePoints')}</dt><dd>{fullDecommissionPlan.decommission.protection.offsiteRecoveryPoints.join(', ') || decommissionMessage('noneObserved')}</dd></div>
+              <div><dt>{decommissionMessage('recoveryBundle')}</dt><dd>{fullDecommissionPlan.decommission.protection.recoveryBundleStatus}</dd></div>
             </dl>
             {#if fullDecommissionPlan.decommission.requiresOwnerOverride}
               <div class="inline-error" role="alert">
-                <strong>Protection is insufficient.</strong> {fullDecommissionPlan.decommission.protection.warnings?.join('; ') || 'A current backup, offsite Recovery Point, or Recovery Bundle is missing.'}
-                <label class="check"><input type="checkbox" bind:checked={fullDecommissionOverride} /><span>I am the Lifecycle Authority and explicitly accept deletion despite this protection gap.</span></label>
-                <label>Reason for informed override <input bind:value={fullDecommissionOverrideReason} maxlength="500" /></label>
+                <strong>{decommissionMessage('protectionInsufficient')}</strong> {fullDecommissionPlan.decommission.protection.warnings?.join('; ') || decommissionMessage('protectionMissing')}
+                <label class="check"><input type="checkbox" bind:checked={fullDecommissionOverride} /><span>{decommissionMessage('overrideAccept')}</span></label>
+                <label>{decommissionMessage('overrideReason')} <input bind:value={fullDecommissionOverrideReason} maxlength="500" /></label>
               </div>
             {/if}
-            <p class="muted">Irreversible consequences:</p>
+            <p class="muted">{decommissionMessage('irreversibleConsequences')}</p>
             <ul class="handoff-checklist">
               {#each fullDecommissionPlan.decommission.irreversibleConsequences as consequence}
                 <li><span aria-hidden="true">!</span> {consequence}</li>
@@ -1811,19 +1840,19 @@
             </ul>
             <label>Type this exact confirmation to authorize irreversible deletion
               <code class="typed-confirmation">{fullDecommissionPlan.decommission.typedConfirmation}</code>
-              <input bind:value={fullDecommissionConfirmation} autocomplete="off" spellcheck="false" aria-label="Full decommission typed confirmation" />
+              <input bind:value={fullDecommissionConfirmation} autocomplete="off" spellcheck="false" aria-label={decommissionMessage('typedConfirmation')} />
             </label>
             <div class="actions">
-              <button type="button" class="secondary" onclick={() => void planFullDecommission()} disabled={fullDecommissionBusy}>Discard and reinspect</button>
-              <button type="button" class="danger" onclick={() => void approveFullDecommission()} disabled={fullDecommissionBusy || fullDecommissionConfirmation !== fullDecommissionPlan.decommission.typedConfirmation || (fullDecommissionPlan.decommission.requiresOwnerOverride && (!fullDecommissionOverride || !fullDecommissionOverrideReason.trim()))}>Type-confirm and permanently decommission</button>
+              <button type="button" class="secondary" onclick={() => void planFullDecommission()} disabled={fullDecommissionBusy}>{decommissionMessage('discardReinspect')}</button>
+              <button type="button" class="danger" onclick={() => void approveFullDecommission()} disabled={fullDecommissionBusy || fullDecommissionConfirmation !== fullDecommissionPlan.decommission.typedConfirmation || (fullDecommissionPlan.decommission.requiresOwnerOverride && (!fullDecommissionOverride || !fullDecommissionOverrideReason.trim()))}>{decommissionMessage('typeConfirm')}</button>
             </div>
             {#if fullDecommissionRun}
-              <p class="inline-notice">Run: <code>{fullDecommissionRun.id}</code> — {fullDecommissionRun.state} at {fullDecommissionRun.currentCheckpoint}</p>
+              <p class="inline-notice">{decommissionMessage('run')}: <code>{fullDecommissionRun.id}</code> — {runLabel(fullDecommissionRun.state)} {decommissionMessage('at')} {fullDecommissionRun.currentCheckpoint}</p>
               {#if fullDecommissionRun.state === 'running' && fullDecommissionRun.currentCheckpoint.includes('interrupted')}
-                <button type="button" onclick={() => void resumeFullDecommission()} disabled={fullDecommissionBusy}>Reinspect and resume the approved scope</button>
+                <button type="button" onclick={() => void resumeFullDecommission()} disabled={fullDecommissionBusy}>{decommissionMessage('resumeScope')}</button>
               {/if}
               {#if fullDecommissionRun.state === 'verified'}
-                <button type="button" class="secondary" onclick={exportFullDecommissionActivity}>Export final redacted Activity Record</button>
+                <button type="button" class="secondary" onclick={exportFullDecommissionActivity}>{decommissionMessage('exportRecord')}</button>
               {/if}
             {/if}
           {/if}
@@ -1953,12 +1982,12 @@
 
         {#if plan}
           <section class="card plan-card" aria-labelledby="plan-title">
-            <p class="eyebrow">Inspect · Plan · Approve</p>
+            <p class="eyebrow">{message('capabilityPreview')}</p>
             <h2 id="plan-title">{message('planTitle')}</h2>
             <dl>
               <div><dt>{message('digest')}</dt><dd data-testid="plan-digest"><code>{plan.digest}</code></dd></div>
-              <div><dt>Effect</dt><dd>{plan.effects?.map((entry) => planItemLabel(entry.code)).join('; ') || message('effect')}</dd></div>
-              <div><dt>Risk</dt><dd>{plan.risks?.map((entry) => planItemLabel(entry.code)).join('; ') || message('noRisk')}</dd></div>
+              <div><dt>{message('effect')}</dt><dd>{plan.effects?.map((entry) => planItemLabel(entry.code)).join('; ') || message('effect')}</dd></div>
+              <div><dt>{message('noRisk')}</dt><dd>{plan.risks?.map((entry) => planItemLabel(entry.code)).join('; ') || message('noRisk')}</dd></div>
               {#if plan.preconditions.bootstrapRelease}<div><dt>{message('capabilityRelease')}</dt><dd>{plan.preconditions.bootstrapRelease}</dd></div>{/if}
               {#if plan.preconditions.overlayCommit}<div><dt>{message('localBootstrapOverlayCommit')}</dt><dd><code>{plan.preconditions.overlayCommit}</code></dd></div>{/if}
               {#if plan.preconditions.dataDirectory}<div><dt>{message('localBootstrapDataDirectory')}</dt><dd><code>{plan.preconditions.dataDirectory}</code></dd></div>{/if}
@@ -1968,16 +1997,17 @@
             </div>
           </section>
         {/if}
+        {/if}
 
         <section aria-labelledby="activity-title">
-          <p class="eyebrow">Workflow Run</p>
+          <p class="eyebrow">{message('activity')}</p>
           <h2 id="activity-title">{message('activity')}</h2>
           {#if activities.length === 0}
             <p class="muted">—</p>
           {:else}
             <ol class="timeline">
               {#each activities as activity (activity.id)}
-                <li><span aria-hidden="true"></span><code>{activity.type}</code></li>
+                <li><span aria-hidden="true"></span><code>{activity.type}</code><time datetime={activity.occurredAt}>{formatDateTime(locale, activity.occurredAt)}</time></li>
               {/each}
             </ol>
           {/if}
@@ -1996,6 +2026,8 @@
   :global(button:hover) { background: #0f5737; }
   :global(button:focus-visible), :global(input:focus-visible), :global(select:focus-visible), :global(textarea:focus-visible), :global(a:focus-visible) { outline: 3px solid #ef9f27; outline-offset: 3px; }
   :global(button:disabled) { opacity: .55; cursor: wait; }
+  .skip-link { position: fixed; z-index: 10; left: 1rem; top: -5rem; padding: .7rem 1rem; border-radius: .6rem; background: #ef9f27; color: #17211b; font-weight: 800; }
+  .skip-link:focus { top: 1rem; }
   .product-header { min-height: 5rem; display: flex; align-items: center; justify-content: space-between; padding: 1rem clamp(1rem, 4vw, 3rem); background: #123b2a; color: white; border-bottom: 1px solid #275c46; }
   .brand { color: inherit; text-decoration: none; display: flex; align-items: center; gap: .85rem; }
   .brand-copy { display: grid; gap: .2rem; }
@@ -2072,6 +2104,7 @@
   .timeline { list-style: none; padding: 0; display: grid; gap: .65rem; }
   .timeline li { display: flex; align-items: center; gap: .7rem; }
   .timeline li span { width: .7rem; height: .7rem; border-radius: 50%; background: #176b45; }
+  .timeline time { margin-left: auto; color: #5f6c64; font-size: .85rem; }
   .muted { color: #5f6c64; }
   .error { display: flex; gap: 1rem; padding: 1rem; margin-bottom: 1rem; border: 1px solid #b5473b; border-radius: .8rem; background: #fff1ee; color: #78281f; }
   @media (max-width: 760px) {
@@ -2083,6 +2116,25 @@
     main { padding: 1.25rem; }
     .form-grid, dl div { grid-template-columns: 1fr; }
     .task-card, .profile-heading { align-items: stretch; flex-direction: column; }
+    .actions { justify-content: stretch; flex-wrap: wrap; }
+    .actions button { flex: 1 1 12rem; min-height: 2.8rem; }
+    .run-status { align-items: flex-start; flex-wrap: wrap; }
+    .run-status small { width: 100%; margin-left: 0; }
+    .timeline li { align-items: flex-start; flex-wrap: wrap; }
+    .timeline time { width: 100%; margin-left: 1.4rem; }
+  }
+  @media (prefers-color-scheme: dark) {
+    :global(:root) { color: #edf6ef; background: #122019; }
+    .product-header { background: #08150e; border-color: #3a6550; }
+    aside { background: #172b20; border-color: #3a6550; }
+    nav button, nav button small, .muted, .eyebrow, .run-status small, .timeline time { color: inherit; }
+    nav button:hover, nav button.active, .card { background: #1b3024; border-color: #466b55; }
+    input, select, textarea { background: #102017; color: #edf6ef; border-color: #7d9c87; }
+    button.secondary { color: #edf6ef; border-color: #9ab9a4; }
+    button.secondary:hover { background: #284433; }
+    .run-status { background: #263b2e; }
+    .run-status.verified, .badge, .inline-notice { background: #204a32; color: #e2f8e8; }
+    .inline-error, .error { background: #4a2622; color: #ffe9e4; }
   }
   @media (prefers-reduced-motion: reduce) { :global(*) { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }
   @media (prefers-contrast: more) { :global(:root) { background: white; color: black; } .card, input, select, button.secondary { border-width: 2px; border-color: currentColor; } }

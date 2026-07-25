@@ -121,4 +121,17 @@ test('Operator completes and reopens the launcher journey in English and German'
     await expect(page.getByRole('heading', { name: journey.profileName })).toBeVisible();
     await expect(page.getByRole('status')).toContainText(journey.verified);
   }
+
+  await page.setViewportSize({ width: 375, height: 667 });
+  const createAnother = page.getByRole('button', { name: /weiteres profil erstellen/i });
+  await expect(createAnother).toBeVisible();
+  const bounds = await createAnother.boundingBox();
+  expect(bounds).not.toBeNull();
+  expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBeLessThanOrEqual(375);
+  await createAnother.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('region', { name: /clusterprofil erstellen/i })).toBeVisible();
+
+  const mobileAccessibility = await new AxeBuilder({ page }).analyze();
+  expect(mobileAccessibility.violations).toEqual([]);
 });
