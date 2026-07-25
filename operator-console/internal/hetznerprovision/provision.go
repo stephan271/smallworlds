@@ -40,6 +40,10 @@ var (
 	safeRelease   = regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+$`)
 	safeToolchain = regexp.MustCompile(`^tofu-[0-9.]+\+hcloud-[0-9.]+$`)
 	safeAddress   = regexp.MustCompile(`^[0-9a-fA-F.:]{2,45}$`)
+	// pinnedVersion is an exact provider version: a reproducible plan reconciles
+	// with one provider, not with whatever a range currently resolves to.
+	pinnedVersion = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
+	safeCIDR      = regexp.MustCompile(`^[0-9a-fA-F.:]{2,45}/[0-9]{1,3}$`)
 )
 
 // Binding is the immutable record of what an operator approved. It carries no
