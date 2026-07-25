@@ -7,7 +7,7 @@ import (
 )
 
 func allPass() handoffverification.Observations {
-	return handoffverification.Observations{PrivateReachable: true, DNSResolves: true, TLSTrusted: true, GatewayIdentityMatches: true}
+	return handoffverification.Observations{PrivateReachable: true, DNSResolves: true, TLSTrusted: true, GatewayIdentityMatches: true, OIDCReachable: true}
 }
 
 func TestEvaluateVerifiesOnlyWhenAllChecksPass(t *testing.T) {
@@ -20,6 +20,7 @@ func TestEvaluateVerifiesOnlyWhenAllChecksPass(t *testing.T) {
 		handoffverification.DNSCheck,
 		handoffverification.TLSCheck,
 		handoffverification.GatewayIdentityCheck,
+		handoffverification.OIDCCheck,
 	}
 	if len(report.Checks) != len(names) {
 		t.Fatalf("checks = %d, want %d", len(report.Checks), len(names))
@@ -37,6 +38,9 @@ func TestEvaluateBlocksClosureWhenAnyCheckFails(t *testing.T) {
 		"dns":          func(o *handoffverification.Observations) { o.DNSResolves = false },
 		"tls":          func(o *handoffverification.Observations) { o.TLSTrusted = false },
 		"identity":     func(o *handoffverification.Observations) { o.GatewayIdentityMatches = false },
+		// An identity provider that is down or holding a bad certificate means
+		// the Operator cannot sign in to anything once the temporary path closes.
+		"oidc": func(o *handoffverification.Observations) { o.OIDCReachable = false },
 	}
 	for name, mutate := range mutators {
 		t.Run(name, func(t *testing.T) {
@@ -52,8 +56,9 @@ func TestEvaluateBlocksClosureWhenAnyCheckFails(t *testing.T) {
 
 func TestTargetValidateRequiresAllExpectations(t *testing.T) {
 	complete := handoffverification.Target{
-		Anchor:     handoffverification.ClusterCARoot,
-		BaseDomain: "smallworlds.internal", GatewayHostname: "gateway.smallworlds.internal",
+		Anchor:            handoffverification.ClusterCARoot,
+		IdentityIssuerURL: "https://identity.smallworlds.internal/realms/smallworlds",
+		BaseDomain:        "smallworlds.internal", GatewayHostname: "gateway.smallworlds.internal",
 		OperatorHosts: []string{"console.smallworlds.internal"}, RootFingerprint: "SHA256:AA",
 		RootCertificatePEM: "-----BEGIN CERTIFICATE-----", GatewayIdentityHostname: "gateway.smallworlds.internal",
 	}

@@ -1378,8 +1378,18 @@ func (server *Server) handoffTarget(request *http.Request, profileID string) (ha
 	for _, endpoint := range networkReference.OperatorEndpoints {
 		hosts = append(hosts, endpoint.FQDN)
 	}
+	// The identity provider serves the community's own domain in every mode, so
+	// it comes from the overlay rather than the Private Network.
+	overlay, err := server.store.GetOverlayIdentity(ctx, profileID)
+	if errors.Is(err, state.ErrNotFound) || err == nil && overlay.Domain == "" {
+		return handoffverification.Target{}, "gitops_overlay_required", nil
+	}
+	if err != nil {
+		return handoffverification.Target{}, "", err
+	}
 	target := handoffverification.Target{
 		Anchor:                  anchor,
+		IdentityIssuerURL:       "https://identity." + overlay.Domain + "/realms/smallworlds",
 		BaseDomain:              networkReference.BaseDomain,
 		GatewayHostname:         networkReference.GatewayHostname,
 		OperatorHosts:           hosts,

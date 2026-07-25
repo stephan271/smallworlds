@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stephan271/smallworlds/operator-console/internal/handoffverification"
@@ -12,8 +13,8 @@ import (
 )
 
 func TestHandoffAssessmentCompletesAndProvidesConsoleURL(t *testing.T) {
-	verifier := &stubHandoffVerifier{observations: handoffverification.Observations{PrivateReachable: true, DNSResolves: true, TLSTrusted: true, GatewayIdentityMatches: true}}
-	handler, err := launcher.New(launcher.Config{DataDir: t.TempDir(), LaunchToken: "assessment", HandoffVerifier: verifier})
+	verifier := &stubHandoffVerifier{observations: handoffverification.Observations{PrivateReachable: true, DNSResolves: true, TLSTrusted: true, GatewayIdentityMatches: true, OIDCReachable: true}}
+	handler, err := launcher.New(launcher.Config{DataDir: t.TempDir(), LaunchToken: "assessment", HandoffVerifier: verifier, GenericGitClient: &genericGitStub{commit: strings.Repeat("c", 40)}})
 	if err != nil {
 		t.Fatal(err)
 	}

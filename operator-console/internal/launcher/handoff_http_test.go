@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stephan271/smallworlds/operator-console/internal/handoffverification"
@@ -22,8 +23,44 @@ func (verifier *stubHandoffVerifier) Observe(_ context.Context, target handoffve
 	return verifier.observations, verifier.err
 }
 
+// establishHandoffOverlay records the GitOps Overlay the handoff needs: its
+// domain is where the cluster's identity provider lives, and verification now
+// probes OIDC discovery there before the temporary administration path may be
+// closed.
+func establishHandoffOverlay(t *testing.T, handler *launcher.Server, cookie *http.Cookie, csrf, profileID string) {
+	t.Helper()
+	headers := map[string]string{"X-CSRF-Token": csrf}
+	release := "v1.2.27"
+	credentials, _ := json.Marshal(map[string]string{"profileId": profileID, "repositoryUrl": "https://git.example/overlay.git", "username": "operator", "token": "git-secret"})
+	credentialResponse := request(t, handler, http.MethodPost, "/api/v1/generic-git/token/validate", credentials, cookie, headers)
+	if credentialResponse.StatusCode != http.StatusOK {
+		t.Fatalf("git credential status = %d: %s", credentialResponse.StatusCode, readAll(t, credentialResponse))
+	}
+	credentialResponse.Body.Close()
+	planBody, _ := json.Marshal(map[string]any{"profileId": profileID, "mode": "minimal", "communityIds": []string{}, "release": release, "repositoryUrl": "https://git.example/overlay.git", "domain": "home.example"})
+	response := request(t, handler, http.MethodPost, "/api/v1/capabilities/plan", planBody, cookie, headers)
+	var capabilityPlan struct {
+		Plan struct {
+			ID string `json:"id"`
+		} `json:"plan"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&capabilityPlan); err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	response = request(t, handler, http.MethodPost, "/api/v1/plans/"+capabilityPlan.Plan.ID+"/approve", nil, cookie, headers)
+	response.Body.Close()
+	establishBody, _ := json.Marshal(map[string]any{"profileId": profileID, "planId": capabilityPlan.Plan.ID, "repositoryUrl": "https://git.example/overlay.git", "mode": "minimal", "communityIds": []string{}, "release": release, "domain": "home.example"})
+	response = request(t, handler, http.MethodPost, "/api/v1/generic-git/overlay/establish", establishBody, cookie, headers)
+	if response.StatusCode != http.StatusCreated {
+		t.Fatalf("overlay status = %d: %s", response.StatusCode, readAll(t, response))
+	}
+	response.Body.Close()
+}
+
 func establishHandoffPrerequisites(t *testing.T, handler *launcher.Server, cookie *http.Cookie, csrf, profileID string) {
 	t.Helper()
+	establishHandoffOverlay(t, handler, cookie, csrf, profileID)
 	headers := map[string]string{"X-CSRF-Token": csrf}
 	body, _ := json.Marshal(map[string]string{"profileId": profileID})
 	for _, path := range []string{"/api/v1/cluster-ca/establish", "/api/v1/private-network/establish", "/api/v1/enrollment/establish"} {
@@ -40,8 +77,8 @@ func establishHandoffPrerequisites(t *testing.T, handler *launcher.Server, cooki
 }
 
 func TestHandoffClosesTemporaryAccessOnlyAfterFullVerification(t *testing.T) {
-	verifier := &stubHandoffVerifier{observations: handoffverification.Observations{PrivateReachable: true, DNSResolves: true, TLSTrusted: false, GatewayIdentityMatches: true}}
-	handler, err := launcher.New(launcher.Config{DataDir: t.TempDir(), LaunchToken: "handoff", HandoffVerifier: verifier})
+	verifier := &stubHandoffVerifier{observations: handoffverification.Observations{PrivateReachable: true, DNSResolves: true, TLSTrusted: false, GatewayIdentityMatches: true, OIDCReachable: true}}
+	handler, err := launcher.New(launcher.Config{DataDir: t.TempDir(), LaunchToken: "handoff", HandoffVerifier: verifier, GenericGitClient: &genericGitStub{commit: strings.Repeat("c", 40)}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +139,7 @@ func TestHandoffVerificationWithLiveDefaultReportsUnverifiedForUnreachableCluste
 	// No injected verifier: the production LiveVerifier probes the (non-existent)
 	// private cluster and must honestly report the handoff as unverified, which
 	// blocks closing the temporary administration path.
-	handler, err := launcher.New(launcher.Config{DataDir: t.TempDir(), LaunchToken: "handoff"})
+	handler, err := launcher.New(launcher.Config{DataDir: t.TempDir(), LaunchToken: "handoff", GenericGitClient: &genericGitStub{commit: strings.Repeat("c", 40)}})
 	if err != nil {
 		t.Fatal(err)
 	}

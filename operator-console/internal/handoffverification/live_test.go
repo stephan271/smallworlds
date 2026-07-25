@@ -46,6 +46,7 @@ func liveChain(t *testing.T) (rootPEM string, chain []*x509.Certificate) {
 func liveTarget(rootPEM string) handoffverification.Target {
 	return handoffverification.Target{
 		Anchor:                  handoffverification.ClusterCARoot,
+		IdentityIssuerURL:       "https://identity.smallworlds.internal/realms/smallworlds",
 		BaseDomain:              "smallworlds.internal",
 		GatewayHostname:         "gateway.smallworlds.internal",
 		OperatorHosts:           []string{"console.smallworlds.internal"},
@@ -65,10 +66,12 @@ func TestLiveVerifierUsesPublicTrustWhenThereIsNoPinnedRoot(t *testing.T) {
 		LookupHost:    func(context.Context, string) ([]string, error) { return []string{"100.64.0.1"}, nil },
 		DialReachable: func(context.Context, string) error { return nil },
 		DialTLS:       func(context.Context, string, string) ([]*x509.Certificate, error) { return chain, nil },
+		DiscoverOIDC:  func(context.Context, string) error { return nil },
 		Port:          "443",
 	}
 	target := handoffverification.Target{
 		Anchor:                  handoffverification.PublicTrust,
+		IdentityIssuerURL:       "https://identity.example.org/realms/smallworlds",
 		BaseDomain:              "ops.smallworlds.internal",
 		GatewayHostname:         "gateway.ops.smallworlds.internal",
 		OperatorHosts:           []string{"console.smallworlds.internal"},
@@ -81,8 +84,8 @@ func TestLiveVerifierUsesPublicTrustWhenThereIsNoPinnedRoot(t *testing.T) {
 	if observations.TLSTrusted {
 		t.Fatal("a privately signed certificate was accepted against the public trust store")
 	}
-	// The other three checks are unaffected by the anchor.
-	if !observations.PrivateReachable || !observations.DNSResolves || !observations.GatewayIdentityMatches {
+	// Every other check is unaffected by the anchor.
+	if !observations.PrivateReachable || !observations.DNSResolves || !observations.GatewayIdentityMatches || !observations.OIDCReachable {
 		t.Fatalf("observations = %+v, want only the TLS check failing", observations)
 	}
 	if handoffverification.Evaluate(observations).PermitsClosure() {
@@ -96,6 +99,7 @@ func TestLiveVerifierUsesPublicTrustWhenThereIsNoPinnedRoot(t *testing.T) {
 func TestTargetRejectsTrustMaterialThatDoesNotMatchItsAnchor(t *testing.T) {
 	rootPEM, _ := liveChain(t)
 	base := handoffverification.Target{
+		IdentityIssuerURL:       "https://identity.smallworlds.internal/realms/smallworlds",
 		BaseDomain:              "smallworlds.internal",
 		GatewayHostname:         "gateway.smallworlds.internal",
 		OperatorHosts:           []string{"console.smallworlds.internal"},
@@ -129,6 +133,7 @@ func TestLiveVerifierObservesAllChecksWhenHealthy(t *testing.T) {
 		LookupHost:    func(context.Context, string) ([]string, error) { return []string{"100.64.0.1"}, nil },
 		DialReachable: func(context.Context, string) error { return nil },
 		DialTLS:       func(context.Context, string, string) ([]*x509.Certificate, error) { return chain, nil },
+		DiscoverOIDC:  func(context.Context, string) error { return nil },
 		Port:          "443",
 	}
 	observations, err := verifier.Observe(context.Background(), liveTarget(rootPEM))
@@ -150,6 +155,7 @@ func TestLiveVerifierReportsIndividualFailures(t *testing.T) {
 			LookupHost:    func(context.Context, string) ([]string, error) { return []string{"100.64.0.1"}, nil },
 			DialReachable: func(context.Context, string) error { return nil },
 			DialTLS:       func(context.Context, string, string) ([]*x509.Certificate, error) { return chain, nil },
+			DiscoverOIDC:  func(context.Context, string) error { return nil },
 		}
 	}
 

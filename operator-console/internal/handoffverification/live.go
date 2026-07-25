@@ -4,9 +4,14 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"fmt"
+	"io"
 	"net"
+	"net/http"
+	"strings"
 	"time"
 )
 
@@ -17,8 +22,12 @@ type LiveVerifier struct {
 	LookupHost    func(ctx context.Context, host string) ([]string, error)
 	DialReachable func(ctx context.Context, address string) error
 	DialTLS       func(ctx context.Context, address, serverName string) ([]*x509.Certificate, error)
-	Port          string
-	Timeout       time.Duration
+	// DiscoverOIDC fetches the identity provider's discovery document. Unlike
+	// the operator TLS check it always applies the public trust store, because
+	// the identity provider serves the community's own domain in every mode.
+	DiscoverOIDC func(ctx context.Context, discoveryURL string) error
+	Port         string
+	Timeout      time.Duration
 }
 
 // NewLiveVerifier returns a verifier that performs real DNS resolution, TCP
@@ -51,6 +60,35 @@ func NewLiveVerifier() *LiveVerifier {
 				return nil, errors.New("unexpected non-TLS connection")
 			}
 			return tlsConn.ConnectionState().PeerCertificates, nil
+		},
+		DiscoverOIDC: func(ctx context.Context, discoveryURL string) error {
+			request, err := http.NewRequestWithContext(ctx, http.MethodGet, discoveryURL, nil)
+			if err != nil {
+				return err
+			}
+			response, err := (&http.Client{}).Do(request)
+			if err != nil {
+				return err
+			}
+			defer response.Body.Close()
+			// Bound the read: a discovery document is small, and an endpoint that
+			// streams indefinitely must not hold the verification open.
+			var document struct {
+				Issuer                string `json:"issuer"`
+				AuthorizationEndpoint string `json:"authorization_endpoint"`
+			}
+			if response.StatusCode != http.StatusOK {
+				return fmt.Errorf("oidc discovery returned %d", response.StatusCode)
+			}
+			if err := json.NewDecoder(io.LimitReader(response.Body, 256*1024)).Decode(&document); err != nil {
+				return err
+			}
+			// A reachable endpoint that is not actually an identity provider —
+			// an ingress default backend, say — must not count as verified.
+			if document.Issuer == "" || document.AuthorizationEndpoint == "" {
+				return errors.New("oidc discovery document is incomplete")
+			}
+			return nil
 		},
 		Port:    "443",
 		Timeout: 3 * time.Second,
@@ -96,7 +134,21 @@ func (verifier *LiveVerifier) Observe(ctx context.Context, target Target) (Obser
 
 	observations.PrivateReachable = verifier.reachable(ctx, target.GatewayHostname)
 	observations.TLSTrusted = verifier.tlsChainsToAnchor(ctx, target)
+	observations.OIDCReachable = verifier.oidcReachable(ctx, target)
 	return observations, nil
+}
+
+// oidcReachable fetches the identity provider's discovery document. It is a
+// plain read, and a failure — unreachable, bad certificate, not yet deployed —
+// is reported as an unmet observation rather than an error, because a cluster
+// still converging is a reason to wait, not to fail the run.
+func (verifier *LiveVerifier) oidcReachable(ctx context.Context, target Target) bool {
+	if verifier.DiscoverOIDC == nil {
+		return false
+	}
+	ctx, cancel := verifier.withTimeout(ctx)
+	defer cancel()
+	return verifier.DiscoverOIDC(ctx, strings.TrimSuffix(target.IdentityIssuerURL, "/")+"/.well-known/openid-configuration") == nil
 }
 
 func (verifier *LiveVerifier) lookup(ctx context.Context, host string) ([]string, error) {

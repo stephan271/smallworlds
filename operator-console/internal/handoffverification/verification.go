@@ -1,8 +1,15 @@
 // Package handoffverification gates closing the temporary SSH/Kubernetes
-// administration path behind four externally observed checks: private
+// administration path behind five externally observed checks: private
 // reachability, operator DNS resolution, operator TLS chaining to the Deployment
-// Mode's trust anchor, and the Private Gateway presenting its expected stable
-// identity. The gate logic is deterministic and testable; the live probing is an
+// Mode's trust anchor, the Private Gateway presenting its expected stable
+// identity, and the cluster's identity provider serving OIDC discovery.
+//
+// The gate exists because closing that path is the one irreversible step of the
+// journey: after it, the only way into the cluster is the private one. Every
+// check is therefore a way the Operator could be locked out of the cluster they
+// just paid for, and the gate opens only when none of them applies.
+//
+// The gate logic is deterministic and testable; the live probing is an
 // injectable Verifier, mirroring localbootstrap.Runner.
 package handoffverification
 
@@ -11,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // ErrVerificationUnavailable is returned by a Verifier that cannot reach the
@@ -31,6 +39,12 @@ const (
 	// GatewayIdentityCheck confirms the gateway presents its expected stable
 	// identity.
 	GatewayIdentityCheck = "gateway-identity"
+	// OIDCCheck confirms the cluster's identity provider is serving its
+	// discovery document over a trusted certificate. Operator interfaces
+	// authenticate through it, so closing the temporary administration path
+	// while it is down or holding a bad certificate locks the Operator out of
+	// the cluster they just built — with no way back in.
+	OIDCCheck = "operator-oidc"
 )
 
 // TrustAnchor is what operator TLS is required to chain to. It differs by
@@ -56,6 +70,9 @@ type Target struct {
 	GatewayHostname         string
 	OperatorHosts           []string
 	GatewayIdentityHostname string
+	// IdentityIssuerURL is the cluster's OIDC issuer. Operator interfaces sign
+	// in through it in every Deployment Mode.
+	IdentityIssuerURL string
 	// RootFingerprint and RootCertificatePEM identify the private Cluster CA
 	// root. They are required for ClusterCARoot and must be absent for
 	// PublicTrust — a stray pinned root there would silently widen what the
@@ -64,10 +81,13 @@ type Target struct {
 	RootCertificatePEM string
 }
 
-// Validate ensures a target carries everything the four checks require, and
+// Validate ensures a target carries everything the checks require, and
 // exactly the trust material its anchor calls for.
 func (target Target) Validate() error {
 	if target.BaseDomain == "" || target.GatewayHostname == "" || len(target.OperatorHosts) == 0 || target.GatewayIdentityHostname == "" {
+		return ErrInvalidTarget
+	}
+	if !strings.HasPrefix(target.IdentityIssuerURL, "https://") {
 		return ErrInvalidTarget
 	}
 	switch target.Anchor {
@@ -91,6 +111,7 @@ type Observations struct {
 	DNSResolves            bool
 	TLSTrusted             bool
 	GatewayIdentityMatches bool
+	OIDCReachable          bool
 }
 
 // Verifier performs the live observation of a target. Implementations must not
@@ -105,7 +126,7 @@ type Check struct {
 	Passed bool   `json:"passed"`
 }
 
-// Report aggregates the four checks and whether the handoff is fully verified.
+// Report aggregates the checks and whether the handoff is fully verified.
 type Report struct {
 	Checks   []Check `json:"checks"`
 	Verified bool    `json:"verified"`
@@ -119,6 +140,7 @@ func Evaluate(observations Observations) Report {
 		{Name: DNSCheck, Passed: observations.DNSResolves},
 		{Name: TLSCheck, Passed: observations.TLSTrusted},
 		{Name: GatewayIdentityCheck, Passed: observations.GatewayIdentityMatches},
+		{Name: OIDCCheck, Passed: observations.OIDCReachable},
 	}
 	verified := true
 	for _, check := range checks {
