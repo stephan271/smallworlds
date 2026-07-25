@@ -27,6 +27,7 @@ import (
 	"github.com/stephan271/smallworlds/operator-console/internal/github"
 	"github.com/stephan271/smallworlds/operator-console/internal/handoffassessment"
 	"github.com/stephan271/smallworlds/operator-console/internal/handoffverification"
+	"github.com/stephan271/smallworlds/operator-console/internal/hetzner"
 	"github.com/stephan271/smallworlds/operator-console/internal/localbootstrap"
 	"github.com/stephan271/smallworlds/operator-console/internal/nodeinspect"
 	"github.com/stephan271/smallworlds/operator-console/internal/offsite"
@@ -55,6 +56,8 @@ type Config struct {
 	OffsiteInspector        offsite.Inspector
 	ClusterSecretApplier    ClusterSecretApplier
 	OffsiteValidationRunner OffsiteValidationRunner
+	HetznerProvider         HetznerProvider
+	HetznerProvisioner      HetznerProvisioner
 }
 
 // GenericGitClient permits deterministic Launcher contract tests while the
@@ -92,22 +95,25 @@ type session struct {
 
 type Server struct {
 	launchToken string
+	dataDir     string
 
-	mu               sync.RWMutex
-	tokenUsed        bool
-	sessions         map[string]session
-	store            *state.Store
-	vault            *vault.Vault
-	workflow         *workflow.Engine
-	github           *github.Client
-	genericGit       GenericGitClient
-	assets           *bootstrapassets.Manager
-	nodes            NodeInspector
-	handoff          handoffverification.Verifier
-	passkey          firstowner.PasskeyVerifier
-	offsite          offsite.Inspector
-	secrets          ClusterSecretApplier
-	offsiteValidator OffsiteValidationRunner
+	mu                 sync.RWMutex
+	tokenUsed          bool
+	sessions           map[string]session
+	store              *state.Store
+	vault              *vault.Vault
+	workflow           *workflow.Engine
+	github             *github.Client
+	genericGit         GenericGitClient
+	assets             *bootstrapassets.Manager
+	nodes              NodeInspector
+	handoff            handoffverification.Verifier
+	passkey            firstowner.PasskeyVerifier
+	offsite            offsite.Inspector
+	secrets            ClusterSecretApplier
+	offsiteValidator   OffsiteValidationRunner
+	hetzner            HetznerProvider
+	hetznerProvisioner HetznerProvisioner
 }
 
 func New(config Config) (*Server, error) {
@@ -180,9 +186,23 @@ func New(config Config) (*Server, error) {
 		// fabricating evidence — the live adapter is deferred like the others.
 		offsiteValidationRunner = unavailableOffsiteValidationRunner{}
 	}
+	hetznerProvider := config.HetznerProvider
+	if hetznerProvider == nil {
+		// The production provider is read-only by construction: every call it
+		// makes is a GET apart from the write-authority probe, which the
+		// provider itself rejects before it can create anything.
+		hetznerProvider = hetzner.NewClient(hetzner.DefaultAPIBaseURL, nil)
+	}
+	hetznerProvisioner := config.HetznerProvisioner
+	if hetznerProvisioner == nil {
+		// Applying a plan to the project is out of this journey's scope: the
+		// launcher refuses rather than letting an approval quietly provision.
+		hetznerProvisioner = unavailableHetznerProvisioner{}
+	}
 	workflowEngine.RegisterExecutor("BootstrapLocalNode", bootstrapService.Execute)
 	server := &Server{
 		launchToken:      config.LaunchToken,
+		dataDir:          config.DataDir,
 		sessions:         make(map[string]session),
 		store:            store,
 		vault:            vaultStore,
@@ -196,10 +216,14 @@ func New(config Config) (*Server, error) {
 		offsite:          offsiteInspector,
 		secrets:          clusterSecretApplier,
 		offsiteValidator: offsiteValidationRunner,
+
+		hetzner:            hetznerProvider,
+		hetznerProvisioner: hetznerProvisioner,
 	}
 	// Registered after the server exists (the executor is a server method) and
 	// before ResumeActive, so a validation run interrupted by a restart resumes.
 	workflowEngine.RegisterExecutor(offsiteValidationIntent, server.executeOffsiteValidation)
+	workflowEngine.RegisterExecutor(hetznerProvisionIntent, server.executeHetznerProvision)
 	if err := workflowEngine.ResumeActive(context.Background()); err != nil {
 		store.Close()
 		return nil, err
@@ -297,6 +321,18 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.registerFirstOwner(response, request)
 	case request.URL.Path == "/api/v1/handoff-assessment":
 		server.handoffAssessment(response, request)
+	case request.URL.Path == "/api/v1/hetzner":
+		server.hetznerStatus(response, request)
+	case request.URL.Path == "/api/v1/hetzner/token/validate":
+		server.validateHetznerToken(response, request)
+	case request.URL.Path == "/api/v1/hetzner/inspect":
+		server.inspectHetzner(response, request)
+	case request.URL.Path == "/api/v1/hetzner/toolchain/acquire":
+		server.acquireHetznerToolchain(response, request)
+	case request.URL.Path == "/api/v1/hetzner/presets":
+		server.hetznerPresets(response, request)
+	case request.URL.Path == "/api/v1/hetzner/plan":
+		server.planHetzner(response, request)
 	case request.URL.Path == "/api/v1/offsite":
 		server.offsiteStatus(response, request)
 	case request.URL.Path == "/api/v1/offsite/inspect":

@@ -156,6 +156,17 @@ type OffsiteProtectionReference struct {
 	RecordedAt time.Time
 }
 
+// HetznerProjectReference persists the secret-free record of a profile's
+// Hetzner project: the validated token's fingerprint and project identity, the
+// last inspection, and the last infrastructure plan. The project token itself
+// lives only in the Launcher Vault, never here. Reference is an opaque JSON
+// blob owned by the launcher.
+type HetznerProjectReference struct {
+	ProfileID  string
+	Reference  string
+	RecordedAt time.Time
+}
+
 // ClusterCAReference persists the secret-free, public Cluster CA material for a
 // profile (metadata plus the public root and intermediate certificates). The
 // private root and intermediate keys live only in the Launcher Vault, never
@@ -594,6 +605,31 @@ func (store *Store) GetOffsiteProtection(ctx context.Context, profileID string) 
 	reference.RecordedAt, err = time.Parse(time.RFC3339Nano, recordedAt)
 	if err != nil {
 		return OffsiteProtectionReference{}, fmt.Errorf("parse offsite protection record: %w", err)
+	}
+	return reference, nil
+}
+
+func (store *Store) RecordHetznerProject(ctx context.Context, reference HetznerProjectReference) error {
+	_, err := store.database.ExecContext(ctx, `INSERT INTO hetzner_projects (profile_id, reference_json, recorded_at) VALUES (?, ?, ?) ON CONFLICT(profile_id) DO UPDATE SET reference_json=excluded.reference_json, recorded_at=excluded.recorded_at`, reference.ProfileID, reference.Reference, reference.RecordedAt.UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return fmt.Errorf("record hetzner project: %w", err)
+	}
+	return nil
+}
+
+func (store *Store) GetHetznerProject(ctx context.Context, profileID string) (HetznerProjectReference, error) {
+	var reference HetznerProjectReference
+	var recordedAt string
+	err := store.database.QueryRowContext(ctx, `SELECT profile_id, reference_json, recorded_at FROM hetzner_projects WHERE profile_id = ?`, profileID).Scan(&reference.ProfileID, &reference.Reference, &recordedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return HetznerProjectReference{}, ErrNotFound
+	}
+	if err != nil {
+		return HetznerProjectReference{}, fmt.Errorf("get hetzner project: %w", err)
+	}
+	reference.RecordedAt, err = time.Parse(time.RFC3339Nano, recordedAt)
+	if err != nil {
+		return HetznerProjectReference{}, fmt.Errorf("parse hetzner project record: %w", err)
 	}
 	return reference, nil
 }
@@ -1378,6 +1414,11 @@ func (store *Store) migrate(ctx context.Context) error {
 			recorded_at TEXT NOT NULL
 		)`},
 		{18, `CREATE TABLE offsite_protections (
+			profile_id TEXT PRIMARY KEY REFERENCES profiles(id),
+			reference_json TEXT NOT NULL,
+			recorded_at TEXT NOT NULL
+		)`},
+		{19, `CREATE TABLE hetzner_projects (
 			profile_id TEXT PRIMARY KEY REFERENCES profiles(id),
 			reference_json TEXT NOT NULL,
 			recorded_at TEXT NOT NULL

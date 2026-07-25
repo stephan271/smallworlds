@@ -1756,6 +1756,305 @@
         }
       }
     },
+    "/api/v1/hetzner": {
+        "get": {
+          "operationId": "getHetznerProject",
+          "parameters": [
+            {
+              "name": "profileId",
+              "in": "query",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Secret-free Hetzner project record: token verdict and fingerprint, last inspection, delegation check, pinned toolchain, and isolated state workspace",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HetznerProject"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "No Hetzner project recorded for this profile"
+            }
+          }
+        }
+      },
+      "/api/v1/hetzner/token/validate": {
+        "post": {
+          "operationId": "validateHetznerToken",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "profileId",
+                    "token"
+                  ],
+                  "properties": {
+                    "profileId": {
+                      "type": "string"
+                    },
+                    "token": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Token verdict. A usable token is custodied in the Launcher Vault; the value is never returned",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HetznerTokenAssessment"
+                  }
+                }
+              }
+            },
+            "423": {
+              "description": "Launcher Vault is locked"
+            },
+            "502": {
+              "description": "Provider could not be reached"
+            }
+          }
+        }
+      },
+      "/api/v1/hetzner/inspect": {
+        "post": {
+          "operationId": "inspectHetznerProject",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "profileId",
+                    "domain"
+                  ],
+                  "properties": {
+                    "profileId": {
+                      "type": "string"
+                    },
+                    "domain": {
+                      "type": "string"
+                    },
+                    "envExt": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Read-only inventory of every inspected resource kind, classified by ownership, plus the nameserver delegation check",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HetznerProject"
+                  }
+                }
+              }
+            },
+            "409": {
+              "description": "A validated project token is required first"
+            },
+            "429": {
+              "description": "Provider rate limit reached; the inspection is inconclusive"
+            }
+          }
+        }
+      },
+      "/api/v1/hetzner/toolchain/acquire": {
+        "post": {
+          "operationId": "acquireHetznerToolchain",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "profileId"
+                  ],
+                  "properties": {
+                    "profileId": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Pinned OpenTofu and provider artifacts verified, and the profile's isolated state workspace prepared",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "toolchain": {
+                        "$ref": "#/components/schemas/HetznerToolchain"
+                      },
+                      "workspace": {
+                        "$ref": "#/components/schemas/HetznerWorkspace"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "503": {
+              "description": "No verified toolchain artifacts are published for this platform; the launcher refuses rather than using an ambient binary"
+            }
+          }
+        }
+      },
+      "/api/v1/hetzner/presets": {
+        "post": {
+          "operationId": "getHetznerPresets",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "profileId",
+                    "mode"
+                  ],
+                  "properties": {
+                    "profileId": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "type": "string"
+                    },
+                    "communityIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "location": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Small, Recommended, and High presets derived from the selected Cluster Capabilities, with live availability and estimated recurring cost, plus the advanced location and server-type choices",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HetznerPresets"
+                  }
+                }
+              }
+            },
+            "409": {
+              "description": "A validated project token is required first"
+            }
+          }
+        }
+      },
+      "/api/v1/hetzner/plan": {
+        "post": {
+          "operationId": "planHetznerInfrastructure",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "profileId",
+                    "mode",
+                    "tier",
+                    "location"
+                  ],
+                  "properties": {
+                    "profileId": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "type": "string"
+                    },
+                    "communityIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "tier": {
+                      "type": "string"
+                    },
+                    "location": {
+                      "type": "string"
+                    },
+                    "serverType": {
+                      "type": "string"
+                    },
+                    "volumeGb": {
+                      "type": "integer"
+                    },
+                    "adoptions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": {
+              "description": "Immutable, cost-bearing Change Plan bound to the inspection it was derived from. No provider resource is changed",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "plan": {
+                        "$ref": "#/components/schemas/ChangePlan"
+                      },
+                      "changePlan": {
+                        "$ref": "#/components/schemas/HetznerChangePlan"
+                      },
+                      "approvable": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "409": {
+              "description": "A validated token and a completed inspection are required first"
+            }
+          }
+        }
+      },
     "/api/v1/offsite": {
       "get": {
         "operationId": "getOffsiteProtection",
@@ -2052,6 +2351,569 @@
       }
     },
     "schemas": {
+      "HetznerTokenAssessment": {
+          "type": "object",
+          "description": "Secret-free verdict of validating a Hetzner project token. Identifies the token by fingerprint only.",
+          "properties": {
+            "state": {
+              "type": "string",
+              "enum": [
+                "valid",
+                "malformed",
+                "unauthorized",
+                "read-only",
+                "inconclusive",
+                "project-mismatch"
+              ]
+            },
+            "fingerprint": {
+              "type": "string"
+            },
+            "projectId": {
+              "type": "string"
+            },
+            "reasonKey": {
+              "type": "string"
+            },
+            "missingAuthority": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "HetznerResource": {
+          "type": "object",
+          "description": "One inventoried provider resource, identified by its stable provider identity.",
+          "properties": {
+            "kind": {
+              "type": "string"
+            },
+            "providerId": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            },
+            "detail": {
+              "type": "string"
+            },
+            "labels": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "HetznerFinding": {
+          "type": "object",
+          "description": "Classification of one expected resource against the inventory. A similarly named resource is reported, never adopted.",
+          "properties": {
+            "expectation": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "shared": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "match": {
+              "$ref": "#/components/schemas/HetznerResource"
+            },
+            "similar": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/HetznerResource"
+              }
+            },
+            "ownership": {
+              "type": "string",
+              "enum": [
+                "shared",
+                "profile-owned",
+                "adoptable",
+                "conflicting",
+                "unknown",
+                "absent"
+              ]
+            },
+            "requiresDecision": {
+              "type": "boolean"
+            },
+            "reasonKey": {
+              "type": "string"
+            }
+          }
+        },
+        "HetznerInventory": {
+          "type": "object",
+          "properties": {
+            "projectId": {
+              "type": "string"
+            },
+            "digest": {
+              "type": "string"
+            },
+            "incomplete": {
+              "type": "boolean"
+            },
+            "findings": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/HetznerFinding"
+              }
+            },
+            "unmatched": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/HetznerResource"
+              }
+            }
+          }
+        },
+        "HetznerDelegation": {
+          "type": "object",
+          "description": "Nameserver delegation check. Unknown is never treated as confirmed, so a public installation stays blocked.",
+          "properties": {
+            "domain": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "confirmed",
+                "partial",
+                "missing",
+                "unknown",
+                "not-required"
+              ]
+            },
+            "expectedNameservers": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "observedNameservers": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "reasonKey": {
+              "type": "string"
+            }
+          }
+        },
+        "HetznerCostEstimate": {
+          "type": "object",
+          "description": "Estimated recurring monthly cost from the observed provider catalog, with the notes about resources that remain billable.",
+          "properties": {
+            "currency": {
+              "type": "string"
+            },
+            "serverMonthlyEur": {
+              "type": "number"
+            },
+            "volumeMonthlyEur": {
+              "type": "number"
+            },
+            "primaryIpMonthlyEur": {
+              "type": "number"
+            },
+            "totalMonthlyEur": {
+              "type": "number"
+            },
+            "observedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "noteKeys": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "HetznerPreset": {
+          "type": "object",
+          "properties": {
+            "tier": {
+              "type": "string",
+              "enum": [
+                "small",
+                "recommended",
+                "high",
+                "advanced"
+              ]
+            },
+            "serverType": {
+              "type": "string"
+            },
+            "vcpu": {
+              "type": "integer"
+            },
+            "memoryGb": {
+              "type": "integer"
+            },
+            "volumeGb": {
+              "type": "integer"
+            },
+            "fits": {
+              "type": "boolean"
+            },
+            "available": {
+              "type": "boolean"
+            },
+            "reasonKey": {
+              "type": "string"
+            },
+            "cost": {
+              "$ref": "#/components/schemas/HetznerCostEstimate"
+            }
+          }
+        },
+        "HetznerRequirement": {
+          "type": "object",
+          "properties": {
+            "memoryGb": {
+              "type": "integer"
+            },
+            "volumeGb": {
+              "type": "integer"
+            },
+            "workloadMemoryMi": {
+              "type": "integer"
+            },
+            "workloadStorageGi": {
+              "type": "integer"
+            }
+          }
+        },
+        "HetznerOffering": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "vcpu": {
+              "type": "integer"
+            },
+            "memoryGb": {
+              "type": "integer"
+            },
+            "diskGb": {
+              "type": "integer"
+            },
+            "architecture": {
+              "type": "string"
+            },
+            "monthlyEur": {
+              "type": "number"
+            },
+            "availableLocations": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "HetznerPresets": {
+          "type": "object",
+          "properties": {
+            "presets": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/HetznerPreset"
+              }
+            },
+            "requirement": {
+              "$ref": "#/components/schemas/HetznerRequirement"
+            },
+            "location": {
+              "type": "string"
+            },
+            "locations": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "offerings": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/HetznerOffering"
+              }
+            },
+            "observedAt": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "HetznerChangePlan": {
+          "type": "object",
+          "description": "Immutable, cost-bearing infrastructure plan bound to the inspection it was derived from. Building it changes nothing in the project.",
+          "properties": {
+            "profileId": {
+              "type": "string"
+            },
+            "projectId": {
+              "type": "string"
+            },
+            "domain": {
+              "type": "string"
+            },
+            "envExt": {
+              "type": "string"
+            },
+            "choice": {
+              "type": "object",
+              "properties": {
+                "tier": {
+                  "type": "string"
+                },
+                "location": {
+                  "type": "string"
+                },
+                "serverType": {
+                  "type": "string"
+                },
+                "volumeGb": {
+                  "type": "integer"
+                }
+              }
+            },
+            "requirement": {
+              "$ref": "#/components/schemas/HetznerRequirement"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "create",
+                      "adopt",
+                      "reuse-shared",
+                      "keep",
+                      "blocked"
+                    ]
+                  },
+                  "ownership": {
+                    "type": "string"
+                  },
+                  "providerId": {
+                    "type": "string"
+                  },
+                  "detail": {
+                    "type": "string"
+                  },
+                  "reasonKey": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "cost": {
+              "$ref": "#/components/schemas/HetznerCostEstimate"
+            },
+            "delegation": {
+              "$ref": "#/components/schemas/HetznerDelegation"
+            },
+            "blockers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "providerId": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "warningKeys": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "inventoryDigest": {
+              "type": "string"
+            },
+            "digest": {
+              "type": "string"
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "HetznerToolchain": {
+          "type": "object",
+          "description": "Pinned OpenTofu and provider artifacts with their verification state. Carries no cache paths.",
+          "properties": {
+            "openTofuVersion": {
+              "type": "string"
+            },
+            "hcloudProviderVersion": {
+              "type": "string"
+            },
+            "release": {
+              "type": "string"
+            },
+            "ready": {
+              "type": "boolean"
+            },
+            "reasonKey": {
+              "type": "string"
+            },
+            "artifacts": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "release": {
+                    "type": "string"
+                  },
+                  "destination": {
+                    "type": "string"
+                  },
+                  "sha256": {
+                    "type": "string"
+                  },
+                  "state": {
+                    "type": "string"
+                  },
+                  "bytes": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "HetznerWorkspace": {
+          "type": "object",
+          "description": "Per-profile isolated OpenTofu state workspace. Reports lock and backup state by digest only, never paths or state contents.",
+          "properties": {
+            "profileId": {
+              "type": "string"
+            },
+            "isolated": {
+              "type": "boolean"
+            },
+            "hasState": {
+              "type": "boolean"
+            },
+            "stateDigest": {
+              "type": "string"
+            },
+            "updatedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "locked": {
+              "type": "boolean"
+            },
+            "lockOwner": {
+              "type": "string"
+            },
+            "lockedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "backups": {
+              "type": "integer"
+            }
+          }
+        },
+        "HetznerProject": {
+          "type": "object",
+          "description": "Everything the launcher knows about a profile's Hetzner project. The token value appears nowhere.",
+          "properties": {
+            "naming": {
+              "type": "object",
+              "properties": {
+                "domain": {
+                  "type": "string"
+                },
+                "envExt": {
+                  "type": "string"
+                },
+                "profileId": {
+                  "type": "string"
+                }
+              }
+            },
+            "token": {
+              "$ref": "#/components/schemas/HetznerTokenAssessment"
+            },
+            "validatedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "inventory": {
+              "$ref": "#/components/schemas/HetznerInventory"
+            },
+            "inspectedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "delegation": {
+              "$ref": "#/components/schemas/HetznerDelegation"
+            },
+            "changePlan": {
+              "$ref": "#/components/schemas/HetznerChangePlan"
+            },
+            "planId": {
+              "type": "string"
+            },
+            "approvable": {
+              "type": "boolean"
+            },
+            "toolchain": {
+              "$ref": "#/components/schemas/HetznerToolchain"
+            },
+            "workspace": {
+              "$ref": "#/components/schemas/HetznerWorkspace"
+            }
+          }
+        },
       "OffsiteProtection": {
         "type": "object",
         "description": "Secret-free view of an offsite destination and its last bucket inspection. Never carries the access key or secret.",
