@@ -116,6 +116,15 @@ type DecommissionPlanRecord struct {
 	CreatedAt time.Time
 }
 
+// FullDecommissionPlanRecord is a separate immutable binding for irreversible
+// removal. It is deliberately not interchangeable with a preserve-data plan.
+type FullDecommissionPlanRecord struct {
+	PlanID    string
+	ProfileID string
+	Binding   string
+	CreatedAt time.Time
+}
+
 // FirstOwnerState persists the secret-free first-owner claim and whether the
 // bootstrap grant has been permanently disabled. State is an opaque JSON blob
 // owned by the launcher.
@@ -512,6 +521,31 @@ func (store *Store) GetDecommissionPlan(ctx context.Context, planID string) (Dec
 	return record, nil
 }
 
+func (store *Store) RecordFullDecommissionPlan(ctx context.Context, record FullDecommissionPlanRecord) error {
+	_, err := store.database.ExecContext(ctx, `INSERT INTO full_decommission_plans (plan_id, profile_id, binding_json, created_at) VALUES (?, ?, ?, ?)`, record.PlanID, record.ProfileID, record.Binding, record.CreatedAt.UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return fmt.Errorf("record full decommission plan: %w", err)
+	}
+	return nil
+}
+
+func (store *Store) GetFullDecommissionPlan(ctx context.Context, planID string) (FullDecommissionPlanRecord, error) {
+	var record FullDecommissionPlanRecord
+	var createdAt string
+	err := store.database.QueryRowContext(ctx, `SELECT plan_id, profile_id, binding_json, created_at FROM full_decommission_plans WHERE plan_id = ?`, planID).Scan(&record.PlanID, &record.ProfileID, &record.Binding, &createdAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return FullDecommissionPlanRecord{}, ErrNotFound
+	}
+	if err != nil {
+		return FullDecommissionPlanRecord{}, fmt.Errorf("get full decommission plan: %w", err)
+	}
+	record.CreatedAt, err = time.Parse(time.RFC3339Nano, createdAt)
+	if err != nil {
+		return FullDecommissionPlanRecord{}, fmt.Errorf("parse full decommission plan time: %w", err)
+	}
+	return record, nil
+}
+
 // ForgetProfile removes Launcher-local profile metadata only. It deliberately
 // has no provider, cluster, Git, or Vault side effect; external resources stay
 // untouched and recoverable via an exported Recovery Bundle.
@@ -521,7 +555,7 @@ func (store *Store) ForgetProfile(ctx context.Context, profileID string) error {
 		return fmt.Errorf("begin forget profile: %w", err)
 	}
 	defer tx.Rollback()
-	for _, table := range []string{"decommission_plans", "hetzner_provisioning_plans", "bootstrap_plans", "temporary_access_states", "hetzner_projects", "offsite_protections", "first_owner_states", "handoff_states", "enrollments", "private_networks", "cluster_ca_references", "pending_node_trusts", "node_trusts", "overlay_identities", "credential_references", "events", "runs", "plans"} {
+	for _, table := range []string{"full_decommission_plans", "decommission_plans", "hetzner_provisioning_plans", "bootstrap_plans", "temporary_access_states", "hetzner_projects", "offsite_protections", "first_owner_states", "handoff_states", "enrollments", "private_networks", "cluster_ca_references", "pending_node_trusts", "node_trusts", "overlay_identities", "credential_references", "events", "runs", "plans"} {
 		if _, err := tx.ExecContext(ctx, "DELETE FROM "+table+" WHERE profile_id = ?", profileID); err != nil {
 			return fmt.Errorf("forget profile %s: %w", table, err)
 		}
@@ -1547,6 +1581,12 @@ func (store *Store) migrate(ctx context.Context) error {
 			recorded_at TEXT NOT NULL
 		)`},
 		{22, `CREATE TABLE decommission_plans (
+			plan_id TEXT PRIMARY KEY REFERENCES plans(id),
+			profile_id TEXT NOT NULL REFERENCES profiles(id),
+			binding_json TEXT NOT NULL,
+			created_at TEXT NOT NULL
+		)`},
+		{23, `CREATE TABLE full_decommission_plans (
 			plan_id TEXT PRIMARY KEY REFERENCES plans(id),
 			profile_id TEXT NOT NULL REFERENCES profiles(id),
 			binding_json TEXT NOT NULL,

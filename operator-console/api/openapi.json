@@ -787,6 +787,41 @@
         "responses": {"202":{"description":"Reinspected preserve-data decommission resumed"},"409":{"$ref":"#/components/responses/Conflict"}}
       }
     },
+    "/api/v1/full-decommission": {
+      "get": {
+        "operationId": "inspectFullDecommission",
+        "parameters": [{"name":"profileId","in":"query","required":true,"schema":{"type":"string"}}],
+        "responses": {"200":{"description":"Fresh ownership, protection, and Recovery Bundle inspection with full-deletion preview"},"401":{"$ref":"#/components/responses/Unauthorized"},"503":{"$ref":"#/components/responses/Unavailable"}}
+      }
+    },
+    "/api/v1/full-decommission/plan": {
+      "post": {
+        "operationId": "planFullDecommission",
+        "parameters": [{"$ref":"#/components/parameters/CSRFToken"}],
+        "responses": {"201":{"description":"Freshly bound irreversible full-decommission plan"},"409":{"$ref":"#/components/responses/Conflict"},"503":{"$ref":"#/components/responses/Unavailable"}}
+      }
+    },
+    "/api/v1/full-decommission/approve": {
+      "post": {
+        "operationId": "approveFullDecommission",
+        "parameters": [{"$ref":"#/components/parameters/CSRFToken"}],
+        "responses": {"202":{"description":"Typed-confirmed irreversible decommission started"},"409":{"$ref":"#/components/responses/Conflict"}}
+      }
+    },
+    "/api/v1/full-decommission/runs/{id}/resume": {
+      "post": {
+        "operationId": "resumeFullDecommission",
+        "parameters": [{"$ref":"#/components/parameters/CSRFToken"},{"$ref":"#/components/parameters/RunID"}],
+        "responses": {"202":{"description":"Freshly reinspected full decommission resumed"},"409":{"$ref":"#/components/responses/Conflict"}}
+      }
+    },
+    "/api/v1/full-decommission/activity": {
+      "get": {
+        "operationId": "exportFullDecommissionActivity",
+        "parameters": [{"name":"profileId","in":"query","required":true,"schema":{"type":"string"}}],
+        "responses": {"200":{"description":"Final redacted Activity Record export"},"409":{"$ref":"#/components/responses/Conflict"}}
+      }
+    },
     "/api/v1/profiles": {
       "get": {
         "operationId": "listProfiles",

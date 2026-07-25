@@ -48,6 +48,9 @@ export type HetznerPlanResult = { plan: ChangePlan; changePlan: HetznerChangePla
 export type DecommissionItem = { kind: string; providerId: string; name: string; state: string; ownership: 'profile-owned' | 'shared' | 'retained' | 'unknown'; action: 'remove' | 'retain'; reason: string; monthlyEur?: number; detail?: string };
 export type PreserveDataDecommissionPlan = { profileId: string; deploymentMode: string; inspectionDigest: string; items: DecommissionItem[]; retainedData: string[]; continuingCosts: Array<{ providerId: string; kind: string; monthlyEur: number }>; expectedDowntime: string; recoveryPath: string; blockers?: string[]; digest: string };
 export type PreserveDataDecommissionResult = { plan: ChangePlan; decommission: PreserveDataDecommissionPlan; approvable: boolean };
+export type FullDecommissionItem = DecommissionItem & { stage?: 'compute' | 'storage' | 'networking' | 'dns'; consequence: string };
+export type FullDecommissionPlan = { profileId: string; deploymentMode: string; inspectionDigest: string; protection: { backupFreshness: string; offsiteRecoveryPoints: string[]; recoveryBundleStatus: string; sufficient: boolean; warnings?: string[] }; items: FullDecommissionItem[]; irreversibleConsequences: string[]; requiresOwnerOverride: boolean; typedConfirmation: string; digest: string };
+export type FullDecommissionResult = { plan: ChangePlan; decommission: FullDecommissionPlan; requiresTypedConfirmation: true };
 
 let csrfToken = '';
 
@@ -196,6 +199,16 @@ export const api = {
     request<PreserveDataDecommissionResult>('/api/v1/decommission/plan', { method: 'POST', body: JSON.stringify({ profileId }) }),
   resumePreserveDataDecommission: (runId: string) =>
     request<WorkflowRun>(`/api/v1/decommission/runs/${encodeURIComponent(runId)}/resume`, { method: 'POST' }),
+  inspectFullDecommission: (profileId: string) =>
+    request<{ inspection: unknown; preview: FullDecommissionPlan }>(`/api/v1/full-decommission?profileId=${encodeURIComponent(profileId)}`),
+  planFullDecommission: (profileId: string) =>
+    request<FullDecommissionResult>('/api/v1/full-decommission/plan', { method: 'POST', body: JSON.stringify({ profileId }) }),
+  approveFullDecommission: (input: { planId: string; profileId: string; planDigest: string; confirmation: string; ownerOverride: boolean; overrideReason: string }) =>
+    request<WorkflowRun>('/api/v1/full-decommission/approve', { method: 'POST', body: JSON.stringify(input) }),
+  resumeFullDecommission: (runId: string) =>
+    request<WorkflowRun>(`/api/v1/full-decommission/runs/${encodeURIComponent(runId)}/resume`, { method: 'POST' }),
+  exportFullDecommissionActivity: (profileId: string) =>
+    request<{ profileId: string; redacted: true; activity: Array<{ type: string; messageKey: string; occurredAt: string }> }>(`/api/v1/full-decommission/activity?profileId=${encodeURIComponent(profileId)}`),
   forgetProfile: (profileId: string) =>
     request<{ profileId: string; forgotten: boolean; externalMutation: false }>(`/api/v1/profiles/${encodeURIComponent(profileId)}/forget`, { method: 'POST', body: JSON.stringify({ confirmProfileId: profileId }) })
 };

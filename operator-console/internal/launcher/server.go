@@ -71,6 +71,10 @@ type Config struct {
 	// provider/local-node mutation adapter is installed.
 	PreserveDecommissionInspector PreserveDecommissionInspector
 	PreserveDecommissionExecutor  PreserveDecommissionExecutor
+	// Full decommission has its own protection-aware inspection and narrowly
+	// scoped executor. It must never reuse a preserve-data approval.
+	FullDecommissionInspector FullDecommissionInspector
+	FullDecommissionExecutor  FullDecommissionExecutor
 }
 
 // GenericGitClient permits deterministic Launcher contract tests while the
@@ -110,26 +114,29 @@ type Server struct {
 	launchToken string
 	dataDir     string
 
-	mu                    sync.RWMutex
-	tokenUsed             bool
-	sessions              map[string]session
-	store                 *state.Store
-	vault                 *vault.Vault
-	workflow              *workflow.Engine
-	github                *github.Client
-	genericGit            GenericGitClient
-	assets                *bootstrapassets.Manager
-	nodes                 NodeInspector
-	handoff               handoffverification.Verifier
-	passkey               firstowner.PasskeyVerifier
-	offsite               offsite.Inspector
-	secrets               ClusterSecretApplier
-	offsiteValidator      OffsiteValidationRunner
-	hetzner               HetznerProvider
-	hetznerProvision      *hetznerprovision.Service
-	decommissionInspector PreserveDecommissionInspector
-	decommissionExecutor  PreserveDecommissionExecutor
-	decommissionActive    sync.Map
+	mu                        sync.RWMutex
+	tokenUsed                 bool
+	sessions                  map[string]session
+	store                     *state.Store
+	vault                     *vault.Vault
+	workflow                  *workflow.Engine
+	github                    *github.Client
+	genericGit                GenericGitClient
+	assets                    *bootstrapassets.Manager
+	nodes                     NodeInspector
+	handoff                   handoffverification.Verifier
+	passkey                   firstowner.PasskeyVerifier
+	offsite                   offsite.Inspector
+	secrets                   ClusterSecretApplier
+	offsiteValidator          OffsiteValidationRunner
+	hetzner                   HetznerProvider
+	hetznerProvision          *hetznerprovision.Service
+	decommissionInspector     PreserveDecommissionInspector
+	decommissionExecutor      PreserveDecommissionExecutor
+	decommissionActive        sync.Map
+	fullDecommissionInspector FullDecommissionInspector
+	fullDecommissionExecutor  FullDecommissionExecutor
+	fullDecommissionActive    sync.Map
 }
 
 func New(config Config) (*Server, error) {
@@ -233,6 +240,14 @@ func New(config Config) (*Server, error) {
 	if decommissionExecutor == nil {
 		decommissionExecutor = unavailablePreserveDecommissionExecutor{}
 	}
+	fullDecommissionInspector := config.FullDecommissionInspector
+	if fullDecommissionInspector == nil {
+		fullDecommissionInspector = unavailableFullDecommissionInspector{}
+	}
+	fullDecommissionExecutor := config.FullDecommissionExecutor
+	if fullDecommissionExecutor == nil {
+		fullDecommissionExecutor = unavailableFullDecommissionExecutor{}
+	}
 	workflowEngine.RegisterExecutor("BootstrapLocalNode", bootstrapService.Execute)
 	server := &Server{
 		launchToken:      config.LaunchToken,
@@ -251,9 +266,11 @@ func New(config Config) (*Server, error) {
 		secrets:          clusterSecretApplier,
 		offsiteValidator: offsiteValidationRunner,
 
-		hetzner:               hetznerProvider,
-		decommissionInspector: decommissionInspector,
-		decommissionExecutor:  decommissionExecutor,
+		hetzner:                   hetznerProvider,
+		decommissionInspector:     decommissionInspector,
+		decommissionExecutor:      decommissionExecutor,
+		fullDecommissionInspector: fullDecommissionInspector,
+		fullDecommissionExecutor:  fullDecommissionExecutor,
 	}
 	// Registered after the server exists (the executor is a server method) and
 	// before ResumeActive, so a validation run interrupted by a restart resumes.
@@ -264,6 +281,7 @@ func New(config Config) (*Server, error) {
 	)
 	workflowEngine.RegisterExecutor(hetznerProvisionIntent, server.hetznerProvision.Execute)
 	workflowEngine.RegisterExecutor(preserveDecommissionIntent, server.executePreserveDecommission)
+	workflowEngine.RegisterExecutor(fullDecommissionIntent, server.executeFullDecommission)
 	if err := workflowEngine.ResumeActive(context.Background()); err != nil {
 		store.Close()
 		return nil, err
@@ -393,6 +411,16 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.planPreserveDecommission(response, request)
 	case strings.HasPrefix(request.URL.Path, "/api/v1/decommission/runs/"):
 		server.resumePreserveDecommission(response, request)
+	case request.URL.Path == "/api/v1/full-decommission":
+		server.fullDecommissionStatus(response, request)
+	case request.URL.Path == "/api/v1/full-decommission/plan":
+		server.planFullDecommission(response, request)
+	case request.URL.Path == "/api/v1/full-decommission/approve":
+		server.approveFullDecommission(response, request)
+	case request.URL.Path == "/api/v1/full-decommission/activity":
+		server.exportFullDecommissionActivity(response, request)
+	case strings.HasPrefix(request.URL.Path, "/api/v1/full-decommission/runs/"):
+		server.resumeFullDecommission(response, request)
 	case request.URL.Path == "/api/v1/profiles":
 		server.profiles(response, request)
 	case strings.HasPrefix(request.URL.Path, "/api/v1/profiles/"):
@@ -3396,6 +3424,12 @@ func (server *Server) plan(response http.ResponseWriter, request *http.Request) 
 			writeError(response, http.StatusConflict, "decommission_ownership_unresolved")
 			return
 		}
+	}
+	// Full decommission requires its own typed confirmation bound to the exact
+	// profile and digest; ordinary button approval is intentionally insufficient.
+	if candidate, err := server.store.GetPlan(request.Context(), parts[0]); err == nil && candidate.Intent == fullDecommissionIntent {
+		writeError(response, http.StatusConflict, "full_decommission_typed_confirmation_required")
+		return
 	}
 	run, err := server.workflow.Approve(request.Context(), parts[0])
 	if errors.Is(err, workflow.ErrPreconditionChanged) {

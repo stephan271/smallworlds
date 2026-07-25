@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type HandoffAssessment, type HetznerChangePlan, type HetznerPlanResult, type HetznerPresets, type HetznerPresetTier, type HetznerProject, type HetznerToolchain, type HetznerWorkspace, type TemporaryAccess, type NodeCapabilities, type NodeInspectionResult, type NodeProbeResult, type NodeTarget, type OffsitePlan, type OffsiteProposal, type OffsiteProtection, type PreserveDataDecommissionResult, type RecoveryBundlePreview, type SetupJourney, type TailscaleClientOffer, type VaultStatus, type WorkflowRun } from '$lib/api';
+  import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type FullDecommissionResult, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type HandoffAssessment, type HetznerChangePlan, type HetznerPlanResult, type HetznerPresets, type HetznerPresetTier, type HetznerProject, type HetznerToolchain, type HetznerWorkspace, type TemporaryAccess, type NodeCapabilities, type NodeInspectionResult, type NodeProbeResult, type NodeTarget, type OffsitePlan, type OffsiteProposal, type OffsiteProtection, type PreserveDataDecommissionResult, type RecoveryBundlePreview, type SetupJourney, type TailscaleClientOffer, type VaultStatus, type WorkflowRun } from '$lib/api';
   import { translate, type Locale, type MessageKey } from '$lib/i18n';
 
   type ActivityEvent = {
@@ -130,6 +130,13 @@
   let decommissionRun: WorkflowRun | null = $state(null);
   let decommissionBusy = $state(false);
   let decommissionError = $state('');
+  let fullDecommissionPlan: FullDecommissionResult | null = $state(null);
+  let fullDecommissionRun: WorkflowRun | null = $state(null);
+  let fullDecommissionConfirmation = $state('');
+  let fullDecommissionOverride = $state(false);
+  let fullDecommissionOverrideReason = $state('');
+  let fullDecommissionBusy = $state(false);
+  let fullDecommissionError = $state('');
   let creating = $state(true);
   let editing = $state(false);
   let busy = $state(false);
@@ -202,6 +209,12 @@
     hetznerToolchain = null;
     hetznerWorkspace = null;
     hetznerTemporaryAccess = null;
+    fullDecommissionPlan = null;
+    fullDecommissionRun = null;
+    fullDecommissionConfirmation = '';
+    fullDecommissionOverride = false;
+    fullDecommissionOverrideReason = '';
+    fullDecommissionError = '';
     if (profile.deploymentMode === 'hetzner') {
       try {
         hetznerProject = await api.getHetznerProject(profile.id);
@@ -769,6 +782,75 @@
     } finally {
       decommissionBusy = false;
     }
+  }
+
+  async function planFullDecommission(): Promise<void> {
+    if (!activeProfile) return;
+    fullDecommissionBusy = true;
+    fullDecommissionError = '';
+    try {
+      fullDecommissionPlan = await api.planFullDecommission(activeProfile.id);
+      fullDecommissionRun = null;
+      fullDecommissionConfirmation = '';
+      fullDecommissionOverride = false;
+      fullDecommissionOverrideReason = '';
+    } catch (reason) {
+      fullDecommissionError = reason instanceof Error ? reason.message : 'full_decommission_plan_failed';
+    } finally {
+      fullDecommissionBusy = false;
+    }
+  }
+
+  async function approveFullDecommission(): Promise<void> {
+    if (!fullDecommissionPlan) return;
+    fullDecommissionBusy = true;
+    fullDecommissionError = '';
+    try {
+      fullDecommissionRun = await api.approveFullDecommission({
+        planId: fullDecommissionPlan.plan.id,
+        profileId: fullDecommissionPlan.decommission.profileId,
+        planDigest: fullDecommissionPlan.decommission.digest,
+        confirmation: fullDecommissionConfirmation,
+        ownerOverride: fullDecommissionOverride,
+        overrideReason: fullDecommissionOverrideReason
+      });
+      scheduleFullDecommissionPoll(fullDecommissionRun.id);
+    } catch (reason) {
+      fullDecommissionError = reason instanceof Error ? reason.message : 'full_decommission_approval_failed';
+    } finally {
+      fullDecommissionBusy = false;
+    }
+  }
+
+  async function resumeFullDecommission(): Promise<void> {
+    if (!fullDecommissionRun) return;
+    fullDecommissionBusy = true;
+    fullDecommissionError = '';
+    try {
+      fullDecommissionRun = await api.resumeFullDecommission(fullDecommissionRun.id);
+      scheduleFullDecommissionPoll(fullDecommissionRun.id);
+    } catch (reason) {
+      fullDecommissionError = reason instanceof Error ? reason.message : 'full_decommission_resume_failed';
+    } finally {
+      fullDecommissionBusy = false;
+    }
+  }
+
+  function exportFullDecommissionActivity(): void {
+    if (!activeProfile) return;
+    window.open(`/api/v1/full-decommission/activity?profileId=${encodeURIComponent(activeProfile.id)}`, '_blank', 'noopener');
+  }
+
+  function scheduleFullDecommissionPoll(runID: string): void {
+    if (pollTimer) window.clearTimeout(pollTimer);
+    pollTimer = window.setTimeout(async () => {
+      try {
+        fullDecommissionRun = await api.getRun(runID);
+        if (fullDecommissionRun.state === 'running' && !fullDecommissionRun.currentCheckpoint.includes('interrupted')) scheduleFullDecommissionPoll(runID);
+      } catch (reason) {
+        fullDecommissionError = reason instanceof Error ? reason.message : 'full_decommission_status_failed';
+      }
+    }, 80);
   }
 
   async function forgetActiveProfile(): Promise<void> {
@@ -1693,6 +1775,58 @@
           <hr />
           <p class="muted">Forget profile only removes this Launcher’s local reference. It performs no provider, cluster, DNS, overlay, or data mutation.</p>
           <button type="button" class="secondary" onclick={() => void forgetActiveProfile()} disabled={decommissionBusy}>Forget local Cluster Profile</button>
+        </section>
+
+        <section class="card decommission-card full-decommission-card" aria-labelledby="full-decommission-title">
+          <p class="eyebrow">Lifecycle authority · irreversible</p>
+          <h2 id="full-decommission-title">Full decommission</h2>
+          <p class="muted">This separately inspected journey permanently removes only resources proven to belong to this Cluster Profile, including persistent data. Shared DNS zones, the GitOps Overlay, and anything with unknown ownership remain retained.</p>
+          {#if fullDecommissionError}<p class="inline-error" role="alert">{fullDecommissionError}</p>{/if}
+          {#if !fullDecommissionPlan}
+            <button type="button" class="danger" onclick={() => void planFullDecommission()} disabled={fullDecommissionBusy}>Inspect protection and prepare full-decommission plan</button>
+          {:else}
+            <dl>
+              <div><dt>Plan digest</dt><dd><code>{fullDecommissionPlan.decommission.digest}</code></dd></div>
+              <div><dt>Backup freshness</dt><dd>{fullDecommissionPlan.decommission.protection.backupFreshness}</dd></div>
+              <div><dt>Offsite Recovery Points</dt><dd>{fullDecommissionPlan.decommission.protection.offsiteRecoveryPoints.join(', ') || 'None observed'}</dd></div>
+              <div><dt>Recovery Bundle</dt><dd>{fullDecommissionPlan.decommission.protection.recoveryBundleStatus}</dd></div>
+            </dl>
+            {#if fullDecommissionPlan.decommission.requiresOwnerOverride}
+              <div class="inline-error" role="alert">
+                <strong>Protection is insufficient.</strong> {fullDecommissionPlan.decommission.protection.warnings?.join('; ') || 'A current backup, offsite Recovery Point, or Recovery Bundle is missing.'}
+                <label class="check"><input type="checkbox" bind:checked={fullDecommissionOverride} /><span>I am the Lifecycle Authority and explicitly accept deletion despite this protection gap.</span></label>
+                <label>Reason for informed override <input bind:value={fullDecommissionOverrideReason} maxlength="500" /></label>
+              </div>
+            {/if}
+            <p class="muted">Irreversible consequences:</p>
+            <ul class="handoff-checklist">
+              {#each fullDecommissionPlan.decommission.irreversibleConsequences as consequence}
+                <li><span aria-hidden="true">!</span> {consequence}</li>
+              {/each}
+            </ul>
+            <ul class="handoff-checklist">
+              {#each fullDecommissionPlan.decommission.items as item (item.providerId)}
+                <li><span aria-hidden="true">{item.action === 'remove' ? '!' : '✓'}</span> <code>{item.kind}/{item.providerId}</code> — {item.action} {#if item.stage}({item.stage}){/if}; {item.consequence}</li>
+              {/each}
+            </ul>
+            <label>Type this exact confirmation to authorize irreversible deletion
+              <code class="typed-confirmation">{fullDecommissionPlan.decommission.typedConfirmation}</code>
+              <input bind:value={fullDecommissionConfirmation} autocomplete="off" spellcheck="false" aria-label="Full decommission typed confirmation" />
+            </label>
+            <div class="actions">
+              <button type="button" class="secondary" onclick={() => void planFullDecommission()} disabled={fullDecommissionBusy}>Discard and reinspect</button>
+              <button type="button" class="danger" onclick={() => void approveFullDecommission()} disabled={fullDecommissionBusy || fullDecommissionConfirmation !== fullDecommissionPlan.decommission.typedConfirmation || (fullDecommissionPlan.decommission.requiresOwnerOverride && (!fullDecommissionOverride || !fullDecommissionOverrideReason.trim()))}>Type-confirm and permanently decommission</button>
+            </div>
+            {#if fullDecommissionRun}
+              <p class="inline-notice">Run: <code>{fullDecommissionRun.id}</code> — {fullDecommissionRun.state} at {fullDecommissionRun.currentCheckpoint}</p>
+              {#if fullDecommissionRun.state === 'running' && fullDecommissionRun.currentCheckpoint.includes('interrupted')}
+                <button type="button" onclick={() => void resumeFullDecommission()} disabled={fullDecommissionBusy}>Reinspect and resume the approved scope</button>
+              {/if}
+              {#if fullDecommissionRun.state === 'verified'}
+                <button type="button" class="secondary" onclick={exportFullDecommissionActivity}>Export final redacted Activity Record</button>
+              {/if}
+            {/if}
+          {/if}
         </section>
 
 		<section class="card vault-card" aria-labelledby="vault-title">
