@@ -1,0 +1,60 @@
+name: Bootstrap Launcher Platform Contracts
+
+on:
+  pull_request:
+    paths:
+      - 'operator-console/**'
+      - 'admin-tools/package-bootstrap-launcher.sh'
+      - '.github/workflows/bootstrap-launcher-platform-contracts.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'operator-console/**'
+      - 'admin-tools/package-bootstrap-launcher.sh'
+      - '.github/workflows/bootstrap-launcher-platform-contracts.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x86-64
+            runner: ubuntu-latest
+          - name: macOS compatibility
+            runner: macos-latest
+          - name: Windows x86-64
+            runner: windows-latest
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.0'
+          cache-dependency-path: operator-console/go.sum
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: operator-console/web/package-lock.json
+
+      - name: Build the embedded client
+        working-directory: operator-console/web
+        run: |
+          npm ci
+          npm run check
+          npm run build
+
+      - name: Test profile, Recovery Bundle, and remote-node contracts
+        working-directory: operator-console
+        run: go test ./...
+
+      - name: Compile the native launcher
+        working-directory: operator-console
+        run: go build ./cmd/smallworlds-admin

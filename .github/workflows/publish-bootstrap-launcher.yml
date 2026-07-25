@@ -1,0 +1,112 @@
+name: Publish Bootstrap Launcher
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: Existing SmallWorlds tag to package, for example v1.2.27
+        required: true
+        type: string
+      publish:
+        description: Attach signed launcher artifacts to the GitHub Release
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    if: github.repository == 'stephan271/smallworlds'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out the requested release tag
+        uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.release }}
+          fetch-depth: 0
+
+      - name: Validate the release tag
+        env:
+          RELEASE: ${{ inputs.release }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]
+          test "$(git describe --exact-match --tags HEAD)" = "$RELEASE"
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.0'
+          cache-dependency-path: operator-console/go.sum
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: operator-console/web/package-lock.json
+
+      - name: Build the embedded client
+        working-directory: operator-console/web
+        run: |
+          npm ci
+          npm run generate:api
+          npm run check
+          npm run build
+
+      - name: Test launcher contracts
+        working-directory: operator-console
+        run: go test ./...
+
+      - name: Package all supported native artifacts
+        env:
+          RELEASE: ${{ inputs.release }}
+        run: |
+          set -euo pipefail
+          # Git's commit timestamp, rather than the workflow clock, keeps a
+          # rebuild of a tag byte-for-byte reproducible where toolchains match.
+          export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          admin-tools/package-bootstrap-launcher.sh \
+            --version "$RELEASE" \
+            --output-directory "$RUNNER_TEMP/bootstrap-launcher"
+
+      - name: Sign the release checksum manifest
+        env:
+          PUBLISH: ${{ inputs.publish }}
+          RELEASE_SIGNING_KEY_B64: ${{ secrets.SMALLWORLDS_RELEASE_ED25519_PRIVATE_KEY_B64 }}
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/bootstrap-launcher"
+          key="$RUNNER_TEMP/bootstrap-launcher-signing-key.pem"
+          if [ "$PUBLISH" = true ]; then
+            test -n "$RELEASE_SIGNING_KEY_B64"
+            printf '%s' "$RELEASE_SIGNING_KEY_B64" | base64 --decode > "$key"
+            chmod 600 "$key"
+          else
+            openssl genpkey -algorithm ED25519 -out "$key"
+          fi
+          openssl pkeyutl -sign -rawin -inkey "$key" \
+            -in "$output/SHA256SUMS" -out "$output/SHA256SUMS.sig"
+          openssl pkey -in "$key" -pubout -out "$output/SHA256SUMS.pub"
+          openssl pkeyutl -verify -rawin -pubin -inkey "$output/SHA256SUMS.pub" \
+            -in "$output/SHA256SUMS" -sigfile "$output/SHA256SUMS.sig"
+
+      - name: Upload validation artifact
+        if: inputs.publish != true
+        uses: actions/upload-artifact@v4
+        with:
+          name: bootstrap-launcher-${{ inputs.release }}
+          path: ${{ runner.temp }}/bootstrap-launcher
+          if-no-files-found: error
+
+      - name: Publish GitHub Release attachments
+        if: inputs.publish == true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ inputs.release }}
+        run: |
+          set -euo pipefail
+          gh release upload "$RELEASE" "$RUNNER_TEMP/bootstrap-launcher"/* --clobber

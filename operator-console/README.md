@@ -30,6 +30,12 @@ go run ./cmd/smallworlds-admin
 
 The launcher selects a random `127.0.0.1` port and opens a one-time authenticated browser URL. Running the command again reopens the existing per-user launcher instead of starting a competing process.
 
+## Native releases
+
+Release archives are available for Linux x86-64/ARM64, macOS Intel/Apple
+Silicon, and Windows x86-64. They embed this client and require no developer or
+infrastructure tooling on the Launcher Host. See [native release packaging](../docs/releases/bootstrap-launcher-packaging.md) for artifact names, checksum/signature verification, platform behavior, and English/German failure guidance.
+
 For a controlled development run:
 
 ```bash

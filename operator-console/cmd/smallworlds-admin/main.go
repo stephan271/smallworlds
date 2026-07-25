@@ -18,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/stephan271/smallworlds/operator-console/internal/buildinfo"
 	"github.com/stephan271/smallworlds/operator-console/internal/launcher"
 	"github.com/stephan271/smallworlds/operator-console/internal/singleinstance"
 	"github.com/stephan271/smallworlds/operator-console/internal/webui"
@@ -33,7 +34,12 @@ func main() {
 	dataDir := flag.String("data-dir", defaultDataDir, "launcher data directory")
 	launchToken := flag.String("token", "", "fixed launch token for controlled testing")
 	noBrowser := flag.Bool("no-browser", false, "do not open the browser")
+	showVersion := flag.Bool("version", false, "print the launcher version and exit")
 	flag.Parse()
+	if *showVersion {
+		fmt.Println(buildinfo.Version)
+		return
+	}
 
 	token := *launchToken
 	if token == "" {
@@ -105,14 +111,27 @@ func randomToken() (string, error) {
 }
 
 func openBrowser(url string) error {
+	command, err := browserCommand(runtime.GOOS, url)
+	if err != nil {
+		return err
+	}
+	return command.Start()
+}
+
+// browserCommand keeps platform browser invocation explicit and testable. The
+// launcher never shells out through a command string, so the one-time loopback
+// URL cannot be interpreted as a shell argument.
+func browserCommand(platform, url string) (*exec.Cmd, error) {
 	var command *exec.Cmd
-	switch runtime.GOOS {
+	switch platform {
 	case "darwin":
 		command = exec.Command("open", url)
 	case "windows":
 		command = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
-	default:
+	case "linux":
 		command = exec.Command("xdg-open", url)
+	default:
+		return nil, fmt.Errorf("opening a browser is unsupported on %s", platform)
 	}
-	return command.Start()
+	return command, nil
 }
