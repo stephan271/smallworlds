@@ -2304,7 +2304,7 @@
                 <li><span aria-hidden="true">{item.action === 'remove' ? '!' : '✓'}</span> <code>{item.kind}/{item.providerId}</code> — {item.action} {#if item.stage}({item.stage}){/if}; {item.consequence}</li>
               {/each}
             </ul>
-            <label>Type this exact confirmation to authorize irreversible deletion
+            <label>{decommissionMessage('typedConfirmationPrompt')}
               <code class="typed-confirmation">{fullDecommissionPlan.decommission.typedConfirmation}</code>
               <input bind:value={fullDecommissionConfirmation} autocomplete="off" spellcheck="false" aria-label={decommissionMessage('typedConfirmation')} />
             </label>
