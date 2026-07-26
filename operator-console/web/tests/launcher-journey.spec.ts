@@ -11,29 +11,29 @@ test('Operator completes and reopens the launcher journey in English and German'
       language: 'en',
       profileName: `Workshop ${Date.now()}`,
       next: 'Next recommended action',
-      task: 'Verify launcher',
-      plan: 'Inspect and plan',
-      approve: 'Approve and run',
+      task: 'Check this console works',
+      plan: 'See what will happen',
+      approve: 'Approve and start',
       verified: 'Verified'
     },
     {
       language: 'de',
       profileName: `Werkstatt ${Date.now()}`,
       next: 'Nächste empfohlene Aktion',
-      task: 'Launcher überprüfen',
-      plan: 'Prüfen und planen',
-      approve: 'Genehmigen und ausführen',
+      task: 'Prüfen, ob diese Konsole funktioniert',
+      plan: 'Zeigen, was passieren wird',
+      approve: 'Genehmigen und starten',
       verified: 'Verifiziert'
     }
   ] as const;
 
   for (const journey of journeys) {
-    await page.getByRole('button', { name: /create another profile|weiteres profil erstellen/i }).click();
-    const profileForm = page.getByRole('region', { name: /create cluster profile|clusterprofil erstellen/i });
-    await profileForm.getByLabel(/profile name|profilname/i).fill(journey.profileName);
+    await page.getByRole('button', { name: /set up another installation|weitere installation einrichten/i }).click();
+    const profileForm = page.getByRole('region', { name: /set up a new installation|neue installation einrichten/i });
+    await profileForm.getByLabel(/name this installation|name dieser installation/i).fill(journey.profileName);
     await profileForm.getByLabel(/language|sprache/i).selectOption(journey.language);
-    await profileForm.getByLabel(/deployment mode|bereitstellungsmodus/i).selectOption('local-lan');
-    const createButton = profileForm.getByRole('button', { name: /create profile|profil erstellen/i });
+    await profileForm.getByLabel(/where it runs|wo es läuft/i).selectOption('local-lan');
+    const createButton = profileForm.getByRole('button', { name: /create installation|installation anlegen/i });
     await createButton.focus();
     await page.keyboard.press('Enter');
 
@@ -42,28 +42,28 @@ test('Operator completes and reopens the launcher journey in English and German'
     await expect(page.getByRole('heading', { name: journey.task })).toBeVisible();
 
     if (journey.language === 'en') {
-      const capabilities = page.getByRole('region', { name: 'Cluster Capabilities' });
-      await capabilities.getByLabel('Pinned SmallWorlds release').fill('v1.2.3');
-      await capabilities.getByLabel('Private overlay repository').fill('https://github.com/example/private-overlay.git');
-      await capabilities.getByLabel('Base domain').fill('home.example');
+      const capabilities = page.getByRole('region', { name: 'What your community gets' });
+      await capabilities.getByLabel('SmallWorlds version').fill('v1.2.3');
+      await capabilities.getByLabel('Your private settings repository').fill('https://github.com/example/private-overlay.git');
+      await capabilities.getByLabel('Your web address').fill('home.example');
       const capabilityResponse = page.waitForResponse('/api/v1/capabilities/plan');
-      await capabilities.getByRole('button', { name: 'Review GitOps overlay' }).click();
+      await capabilities.getByRole('button', { name: 'Show me the exact changes' }).click();
       expect((await capabilityResponse).status()).toBe(201);
       await expect(capabilities.getByTestId('overlay-diff')).toContainText('v1.2.3');
       await expect(capabilities.getByTestId('overlay-diff')).not.toContainText('secret');
     }
 
-		const vault = page.getByRole('region', { name: /launcher vault|launcher-tresor/i });
+		const vault = page.getByRole('region', { name: /password safe|passwort-tresor/i });
 		await expect(vault).toBeVisible();
 		if (journey.language === 'en') {
-			await expect(vault.getByText('Passphrase fallback')).toBeVisible();
-			await vault.getByLabel('Vault passphrase').fill('playwright-vault-passphrase');
-			await vault.getByRole('button', { name: 'Unlock vault' }).focus();
+			await expect(vault.getByText('Or use a passphrase')).toBeVisible();
+			await vault.getByLabel('Safe passphrase').fill('playwright-vault-passphrase');
+			await vault.getByRole('button', { name: 'Open the safe' }).focus();
 			await page.keyboard.press('Enter');
 			await expect(vault.getByText('Unlocked', { exact: true })).toBeVisible();
 			const secret = 'playwright-secret-must-not-render';
-			await vault.getByLabel('Git provider token').fill(secret);
-			await vault.getByLabel('Credential expiry').fill('2035-04-05T06:07:08Z');
+			await vault.getByLabel('Access token for your settings repository').fill(secret);
+			await vault.getByLabel('When this token stops working').fill('2035-04-05T06:07:08Z');
 			await vault.getByRole('button', { name: 'Store credential' }).click();
 			await expect(vault.getByText('Current', { exact: true })).toBeVisible();
 			await expect(page.getByText(secret)).toHaveCount(0);
@@ -78,10 +78,10 @@ test('Operator completes and reopens the launcher journey in English and German'
 			await expect((await download).suggestedFilename()).toMatch(/-recovery\.bundle$/);
 		} else {
 			await expect(vault.getByText('Entsperrt', { exact: true })).toBeVisible();
-			await vault.getByLabel('Git-Anbieter-Token').fill('erstes-geheimnis-darf-nicht-erscheinen');
-			await vault.getByLabel('Ablaufdatum des Zugangsschlüssels').fill('2036-05-06T07:08:09Z');
+			await vault.getByLabel('Zugriffstoken für Ihr Einstellungs-Repository').fill('erstes-geheimnis-darf-nicht-erscheinen');
+			await vault.getByLabel('Wann dieses Token abläuft').fill('2036-05-06T07:08:09Z');
 			await vault.getByRole('button', { name: 'Zugangsschlüssel speichern' }).click();
-			await vault.getByLabel('Git-Anbieter-Token').fill('ersatz-geheimnis-darf-nicht-erscheinen');
+			await vault.getByLabel('Zugriffstoken für Ihr Einstellungs-Repository').fill('ersatz-geheimnis-darf-nicht-erscheinen');
 			await vault.getByRole('button', { name: 'Zugangsschlüssel ersetzen' }).click();
 			await expect(vault.getByText('Aktuell', { exact: true })).toBeVisible();
 			await vault.getByRole('button', { name: 'Zugangsschlüssel entfernen' }).click();
@@ -95,7 +95,7 @@ test('Operator completes and reopens the launcher journey in English and German'
       await page.getByRole('navigation', { name: 'Setup progress' })
         .getByRole('button', { name: /Protect against losing the machine/ })
         .click();
-      const offsite = page.getByRole('region', { name: 'Offsite backup destination' });
+      const offsite = page.getByRole('region', { name: 'Backup copy somewhere else' });
       await offsite.getByLabel('S3 endpoint (HTTPS)').fill('https://s3.eu-central-003.backblazeb2.com');
       await offsite.getByLabel('Region').fill('eu-central-003');
       await offsite.getByLabel('Bucket').fill('community-backups');
@@ -132,14 +132,14 @@ test('Operator completes and reopens the launcher journey in English and German'
   }
 
   await page.setViewportSize({ width: 375, height: 667 });
-  const createAnother = page.getByRole('button', { name: /weiteres profil erstellen/i });
+  const createAnother = page.getByRole('button', { name: /weitere installation einrichten/i });
   await expect(createAnother).toBeVisible();
   const bounds = await createAnother.boundingBox();
   expect(bounds).not.toBeNull();
   expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBeLessThanOrEqual(375);
   await createAnother.focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('region', { name: /clusterprofil erstellen/i })).toBeVisible();
+  await expect(page.getByRole('region', { name: /neue installation einrichten/i })).toBeVisible();
 
   const mobileAccessibility = await new AxeBuilder({ page }).analyze();
   expect(mobileAccessibility.violations).toEqual([]);

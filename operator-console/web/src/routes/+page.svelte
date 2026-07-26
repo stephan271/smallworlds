@@ -1836,9 +1836,9 @@
             </dl>
             {#if !nodeInspection.assessment.ready && nodeInspection.assessment.blockers.some(b => b.code === 'installation.kubernetes.foreign' || b.code === 'installation.data.foreign')}
               <div class="actions" style="margin-top: 1rem; border-top: 1px solid var(--border-subtle); padding-top: 1rem;">
-                <p class="inline-error" style="margin-bottom: 0.5rem; font-size: 0.875rem;">Achtung: Es wurden Fremdinstallationen gefunden, die SmallWorlds blockieren.</p>
+                <p class="inline-error" style="margin-bottom: 0.5rem; font-size: 0.875rem;">{message('foreignInstallFound')}</p>
                 <button class="secondary danger" style="color: var(--text-error); border-color: var(--text-error);" onclick={() => void cleanNode()} disabled={cleanNodeBusy}>
-                  {cleanNodeBusy ? 'Wird entfernt...' : 'Fremde Installation entfernen'}
+                  {cleanNodeBusy ? message('foreignInstallRemoving') : message('foreignInstallRemove')}
                 </button>
               </div>
             {/if}
@@ -1846,7 +1846,7 @@
               <div class="actions">
                 <button class="secondary" onclick={() => void planNodeSSHKey()} disabled={nodeBusy || sshKeyPlanned}>
                   {#if sshKeyPlanned}
-                    ✓ Schlüssel geplant
+                    ✓ {message('nodeSSHKeyPlanned')}
                   {:else}
                     {message('nodePlanSSHKey')}
                   {/if}
