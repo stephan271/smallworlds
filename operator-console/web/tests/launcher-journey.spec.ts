@@ -42,7 +42,7 @@ test('Operator completes and reopens the launcher journey in English and German'
     await expect(page.getByRole('heading', { name: journey.task })).toBeVisible();
 
     if (journey.language === 'en') {
-      const capabilities = page.getByRole('region', { name: 'What your community gets' });
+      const capabilities = page.getByRole('region', { name: 'What the infrastructure will offer' });
       await capabilities.getByLabel('SmallWorlds version').fill('v1.2.3');
       await capabilities.getByLabel('Your private settings repository').fill('https://github.com/example/private-overlay.git');
       await capabilities.getByLabel('Your web address').fill('home.example');
@@ -67,15 +67,19 @@ test('Operator completes and reopens the launcher journey in English and German'
 			await vault.getByRole('button', { name: 'Store credential' }).click();
 			await expect(vault.getByText('Current', { exact: true })).toBeVisible();
 			await expect(page.getByText(secret)).toHaveCount(0);
-			// The recovery bundle sits behind a disclosure so it cannot be
-			// stumbled into; open it before exercising the export.
+			// The recovery bundle lives in the sidebar, not in the journey, so it
+			// cannot be stumbled into; opening it takes over the panel and closing
+			// it returns the operator to the step they were on.
 			await page.getByRole('button', { name: /^Recovery Bundle\.\.\./ }).click();
 			const recovery = page.getByRole('region', { name: 'Recovery Bundle' });
 			await expect(recovery).toBeVisible();
+			await expect(page.getByRole('navigation', { name: 'Setup progress' })).toHaveCount(0);
 			await recovery.getByLabel('Recovery passphrase').first().fill('playwright-recovery-passphrase');
 			const download = page.waitForEvent('download');
 			await recovery.getByRole('button', { name: 'Download encrypted bundle' }).click();
 			await expect((await download).suggestedFilename()).toMatch(/-recovery\.bundle$/);
+			await recovery.getByRole('button', { name: 'Cancel' }).click();
+			await expect(page.getByRole('navigation', { name: 'Setup progress' })).toBeVisible();
 		} else {
 			await expect(vault.getByText('Entsperrt', { exact: true })).toBeVisible();
 			await vault.getByLabel('Zugriffstoken für Ihr Einstellungs-Repository').fill('erstes-geheimnis-darf-nicht-erscheinen');

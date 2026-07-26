@@ -1078,16 +1078,22 @@
     }, 1000);
   }
 
-  async function forgetActiveProfile(): Promise<void> {
-    if (!activeProfile || !window.confirm(decommissionMessage('forgetConfirm').replace('{name}', activeProfile.name))) return;
+  /** Removes one installation from this computer. Nothing outside this machine
+   *  is touched — an installation that was never provisioned simply disappears,
+   *  and one that was keeps running until it is retired deliberately. */
+  async function forgetProfile(target: ClusterProfile): Promise<void> {
+    if (!window.confirm(decommissionMessage('forgetConfirm').replace('{name}', target.name))) return;
     decommissionBusy = true;
     decommissionError = '';
     try {
-      await api.forgetProfile(activeProfile.id);
-      profiles = profiles.filter((profile) => profile.id !== activeProfile!.id);
+      await api.forgetProfile(target.id);
+      profiles = profiles.filter((profile) => profile.id !== target.id);
+      if (activeProfile?.id !== target.id) return;
       activeProfile = profiles[0] ?? null;
       decommissionPlan = null;
       decommissionRun = null;
+      showRecovery = false;
+      editing = false;
       if (activeProfile) await selectProfile(activeProfile);
       else creating = true;
     } catch (reason) {
@@ -1511,13 +1517,45 @@
       <h2>{message('profiles')}</h2>
       <nav>
         {#each profiles as profile (profile.id)}
-          <button class:active={activeProfile?.id === profile.id} onclick={() => { creating = false; editing = false; void selectProfile(profile); }}>
-            <span>{profile.name}</span>
-            <small>{profile.deploymentMode}</small>
-          </button>
+          <!-- Removing an installation lives next to the installation it removes.
+               It only makes this computer forget it; the cluster, if there is one,
+               keeps running — which is what the confirmation says. -->
+          <div class="profile-row" class:active={activeProfile?.id === profile.id}>
+            <button class="profile-pick" class:active={activeProfile?.id === profile.id} onclick={() => { creating = false; editing = false; showRecovery = false; void selectProfile(profile); }}>
+              <span>{profile.name}</span>
+              <small>{profile.deploymentMode}</small>
+            </button>
+            <button
+              class="profile-remove"
+              title={decommissionMessage('forget')}
+              aria-label={`${message('removeProfile')} — ${profile.name}`}
+              onclick={() => void forgetProfile(profile)}
+              disabled={decommissionBusy}
+            >✕</button>
+          </div>
         {/each}
       </nav>
       <button class="secondary full" onclick={showCreateProfile}>{message('createAnother')}</button>
+
+      {#if activeProfile && !creating}
+        <!-- The state of the installation as a whole, not of the open step. It
+             says plainly that nothing is running rather than claiming a
+             readiness the launcher has not established. -->
+        <h2 class="aside-heading">{message('statusHeading')}</h2>
+        <div class="aside-status" class:verified={run?.state === 'verified'} role="status" aria-live="polite" aria-atomic="true">
+          <span class="status-dot" aria-hidden="true"></span>
+          <div>
+            <span>{run ? runLabel(run.state) : message('statusIdle')}</span>
+            {#if run}<small>{run.currentCheckpoint || message('running')}</small>{/if}
+          </div>
+        </div>
+        {#if run?.state === 'running' && run.cancellationState === 'not-requested'}
+          <button class="secondary full" onclick={() => void cancelRun()} disabled={busy}>{message('cancel')}</button>
+        {/if}
+      {/if}
+
+      <h2 class="aside-heading">{message('toolsHeading')}</h2>
+      <button class="secondary full" aria-pressed={showRecovery} class:pressed={showRecovery} onclick={() => showRecovery = !showRecovery}>{message('recoveryTitle')}...</button>
     </aside>
 
     <main id="main-content" tabindex="-1">
@@ -1528,11 +1566,10 @@
         </div>
       {/if}
 
-      {#if !showRecovery}
-        <div class="actions" style="margin-bottom: 1.5rem; text-align: right;">
-          <button type="button" class="secondary" onclick={() => showRecovery = true}>{message('recoveryTitle')}...</button>
-        </div>
-      {:else}
+      <!-- Recovery takes over the whole panel while it is open: it is about the
+           installation as a whole, not a stage of setting one up, and mixing it
+           into the journey would suggest it were a step. -->
+      {#if showRecovery}
       <section class="card recovery-card" aria-labelledby="recovery-title">
         <div class="vault-heading">
           <div>
@@ -1605,9 +1642,8 @@
         {/if}
         <div class="actions" style="margin-top: 1rem;"><button type="button" class="secondary" onclick={() => showRecovery = false}>{message('cancel')}</button></div>
       </section>
-      {/if}
 
-      {#if creating || editing}
+      {:else if creating || editing}
         <section class="card form-card" aria-labelledby="profile-form-title">
           <p class="eyebrow">{message('profiles')}</p>
           <h1 id="profile-form-title">{editing ? message('editProfile') : message('createTitle')}</h1>
@@ -1651,12 +1687,17 @@
           <button class="secondary" onclick={showEditProfile}>{message('editProfile')}</button>
         </section>
 
-        <div role="status" aria-live="polite" aria-atomic="true" class:verified={run?.state === 'verified'} class="run-status">
-          <span class="status-icon" aria-hidden="true">{run?.state === 'verified' ? '✓' : '•'}</span>
-          <span>{run ? runLabel(run.state) : message('ready')}</span>
-          {#if run}<small>{run.currentCheckpoint || message('running')}</small>{/if}
-          {#if run?.state === 'running' && run.cancellationState === 'not-requested'}<button class="secondary" onclick={() => void cancelRun()} disabled={busy}>{message('cancel')}</button>{/if}
-        </div>
+        <!-- Only shown once there is a run to report on. With nothing running the
+             sidebar already says so, and an empty bar here read as an unticked
+             checkbox the operator was meant to do something about. -->
+        {#if run}
+          <div class="run-status" class:verified={run.state === 'verified'}>
+            <span class="status-icon" aria-hidden="true">{run.state === 'verified' ? '✓' : '•'}</span>
+            <span>{runLabel(run.state)}</span>
+            <small>{run.currentCheckpoint || message('running')}</small>
+            {#if run.state === 'running' && run.cancellationState === 'not-requested'}<button class="secondary" onclick={() => void cancelRun()} disabled={busy}>{message('cancel')}</button>{/if}
+          </div>
+        {/if}
 
         <!-- The whole journey at a glance. A stage that cannot be worked on yet
              stays listed and says why, rather than vanishing and leaving the
@@ -2269,7 +2310,7 @@
           {/if}
           <hr />
           <p class="muted">{decommissionMessage('forgetDescription')}</p>
-          <button type="button" class="secondary" onclick={() => void forgetActiveProfile()} disabled={decommissionBusy}>{decommissionMessage('forget')}</button>
+          <button type="button" class="secondary" onclick={() => activeProfile && void forgetProfile(activeProfile)} disabled={decommissionBusy}>{decommissionMessage('forget')}</button>
         </section>
 
         <section class="card decommission-card full-decommission-card" aria-labelledby="full-decommission-title">
@@ -2366,10 +2407,25 @@
   .shell { display: grid; grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr); min-height: calc(100vh - 5rem); }
   aside { padding: 2rem 1.25rem; background: #e6eee8; border-right: 1px solid #cbd9cf; }
   aside h2 { margin-top: 0; font-size: 1rem; text-transform: uppercase; letter-spacing: .08em; color: #54675b; }
+  aside .aside-heading { margin: 1.75rem 0 .6rem; }
   nav { display: grid; gap: .5rem; margin-bottom: 1rem; }
   nav button { display: grid; text-align: left; gap: .2rem; color: #233c2e; background: transparent; border: 1px solid transparent; }
   nav button:hover, nav button.active { background: white; border-color: #b9cbbf; }
   nav button small { font-weight: 500; color: #46564c; }
+  .profile-row { display: grid; grid-template-columns: 1fr auto; align-items: stretch; gap: .25rem; }
+  .profile-pick { min-width: 0; }
+  .profile-pick span { overflow-wrap: anywhere; }
+  /* Quiet until wanted: removing an installation is never the reason someone
+     opens the sidebar, so it stays out of the way without hiding entirely. */
+  .profile-remove { align-self: center; padding: .35rem .55rem; color: #7a5350; }
+  .profile-row:hover .profile-remove, .profile-remove:focus-visible { background: #fff1ee; color: #78281f; }
+  .aside-status { display: flex; align-items: flex-start; gap: .6rem; padding: .7rem .85rem; border-radius: .8rem; background: white; border: 1px solid #cbd9cf; font-weight: 750; }
+  .aside-status div { display: grid; gap: .15rem; min-width: 0; }
+  .aside-status small { font-weight: 500; color: #5f6c64; overflow-wrap: anywhere; }
+  .aside-status .status-dot { flex: 0 0 auto; margin-top: .42rem; width: .6rem; height: .6rem; border-radius: 50%; background: #8ca092; }
+  .aside-status.verified { background: #daf1e1; border-color: #a9d3ba; color: #145f3d; }
+  .aside-status.verified .status-dot { background: #176b45; }
+  button.secondary.pressed { background: white; border-color: #2c6b45; }
   main { width: min(58rem, 100%); padding: clamp(1.5rem, 5vw, 4rem); }
   .centered { margin: 4rem auto; }
   h1 { margin: .2rem 0; font-size: clamp(2rem, 5vw, 3.5rem); letter-spacing: -.04em; }
@@ -2474,7 +2530,12 @@
     .product-header { background: #08150e; border-color: #3a6550; }
     aside { background: #172b20; border-color: #3a6550; }
     nav button, nav button small, .muted, .eyebrow, .run-status small, .timeline time { color: inherit; }
-    nav button:hover, nav button.active, .card { background: #1b3024; border-color: #466b55; }
+    nav button:hover, nav button.active, .card, .aside-status { background: #1b3024; border-color: #466b55; }
+    .aside-status small { color: #b9cec1; }
+    .profile-remove { color: #f3d9d4; }
+    .profile-row:hover .profile-remove, .profile-remove:focus-visible { background: #4a2622; color: #ffe9e4; }
+    .aside-status.verified { background: #204a32; color: #e2f8e8; border-color: #3f7a58; }
+    button.secondary.pressed { background: #284433; border-color: #9ab9a4; }
     input, select, textarea { background: #102017; color: #edf6ef; border-color: #7d9c87; }
     button.secondary { color: #edf6ef; border-color: #9ab9a4; }
     button.secondary:hover { background: #284433; }
