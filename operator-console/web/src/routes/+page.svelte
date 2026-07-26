@@ -549,6 +549,24 @@
     return genericGitStatus ? '' : 'settingsRepoNeedsAccess';
   });
 
+  /** Plain language for what the node section can refuse. It showed bare codes,
+   *  which is how an operator ends up reading "node_host_key_confirmation_required"
+   *  while looking at the confirmation button they just pressed. */
+  function nodeErrorMessage(code: string): string {
+    switch (code) {
+      case 'node_host_key_confirmation_required': return message('nodeFingerprintExpired');
+      case 'node_host_key_mismatch': return message('localBootstrapHostKeyMismatch');
+      case 'node_connection_failed': return message('nodeConnectionFailed');
+      case 'invalid_node_credentials': return message('nodeCredentialsRejected');
+      case 'invalid_node_target': return message('nodeTargetInvalid');
+      case 'node_sudo_authorization_failed': return message('nodeSudoRejected');
+      case 'same_host_clean_failed':
+      case 'node_clean_failed': return message('nodeCleanFailed');
+      case 'vault_locked': return message('handoffUnlockFirst');
+      default: return code;
+    }
+  }
+
   function settingsRepoErrorMessage(code: string): string {
     switch (code) {
       case 'github_repository_not_empty': return message('githubRepositoryNotEmpty');
@@ -1366,6 +1384,11 @@
       nodeProbe = null;
     } catch (reason) {
       nodeError = reason instanceof Error ? reason.message : 'node_host_key_confirmation_required';
+      // The launcher only accepts a confirmation for a fingerprint it observed in
+      // the last ten minutes. Keeping the stale reading on screen left the button
+      // failing forever, telling the operator to confirm what they were
+      // confirming; dropping it puts them back at the reading itself.
+      if (nodeError === 'node_host_key_confirmation_required') nodeProbe = null;
     } finally {
       nodeBusy = false;
     }
@@ -2024,7 +2047,7 @@
           <p class="eyebrow">{message('nodeEyebrow')}</p>
           <h2 id="node-title">{message('nodeTitle')}</h2>
           <p class="muted">{message('nodeDescription')}</p>
-          {#if nodeError}<p class="inline-error" role="alert">{nodeError}</p>{/if}
+          {#if nodeError}<p class="inline-error" role="alert">{nodeErrorMessage(nodeError)}</p>{/if}
           <!-- What an earlier session already confirmed about this machine. Shown
                before the form, so a returning operator recognises the cluster
                instead of facing fields that look like a fresh start. -->
