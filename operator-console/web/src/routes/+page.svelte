@@ -531,6 +531,35 @@
     }
   }
 
+  /** What is still missing before an overlay can be established, or '' when
+   *  nothing is. The establishment form used to vanish silently while any of
+   *  this was outstanding, so an operator could not tell whether the console
+   *  offered to create the repository at all. */
+  const settingsRepoMissing: MessageKey | '' = $derived.by(() => {
+    if (!capabilityPlan) return 'settingsRepoNeedsPlan';
+    if (settingsProvider === 'github') {
+      if (!gitHubStatus) return 'settingsRepoNeedsToken';
+      if (gitHubStatus.authority !== 'creation') return 'settingsRepoNeedsCreationAuthority';
+      return '';
+    }
+    return genericGitStatus ? '' : 'settingsRepoNeedsAccess';
+  });
+
+  function settingsRepoErrorMessage(code: string): string {
+    switch (code) {
+      case 'github_repository_not_empty': return message('githubRepositoryNotEmpty');
+      case 'github_repository_not_private': return message('githubRepositoryNotPrivate');
+      case 'github_creation_token_missing': return message('settingsRepoNeedsCreationAuthority');
+      case 'github_token_insufficient_authority': return message('settingsRepoTokenAuthority');
+      case 'github_rate_limited': return message('settingsRepoRateLimited');
+      case 'github_overlay_initialization_failed': return message('settingsRepoWriteFailed');
+      case 'github_overlay_plan_not_approved':
+      case 'plan_precondition_changed': return message('settingsRepoPlanStale');
+      case 'vault_locked': return message('handoffUnlockFirst');
+      default: return code;
+    }
+  }
+
   /** Plain language for the refusals an operator can act on. Anything else falls
    *  through to its code rather than being softened into something vague — an
    *  unexplained code is bad, but a wrong explanation is worse. */
@@ -801,6 +830,10 @@
     gitHubError = '';
     gitHubOverlayNotice = '';
     try {
+      // The launcher only establishes against an approved plan, and the diff the
+      // operator just read is what this click approves. Doing it here keeps the
+      // approval part of the action instead of a separate step nothing points to.
+      await api.approvePlan(capabilityPlan.plan.id);
       const identity = await api.establishGitHubOverlay({ profileId: activeProfile.id, planId: capabilityPlan.plan.id, repositoryName: gitHubRepositoryName, mode: capabilityMode, communityIds: capabilityApps, release: capabilityRelease, domain: capabilityDomain });
       gitHubOverlayNotice = `${identity.repositoryUrl} @ ${identity.commit}`;
     } catch (reason) {
@@ -831,6 +864,7 @@
     genericGitError = '';
     genericGitOverlayNotice = '';
     try {
+      await api.approvePlan(capabilityPlan.plan.id);
       const identity = await api.establishGenericGitOverlay({ profileId: activeProfile.id, planId: capabilityPlan.plan.id, repositoryUrl: capabilityRepositoryURL, mode: capabilityMode, communityIds: capabilityApps, release: capabilityRelease, domain: capabilityDomain });
       genericGitOverlayNotice = `${identity.repositoryUrl} @ ${identity.commit}`;
     } catch (reason) {
@@ -846,6 +880,7 @@
     genericGitError = '';
     genericGitProposal = null;
     try {
+      await api.approvePlan(capabilityPlan.plan.id);
       genericGitProposal = await api.proposeGenericGitOverlay({ profileId: activeProfile.id, planId: capabilityPlan.plan.id, repositoryUrl: capabilityRepositoryURL, mode: capabilityMode, communityIds: capabilityApps, release: capabilityRelease, domain: capabilityDomain });
     } catch (reason) {
       genericGitError = reason instanceof Error ? reason.message : 'generic_git_proposal_failed';
@@ -2127,26 +2162,30 @@
 
           {#if settingsProvider === 'github'}
             <p class="muted">{message('githubDescription')} <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">{message('githubTokenGuide')}</a></p>
-            {#if gitHubError}<p class="inline-error" role="alert">{gitHubError === 'github_repository_not_empty' ? message('githubRepositoryNotEmpty') : gitHubError === 'github_repository_not_private' ? message('githubRepositoryNotPrivate') : gitHubError}</p>{/if}
+            {#if gitHubError}<p class="inline-error" role="alert">{settingsRepoErrorMessage(gitHubError)}</p>{/if}
             <form onsubmit={(event) => { event.preventDefault(); void validateGitHubToken(); }} onchange={rememberAnswers}>
               <label><span>{message('githubAuthority')}</span><select bind:value={gitHubAuthority}><option value="creation">{message('githubCreationAuthority')}</option><option value="ongoing">{message('githubOngoingAuthority')}</option></select></label>
               <label><span>{message('githubToken')}</span><input type="password" bind:value={gitHubToken} required={!gitHubTokenStored} autocomplete="off" />{#if gitHubTokenStored}<small class="muted">{message('secretAlreadySaved')}</small>{/if}</label>
               <div class="actions"><button type="submit" disabled={gitHubBusy}>{message('githubValidate')}</button></div>
             </form>
             {#if gitHubStatus}<dl class="credential-metadata"><div><dt>{message('githubOwner')}</dt><dd>{gitHubStatus.owner}</dd></div><div><dt>{message('credentialExpires')}</dt><dd>{gitHubStatus.expiresAt || message('githubNoExpiry')}</dd></div><div><dt>{message('githubAuthority')}</dt><dd>{gitHubStatus.authority === 'creation' ? message('githubCreationAuthority') : message('githubOngoingAuthority')}</dd></div></dl>{/if}
-            {#if capabilityPlan && gitHubStatus?.authority === 'creation'}
+            {#if settingsRepoMissing === ''}
               <form class="github-establish" onsubmit={(event) => { event.preventDefault(); void establishGitHubOverlay(); }} onchange={rememberAnswers}><label><span>{message('githubRepositoryName')}</span><input bind:value={gitHubRepositoryName} required pattern="[A-Za-z0-9._-]+" /><small class="muted">{message('githubRepositoryHint')}</small></label><div class="actions"><button type="submit" disabled={gitHubBusy}>{message('githubEstablish')}</button></div></form>
+            {:else}
+              <p class="inline-notice">{message(settingsRepoMissing)}</p>
             {/if}
             {#if gitHubOverlayNotice}<p class="inline-notice" aria-live="polite">{gitHubOverlayNotice}</p>{/if}
           {:else if settingsProvider === 'generic'}
             <p class="muted">{message('genericGitDescription')}</p>
-            {#if genericGitError}<p class="inline-error" role="alert">{genericGitError}</p>{/if}
+            {#if genericGitError}<p class="inline-error" role="alert">{settingsRepoErrorMessage(genericGitError)}</p>{/if}
             <form onsubmit={(event) => { event.preventDefault(); void validateGenericGitCredentials(); }} onchange={rememberAnswers}>
               <div class="form-grid"><label><span>{message('genericGitUsername')}</span><input bind:value={genericGitUsername} required={!genericGitTokenStored} autocomplete="username" /></label><label><span>{message('genericGitToken')}</span><input type="password" bind:value={genericGitToken} required={!genericGitTokenStored} autocomplete="off" />{#if genericGitTokenStored}<small class="muted">{message('secretAlreadySaved')}</small>{/if}</label></div>
               <div class="actions"><button type="submit" disabled={genericGitBusy}>{message('genericGitValidate')}</button></div>
             </form>
             {#if genericGitStatus}<p class="inline-notice">{genericGitStatus.repositoryUrl}</p>{/if}
-            {#if capabilityPlan && genericGitStatus}
+            {#if settingsRepoMissing !== ''}
+              <p class="inline-notice">{message(settingsRepoMissing)}</p>
+            {:else}
               <p class="muted">{message('genericGitApprovalHint')}</p>
               <form class="github-establish" onsubmit={(event) => { event.preventDefault(); void establishGenericGitOverlay(); }}><div class="actions"><button type="submit" disabled={genericGitBusy}>{message('genericGitEstablish')}</button></div></form>
               <form class="github-establish" onsubmit={(event) => { event.preventDefault(); void proposeGenericGitOverlay(); }}><div class="actions"><button class="secondary" type="submit" disabled={genericGitBusy}>{message('genericGitPropose')}</button></div></form>
