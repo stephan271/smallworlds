@@ -123,6 +123,62 @@ func TestGenericGitEstablishesApprovedPlanAndSafelyResumes(t *testing.T) {
 	}
 }
 
+// An operator who empties the repository in order to establish it again must have
+// a way forward. Refusing because the recorded commit is gone left them with a
+// repository they could not use and a recorded identity they could not withdraw.
+func TestGenericGitReestablishesIntoARepositoryThatWasEmptiedAgain(t *testing.T) {
+	stub := &genericGitStub{contains: true}
+	handler, err := launcher.New(launcher.Config{DataDir: t.TempDir(), LaunchToken: "generic-reestablish", GenericGitClient: stub})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = handler.Close() })
+	cookie, csrf := exchange(t, handler, "generic-reestablish")
+	profile := createProfile(t, handler, cookie, csrf, "Generic", "en", "local-lan")
+	unlockVaultForRecoveryTest(t, handler, cookie, csrf)
+	credentialBody, _ := json.Marshal(map[string]string{"profileId": profile.ID, "repositoryUrl": "https://git.example/overlay.git", "username": "operator", "token": "generic-secret"})
+	response := request(t, handler, http.MethodPost, "/api/v1/generic-git/token/validate", credentialBody, cookie, map[string]string{"X-CSRF-Token": csrf})
+	response.Body.Close()
+	establish := func() *http.Response {
+		planID := genericCapabilityPlan(t, handler, cookie, csrf, profile.ID)
+		approved := request(t, handler, http.MethodPost, "/api/v1/plans/"+planID+"/approve", nil, cookie, map[string]string{"X-CSRF-Token": csrf})
+		approved.Body.Close()
+		body, _ := json.Marshal(map[string]any{"profileId": profile.ID, "planId": planID, "repositoryUrl": "https://git.example/overlay.git", "mode": "minimal", "communityIds": []string{}, "release": "v1.2.3", "domain": "home.example"})
+		return request(t, handler, http.MethodPost, "/api/v1/generic-git/overlay/establish", body, cookie, map[string]string{"X-CSRF-Token": csrf})
+	}
+	response = establish()
+	if response.StatusCode != http.StatusCreated {
+		t.Fatalf("first establish status = %d", response.StatusCode)
+	}
+	response.Body.Close()
+
+	// The operator empties the repository: the recorded commit is no longer on the
+	// remote, and the remote now accepts initialization again.
+	stub.contains = false
+	stub.commit = "second-commit"
+	response = establish()
+	if response.StatusCode != http.StatusCreated {
+		t.Fatalf("re-establish status = %d body = %s", response.StatusCode, readAll(t, response))
+	}
+	if body := readAll(t, response); !bytes.Contains(body, []byte("second-commit")) {
+		t.Fatalf("recorded identity was not replaced: %s", body)
+	}
+	if stub.initializeCalls != 2 {
+		t.Fatalf("initialize calls = %d, want 2", stub.initializeCalls)
+	}
+
+	// A repository that still holds other commits is a different matter: nothing
+	// may be overwritten, and initialization is what refuses it.
+	stub.initializeErr = githttps.ErrRemoteNotEmpty
+	response = establish()
+	if response.StatusCode != http.StatusConflict {
+		t.Fatalf("non-empty remote status = %d", response.StatusCode)
+	}
+	if body := readAll(t, response); !bytes.Contains(body, []byte("generic_git_remote_conflict")) {
+		t.Fatalf("unexpected refusal: %s", body)
+	}
+}
+
 func TestGenericGitMapsAuthenticationAndRemoteConflicts(t *testing.T) {
 	for name, expected := range map[string]error{"authentication": githttps.ErrAuthentication, "non-empty": githttps.ErrRemoteNotEmpty, "concurrent": githttps.ErrConcurrentChange} {
 		t.Run(name, func(t *testing.T) {

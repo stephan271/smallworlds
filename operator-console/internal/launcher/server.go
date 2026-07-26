@@ -2511,12 +2511,16 @@ func (server *Server) establishGenericGitOverlay(response http.ResponseWriter, r
 			writeError(response, http.StatusBadGateway, "generic_git_resume_check_failed")
 			return
 		}
-		if !present {
-			writeError(response, http.StatusConflict, "generic_git_remote_state_changed")
+		if present {
+			writeJSON(response, http.StatusOK, recorded)
 			return
 		}
-		writeJSON(response, http.StatusOK, recorded)
-		return
+		// The recorded commit is gone from the remote. Refusing here was a dead
+		// end: an operator who emptied the repository in order to establish it
+		// again had no way forward and no way to withdraw the recorded identity.
+		// Fall through instead — initialization accepts nothing but an empty
+		// remote, so a repository that still holds other commits stays protected,
+		// and the recorded identity is replaced rather than contradicted.
 	} else if !errors.Is(err, state.ErrNotFound) {
 		writeError(response, http.StatusInternalServerError, "generic_git_overlay_failed")
 		return

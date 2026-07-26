@@ -573,6 +573,11 @@
   function settingsRepoErrorMessage(code: string): string {
     switch (code) {
       case 'github_repository_not_empty': return message('githubRepositoryNotEmpty');
+      case 'generic_git_remote_conflict': return message('genericGitRemoteNotEmpty');
+      case 'generic_git_overlay_identity_conflict': return message('genericGitIdentityConflict');
+      case 'generic_git_authentication_failed': return message('genericGitAuthenticationFailed');
+      case 'generic_git_credentials_missing': return message('settingsRepoNeedsAccess');
+      case 'generic_git_resume_check_failed': return message('genericGitResumeCheckFailed');
       case 'github_repository_not_private': return message('githubRepositoryNotPrivate');
       case 'github_creation_token_missing': return message('settingsRepoNeedsCreationAuthority');
       case 'github_token_insufficient_authority': return message('settingsRepoTokenAuthority');
