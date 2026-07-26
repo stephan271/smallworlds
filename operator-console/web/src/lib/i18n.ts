@@ -147,6 +147,7 @@ const messages = {
     ,retireDescription: 'Only needed when you are taking the cluster out of service. Not part of setting one up.'
     ,retireShow: 'Show shutdown options'
     ,retireHide: 'Hide shutdown options'
+    ,secretAlreadySaved: 'Already saved. Leave blank to keep it, or type a new one to replace it.'
   },
   de: {
     product: 'SmallWorlds Operator Console',
@@ -292,6 +293,7 @@ const messages = {
     ,retireDescription: 'Nur nötig, wenn Sie den Cluster außer Betrieb nehmen. Kein Teil der Einrichtung.'
     ,retireShow: 'Stilllegungsoptionen anzeigen'
     ,retireHide: 'Stilllegungsoptionen ausblenden'
+    ,secretAlreadySaved: 'Bereits gespeichert. Leer lassen, um es zu behalten, oder neu eingeben, um es zu ersetzen.'
   }
 } as const;
 

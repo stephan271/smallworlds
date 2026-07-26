@@ -459,6 +459,21 @@
     }, 400);
   }
 
+  /** Whether a secret of this kind is already in the safe for this profile.
+   *  A stored secret is never sent back to the browser, so the only honest
+   *  thing to show is that one exists — and to stop demanding it again. */
+  function secretStored(kind: string): boolean {
+    return credentials.some((credential) => credential.kind === kind && credential.present);
+  }
+
+  const gitHubTokenStored = $derived(secretStored(`github-${gitHubAuthority}-token`));
+  const genericGitTokenStored = $derived(secretStored('generic-git-token'));
+  const hetznerTokenStored = $derived(secretStored('hetzner-project-token'));
+  const offsiteKeysStored = $derived(secretStored('offsite-s3-access-key') && secretStored('offsite-s3-secret'));
+  const dnsTokenStored = $derived(secretStored('local-public-dns-token'));
+  const nodePasswordStored = $derived(secretStored('node-password'));
+  const nodePrivateKeyStored = $derived(secretStored('node-private-key'));
+
   function vaultErrorMessage(code: string): string {
     switch (code) {
       case 'os_credential_store_unavailable': return message('osCredentialStoreUnavailable');
@@ -1806,7 +1821,7 @@
               <div class="form-grid"><label><span>{message('nodeHost')}</span><input bind:value={nodeHost} required autocomplete="off" /></label><label><span>{message('nodePort')}</span><input type="number" bind:value={nodePort} min="1" max="65535" required /></label></div>
               <label><span>{message('nodeUsername')}</span><input bind:value={nodeUsername} required autocomplete="username" /></label>
               <label><span>{message('nodeAuthentication')}</span><select bind:value={nodeAuthentication}><option value="agent">{message('nodeAgent')}</option><option value="private-key">{message('nodePrivateKey')}</option><option value="password">{message('nodePassword')}</option></select></label>
-              {#if nodeAuthentication === 'password'}<label><span>{message('nodePassword')}</span><input type="password" bind:value={nodePassword} required autocomplete="current-password" /></label>{:else if nodeAuthentication === 'private-key'}<label><span>{message('nodePrivateKey')}</span><textarea bind:value={nodePrivateKey} required autocomplete="off"></textarea></label><label><span>{message('nodeKeyPassphrase')}</span><input type="password" bind:value={nodeKeyPassphrase} autocomplete="off" /></label>{/if}
+              {#if nodeAuthentication === 'password'}<label><span>{message('nodePassword')}</span><input type="password" bind:value={nodePassword} required={!nodePasswordStored} autocomplete="current-password" />{#if nodePasswordStored}<small class="muted">{message('secretAlreadySaved')}</small>{/if}</label>{:else if nodeAuthentication === 'private-key'}<label><span>{message('nodePrivateKey')}</span><textarea bind:value={nodePrivateKey} required={!nodePrivateKeyStored} autocomplete="off"></textarea>{#if nodePrivateKeyStored}<small class="muted">{message('secretAlreadySaved')}</small>{/if}</label><label><span>{message('nodeKeyPassphrase')}</span><input type="password" bind:value={nodeKeyPassphrase} autocomplete="off" /></label>{/if}
               <label><span>{message('nodeSudoPassword')}</span><input type="password" bind:value={nodeSudoPassword} autocomplete="off" /></label>
               <div class="actions"><button type="button" onclick={() => void probeNode()} disabled={nodeBusy}>{message('nodeProbe')}</button></div>
             {/if}
@@ -1861,7 +1876,7 @@
                     <p class="muted">{message('localPublicRouterNoAutomation')}</p>
                   </section>
                   <label><span>{message('localPublicDNSProvider')}</span><input value="Hetzner DNS (DNS-01)" readonly /></label>
-                  <label><span>{message('localPublicDNSToken')}</span><input type="password" bind:value={localPublicDNSToken} required autocomplete="off" /></label>
+                  <label><span>{message('localPublicDNSToken')}</span><input type="password" bind:value={localPublicDNSToken} required={!dnsTokenStored} autocomplete="off" />{#if dnsTokenStored}<small class="muted">{message('secretAlreadySaved')}</small>{/if}</label>
                   <p class="muted">{message('localPublicDDNS')}</p>
                   <label class="check"><input type="checkbox" bind:checked={localPublicRouterAcknowledged} required /><span>{message('localPublicRouterAcknowledge')}</span></label>
                   <ul><li>{message('localPublicMailWarning')}</li><li>{message('localPublicJitsiWarning')}</li></ul>
@@ -1897,7 +1912,7 @@
             {#if gitHubError}<p class="inline-error" role="alert">{gitHubError}</p>{/if}
             <form onsubmit={(event) => { event.preventDefault(); void validateGitHubToken(); }} onchange={rememberAnswers}>
               <label><span>{message('githubAuthority')}</span><select bind:value={gitHubAuthority}><option value="creation">{message('githubCreationAuthority')}</option><option value="ongoing">{message('githubOngoingAuthority')}</option></select></label>
-              <label><span>{message('githubToken')}</span><input type="password" bind:value={gitHubToken} required autocomplete="off" /></label>
+              <label><span>{message('githubToken')}</span><input type="password" bind:value={gitHubToken} required={!gitHubTokenStored} autocomplete="off" />{#if gitHubTokenStored}<small class="muted">{message('secretAlreadySaved')}</small>{/if}</label>
               <div class="actions"><button type="submit" disabled={gitHubBusy}>{message('githubValidate')}</button></div>
             </form>
             {#if gitHubStatus}<dl class="credential-metadata"><div><dt>{message('githubOwner')}</dt><dd>{gitHubStatus.owner}</dd></div><div><dt>{message('credentialExpires')}</dt><dd>{gitHubStatus.expiresAt || message('githubNoExpiry')}</dd></div><div><dt>{message('githubAuthority')}</dt><dd>{gitHubStatus.authority === 'creation' ? message('githubCreationAuthority') : message('githubOngoingAuthority')}</dd></div></dl>{/if}
@@ -1909,7 +1924,7 @@
             <p class="muted">{message('genericGitDescription')}</p>
             {#if genericGitError}<p class="inline-error" role="alert">{genericGitError}</p>{/if}
             <form onsubmit={(event) => { event.preventDefault(); void validateGenericGitCredentials(); }} onchange={rememberAnswers}>
-              <div class="form-grid"><label><span>{message('genericGitUsername')}</span><input bind:value={genericGitUsername} required autocomplete="username" /></label><label><span>{message('genericGitToken')}</span><input type="password" bind:value={genericGitToken} required autocomplete="off" /></label></div>
+              <div class="form-grid"><label><span>{message('genericGitUsername')}</span><input bind:value={genericGitUsername} required={!genericGitTokenStored} autocomplete="username" /></label><label><span>{message('genericGitToken')}</span><input type="password" bind:value={genericGitToken} required={!genericGitTokenStored} autocomplete="off" />{#if genericGitTokenStored}<small class="muted">{message('secretAlreadySaved')}</small>{/if}</label></div>
               <div class="actions"><button type="submit" disabled={genericGitBusy}>{message('genericGitValidate')}</button></div>
             </form>
             {#if genericGitStatus}<p class="inline-notice">{genericGitStatus.repositoryUrl}</p>{/if}
@@ -1936,7 +1951,7 @@
           {#if hetznerError}<p class="inline-error" role="alert">{hetznerError}</p>{/if}
 
           <form onsubmit={(event) => { event.preventDefault(); void validateHetznerToken(); }}>
-            <label><span>{message('hetznerToken')}</span><input type="password" bind:value={hetznerTokenValue} required autocomplete="off" /></label>
+            <label><span>{message('hetznerToken')}</span><input type="password" bind:value={hetznerTokenValue} required={!hetznerTokenStored} autocomplete="off" />{#if hetznerTokenStored}<small class="muted">{message('secretAlreadySaved')}</small>{/if}</label>
             <p class="muted"><a href="https://console.hetzner.cloud/" target="_blank" rel="noreferrer">{message('hetznerTokenGuide')}</a></p>
             <div class="actions"><button type="submit" disabled={hetznerBusy}>{message('hetznerTokenValidate')}</button></div>
           </form>
@@ -2101,7 +2116,7 @@
           <form onsubmit={(event) => { event.preventDefault(); void inspectOffsiteDestination(); }} onchange={rememberAnswers}>
             <div class="form-grid"><label><span>{message('offsiteEndpoint')}</span><input type="url" bind:value={offsiteEndpoint} required placeholder="https://s3.eu-central-003.backblazeb2.com" /></label><label><span>{message('offsiteRegion')}</span><input bind:value={offsiteRegion} required placeholder="eu-central-003" autocomplete="off" /></label></div>
             <label><span>{message('offsiteBucket')}</span><input bind:value={offsiteBucket} required placeholder="community-backups" autocomplete="off" /></label>
-            <div class="form-grid"><label><span>{message('offsiteAccessKey')}</span><input bind:value={offsiteAccessKey} required autocomplete="off" /></label><label><span>{message('offsiteSecretKey')}</span><input type="password" bind:value={offsiteSecretKey} required autocomplete="off" /></label></div>
+            <div class="form-grid"><label><span>{message('offsiteAccessKey')}</span><input bind:value={offsiteAccessKey} required={!offsiteKeysStored} autocomplete="off" /></label><label><span>{message('offsiteSecretKey')}</span><input type="password" bind:value={offsiteSecretKey} required={!offsiteKeysStored} autocomplete="off" />{#if offsiteKeysStored}<small class="muted">{message('secretAlreadySaved')}</small>{/if}</label></div>
             <div class="actions"><button type="submit" disabled={offsiteBusy}>{message('offsiteInspect')}</button></div>
           </form>
           {#if offsiteStatus?.destination?.bucket}

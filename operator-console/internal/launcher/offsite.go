@@ -159,7 +159,11 @@ func (server *Server) inspectOffsite(response http.ResponseWriter, request *http
 		writeError(response, http.StatusBadRequest, "invalid_offsite_destination")
 		return
 	}
-	credentials := offsite.Credentials{AccessKeyID: input.AccessKeyID, SecretAccessKey: input.SecretAccessKey}
+	accessKeyVaultKey, secretVaultKey := offsiteVaultKeys(input.ProfileID)
+	credentials := offsite.Credentials{
+		AccessKeyID:     server.rememberedSecret(input.AccessKeyID, accessKeyVaultKey),
+		SecretAccessKey: server.rememberedSecret(input.SecretAccessKey, secretVaultKey),
+	}
 	if !credentials.Valid() {
 		writeError(response, http.StatusBadRequest, "invalid_offsite_credentials")
 		return
@@ -167,7 +171,6 @@ func (server *Server) inspectOffsite(response http.ResponseWriter, request *http
 
 	// Custody the credential values in the Launcher Vault, never in Git or the
 	// persisted reference, and never returned to the browser.
-	accessKeyVaultKey, secretVaultKey := offsiteVaultKeys(input.ProfileID)
 	if err := server.vault.Store(accessKeyVaultKey, credentials.AccessKeyID); errors.Is(err, vault.ErrLocked) {
 		writeError(response, http.StatusLocked, "vault_locked")
 		return

@@ -2190,7 +2190,12 @@ func (server *Server) validateGitHubToken(response http.ResponseWriter, request 
 	}
 	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 32*1024))
 	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" || input.Token == "" || (input.Authority != github.CreationAuthority && input.Authority != github.OngoingAuthority) {
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" || (input.Authority != github.CreationAuthority && input.Authority != github.OngoingAuthority) {
+		writeError(response, http.StatusBadRequest, "invalid_github_token")
+		return
+	}
+	input.Token = server.rememberedSecret(input.Token, input.ProfileID+"/github-"+string(input.Authority)+"-token")
+	if input.Token == "" {
 		writeError(response, http.StatusBadRequest, "invalid_github_token")
 		return
 	}
@@ -2346,7 +2351,13 @@ func (server *Server) validateGenericGitCredentials(response http.ResponseWriter
 	}
 	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 32*1024))
 	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" || input.Username == "" || input.Token == "" {
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" {
+		writeError(response, http.StatusBadRequest, "invalid_generic_git_credentials")
+		return
+	}
+	input.Username = server.rememberedSecret(input.Username, input.ProfileID+"/generic-git-username")
+	input.Token = server.rememberedSecret(input.Token, input.ProfileID+"/generic-git-token")
+	if input.Username == "" || input.Token == "" {
 		writeError(response, http.StatusBadRequest, "invalid_generic_git_credentials")
 		return
 	}
@@ -3322,11 +3333,41 @@ func (server *Server) planLocalBootstrap(response http.ResponseWriter, request *
 	writeJSON(response, http.StatusCreated, result)
 }
 
+// rememberedSecret returns the value the browser supplied, or — when it supplied
+// nothing — the one already custodied in the Launcher Vault under vaultKey.
+//
+// This is what lets a step be revisited without retyping a token: the browser is
+// never sent a stored secret back (it cannot be), so an operator returning to a
+// finished step sees an empty field. Treating that empty field as "use what you
+// already have" is the difference between a journey that can be resumed and one
+// that must be redone. Supplying a value always wins, so deliberate rotation
+// still works, and a locked vault simply yields nothing.
+func (server *Server) rememberedSecret(supplied, vaultKey string) string {
+	if supplied != "" {
+		return supplied
+	}
+	stored, err := server.vault.Load(vaultKey)
+	if err != nil {
+		return ""
+	}
+	return stored
+}
+
 func (server *Server) storeNodeCredentials(ctx context.Context, profileID string, input nodeAuthenticationRequest) (nodeinspect.Credentials, error) {
-	credentials := nodeinspect.Credentials{Kind: input.Kind, Password: input.Password, PrivateKey: []byte(input.PrivateKey), KeyPassphrase: input.KeyPassphrase, SudoPassword: input.SudoPassword}
 	if input.Kind != nodeinspect.AgentAuthentication && input.Kind != nodeinspect.PrivateKeyAuthentication && input.Kind != nodeinspect.PasswordAuthentication {
 		return nodeinspect.Credentials{}, fmt.Errorf("unsupported node authentication")
 	}
+
+	if input.Kind == nodeinspect.PasswordAuthentication {
+		input.Password = server.rememberedSecret(input.Password, profileID+"/node-password")
+	}
+	if input.Kind == nodeinspect.PrivateKeyAuthentication {
+		input.PrivateKey = server.rememberedSecret(input.PrivateKey, profileID+"/node-private-key")
+		input.KeyPassphrase = server.rememberedSecret(input.KeyPassphrase, profileID+"/node-key-passphrase")
+	}
+	input.SudoPassword = server.rememberedSecret(input.SudoPassword, profileID+"/node-sudo-password")
+
+	credentials := nodeinspect.Credentials{Kind: input.Kind, Password: input.Password, PrivateKey: []byte(input.PrivateKey), KeyPassphrase: input.KeyPassphrase, SudoPassword: input.SudoPassword}
 	if input.Kind == nodeinspect.PasswordAuthentication && input.Password == "" || input.Kind == nodeinspect.PrivateKeyAuthentication && input.PrivateKey == "" {
 		return nodeinspect.Credentials{}, fmt.Errorf("missing node authentication material")
 	}

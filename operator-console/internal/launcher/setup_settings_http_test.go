@@ -135,6 +135,68 @@ func TestSetupSettingsWritesRequireCSRFAndAKnownProfile(t *testing.T) {
 	response.Body.Close()
 }
 
+func TestARevisitedStepReusesTheStoredSecretInsteadOfDemandingItAgain(t *testing.T) {
+	handler, err := launcher.New(launcher.Config{DataDir: t.TempDir(), LaunchToken: "settings"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = handler.Close() })
+	cookie, csrf := exchange(t, handler, "settings")
+	profile := createProfile(t, handler, cookie, csrf, "Home", "en", "local-lan")
+	headers := map[string]string{"X-CSRF-Token": csrf}
+
+	unlock, _ := json.Marshal(map[string]string{"method": "passphrase", "passphrase": "settings-vault-passphrase"})
+	response := request(t, handler, http.MethodPost, "/api/v1/vault/unlock", unlock, cookie, headers)
+	unlockBody := readAll(t, response)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("vault unlock status = %d: %s", response.StatusCode, unlockBody)
+	}
+
+	destination := map[string]any{
+		"profileId": profile.ID,
+		"endpoint":  "https://s3.eu-central-003.backblazeb2.com",
+		"region":    "eu-central-003",
+		"bucket":    "community-backups",
+	}
+	withKeys := map[string]any{}
+	for key, value := range destination {
+		withKeys[key] = value
+	}
+	withKeys["accessKeyId"] = "stored-access-key"
+	withKeys["secretAccessKey"] = "stored-secret-key"
+	first, _ := json.Marshal(withKeys)
+	response = request(t, handler, http.MethodPost, "/api/v1/offsite/inspect", first, cookie, headers)
+	firstBody := readAll(t, response)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("first inspect status = %d: %s", response.StatusCode, firstBody)
+	}
+
+	// Returning to this step shows empty credential fields, because a stored
+	// secret is never sent back to the browser. Submitting them empty must mean
+	// "use the ones I already gave you" — this was a 400 before the fallback.
+	blank, _ := json.Marshal(destination)
+	response = request(t, handler, http.MethodPost, "/api/v1/offsite/inspect", blank, cookie, headers)
+	blankBody := readAll(t, response)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("revisit status = %d: %s (want the stored credentials to be reused)", response.StatusCode, blankBody)
+	}
+
+	// With nothing stored for a different profile, empty credentials are still
+	// rejected: the fallback must not invent a credential out of nothing.
+	other := createProfile(t, handler, cookie, csrf, "Other", "en", "local-lan")
+	otherDestination := map[string]any{}
+	for key, value := range destination {
+		otherDestination[key] = value
+	}
+	otherDestination["profileId"] = other.ID
+	empty, _ := json.Marshal(otherDestination)
+	response = request(t, handler, http.MethodPost, "/api/v1/offsite/inspect", empty, cookie, headers)
+	emptyBody := readAll(t, response)
+	if response.StatusCode != http.StatusBadRequest {
+		t.Fatalf("unstored profile status = %d: %s, want 400", response.StatusCode, emptyBody)
+	}
+}
+
 func TestSetupSettingsFallBackToConfirmedNodeTrustSoTheHostIsNeverRetyped(t *testing.T) {
 	dataDir := t.TempDir()
 	handler, err := launcher.New(launcher.Config{DataDir: dataDir, LaunchToken: "settings"})

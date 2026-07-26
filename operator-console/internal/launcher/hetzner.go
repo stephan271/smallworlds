@@ -148,6 +148,9 @@ func (server *Server) validateHetznerToken(response http.ResponseWriter, request
 		writeError(response, http.StatusBadRequest, "invalid_hetzner_token_request")
 		return
 	}
+	// Revisiting this step without retyping the token re-validates the one
+	// already custodied, rather than assessing an empty string as malformed.
+	input.Token = server.rememberedSecret(input.Token, hetznerVaultKey(input.ProfileID))
 	if _, err := server.store.GetProfile(request.Context(), input.ProfileID); errors.Is(err, state.ErrNotFound) {
 		writeError(response, http.StatusNotFound, "profile_not_found")
 		return
