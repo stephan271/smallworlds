@@ -59,6 +59,8 @@
   let capabilityRelease = $state('v1.2.27');
   let capabilityRepositoryURL = $state('');
   let capabilityDomain = $state('');
+  // The hostnames the overlay writes are built from these two together, so the
+  // extension has to be chosen here and not first at install time.
   let capabilityPlan: CapabilityPlanResult | null = $state(null);
   let capabilityError = $state('');
   let capabilityBusy = $state(false);
@@ -102,6 +104,7 @@
   let sshKeyPlanned = $state(false);
   let localBootstrapDomain = $state('');
   let localBootstrapEnvironment = $state('');
+  const environmentExtensionPattern = '(\\.[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?)?';
   let localBootstrapDataDirectory = $state('/var/lib/smallworlds-data');
   let localBootstrapNodeName = $state('smallworlds-local-node');
   let localBootstrapACMEEmail = $state('');
@@ -823,7 +826,7 @@
     capabilityBusy = true;
     capabilityError = '';
     try {
-      capabilityPlan = await api.planCapabilities({ profileId: activeProfile.id, mode: capabilityMode, communityIds: capabilityApps, release: capabilityRelease, repositoryUrl: capabilityRepositoryURL, domain: capabilityDomain });
+      capabilityPlan = await api.planCapabilities({ environmentExtension: localBootstrapEnvironment, profileId: activeProfile.id, mode: capabilityMode, communityIds: capabilityApps, release: capabilityRelease, repositoryUrl: capabilityRepositoryURL, domain: capabilityDomain });
       plan = capabilityPlan.plan;
     } catch (reason) {
       capabilityPlan = null;
@@ -858,7 +861,7 @@
       // operator just read is what this click approves. Doing it here keeps the
       // approval part of the action instead of a separate step nothing points to.
       await api.approvePlan(capabilityPlan.plan.id);
-      const identity = await api.establishGitHubOverlay({ profileId: activeProfile.id, planId: capabilityPlan.plan.id, repositoryName: gitHubRepositoryName, mode: capabilityMode, communityIds: capabilityApps, release: capabilityRelease, domain: capabilityDomain });
+      const identity = await api.establishGitHubOverlay({ environmentExtension: localBootstrapEnvironment, profileId: activeProfile.id, planId: capabilityPlan.plan.id, repositoryName: gitHubRepositoryName, mode: capabilityMode, communityIds: capabilityApps, release: capabilityRelease, domain: capabilityDomain });
       // Treat a just-established overlay exactly like a reopened one, so the
       // stage shows what was recorded and the install picks up its address.
       overlayIdentity = identity;
@@ -893,7 +896,7 @@
     genericGitOverlayNotice = '';
     try {
       await api.approvePlan(capabilityPlan.plan.id);
-      const identity = await api.establishGenericGitOverlay({ profileId: activeProfile.id, planId: capabilityPlan.plan.id, repositoryUrl: capabilityRepositoryURL, mode: capabilityMode, communityIds: capabilityApps, release: capabilityRelease, domain: capabilityDomain });
+      const identity = await api.establishGenericGitOverlay({ environmentExtension: localBootstrapEnvironment, profileId: activeProfile.id, planId: capabilityPlan.plan.id, repositoryUrl: capabilityRepositoryURL, mode: capabilityMode, communityIds: capabilityApps, release: capabilityRelease, domain: capabilityDomain });
       // Treat a just-established overlay exactly like a reopened one, so the
       // stage shows what was recorded and the install picks up its address.
       overlayIdentity = identity;
@@ -913,7 +916,7 @@
     genericGitProposal = null;
     try {
       await api.approvePlan(capabilityPlan.plan.id);
-      genericGitProposal = await api.proposeGenericGitOverlay({ profileId: activeProfile.id, planId: capabilityPlan.plan.id, repositoryUrl: capabilityRepositoryURL, mode: capabilityMode, communityIds: capabilityApps, release: capabilityRelease, domain: capabilityDomain });
+      genericGitProposal = await api.proposeGenericGitOverlay({ environmentExtension: localBootstrapEnvironment, profileId: activeProfile.id, planId: capabilityPlan.plan.id, repositoryUrl: capabilityRepositoryURL, mode: capabilityMode, communityIds: capabilityApps, release: capabilityRelease, domain: capabilityDomain });
     } catch (reason) {
       genericGitError = reason instanceof Error ? reason.message : 'generic_git_proposal_failed';
     } finally {
@@ -2010,7 +2013,7 @@
             </div>
             <div class="form-grid">
               <label><span>{message('capabilityRepository')}</span><input type="url" bind:value={capabilityRepositoryURL} required placeholder="https://github.com/example/private-overlay.git" /></label>
-              <label><span>{message('capabilityDomain')}</span><input bind:value={capabilityDomain} required placeholder="home.example" /></label>
+              <label><span>{message('capabilityDomain')}</span><input bind:value={capabilityDomain} required placeholder="home.example" /></label><label><span>{message('localBootstrapEnvironment')}</span><input bind:value={localBootstrapEnvironment} pattern={environmentExtensionPattern} placeholder=".dev" /><small class="muted">{message('capabilityEnvExtHint')}</small></label>
             </div>
             {#if capabilityMode === 'custom'}
               <fieldset><legend>{message('capabilityCommunityApps')}</legend>{#each capabilityCatalog?.capabilities.filter((entry) => entry.category === 'community-application') ?? [] as entry (entry.id)}<label class="check"><input type="checkbox" checked={capabilityApps.includes(entry.id)} onchange={(event) => toggleCapability(entry.id, (event.currentTarget as HTMLInputElement).checked)} /><span>{entry.id} · {entry.resources.memoryMi} MiB / {entry.resources.storageGi} GiB</span></label>{/each}</fieldset>

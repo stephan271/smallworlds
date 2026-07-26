@@ -18,8 +18,14 @@ func TestRendererCreatesDeterministicSecretFreeOverlayAndReadableDiff(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	if first.Diff != second.Diff || !strings.Contains(first.Diff, "v1.2.3") || !strings.Contains(first.Diff, "nextcloud") || strings.Contains(first.Diff, "secret") {
+	// "secret" as a bare word appears legitimately: the overlay names the Secret
+	// Grafana reads its admin credentials from, and the one cert-manager writes a
+	// certificate into. What must never appear is a secret's value.
+	if first.Diff != second.Diff || !strings.Contains(first.Diff, "v1.2.3") || !strings.Contains(first.Diff, "nextcloud") {
 		t.Fatalf("unexpected overlay diff:\n%s", first.Diff)
+	}
+	if err := capability.ValidateOverlay(first); err != nil {
+		t.Fatalf("rendered overlay is invalid: %v", err)
 	}
 	if _, ok := first.Files["nextcloud/kustomization.yaml"]; !ok {
 		t.Fatal("overlay omits selected community app")

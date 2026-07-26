@@ -2166,6 +2166,9 @@ type capabilityRequest struct {
 	Release       string                   `json:"release"`
 	RepositoryURL string                   `json:"repositoryUrl"`
 	Domain        string                   `json:"domain"`
+	// Placed between each hostname's label and the domain, so a .dev cluster's
+	// hostnames can never collide with production's. Empty for production.
+	EnvironmentExtension string `json:"environmentExtension,omitempty"`
 }
 
 func (server *Server) validateGitHubToken(response http.ResponseWriter, request *http.Request) {
@@ -2289,7 +2292,7 @@ func (server *Server) establishGitHubOverlay(response http.ResponseWriter, reque
 		writeError(response, http.StatusInternalServerError, "github_overlay_failed")
 		return
 	}
-	overlay, err := capability.DefaultCatalog().RenderOverlay(capability.OverlayInput{Selection: capability.Selection{Mode: input.Mode, DeploymentMode: capability.DeploymentMode(profile.DeploymentMode), CommunityIDs: input.CommunityIDs}, Release: input.Release, RepositoryURL: "https://github.com/placeholder/" + input.RepositoryName + ".git", Domain: input.Domain})
+	overlay, err := capability.DefaultCatalog().RenderOverlay(capability.OverlayInput{Selection: capability.Selection{Mode: input.Mode, DeploymentMode: capability.DeploymentMode(profile.DeploymentMode), CommunityIDs: input.CommunityIDs}, Release: input.Release, RepositoryURL: "https://github.com/placeholder/" + input.RepositoryName + ".git", Domain: input.Domain, EnvironmentExtension: input.EnvironmentExtension})
 	if err != nil {
 		writeError(response, http.StatusBadRequest, "invalid_github_overlay")
 		return
@@ -2459,7 +2462,7 @@ func (server *Server) establishGenericGitOverlay(response http.ResponseWriter, r
 		writeError(response, http.StatusInternalServerError, "generic_git_overlay_failed")
 		return
 	}
-	overlay, err := capability.DefaultCatalog().RenderOverlay(capability.OverlayInput{Selection: capability.Selection{Mode: input.Mode, DeploymentMode: capability.DeploymentMode(profile.DeploymentMode), CommunityIDs: input.CommunityIDs}, Release: input.Release, RepositoryURL: input.RepositoryURL, Domain: input.Domain})
+	overlay, err := capability.DefaultCatalog().RenderOverlay(capability.OverlayInput{Selection: capability.Selection{Mode: input.Mode, DeploymentMode: capability.DeploymentMode(profile.DeploymentMode), CommunityIDs: input.CommunityIDs}, Release: input.Release, RepositoryURL: input.RepositoryURL, Domain: input.Domain, EnvironmentExtension: input.EnvironmentExtension})
 	if err != nil {
 		writeError(response, http.StatusBadRequest, "invalid_generic_git_overlay")
 		return
@@ -2582,7 +2585,7 @@ func (server *Server) proposeGenericGitOverlay(response http.ResponseWriter, req
 		writeError(response, http.StatusInternalServerError, "generic_git_proposal_failed")
 		return
 	}
-	overlay, err := capability.DefaultCatalog().RenderOverlay(capability.OverlayInput{Selection: capability.Selection{Mode: input.Mode, DeploymentMode: capability.DeploymentMode(profile.DeploymentMode), CommunityIDs: input.CommunityIDs}, Release: input.Release, RepositoryURL: input.RepositoryURL, Domain: input.Domain})
+	overlay, err := capability.DefaultCatalog().RenderOverlay(capability.OverlayInput{Selection: capability.Selection{Mode: input.Mode, DeploymentMode: capability.DeploymentMode(profile.DeploymentMode), CommunityIDs: input.CommunityIDs}, Release: input.Release, RepositoryURL: input.RepositoryURL, Domain: input.Domain, EnvironmentExtension: input.EnvironmentExtension})
 	if err != nil {
 		writeError(response, http.StatusBadRequest, "invalid_generic_git_proposal")
 		return
@@ -3442,7 +3445,7 @@ func (server *Server) capabilityPlan(response http.ResponseWriter, request *http
 		writeError(response, http.StatusInternalServerError, "capability_unavailable")
 		return
 	}
-	overlay, err := capability.DefaultCatalog().RenderOverlay(capability.OverlayInput{Selection: capability.Selection{Mode: input.Mode, DeploymentMode: capability.DeploymentMode(profile.DeploymentMode), CommunityIDs: input.CommunityIDs}, Release: input.Release, RepositoryURL: input.RepositoryURL, Domain: input.Domain})
+	overlay, err := capability.DefaultCatalog().RenderOverlay(capability.OverlayInput{Selection: capability.Selection{Mode: input.Mode, DeploymentMode: capability.DeploymentMode(profile.DeploymentMode), CommunityIDs: input.CommunityIDs}, Release: input.Release, RepositoryURL: input.RepositoryURL, Domain: input.Domain, EnvironmentExtension: input.EnvironmentExtension})
 	if err != nil {
 		writeError(response, http.StatusBadRequest, "invalid_capability_selection")
 		return

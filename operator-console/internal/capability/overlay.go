@@ -13,6 +13,10 @@ type OverlayInput struct {
 	Release       string
 	RepositoryURL string
 	Domain        string
+	// EnvironmentExtension sits between each hostname's label and the domain, so
+	// a .dev cluster's hostnames can never collide with production's. Empty for
+	// production.
+	EnvironmentExtension string
 }
 
 type Overlay struct {
@@ -22,6 +26,12 @@ type Overlay struct {
 }
 
 var pinnedRelease = regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$`)
+
+// A key literally named password, token or secret, carrying a value. Deliberately
+// not existingSecret:, secretName: or passwordKey:, which name secrets rather
+// than contain them.
+var secretValue = regexp.MustCompile(`(?im)^[\t -]*(password|token|secret)[\t ]*:[\t ]*\S`)
+
 var validDomain = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$`)
 
 func (catalog Catalog) RenderOverlay(input OverlayInput) (Overlay, error) {
@@ -53,10 +63,20 @@ func (catalog Catalog) RenderOverlay(input OverlayInput) (Overlay, error) {
 	for _, app := range apps {
 		root.WriteString("  - target:\n      group: argoproj.io\n      kind: Application\n      name: " + app + "\n    patch: |-\n      - op: replace\n        path: /spec/source/repoURL\n        value: " + input.RepositoryURL + "\n      - op: replace\n        path: /spec/source/path\n        value: " + app + "\n")
 	}
+	// Root-level components are not tenants and have no per-app file of their own,
+	// so their hostnames are repointed here. Without this the GitOps dashboard
+	// stays on the project's domain no matter what the operator chose.
+	for _, component := range []string{"argocd-ingress", "kube-prometheus-stack"} {
+		root.WriteString(DomainPatches(component, input.Domain, input.EnvironmentExtension))
+	}
 	files["kustomization.yaml"] = root.String()
 	files["overlay-config.yaml"] = "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: smallworlds-overlay\n  namespace: default\ndata:\n  baseDomain: " + input.Domain + "\n  deploymentMode: " + string(input.Selection.DeploymentMode) + "\n  smallworldsRelease: " + input.Release + "\n"
 	for _, app := range apps {
-		files[app+"/kustomization.yaml"] = "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\nresources:\n  - https://github.com/stephan271/smallworlds.git/infrastructure/kubernetes/tenants/" + app + "?ref=" + input.Release + "\n"
+		contents := "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\nresources:\n  - https://github.com/stephan271/smallworlds.git/infrastructure/kubernetes/tenants/" + app + "?ref=" + input.Release + "\n"
+		if patches := DomainPatches(app, input.Domain, input.EnvironmentExtension); patches != "" {
+			contents += "patches:\n" + patches
+		}
+		files[app+"/kustomization.yaml"] = contents
 	}
 	paths := make([]string, 0, len(files))
 	for path := range files {
@@ -78,7 +98,12 @@ func ValidateOverlay(overlay Overlay) error {
 	if !found || !strings.HasPrefix(root, "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\n") {
 		return fmt.Errorf("missing root Kustomization")
 	}
-	if strings.Contains(strings.ToLower(overlay.Diff), "password:") || strings.Contains(strings.ToLower(overlay.Diff), "token:") || strings.Contains(strings.ToLower(overlay.Diff), "secret:") {
+	// A secret VALUE must never reach Git. A secret NAME must: an overlay that
+	// points Grafana at an existing Secret, or names the Secret cert-manager will
+	// write a certificate into, is doing the safe thing. Matching the bare word
+	// "secret" refused exactly those, so match a key that actually carries a
+	// value instead.
+	if secretValue.MatchString(overlay.Diff) {
 		return fmt.Errorf("overlay contains secret-like field")
 	}
 	for path, contents := range overlay.Files {

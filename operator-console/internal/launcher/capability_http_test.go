@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"regexp"
 	"testing"
 
 	"github.com/stephan271/smallworlds/operator-console/internal/launcher"
@@ -33,7 +34,15 @@ func TestCapabilityPlanRendersPinnedSecretFreeOverlay(t *testing.T) {
 			t.Errorf("plan response lacks %q: %s", wanted, result)
 		}
 	}
-	if bytes.Contains(result, []byte("token")) || bytes.Contains(result, []byte("secret")) {
+	// A secret's VALUE must never appear. Its NAME may and must: the overlay
+	// points Grafana at an existing Secret and names the one cert-manager writes
+	// a certificate into, which is the safe way to reference either. So look for a
+	// key that actually carries a value, not for the words themselves.
+	if secretValuePattern.Match(result) {
 		t.Fatalf("plan response contains secret-like value: %s", result)
 	}
 }
+
+// A key literally named password, token or secret carrying a value — as it would
+// appear inside the JSON-encoded overlay files.
+var secretValuePattern = regexp.MustCompile(`(?i)(^|\\n)[\\t -]*(password|token|secret)[\\t ]*:[\\t ]*[^\\s\\\\]`)

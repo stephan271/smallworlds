@@ -50,7 +50,12 @@ test('Operator completes and reopens the launcher journey in English and German'
       await capabilities.getByRole('button', { name: 'Show me the exact changes' }).click();
       expect((await capabilityResponse).status()).toBe(201);
       await expect(capabilities.getByTestId('overlay-diff')).toContainText('v1.2.3');
-      await expect(capabilities.getByTestId('overlay-diff')).not.toContainText('secret');
+      // A secret's value must never appear in the diff. Its NAME may: the overlay
+      // points Grafana at an existing Secret and names the one cert-manager writes
+      // a certificate into. So assert on a key carrying a value, not on the word.
+      // Anchored to the start of a line so existingSecret: and secretName: are not
+      // mistaken for a key of their own.
+      await expect(capabilities.getByTestId('overlay-diff')).not.toContainText(/(^|\n)[\t -]*(password|token|secret)[\t ]*:[\t ]*\S/i);
     }
 
 		const vault = page.getByRole('region', { name: /password safe|passwort-tresor/i });

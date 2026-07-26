@@ -3954,6 +3954,11 @@
           },
           "domain": {
             "type": "string"
+          },
+          "environmentExtension": {
+            "type": "string",
+            "description": "Placed between each hostname's label and the domain, so a .dev cluster's hostnames can never collide with production's. Empty for production.",
+            "pattern": "^(\\.[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?)?$"
           }
         }
       },

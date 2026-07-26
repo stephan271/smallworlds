@@ -1651,6 +1651,8 @@ export interface components {
             /** Format: uri */
             repositoryUrl: string;
             domain: string;
+            /** @description Placed between each hostname's label and the domain, so a .dev cluster's hostnames can never collide with production's. Empty for production. */
+            environmentExtension?: string;
         };
         CapabilityPlanResult: {
             plan: components["schemas"]["ChangePlan"];
