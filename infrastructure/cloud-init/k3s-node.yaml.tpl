@@ -115,6 +115,13 @@ runcmd:
   - sysctl --system
   - echo "ipv4" > ~/.curlrc
 
+  # The ClusterIssuer below is deliberately NOT placed under server/manifests.
+  # k3s auto-applies that directory and retries forever on failure, and a
+  # ClusterIssuer cannot apply until cert-manager's CRDs exist — which happens
+  # much later, once Argo CD has synced. That left a permanent
+  # apply-fail-retry loop writing events into etcd every few seconds. It is
+  # applied once below, after the CRD is established.
+  #
   # Bootstrap manifests are generated HERE, not via write_files: write_files
   # runs before runcmd, so the purge above would delete anything it placed
   # under /var/lib/rancher/k3s/server. After the symlink this directory lives
@@ -126,7 +133,7 @@ runcmd:
   # laptop after terraform apply (rate-limit protection) — see
   # admin-tools/restore-certs-from-laptop.sh
   - |
-    cat > /var/lib/rancher/k3s/server/manifests/letsencrypt-prod.yaml <<'ISSUER'
+    cat > /etc/smallworlds-letsencrypt-prod.yaml <<'ISSUER'
     apiVersion: cert-manager.io/v1
     kind: ClusterIssuer
     metadata:
@@ -166,7 +173,7 @@ runcmd:
   # Self-signed issuer published under the production name so the
   # cluster-issuer annotations on the Ingresses work unchanged
   - |
-    cat > /var/lib/rancher/k3s/server/manifests/letsencrypt-prod.yaml <<'ISSUER'
+    cat > /etc/smallworlds-letsencrypt-prod.yaml <<'ISSUER'
     apiVersion: cert-manager.io/v1
     kind: ClusterIssuer
     metadata:
@@ -248,6 +255,23 @@ runcmd:
 
   # 4. Apply ArgoCD Root App
   - kubectl apply -f /tmp/argocd-root-app.yaml
+
+  # 4b. Certificate issuer. Every Ingress annotates cluster-issuer
+  # letsencrypt-prod, so nothing gets a certificate without this. Waiting for
+  # the one precondition beats retrying blindly.
+  # kubectl wait fails immediately on a resource that does not exist yet, and
+  # this CRD only appears once Argo CD has synced cert-manager.
+  - |
+    deadline=$(( $(date +%s) + 900 ))
+    until kubectl get crd clusterissuers.cert-manager.io >/dev/null 2>&1; do
+      if [ "$(date +%s)" -ge "$deadline" ]; then
+        echo "cert-manager did not install clusterissuers.cert-manager.io in time" >&2
+        exit 1
+      fi
+      sleep 5
+    done
+    kubectl wait --for=condition=Established --timeout=2m crd/clusterissuers.cert-manager.io
+    kubectl apply -f /etc/smallworlds-letsencrypt-prod.yaml
 %{ endif ~}
 
   # 5. Install tailscaled (Phase 1: private overlay network). Install only —

@@ -229,8 +229,13 @@ touch "$MARKER_DIR/data-ready"
 # ------------------------------------------------------------------
 mkdir -p /var/lib/rancher/k3s/server/manifests
 
+# The ClusterIssuer is deliberately NOT written into server/manifests. k3s
+# auto-applies that directory and retries forever on failure, and a ClusterIssuer
+# cannot apply until cert-manager's CRDs exist — which happens much later, once
+# Argo CD has synced. The result was a permanent apply-fail-retry loop writing
+# events into etcd every few seconds. It is applied once, after the CRD is there.
 if [ -n "$ACME_EMAIL" ]; then
-    cat > /var/lib/rancher/k3s/server/manifests/letsencrypt-prod.yaml <<ISSUER
+    cat > "$MARKER_DIR/letsencrypt-prod.yaml" <<ISSUER
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -254,7 +259,7 @@ ISSUER
 else
     # Self-signed issuer published under the production name so the
     # cluster-issuer annotations on the Ingresses work unchanged
-    cat > /var/lib/rancher/k3s/server/manifests/letsencrypt-prod.yaml <<'ISSUER'
+    cat > "$MARKER_DIR/letsencrypt-prod.yaml" <<'ISSUER'
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -502,6 +507,32 @@ spec:
 ROOTAPP
     kubectl apply -f /tmp/argocd-root-app.yaml
     touch "$MARKER_DIR/overlay-applied"
+
+    # ------------------------------------------------------------------
+    # 7. Certificate issuer (needs cert-manager's CRDs, which Argo CD brings)
+    # ------------------------------------------------------------------
+    # Waiting for the one precondition beats retrying blindly: every Ingress
+    # annotates cluster-issuer letsencrypt-prod, so without this nothing gets a
+    # certificate. A timeout fails the run rather than passing silently — the
+    # step is idempotent, so a resumed run simply waits again.
+    if [ ! -f "$MARKER_DIR/issuer-ready" ]; then
+        echo -e "${YELLOW}Waiting for cert-manager's CRDs before creating the certificate issuer...${NC}"
+        # kubectl wait fails immediately on a resource that does not exist yet,
+        # and this CRD only appears once Argo CD has synced cert-manager. So poll
+        # for it to appear, then wait for it to be established.
+        ISSUER_DEADLINE=$(( $(date +%s) + ${ISSUER_CRD_TIMEOUT_SECONDS:-900} ))
+        until kubectl get crd clusterissuers.cert-manager.io >/dev/null 2>&1; do
+            if [ "$(date +%s)" -ge "$ISSUER_DEADLINE" ]; then
+                echo -e "${RED}cert-manager did not install clusterissuers.cert-manager.io in time.${NC}" >&2
+                echo -e "${RED}No certificate can be issued until it does; re-run to wait again.${NC}" >&2
+                exit 1
+            fi
+            sleep 5
+        done
+        kubectl wait --for=condition=Established --timeout=2m crd/clusterissuers.cert-manager.io
+        kubectl apply -f "$MARKER_DIR/letsencrypt-prod.yaml"
+        touch "$MARKER_DIR/issuer-ready"
+    fi
 fi
 
 # The config file may sit in /tmp next to the secrets — remove both traces.
