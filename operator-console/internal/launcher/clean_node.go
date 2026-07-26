@@ -1,9 +1,12 @@
 package launcher
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
+	"os"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -59,7 +62,18 @@ func (server *Server) cleanNode(response http.ResponseWriter, request *http.Requ
 	cmdString := "[ -x /usr/local/bin/k3s-uninstall.sh ] && /usr/local/bin/k3s-uninstall.sh; rm -rf /var/lib/rancher/k3s /etc/rancher /etc/smallworlds " + input.DataDirectory
 
 	if target.Kind == nodeinspect.SameHostTarget {
-		cmd := exec.Command("bash", "-c", cmdString)
+		// Every path in the wipe is root-owned. Running unelevated made rm fail on
+		// permission, which the operator saw as a removal that reported success and
+		// then changed nothing. Authorize sudo once, then run non-interactively.
+		name, arguments := "bash", []string{"-c", cmdString}
+		if os.Geteuid() != 0 {
+			if err := authorizeLocalSudo(request.Context(), input.Authentication.SudoPassword); err != nil {
+				writeError(response, http.StatusBadRequest, "node_sudo_authorization_failed")
+				return
+			}
+			name, arguments = "sudo", []string{"-n", "bash", "-c", cmdString}
+		}
+		cmd := exec.CommandContext(request.Context(), name, arguments...)
 		if err := cmd.Run(); err != nil {
 			writeError(response, http.StatusInternalServerError, "same_host_clean_failed")
 			return
@@ -104,8 +118,9 @@ func (server *Server) cleanNode(response http.ResponseWriter, request *http.Requ
 			session.Stdin = strings.NewReader(credentials.SudoPassword + "\n")
 			cmdString = "sudo -S -p '' bash -c '" + cmdString + "'"
 		} else if target.Username != "root" {
-			// They must use sudo if not root, assume passwordless sudo if they provided no password
-			cmdString = "sudo -S -p '' bash -c '" + cmdString + "'"
+			// No password given means passwordless sudo, which is -n. Asking with
+			// -S and nothing on stdin would just hang or fail on an empty read.
+			cmdString = "sudo -n bash -c '" + cmdString + "'"
 		}
 
 		if err := session.Run(cmdString); err != nil {
@@ -115,4 +130,21 @@ func (server *Server) cleanNode(response http.ResponseWriter, request *http.Requ
 	}
 
 	response.WriteHeader(http.StatusNoContent)
+}
+
+// authorizeLocalSudo refreshes the sudo timestamp so the wipe itself can run
+// with -n. Mirrors the local bootstrap runner: a password when one was given,
+// otherwise a passwordless check that fails cleanly rather than prompting.
+func authorizeLocalSudo(ctx context.Context, password string) error {
+	arguments := []string{"-n", "-v"}
+	var stdin io.Reader
+	if password != "" {
+		arguments = []string{"-S", "-p", "", "-v"}
+		stdin = strings.NewReader(password + "\n")
+	}
+	process := exec.CommandContext(ctx, "sudo", arguments...)
+	process.Stdin = stdin
+	process.Stdout = io.Discard
+	process.Stderr = io.Discard
+	return process.Run()
 }

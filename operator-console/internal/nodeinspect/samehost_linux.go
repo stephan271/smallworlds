@@ -28,7 +28,11 @@ func InspectSameHost(profileID, dataDirectory string) (Report, error) {
 	if err != nil {
 		return Report{}, err
 	}
-	disk, err := localDiskGi(dataDirectory)
+	dataPath, err := normalizeDataDirectory(dataDirectory)
+	if err != nil {
+		return Report{}, err
+	}
+	disk, err := localDiskGi(dataPath)
 	if err != nil {
 		return Report{}, err
 	}
@@ -38,7 +42,16 @@ func InspectSameHost(profileID, dataDirectory string) (Report, error) {
 	}
 	marker, _ := os.ReadFile("/etc/smallworlds/profile-id")
 	owned := strings.TrimSpace(string(marker)) == profileID && profileID != ""
-	installation := Installation{Kubernetes: localOwnership("/etc/rancher/k3s", owned), SmallWorldsData: localOwnership("/mnt/smallworlds-data", owned), Interrupted: exists("/etc/smallworlds/bootstrap-interrupted"), BootstrapRunID: readMarker("bootstrap-run-id"), K3SReady: exists("/etc/smallworlds/k3s-ready"), ArgoCDReady: exists("/etc/smallworlds/argocd-ready"), OverlayApplied: exists("/etc/smallworlds/overlay-applied"), Complete: exists("/etc/smallworlds/bootstrap-complete")}
+	// The directory the operator chose, not a fixed one: it is the directory the
+	// installation would use and the one removal deletes. Judging a different
+	// path leaves a blocker that no amount of cleaning can ever clear. A missing
+	// choice normalizes to "/", which always exists — reporting the root
+	// filesystem as a foreign data directory would recreate exactly that trap.
+	data := Absent
+	if dataPath != "/" {
+		data = localOwnership(dataPath, owned)
+	}
+	installation := Installation{Kubernetes: localOwnership("/etc/rancher/k3s", owned), SmallWorldsData: data, Interrupted: exists("/etc/smallworlds/bootstrap-interrupted"), BootstrapRunID: readMarker("bootstrap-run-id"), K3SReady: exists("/etc/smallworlds/k3s-ready"), ArgoCDReady: exists("/etc/smallworlds/argocd-ready"), OverlayApplied: exists("/etc/smallworlds/overlay-applied"), Complete: exists("/etc/smallworlds/bootstrap-complete")}
 	if owned {
 		installation.ProfileID = profileID
 	}

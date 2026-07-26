@@ -12,7 +12,8 @@ import (
 // shell output or logs. Its only varying value is a separately validated,
 // absolute data path selected by the Operator.
 const inspectionCommand = `LANG=C
-disk_path='%s'
+data_path='%s'
+disk_path="$data_path"
 while ! test -e "$disk_path"; do
   test "$disk_path" = / && break
   disk_path="${disk_path%%/*}"
@@ -29,7 +30,7 @@ echo ports="$(ss -H -ltn 2>/dev/null | awk '{sub(/^.*:/,"",$4); print $4}' | tr 
 echo kernel_ready="$(test -e /proc/sys/net/ipv4/ip_forward && echo 1 || echo 0)"
 if test "$(id -u 2>/dev/null)" = 0; then echo privilege=root; elif sudo -n true >/dev/null 2>&1; then echo privilege=sudo; else echo privilege=none; fi
 echo kubernetes="$(test -d /etc/rancher/k3s && echo present || echo absent)"
-echo data="$(test -d /mnt/smallworlds-data && echo present || echo absent)"
+echo data="$(test "$data_path" != / && test -d "$data_path" && echo present || echo absent)"
 echo profile_marker="$(cat /etc/smallworlds/profile-id 2>/dev/null | head -n 1 || true)"
 echo interrupted="$(test -f /etc/smallworlds/bootstrap-interrupted && echo 1 || echo 0)"
 echo bootstrap_run_id="$(cat /etc/smallworlds/bootstrap-run-id 2>/dev/null | head -n 1 || true)"
