@@ -1,7 +1,7 @@
 # SmallWorlds Setup Guide
 
 <p align="center">
-  <img src="screenshots/screen_dashboard_3.png" alt="SmallWorlds dashboard showing running applications and infrastructure" width="800"><br>
+  <img src="screenshots/screen_dashboard.png" alt="SmallWorlds dashboard showing running applications and infrastructure" width="800"><br>
   <em>The SmallWorlds dashboard — auto-discovered applications and infrastructure at a glance.</em>
 </p>
 
