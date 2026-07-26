@@ -1178,6 +1178,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/profiles/{id}/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the saved setup answers for a profile */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["ProfileID"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Saved answers, empty when none have been given yet */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SetupSettings"];
+                    };
+                };
+            };
+        };
+        /** Replace the saved setup answers for a profile */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["ProfileID"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SetupSettings"];
+                };
+            };
+            responses: {
+                /** @description Stored answers */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SetupSettings"];
+                    };
+                };
+                /** @description Rejected: unknown or secret-shaped field */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2027,6 +2098,43 @@ export interface components {
             openedAt?: string;
             /** Format: date-time */
             closedAt?: string;
+        };
+        /** @description Non-secret answers an operator gave while walking the setup journey. Secrets never appear here; they live in the Launcher Vault. */
+        SetupSettings: {
+            profileId?: string;
+            capabilityMode?: string;
+            capabilityApps?: string[];
+            release?: string;
+            settingsRepositoryUrl?: string;
+            domain?: string;
+            settingsProvider?: string;
+            githubAuthority?: string;
+            githubRepositoryName?: string;
+            gitUsername?: string;
+            nodeTargetKind?: string;
+            nodeHost?: string;
+            nodeUsername?: string;
+            nodeAuthentication?: string;
+            dataDirectory?: string;
+            nodeName?: string;
+            environment?: string;
+            acmeEmail?: string;
+            hetznerDomain?: string;
+            hetznerEnvExt?: string;
+            hetznerTier?: string;
+            hetznerLocation?: string;
+            hetznerServerType?: string;
+            hetznerOperatorAddress?: string;
+            handoffBaseDomain?: string;
+            offsiteEndpoint?: string;
+            offsiteRegion?: string;
+            offsiteBucket?: string;
+            nodePort?: number;
+            hetznerVolumeGb?: number;
+            manageDns?: boolean;
+            routerAcknowledged?: boolean;
+            /** Format: date-time */
+            recordedAt?: string;
         };
     };
     responses: {

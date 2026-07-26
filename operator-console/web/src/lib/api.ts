@@ -3,6 +3,9 @@ import type { components } from './generated/api';
 export type ClusterProfile = components['schemas']['ClusterProfile'];
 export type ProfileInput = components['schemas']['ProfileInput'];
 export type SetupJourney = components['schemas']['SetupJourney'];
+/** Every non-secret answer the operator has already given. Saved on the Launcher
+ *  Host so closing the console never costs them a retyped domain or host name. */
+export type SetupSettings = components['schemas']['SetupSettings'];
 export type ChangePlan = components['schemas']['ChangePlan'];
 export type WorkflowRun = components['schemas']['WorkflowRun'];
 export type VaultStatus = components['schemas']['VaultStatus'];
@@ -123,6 +126,8 @@ export const api = {
   createProfile: (input: ProfileInput) => request<ClusterProfile>('/api/v1/profiles', { method: 'POST', body: JSON.stringify(input) }),
   updateProfile: (id: string, input: ProfileInput) => request<ClusterProfile>(`/api/v1/profiles/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
   getJourney: (profileId: string) => request<SetupJourney>(`/api/v1/profiles/${profileId}/journey`),
+  getSettings: (profileId: string) => request<SetupSettings>(`/api/v1/profiles/${profileId}/settings`),
+  saveSettings: (profileId: string, settings: SetupSettings) => request<SetupSettings>(`/api/v1/profiles/${profileId}/settings`, { method: 'PUT', body: JSON.stringify(settings) }),
   listCredentials: (profileId: string) => request<CredentialMetadata[]>(`/api/v1/profiles/${profileId}/credentials`),
   storeCredential: (profileId: string, value: string, expiresAt: string) =>
     request<CredentialMetadata>(`/api/v1/profiles/${profileId}/credentials/git-provider-token`, {
@@ -156,7 +161,7 @@ export const api = {
   probeNode: (profileId: string, target: NodeTarget) => request<NodeProbeResult>('/api/v1/nodes/probe', { method: 'POST', body: JSON.stringify({ profileId, target }) }),
   trustNode: (profileId: string, target: NodeTarget, fingerprint: string) => request<NodeProbeResult>('/api/v1/nodes/trust', { method: 'POST', body: JSON.stringify({ profileId, target, fingerprint, confirmed: true }) }),
   inspectNode: (profileId: string, target: NodeTarget, authentication: { kind: 'agent' | 'private-key' | 'password'; password?: string; privateKey?: string; keyPassphrase?: string; sudoPassword?: string }, dataDirectory: string) => request<NodeInspectionResult>('/api/v1/nodes/inspect', { method: 'POST', body: JSON.stringify({ profileId, target, authentication, dataDirectory }) }),
-  cleanNode: (profileId: string, target: NodeTarget, authentication: { kind: 'agent' | 'private-key' | 'password'; password?: string; privateKey?: string; keyPassphrase?: string; sudoPassword?: string }, dataDirectory: string) => request<void>('/api/v1/nodes/clean', { method: 'POST', body: JSON.stringify({ profileId, target, authentication, dataDirectory }) }),
+  cleanNode: (profileId: string, target: NodeTarget, authentication: { kind: 'agent' | 'private-key' | 'password'; password?: string; privateKey?: string; keyPassphrase?: string; sudoPassword?: string }, dataDirectory: string) => requestVoid('/api/v1/nodes/clean', { method: 'POST', body: JSON.stringify({ profileId, target, authentication, dataDirectory }) }),
   planNodeSSHKey: (profileId: string) => request<ChangePlan>('/api/v1/nodes/ssh-key/plan', { method: 'POST', body: JSON.stringify({ profileId }) }),
   planLocalBootstrap: (input: components['schemas']['LocalBootstrapPlanInput']) => request<LocalBootstrapPlanResult>('/api/v1/local-bootstrap/plan', { method: 'POST', body: JSON.stringify(input) }),
   createVerificationPlan: (profileId: string) => request<ChangePlan>('/api/v1/plans', { method: 'POST', body: JSON.stringify({ profileId, intent: 'VerifyLauncher' }) }),

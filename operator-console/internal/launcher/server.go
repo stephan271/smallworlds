@@ -3497,6 +3497,10 @@ func (server *Server) profile(response http.ResponseWriter, request *http.Reques
 		writeJSON(response, http.StatusOK, journey)
 		return
 	}
+	if len(parts) == 2 && parts[1] == "settings" {
+		server.profileSetupSettings(response, request, current, profileID)
+		return
+	}
 	if len(parts) >= 2 && parts[1] == "credentials" {
 		server.profileCredentials(response, request, current, profileID, parts[2:])
 		return
@@ -3532,6 +3536,71 @@ func (server *Server) profile(response http.ResponseWriter, request *http.Reques
 	}
 
 	http.NotFound(response, request)
+}
+
+// profileSetupSettings reads and writes the non-secret answers an operator gave
+// while walking the setup journey, so reopening the console — or restarting the
+// launcher — never asks for the same domain or host name twice.
+//
+// It deliberately does not require an unlocked vault: nothing here is a secret,
+// and the browser needs these values to restore the journey before the operator
+// has unlocked anything. Secret material continues to travel only through the
+// endpoints that write it into the vault.
+func (server *Server) profileSetupSettings(response http.ResponseWriter, request *http.Request, current session, profileID string) {
+	if _, err := server.store.GetProfile(request.Context(), profileID); errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "profile_not_found")
+		return
+	} else if err != nil {
+		writeError(response, http.StatusInternalServerError, "settings_unavailable")
+		return
+	}
+
+	switch request.Method {
+	case http.MethodGet:
+		settings, err := server.store.GetSetupSettings(request.Context(), profileID)
+		if errors.Is(err, state.ErrNotFound) {
+			settings = state.SetupSettings{ProfileID: profileID}
+		} else if err != nil {
+			writeError(response, http.StatusInternalServerError, "settings_unavailable")
+			return
+		}
+		// A confirmed node trust is the authoritative record of which machine
+		// this profile talks to. Backfill from it so a profile created before
+		// settings existed — or recovered from a bundle — still opens with the
+		// host prefilled.
+		if settings.NodeHost == "" {
+			if trust, trustErr := server.store.GetNodeTrust(request.Context(), profileID); trustErr == nil {
+				settings.NodeTargetKind = "remote"
+				settings.NodeHost = trust.Host
+				settings.NodePort = trust.Port
+				settings.NodeUsername = trust.Username
+			}
+		}
+		writeJSON(response, http.StatusOK, settings)
+	case http.MethodPut:
+		if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+			writeError(response, http.StatusForbidden, "csrf_required")
+			return
+		}
+		var input state.SetupSettings
+		decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 64*1024))
+		// Unknown fields are rejected rather than ignored: that is what keeps a
+		// browser from smuggling a password into this table under a new name.
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&input); err != nil {
+			writeError(response, http.StatusBadRequest, "invalid_settings")
+			return
+		}
+		input.ProfileID = profileID
+		input.RecordedAt = time.Now().UTC()
+		if err := server.store.RecordSetupSettings(request.Context(), input); err != nil {
+			writeError(response, http.StatusInternalServerError, "settings_storage_failed")
+			return
+		}
+		writeJSON(response, http.StatusOK, input)
+	default:
+		http.NotFound(response, request)
+	}
 }
 
 type credentialMetadata struct {

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type FullDecommissionResult, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type HandoffAssessment, type HetznerChangePlan, type HetznerPlanResult, type HetznerPresets, type HetznerPresetTier, type HetznerProject, type HetznerToolchain, type HetznerWorkspace, type TemporaryAccess, type NodeCapabilities, type NodeInspectionResult, type NodeProbeResult, type NodeTarget, type OffsitePlan, type OffsiteProposal, type OffsiteProtection, type PreserveDataDecommissionResult, type RecoveryBundlePreview, type SetupJourney, type TailscaleClientOffer, type VaultStatus, type WorkflowRun } from '$lib/api';
+  import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type FullDecommissionResult, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type HandoffAssessment, type HetznerChangePlan, type HetznerPlanResult, type HetznerPresets, type HetznerPresetTier, type HetznerProject, type HetznerToolchain, type HetznerWorkspace, type TemporaryAccess, type NodeCapabilities, type NodeInspectionResult, type NodeProbeResult, type NodeTarget, type OffsitePlan, type OffsiteProposal, type OffsiteProtection, type PreserveDataDecommissionResult, type RecoveryBundlePreview, type SetupJourney, type SetupSettings, type TailscaleClientOffer, type VaultStatus, type WorkflowRun } from '$lib/api';
   import { decommissionCopy } from '$lib/decommission-copy';
   import { formatCurrency, formatDateTime, formatNumber } from '$lib/format';
   import { translate, type Locale, type MessageKey } from '$lib/i18n';
@@ -169,6 +169,10 @@
   let settingsProvider: 'github' | 'generic' | '' = $state('');
   let eventSource: EventSource | null = null;
   let pollTimer: number | undefined;
+  let settingsSaveTimer: number | undefined;
+  // Suppresses the autosave while applySettings() is writing the loaded answers
+  // back into the bound fields, which would otherwise echo them straight back.
+  let hydrating = false;
 
   const message = (key: MessageKey) => translate(locale, key);
   const decommissionMessage = (key: Parameters<typeof decommissionCopy>[1]) => decommissionCopy(locale, key);
@@ -272,6 +276,11 @@
     profileName = profile.name;
     window.localStorage.setItem('smallworlds.activeProfile', profile.id);
     journey = await api.getJourney(profile.id);
+    try {
+      applySettings(await api.getSettings(profile.id));
+    } catch {
+      // A profile with no saved answers yet simply keeps the defaults.
+    }
     credentials = vaultStatus?.state === 'unlocked' ? await api.listCredentials(profile.id) : [];
     plan = null;
     activities = [];
@@ -308,8 +317,10 @@
     if (profile.deploymentMode === 'hetzner') {
       try {
         hetznerProject = await api.getHetznerProject(profile.id);
-        hetznerDomain = hetznerProject.naming?.domain ?? '';
-        hetznerEnvExt = hetznerProject.naming?.envExt ?? '';
+        // A recorded project is authoritative; fall back to the saved answer so
+        // an unrecorded project does not blank what the operator already typed.
+        hetznerDomain = hetznerProject.naming?.domain || hetznerDomain;
+        hetznerEnvExt = hetznerProject.naming?.envExt || hetznerEnvExt;
         hetznerToolchain = hetznerProject.toolchain ?? null;
         hetznerWorkspace = hetznerProject.workspace ?? null;
         hetznerTemporaryAccess = hetznerProject.temporaryAccess ?? null;
@@ -341,6 +352,111 @@
     // last — otherwise a returning operator is dropped at step one regardless
     // of how far they had already got.
     openFirstOpenStep();
+  }
+
+  // --- Saved answers -------------------------------------------------------
+  // Everything the operator types that is not a secret lives on the Launcher
+  // Host, so closing the browser or restarting the launcher never costs them a
+  // retyped domain, host name, or release tag. Secrets are deliberately absent
+  // here: they travel only through the endpoints that write them to the vault.
+
+  function collectSettings(): SetupSettings {
+    const hetzner = activeProfile?.deploymentMode === 'hetzner';
+    return {
+      capabilityMode,
+      capabilityApps,
+      release: capabilityRelease,
+      settingsRepositoryUrl: capabilityRepositoryURL,
+      domain: capabilityDomain,
+      settingsProvider,
+      githubAuthority: gitHubAuthority,
+      githubRepositoryName: gitHubRepositoryName,
+      gitUsername: genericGitUsername,
+      nodeTargetKind,
+      nodeHost,
+      nodePort,
+      nodeUsername,
+      nodeAuthentication,
+      dataDirectory: localBootstrapDataDirectory,
+      nodeName: localBootstrapNodeName,
+      environment: hetzner ? hetznerEnvExt : localBootstrapEnvironment,
+      acmeEmail: hetzner ? hetznerAcmeEmail : localBootstrapACMEEmail,
+      manageDns: localBootstrapManageDNS,
+      routerAcknowledged: localPublicRouterAcknowledged,
+      hetznerDomain,
+      hetznerEnvExt,
+      hetznerTier,
+      hetznerLocation,
+      hetznerServerType,
+      hetznerVolumeGb,
+      hetznerOperatorAddress,
+      handoffBaseDomain,
+      offsiteEndpoint,
+      offsiteRegion,
+      offsiteBucket
+    };
+  }
+
+  function applySettings(saved: SetupSettings): void {
+    hydrating = true;
+    try {
+      // Only overwrite a field when the saved answer is non-empty, so a profile
+      // that predates a field keeps the component's sensible default.
+      if (saved.capabilityMode) capabilityMode = saved.capabilityMode as CapabilityMode;
+      if (saved.capabilityApps) capabilityApps = saved.capabilityApps;
+      if (saved.release) {
+        capabilityRelease = saved.release;
+        bootstrapAssetRelease = saved.release;
+      }
+      if (saved.settingsRepositoryUrl) capabilityRepositoryURL = saved.settingsRepositoryUrl;
+      if (saved.domain) capabilityDomain = saved.domain;
+      if (saved.settingsProvider) settingsProvider = saved.settingsProvider as 'github' | 'generic';
+      if (saved.githubAuthority) gitHubAuthority = saved.githubAuthority as 'creation' | 'ongoing';
+      if (saved.githubRepositoryName) gitHubRepositoryName = saved.githubRepositoryName;
+      if (saved.gitUsername) genericGitUsername = saved.gitUsername;
+      if (saved.nodeTargetKind) nodeTargetKind = saved.nodeTargetKind as 'remote' | 'same-host';
+      if (saved.nodeHost) nodeHost = saved.nodeHost;
+      if (saved.nodePort) nodePort = saved.nodePort;
+      if (saved.nodeUsername) nodeUsername = saved.nodeUsername;
+      if (saved.nodeAuthentication) nodeAuthentication = saved.nodeAuthentication as typeof nodeAuthentication;
+      if (saved.dataDirectory) localBootstrapDataDirectory = saved.dataDirectory;
+      if (saved.nodeName) localBootstrapNodeName = saved.nodeName;
+      if (saved.environment) localBootstrapEnvironment = saved.environment;
+      if (saved.acmeEmail) {
+        localBootstrapACMEEmail = saved.acmeEmail;
+        hetznerAcmeEmail = saved.acmeEmail;
+      }
+      localBootstrapManageDNS = saved.manageDns ?? false;
+      localPublicRouterAcknowledged = saved.routerAcknowledged ?? false;
+      if (saved.hetznerDomain) hetznerDomain = saved.hetznerDomain;
+      if (saved.hetznerEnvExt) hetznerEnvExt = saved.hetznerEnvExt;
+      if (saved.hetznerTier) hetznerTier = saved.hetznerTier as HetznerPresetTier;
+      if (saved.hetznerLocation) hetznerLocation = saved.hetznerLocation;
+      if (saved.hetznerServerType) hetznerServerType = saved.hetznerServerType;
+      if (saved.hetznerVolumeGb) hetznerVolumeGb = saved.hetznerVolumeGb;
+      if (saved.hetznerOperatorAddress) hetznerOperatorAddress = saved.hetznerOperatorAddress;
+      if (saved.handoffBaseDomain) handoffBaseDomain = saved.handoffBaseDomain;
+      if (saved.offsiteEndpoint) offsiteEndpoint = saved.offsiteEndpoint;
+      if (saved.offsiteRegion) offsiteRegion = saved.offsiteRegion;
+      if (saved.offsiteBucket) offsiteBucket = saved.offsiteBucket;
+    } finally {
+      hydrating = false;
+    }
+  }
+
+  // Called from field handlers rather than an $effect: an effect over this many
+  // sources would fire on every keystroke of every field and is far harder to
+  // reason about than an explicit "the operator finished with this field" call.
+  function rememberAnswers(): void {
+    if (hydrating || !activeProfile) return;
+    const profileId = activeProfile.id;
+    if (settingsSaveTimer) window.clearTimeout(settingsSaveTimer);
+    settingsSaveTimer = window.setTimeout(() => {
+      void api.saveSettings(profileId, collectSettings()).catch(() => {
+        // Saved answers are a convenience, never a precondition. A failed write
+        // must not interrupt the operator mid-journey; the next edit retries.
+      });
+    }, 400);
   }
 
   function vaultErrorMessage(code: string): string {
@@ -1638,7 +1754,7 @@
           <h2 id="capability-title">{message('capabilityTitle')}</h2>
           <p class="muted">{message('capabilityDescription')}</p>
           {#if capabilityError}<p class="inline-error" role="alert">{capabilityError}</p>{/if}
-          <form onsubmit={(event) => { event.preventDefault(); void planCapabilities(); }}>
+          <form onsubmit={(event) => { event.preventDefault(); void planCapabilities(); }} onchange={rememberAnswers}>
             <div class="form-grid">
               <label><span>{message('capabilityMode')}</span><select bind:value={capabilityMode} onchange={() => capabilityPlan = null}><option value="minimal">{message('capabilityMinimal')}</option><option value="collaboration">{message('capabilityCollaboration')}</option><option value="full">{message('capabilityFull')}</option><option value="custom">{message('capabilityCustom')}</option></select></label>
               <label><span>{message('capabilityRelease')}</span><input bind:value={capabilityRelease} required pattern="v[0-9]+\.[0-9]+\.[0-9]+.*" /></label>
@@ -1666,7 +1782,7 @@
           <p class="muted">{message('bootstrapAssetDescription')}</p>
           <p class="muted">{message('offlineBundleFuture')}</p>
           {#if bootstrapAssetError}<p class="inline-error" role="alert">{bootstrapAssetError === 'bootstrap_asset_release_unavailable' ? message('bootstrapAssetUnavailable') : bootstrapAssetError}</p>{/if}
-          <form onsubmit={(event) => { event.preventDefault(); void inspectBootstrapAssets(); }}><label><span>{message('capabilityRelease')}</span><input bind:value={bootstrapAssetRelease} required pattern="v[0-9]+\.[0-9]+\.[0-9]+.*" /></label><div class="actions"><button type="submit" disabled={bootstrapAssetBusy}>{message('bootstrapAssetInspect')}</button></div></form>
+          <form onsubmit={(event) => { event.preventDefault(); void inspectBootstrapAssets(); }} onchange={rememberAnswers}><label><span>{message('capabilityRelease')}</span><input bind:value={bootstrapAssetRelease} required pattern="v[0-9]+\.[0-9]+\.[0-9]+.*" /></label><div class="actions"><button type="submit" disabled={bootstrapAssetBusy}>{message('bootstrapAssetInspect')}</button></div></form>
           {#if bootstrapAssets}
             <dl class="credential-metadata">{#each bootstrapAssets.assets as asset (asset.id)}<div><dt>{asset.id}</dt><dd>{asset.destination} · {asset.state} · <code>{asset.sha256.slice(0, 16)}…</code></dd></div>{/each}</dl>
             <div class="actions"><button onclick={() => void acquireBootstrapAssets()} disabled={bootstrapAssetBusy || bootstrapAssets.assets.every((asset) => asset.state === 'ready')}>{message('bootstrapAssetAcquire')}</button></div>
@@ -1683,7 +1799,7 @@
           <h2 id="node-title">{message('nodeTitle')}</h2>
           <p class="muted">{message('nodeDescription')}</p>
           {#if nodeError}<p class="inline-error" role="alert">{nodeError}</p>{/if}
-          <form onsubmit={(event) => { event.preventDefault(); void inspectNode(); }}>
+          <form onsubmit={(event) => { event.preventDefault(); void inspectNode(); }} onchange={rememberAnswers}>
             <label><span>{message('nodeTarget')}</span><select bind:value={nodeTargetKind}><option value="remote">{message('nodeRemote')}</option>{#if nodeCapabilities?.sameHostSupported}<option value="same-host">{message('nodeSameHost')}</option>{/if}</select></label>
             {#if activeProfile?.deploymentMode === 'local-lan' || activeProfile?.deploymentMode === 'local-public'}<label><span>{message('localBootstrapDataDirectory')}</span><input bind:value={localBootstrapDataDirectory} required /></label>{/if}
             {#if nodeTargetKind === 'remote'}
@@ -1729,7 +1845,7 @@
               <h3 id="local-bootstrap-title">{message('localBootstrapTitle')}</h3>
               <p class="muted">{message('localBootstrapDescription')}</p>
               {#if localBootstrapError}<p class="inline-error" role="alert">{localBootstrapError}</p>{/if}
-              <form onsubmit={(event) => { event.preventDefault(); void planLocalBootstrap(); }}>
+              <form onsubmit={(event) => { event.preventDefault(); void planLocalBootstrap(); }} onchange={rememberAnswers}>
                 <div class="form-grid"><label><span>{message('capabilityDomain')}</span><input bind:value={localBootstrapDomain} required placeholder="home.example" /></label><label><span>{message('localBootstrapEnvironment')}</span><input bind:value={localBootstrapEnvironment} placeholder=".dev" /></label></div>
                 <label><span>{message('localBootstrapNodeName')}</span><input bind:value={localBootstrapNodeName} required /></label>
                 <label><span>{message('localBootstrapACMEEmail')}</span><input type="email" bind:value={localBootstrapACMEEmail} required={activeProfile?.deploymentMode === 'local-public'} /></label>
@@ -1772,27 +1888,27 @@
                that gave no hint they were alternatives rather than both required. -->
           <fieldset class="provider-choice">
             <legend>{message('settingsRepoChoice')}</legend>
-            <label class="check"><input type="radio" name="settings-provider" value="github" checked={settingsProvider === 'github'} onchange={() => { settingsProvider = 'github'; }} /><span>{message('settingsRepoGitHub')}</span></label>
-            <label class="check"><input type="radio" name="settings-provider" value="generic" checked={settingsProvider === 'generic'} onchange={() => { settingsProvider = 'generic'; }} /><span>{message('settingsRepoGeneric')}</span></label>
+            <label class="check"><input type="radio" name="settings-provider" value="github" checked={settingsProvider === 'github'} onchange={() => { settingsProvider = 'github'; rememberAnswers(); }} /><span>{message('settingsRepoGitHub')}</span></label>
+            <label class="check"><input type="radio" name="settings-provider" value="generic" checked={settingsProvider === 'generic'} onchange={() => { settingsProvider = 'generic'; rememberAnswers(); }} /><span>{message('settingsRepoGeneric')}</span></label>
           </fieldset>
 
           {#if settingsProvider === 'github'}
             <p class="muted">{message('githubDescription')} <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">{message('githubTokenGuide')}</a></p>
             {#if gitHubError}<p class="inline-error" role="alert">{gitHubError}</p>{/if}
-            <form onsubmit={(event) => { event.preventDefault(); void validateGitHubToken(); }}>
+            <form onsubmit={(event) => { event.preventDefault(); void validateGitHubToken(); }} onchange={rememberAnswers}>
               <label><span>{message('githubAuthority')}</span><select bind:value={gitHubAuthority}><option value="creation">{message('githubCreationAuthority')}</option><option value="ongoing">{message('githubOngoingAuthority')}</option></select></label>
               <label><span>{message('githubToken')}</span><input type="password" bind:value={gitHubToken} required autocomplete="off" /></label>
               <div class="actions"><button type="submit" disabled={gitHubBusy}>{message('githubValidate')}</button></div>
             </form>
             {#if gitHubStatus}<dl class="credential-metadata"><div><dt>{message('githubOwner')}</dt><dd>{gitHubStatus.owner}</dd></div><div><dt>{message('credentialExpires')}</dt><dd>{gitHubStatus.expiresAt || message('githubNoExpiry')}</dd></div><div><dt>{message('githubAuthority')}</dt><dd>{gitHubStatus.authority === 'creation' ? message('githubCreationAuthority') : message('githubOngoingAuthority')}</dd></div></dl>{/if}
             {#if capabilityPlan && gitHubStatus?.authority === 'creation'}
-              <form class="github-establish" onsubmit={(event) => { event.preventDefault(); void establishGitHubOverlay(); }}><label><span>{message('githubRepositoryName')}</span><input bind:value={gitHubRepositoryName} required pattern="[A-Za-z0-9._-]+" /></label><div class="actions"><button type="submit" disabled={gitHubBusy}>{message('githubEstablish')}</button></div></form>
+              <form class="github-establish" onsubmit={(event) => { event.preventDefault(); void establishGitHubOverlay(); }} onchange={rememberAnswers}><label><span>{message('githubRepositoryName')}</span><input bind:value={gitHubRepositoryName} required pattern="[A-Za-z0-9._-]+" /></label><div class="actions"><button type="submit" disabled={gitHubBusy}>{message('githubEstablish')}</button></div></form>
             {/if}
             {#if gitHubOverlayNotice}<p class="inline-notice" aria-live="polite">{gitHubOverlayNotice}</p>{/if}
           {:else if settingsProvider === 'generic'}
             <p class="muted">{message('genericGitDescription')}</p>
             {#if genericGitError}<p class="inline-error" role="alert">{genericGitError}</p>{/if}
-            <form onsubmit={(event) => { event.preventDefault(); void validateGenericGitCredentials(); }}>
+            <form onsubmit={(event) => { event.preventDefault(); void validateGenericGitCredentials(); }} onchange={rememberAnswers}>
               <div class="form-grid"><label><span>{message('genericGitUsername')}</span><input bind:value={genericGitUsername} required autocomplete="username" /></label><label><span>{message('genericGitToken')}</span><input type="password" bind:value={genericGitToken} required autocomplete="off" /></label></div>
               <div class="actions"><button type="submit" disabled={genericGitBusy}>{message('genericGitValidate')}</button></div>
             </form>
@@ -1832,7 +1948,7 @@
           {/if}
 
           {#if hetznerProject?.token?.state === 'valid'}
-            <form onsubmit={(event) => { event.preventDefault(); void inspectHetznerProject(); }}>
+            <form onsubmit={(event) => { event.preventDefault(); void inspectHetznerProject(); }} onchange={rememberAnswers}>
               <div class="form-grid"><label><span>{message('hetznerDomain')}</span><input bind:value={hetznerDomain} required placeholder="example.org" autocomplete="off" /></label><label><span>{message('hetznerEnvExt')}</span><input bind:value={hetznerEnvExt} placeholder=".dev" autocomplete="off" /></label></div>
               <div class="actions"><button type="submit" disabled={hetznerBusy}>{message('hetznerInspect')}</button></div>
             </form>
@@ -1875,30 +1991,30 @@
               <ul class="hetzner-presets" data-testid="hetzner-presets">
                 {#each hetznerPresets.presets ?? [] as preset (preset.tier)}
                   <li>
-                    <label class="check"><input type="radio" name="hetzner-preset" value={preset.tier} checked={hetznerTier === preset.tier} onchange={() => { hetznerTier = (preset.tier ?? 'recommended') as HetznerPresetTier; hetznerServerType = preset.serverType ?? ''; hetznerVolumeGb = preset.volumeGb ?? 0; }} /><span><strong>{hetznerPresetLabel(preset.tier)}</strong> · {preset.serverType} · {formatNumber(locale, preset.memoryGb)} GB · {formatNumber(locale, preset.volumeGb)} GB · {formatCurrency(locale, preset.cost?.totalMonthlyEur, preset.cost?.currency ?? 'EUR')}</span></label>
+                    <label class="check"><input type="radio" name="hetzner-preset" value={preset.tier} checked={hetznerTier === preset.tier} onchange={() => { hetznerTier = (preset.tier ?? 'recommended') as HetznerPresetTier; hetznerServerType = preset.serverType ?? ''; hetznerVolumeGb = preset.volumeGb ?? 0; rememberAnswers(); }} /><span><strong>{hetznerPresetLabel(preset.tier)}</strong> · {preset.serverType} · {formatNumber(locale, preset.memoryGb)} GB · {formatNumber(locale, preset.volumeGb)} GB · {formatCurrency(locale, preset.cost?.totalMonthlyEur, preset.cost?.currency ?? 'EUR')}</span></label>
                     {#if preset.fits === false}<p class="muted">{message('hetznerPresetTooSmall')}</p>{/if}
                     {#if preset.available === false}<p class="muted">{message('hetznerPresetUnavailable')}</p>{/if}
                   </li>
                 {/each}
               </ul>
-              <label class="check"><input type="radio" name="hetzner-preset" value="advanced" checked={hetznerTier === 'advanced'} onchange={() => { hetznerTier = 'advanced'; }} /><span>{message('hetznerAdvancedHint')}</span></label>
+              <label class="check"><input type="radio" name="hetzner-preset" value="advanced" checked={hetznerTier === 'advanced'} onchange={() => { hetznerTier = 'advanced'; rememberAnswers(); }} /><span>{message('hetznerAdvancedHint')}</span></label>
               <div class="form-grid">
                 <label><span>{message('hetznerLocation')}</span>
-                  <select bind:value={hetznerLocation} onchange={() => void loadHetznerPresets()}>
+                  <select bind:value={hetznerLocation} onchange={() => { rememberAnswers(); void loadHetznerPresets(); }}>
                     {#each hetznerPresets.locations ?? [] as location (location)}<option value={location}>{location}</option>{/each}
                   </select>
                 </label>
                 {#if hetznerTier === 'advanced'}
                   <label><span>{message('hetznerServerType')}</span>
-                    <select bind:value={hetznerServerType}>
+                    <select bind:value={hetznerServerType} onchange={rememberAnswers}>
                       {#each hetznerPresets.offerings ?? [] as offering (offering.name)}<option value={offering.name}>{offering.name} · {formatNumber(locale, offering.memoryGb)} GB · {formatCurrency(locale, offering.monthlyEur)}</option>{/each}
                     </select>
                   </label>
-                  <label><span>{message('hetznerVolume')}</span><input type="number" min="10" max="10240" step="10" bind:value={hetznerVolumeGb} /></label>
+                  <label><span>{message('hetznerVolume')}</span><input type="number" min="10" max="10240" step="10" bind:value={hetznerVolumeGb} onchange={rememberAnswers} /></label>
                 {/if}
               </div>
               <p class="muted">{message('hetznerPricesObservedAt')}: {formatDateTime(locale, hetznerPresets.observedAt)}</p>
-              <label><span>{message('hetznerAcmeEmail')}</span><input type="email" bind:value={hetznerAcmeEmail} placeholder="operator@example.org" /></label>
+              <label><span>{message('hetznerAcmeEmail')}</span><input type="email" bind:value={hetznerAcmeEmail} placeholder="operator@example.org" onchange={rememberAnswers} /></label>
               <p class="muted">{message('hetznerAcmeEmailHint')}</p>
               <div class="actions"><button type="button" onclick={() => void planHetznerInfrastructure()} disabled={hetznerBusy || !hetznerProject?.inventory || !hetznerAcmeEmail.includes('@')}>{message('hetznerPlanBuild')}</button></div>
             </section>
@@ -1935,7 +2051,7 @@
                 <div><dt>{message('hetznerAccessReason')}</dt><dd>{hetznerAccessReasonLabel(hetznerTemporaryAccess.scope?.reasonKey)}</dd></div>
               </dl>
               {#if hetznerTemporaryAccess.open}
-                <label><span>{message('hetznerAccessAddress')}</span><input type="text" bind:value={hetznerOperatorAddress} placeholder="198.51.100.7" /></label>
+                <label><span>{message('hetznerAccessAddress')}</span><input type="text" bind:value={hetznerOperatorAddress} placeholder="198.51.100.7" onchange={rememberAnswers} /></label>
                 <p class="muted">{message('hetznerAccessAddressHint')}</p>
                 <div class="actions"><button type="button" class="secondary" onclick={() => void narrowHetznerTemporaryAccess()} disabled={hetznerBusy}>{message('hetznerAccessNarrow')}</button></div>
               {/if}
@@ -1982,7 +2098,7 @@
           <h2 id="offsite-title">{message('offsiteTitle')}</h2>
           <p class="muted">{message('offsiteDescription')}</p>
           {#if offsiteError}<p class="inline-error" role="alert">{offsiteError}</p>{/if}
-          <form onsubmit={(event) => { event.preventDefault(); void inspectOffsiteDestination(); }}>
+          <form onsubmit={(event) => { event.preventDefault(); void inspectOffsiteDestination(); }} onchange={rememberAnswers}>
             <div class="form-grid"><label><span>{message('offsiteEndpoint')}</span><input type="url" bind:value={offsiteEndpoint} required placeholder="https://s3.eu-central-003.backblazeb2.com" /></label><label><span>{message('offsiteRegion')}</span><input bind:value={offsiteRegion} required placeholder="eu-central-003" autocomplete="off" /></label></div>
             <label><span>{message('offsiteBucket')}</span><input bind:value={offsiteBucket} required placeholder="community-backups" autocomplete="off" /></label>
             <div class="form-grid"><label><span>{message('offsiteAccessKey')}</span><input bind:value={offsiteAccessKey} required autocomplete="off" /></label><label><span>{message('offsiteSecretKey')}</span><input type="password" bind:value={offsiteSecretKey} required autocomplete="off" /></label></div>
@@ -2037,7 +2153,7 @@
               <div class="actions"><button type="button" onclick={() => void establishClusterCA()} disabled={handoffBusy}>{message('handoffClusterCAEstablish')}</button><button type="button" class="secondary" onclick={() => void installDeviceTrust()} disabled={handoffBusy}>{message('handoffDeviceTrustInstall')}</button></div>
               {#if deviceTrustFingerprint}<p class="inline-notice">{message('handoffDeviceTrustFingerprint')}: <code>{deviceTrustFingerprint}</code></p>{/if}
             {/if}
-            <form onsubmit={(event) => { event.preventDefault(); void establishPrivateNetwork(); }}>
+            <form onsubmit={(event) => { event.preventDefault(); void establishPrivateNetwork(); }} onchange={rememberAnswers}>
               <label><span>{message('handoffBaseDomain')}</span><input bind:value={handoffBaseDomain} required placeholder="smallworlds.internal" /></label>
               <div class="actions"><button type="submit" disabled={handoffBusy}>{message('handoffPrivateNetworkEstablish')}</button></div>
             </form>

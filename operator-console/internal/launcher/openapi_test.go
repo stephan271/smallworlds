@@ -87,6 +87,7 @@ func TestOpenAPIContractDescribesLauncherWorkflow(t *testing.T) {
 		"/api/v1/profiles/{id}":                      {"put"},
 		"/api/v1/profiles/{id}/forget":               {"post"},
 		"/api/v1/profiles/{id}/journey":              {"get"},
+		"/api/v1/profiles/{id}/settings":             {"get", "put"},
 		"/api/v1/profiles/{id}/credentials":          {"get"},
 		"/api/v1/profiles/{id}/credentials/{kind}":   {"put", "delete"},
 		"/api/v1/plans":                              {"post"},

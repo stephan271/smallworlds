@@ -3,6 +3,7 @@ package state
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -205,6 +206,7 @@ type ProfileSnapshot struct {
 	BootstrapPlans       []BootstrapPlanRecord
 	OverlayIdentity      *OverlayIdentity
 	NodeTrust            *NodeTrust
+	SetupSettings        *SetupSettings
 	CredentialReferences []CredentialReference
 }
 
@@ -555,7 +557,7 @@ func (store *Store) ForgetProfile(ctx context.Context, profileID string) error {
 		return fmt.Errorf("begin forget profile: %w", err)
 	}
 	defer tx.Rollback()
-	for _, table := range []string{"full_decommission_plans", "decommission_plans", "hetzner_provisioning_plans", "bootstrap_plans", "temporary_access_states", "hetzner_projects", "offsite_protections", "first_owner_states", "handoff_states", "enrollments", "private_networks", "cluster_ca_references", "pending_node_trusts", "node_trusts", "overlay_identities", "credential_references", "events", "runs", "plans"} {
+	for _, table := range []string{"full_decommission_plans", "decommission_plans", "hetzner_provisioning_plans", "bootstrap_plans", "temporary_access_states", "hetzner_projects", "offsite_protections", "first_owner_states", "handoff_states", "enrollments", "private_networks", "cluster_ca_references", "pending_node_trusts", "node_trusts", "overlay_identities", "setup_settings", "credential_references", "events", "runs", "plans"} {
 		if _, err := tx.ExecContext(ctx, "DELETE FROM "+table+" WHERE profile_id = ?", profileID); err != nil {
 			return fmt.Errorf("forget profile %s: %w", table, err)
 		}
@@ -863,7 +865,13 @@ func (store *Store) ExportProfileSnapshot(ctx context.Context, profileID string)
 	} else if !errors.Is(trustErr, ErrNotFound) {
 		return ProfileSnapshot{}, trustErr
 	}
-	return ProfileSnapshot{Profile: profile, Plans: plans, Runs: runs, Events: events, BootstrapPlans: bootstrapPlans, OverlayIdentity: overlayIdentity, NodeTrust: nodeTrust, CredentialReferences: references}, nil
+	var setupSettings *SetupSettings
+	if settings, settingsErr := store.GetSetupSettings(ctx, profileID); settingsErr == nil {
+		setupSettings = &settings
+	} else if !errors.Is(settingsErr, ErrNotFound) {
+		return ProfileSnapshot{}, settingsErr
+	}
+	return ProfileSnapshot{Profile: profile, Plans: plans, Runs: runs, Events: events, BootstrapPlans: bootstrapPlans, OverlayIdentity: overlayIdentity, NodeTrust: nodeTrust, SetupSettings: setupSettings, CredentialReferences: references}, nil
 }
 
 func (store *Store) CanImportProfileSnapshot(ctx context.Context, snapshot ProfileSnapshot) error {
@@ -926,6 +934,9 @@ func validateProfileSnapshot(snapshot ProfileSnapshot) error {
 	if snapshot.NodeTrust != nil && snapshot.NodeTrust.ProfileID != snapshot.Profile.ID {
 		return fmt.Errorf("invalid recovery node trust")
 	}
+	if snapshot.SetupSettings != nil && snapshot.SetupSettings.ProfileID != snapshot.Profile.ID {
+		return fmt.Errorf("invalid recovery setup settings")
+	}
 	return nil
 }
 
@@ -973,6 +984,15 @@ func (store *Store) ImportProfileSnapshot(ctx context.Context, snapshot ProfileS
 		trust := snapshot.NodeTrust
 		if _, err := transaction.ExecContext(ctx, `INSERT INTO node_trusts (profile_id, host, port, username, fingerprint, confirmed_at) VALUES (?, ?, ?, ?, ?, ?)`, trust.ProfileID, trust.Host, trust.Port, trust.Username, trust.Fingerprint, trust.ConfirmedAt.UTC().Format(time.RFC3339Nano)); err != nil {
 			return fmt.Errorf("restore recovery node trust: %w", err)
+		}
+	}
+	if snapshot.SetupSettings != nil {
+		encoded, err := json.Marshal(snapshot.SetupSettings)
+		if err != nil {
+			return fmt.Errorf("encode recovery setup settings: %w", err)
+		}
+		if _, err := transaction.ExecContext(ctx, `INSERT INTO setup_settings (profile_id, settings_json, recorded_at) VALUES (?, ?, ?)`, snapshot.SetupSettings.ProfileID, string(encoded), snapshot.SetupSettings.RecordedAt.UTC().Format(time.RFC3339Nano)); err != nil {
+			return fmt.Errorf("restore recovery setup settings: %w", err)
 		}
 	}
 	for _, run := range snapshot.Runs {
@@ -1591,6 +1611,11 @@ func (store *Store) migrate(ctx context.Context) error {
 			profile_id TEXT NOT NULL REFERENCES profiles(id),
 			binding_json TEXT NOT NULL,
 			created_at TEXT NOT NULL
+		)`},
+		{24, `CREATE TABLE setup_settings (
+			profile_id TEXT PRIMARY KEY REFERENCES profiles(id),
+			settings_json TEXT NOT NULL,
+			recorded_at TEXT NOT NULL
 		)`},
 	}
 	for _, migration := range migrations {

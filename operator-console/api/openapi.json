@@ -2570,6 +2570,61 @@
           }
         }
       }
+    },
+    "/api/v1/profiles/{id}/settings": {
+      "get": {
+        "summary": "Read the saved setup answers for a profile",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProfileID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Saved answers, empty when none have been given yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupSettings"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Replace the saved setup answers for a profile",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProfileID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupSettings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stored answers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupSettings"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Rejected: unknown or secret-shaped field"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5609,6 +5664,115 @@
             "format": "date-time"
           },
           "closedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SetupSettings": {
+        "type": "object",
+        "description": "Non-secret answers an operator gave while walking the setup journey. Secrets never appear here; they live in the Launcher Vault.",
+        "properties": {
+          "profileId": {
+            "type": "string"
+          },
+          "capabilityMode": {
+            "type": "string"
+          },
+          "capabilityApps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "release": {
+            "type": "string"
+          },
+          "settingsRepositoryUrl": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "settingsProvider": {
+            "type": "string"
+          },
+          "githubAuthority": {
+            "type": "string"
+          },
+          "githubRepositoryName": {
+            "type": "string"
+          },
+          "gitUsername": {
+            "type": "string"
+          },
+          "nodeTargetKind": {
+            "type": "string"
+          },
+          "nodeHost": {
+            "type": "string"
+          },
+          "nodeUsername": {
+            "type": "string"
+          },
+          "nodeAuthentication": {
+            "type": "string"
+          },
+          "dataDirectory": {
+            "type": "string"
+          },
+          "nodeName": {
+            "type": "string"
+          },
+          "environment": {
+            "type": "string"
+          },
+          "acmeEmail": {
+            "type": "string"
+          },
+          "hetznerDomain": {
+            "type": "string"
+          },
+          "hetznerEnvExt": {
+            "type": "string"
+          },
+          "hetznerTier": {
+            "type": "string"
+          },
+          "hetznerLocation": {
+            "type": "string"
+          },
+          "hetznerServerType": {
+            "type": "string"
+          },
+          "hetznerOperatorAddress": {
+            "type": "string"
+          },
+          "handoffBaseDomain": {
+            "type": "string"
+          },
+          "offsiteEndpoint": {
+            "type": "string"
+          },
+          "offsiteRegion": {
+            "type": "string"
+          },
+          "offsiteBucket": {
+            "type": "string"
+          },
+          "nodePort": {
+            "type": "integer"
+          },
+          "hetznerVolumeGb": {
+            "type": "integer"
+          },
+          "manageDns": {
+            "type": "boolean"
+          },
+          "routerAcknowledged": {
+            "type": "boolean"
+          },
+          "recordedAt": {
             "type": "string",
             "format": "date-time"
           }
