@@ -1,7 +1,13 @@
+
+# Talks
+
+Watch the [SmallWorlds Lightning Talk](https://rawcdn.githack.com/stephan271/smallworlds/30beb50/lightning_talk.html).
+> Refer to the [SmallWorlds Architecture Diagram](smallworlds_architecture.md) for system topology and data flows.
+
 # SmallWorlds Setup Guide
 
 <p align="center">
-  <img src="screenshots/screen_dashboard_3.png" alt="SmallWorlds dashboard showing running applications and infrastructure" width="800"><br>
+  <img src="screenshots/screen_dashboard.png" alt="SmallWorlds dashboard showing running applications and infrastructure" width="800"><br>
   <em>The SmallWorlds dashboard — auto-discovered applications and infrastructure at a glance.</em>
 </p>
 
@@ -12,9 +18,6 @@
 > **Not Hetzner-only.** `smallworlds-init.sh` supports two deployment targets: **`hetzner`** (a Hetzner Cloud VM provisioned by Terraform) and **`local`** (an existing Linux machine in your LAN, bootstrapped in place over SSH — no cloud account needed). Hetzner is still required for **public DNS** — either via Terraform on the `hetzner` target, or via a free Hetzner DNS zone + API token on an **internet-exposed** `local` deployment. A LAN-only `local` deployment needs no Hetzner account, no domain registration, and no cloud resources at all. See the "Deployment Instructions" section below and `doc/local-deployment.md` for details.
 
 This document outlines the deployment process for a SmallWorlds GitOps cluster. The architecture relies on an upstream foundation repository and a private, user-controlled configuration repository.
-
-> [!TIP]
-> Refer to the [SmallWorlds Architecture Diagram](smallworlds_architecture.md) for system topology and data flows.
 
 ## System Components
 
@@ -288,6 +291,3 @@ When adding a new application (tenant) to the SmallWorlds cluster, please ensure
 - **Configure DNS Records**: Add the application's generic subdomain (e.g., `whiteboard`, `meet`, `office`) to the DNS records array in `infrastructure/terraform/main.tf` so Terraform provisions the A-record.
 - **Provision Web Certificates**: Ensure the Ingress resource specifies the correct `cert-manager.io/cluster-issuer: letsencrypt-prod` annotation and the `tls` hosts block to automate Let's Encrypt SSL certificate generation.
 
-# Talks
-
-Watch the [SmallWorlds Lightning Talk](https://rawcdn.githack.com/stephan271/smallworlds/30beb50/lightning_talk.html).
