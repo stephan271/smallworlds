@@ -531,6 +531,27 @@
     }
   }
 
+  /** Plain language for the refusals an operator can act on. Anything else falls
+   *  through to its code rather than being softened into something vague — an
+   *  unexplained code is bad, but a wrong explanation is worse. */
+  function localBootstrapErrorMessage(code: string): string {
+    switch (code) {
+      case 'gitops_overlay_required': return message('localBootstrapOverlayRequired');
+      case 'local_bootstrap_release_mismatch': return message('localBootstrapReleaseMismatch');
+      case 'local_bootstrap_domain_mismatch': return message('localBootstrapDomainMismatch');
+      case 'bootstrap_assets_not_ready': return message('localBootstrapAssetsNotReady');
+      case 'bootstrap_asset_release_unavailable': return message('bootstrapAssetUnavailable');
+      case 'node_host_key_confirmation_required': return message('localBootstrapHostKeyRequired');
+      case 'node_host_key_mismatch': return message('localBootstrapHostKeyMismatch');
+      case 'node_reinspection_failed': return message('localBootstrapReinspectionFailed');
+      case 'invalid_cluster_secrets_manifest': return message('localBootstrapInvalidSecrets');
+      case 'dns_provider_token_required': return message('localBootstrapDNSTokenRequired');
+      case 'router_forwarding_acknowledgement_required': return message('localBootstrapRouterRequired');
+      case 'vault_locked': return message('handoffUnlockFirst');
+      default: return code;
+    }
+  }
+
   async function unlockVault(method: 'operating-system' | 'passphrase'): Promise<void> {
     vaultBusy = true;
     vaultError = '';
@@ -2039,7 +2060,11 @@
               <p class="eyebrow">{message('localBootstrapEyebrow')}</p>
               <h3 id="local-bootstrap-title">{message('localBootstrapTitle')}</h3>
               <p class="muted">{message('localBootstrapDescription')}</p>
-              {#if localBootstrapError}<p class="inline-error" role="alert">{localBootstrapError}</p>{/if}
+              <!-- The missing prerequisite is stated before the form rather than
+                   only as the refusal that follows a click. Said up front it is
+                   guidance; said afterwards it reads as a failure. -->
+              {#if !overlayIdentity}<p class="inline-notice">{message('localBootstrapOverlayRequired')}</p>{/if}
+              {#if localBootstrapError}<p class="inline-error" role="alert">{localBootstrapErrorMessage(localBootstrapError)}</p>{/if}
               <form onsubmit={(event) => { event.preventDefault(); void planLocalBootstrap(); }} onchange={rememberAnswers}>
                 <div class="form-grid"><label><span>{message('capabilityDomain')}</span><input bind:value={localBootstrapDomain} required placeholder="home.example" /></label><label><span>{message('localBootstrapEnvironment')}</span><input bind:value={localBootstrapEnvironment} placeholder=".dev" /></label></div>
                 <label><span>{message('localBootstrapNodeName')}</span><input bind:value={localBootstrapNodeName} required /></label>
