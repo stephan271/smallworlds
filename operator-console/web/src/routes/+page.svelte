@@ -13,6 +13,22 @@
     occurredAt: string;
   };
 
+  /** One stage of setting a cluster up. Which of these exist at all depends on
+   *  where the cluster runs, so an operator is never shown a rented-server step
+   *  for a machine in their own building. */
+  type StepId = 'capabilities' | 'assets' | 'node' | 'hetzner' | 'settings-repo' | 'handoff' | 'protect';
+
+  type Step = {
+    id: StepId;
+    titleKey: MessageKey;
+    summaryKey: MessageKey;
+    /** True once the launcher has observed this stage finished — never merely
+     *  because the operator clicked past it. */
+    done: boolean;
+    /** Why this stage cannot be worked on yet, or '' when it can. */
+    blockedKey: MessageKey | '';
+  };
+
   let locale: Locale = $state('en');
   let ready = $state(false);
   let error = $state('');
@@ -141,19 +157,73 @@
   let fullDecommissionOverrideReason = $state('');
   let fullDecommissionBusy = $state(false);
   let fullDecommissionError = $state('');
-  let activeStep = $state('capabilities');
+  let activeStep: StepId = $state('capabilities');
   let showRecovery = $state(false);
+  let showRetire = $state(false);
   let creating = $state(true);
   let editing = $state(false);
   let busy = $state(false);
   let profileName = $state('');
   let profileLanguage: Locale = $state('en');
   let deploymentMode: 'hetzner' | 'local-lan' | 'local-public' = $state('local-lan');
+  let settingsProvider: 'github' | 'generic' | '' = $state('');
   let eventSource: EventSource | null = null;
   let pollTimer: number | undefined;
 
   const message = (key: MessageKey) => translate(locale, key);
   const decommissionMessage = (key: Parameters<typeof decommissionCopy>[1]) => decommissionCopy(locale, key);
+
+  // --- Guided steps --------------------------------------------------------
+  // The journey is derived from what the launcher has actually observed, not
+  // from a counter the browser increments. A stage is "done" only on evidence,
+  // and a stage the operator cannot usefully work on yet says why rather than
+  // silently disappearing — hiding it would leave them unable to tell whether
+  // the step exists at all.
+
+  const steps: Step[] = $derived.by(() => {
+    const mode = activeProfile?.deploymentMode;
+    const rentsMachine = mode === 'hetzner';
+    const runsOwnMachine = mode === 'local-lan' || mode === 'local-public';
+
+    const chosen = capabilityPlan !== null;
+    const installersReady = bootstrapAssets !== null && bootstrapAssets.assets.every((asset) => asset.state === 'ready');
+    const machineReady = rentsMachine ? hetznerPlan !== null : nodeInspection?.assessment.ready === true;
+    const repositoryReady = gitHubStatus !== null || genericGitStatus !== null;
+
+    const list: Step[] = [
+      { id: 'capabilities', titleKey: 'stepCapabilitiesTitle', summaryKey: 'stepCapabilitiesSummary', done: chosen, blockedKey: '' },
+      { id: 'assets', titleKey: 'stepAssetsTitle', summaryKey: 'stepAssetsSummary', done: installersReady, blockedKey: chosen ? '' : 'stepBlockedChooseFirst' }
+    ];
+    if (rentsMachine) {
+      list.push({ id: 'hetzner', titleKey: 'stepHetznerTitle', summaryKey: 'stepHetznerSummary', done: machineReady, blockedKey: installersReady ? '' : 'stepBlockedInstallersFirst' });
+    } else {
+      list.push({ id: 'node', titleKey: 'stepNodeTitle', summaryKey: 'stepNodeSummary', done: machineReady, blockedKey: installersReady ? '' : 'stepBlockedInstallersFirst' });
+    }
+    list.push({ id: 'settings-repo', titleKey: 'stepSettingsRepoTitle', summaryKey: 'stepSettingsRepoSummary', done: repositoryReady, blockedKey: machineReady ? '' : 'stepBlockedMachineFirst' });
+    if (runsOwnMachine) {
+      list.push({ id: 'handoff', titleKey: 'stepHandoffTitle', summaryKey: 'stepHandoffSummary', done: handoffAssessment?.complete === true, blockedKey: repositoryReady ? '' : 'stepBlockedRepositoryFirst' });
+    }
+    list.push({ id: 'protect', titleKey: 'stepProtectTitle', summaryKey: 'stepProtectSummary', done: offsiteStatus?.validation?.result === 'offsite-verified', blockedKey: repositoryReady ? '' : 'stepBlockedRepositoryFirst' });
+    return list;
+  });
+
+  const currentStep: Step | undefined = $derived(steps.find((step) => step.id === activeStep));
+
+  function goToStep(id: StepId): void {
+    activeStep = id;
+  }
+
+  function continueJourney(): void {
+    const remaining = steps.find((step) => step.id !== activeStep && !step.done && !step.blockedKey);
+    if (remaining) activeStep = remaining.id;
+  }
+
+  /** After loading a profile, open the stage the operator actually has work on
+   *  rather than always dropping them back at the first one. */
+  function openFirstOpenStep(): void {
+    const target = steps.find((step) => !step.done && !step.blockedKey) ?? steps[0];
+    if (target) activeStep = target.id;
+  }
 
   $effect(() => {
     document.documentElement.lang = locale;
@@ -267,6 +337,10 @@
     } else {
       run = null;
     }
+    // Derived state settles after the awaits above, so pick the landing stage
+    // last — otherwise a returning operator is dropped at step one regardless
+    // of how far they had already got.
+    openFirstOpenStep();
   }
 
   function vaultErrorMessage(code: string): string {
@@ -1453,7 +1527,50 @@
           {#if run?.state === 'running' && run.cancellationState === 'not-requested'}<button class="secondary" onclick={() => void cancelRun()} disabled={busy}>{message('cancel')}</button>{/if}
         </div>
 
-        {#if vaultStatus?.state !== 'unlocked' || activeStep === 'execute'}
+        <!-- The whole journey at a glance. A stage that cannot be worked on yet
+             stays listed and says why, rather than vanishing and leaving the
+             operator unsure whether it exists. -->
+        <nav class="journey-rail" aria-label={message('journeyProgress')}>
+          <ol>
+            {#each steps as step, index (step.id)}
+              <li class:done={step.done} class:current={step.id === activeStep} class:locked={!!step.blockedKey}>
+                <!-- Deliberately not disabled. An operator may look ahead to see
+                     what is coming; the step itself still says what is missing,
+                     and the launcher refuses the action regardless. Locking the
+                     navigation would only hide the shape of the work. -->
+                <button
+                  type="button"
+                  onclick={() => goToStep(step.id)}
+                  aria-current={step.id === activeStep ? 'step' : undefined}
+                >
+                  <span class="rail-index" aria-hidden="true">{step.done ? '✓' : index + 1}</span>
+                  <span class="rail-title">{message(step.titleKey)}</span>
+                  <span class="rail-state">
+                    {#if step.done}{message('stepDone')}
+                    {:else if step.id === activeStep}{message('stepCurrent')}
+                    {:else if step.blockedKey}{message(step.blockedKey)}
+                    {/if}
+                  </span>
+                </button>
+              </li>
+            {/each}
+          </ol>
+        </nav>
+
+        {#if currentStep}
+          <section class="step-heading" aria-labelledby="step-heading-title">
+            <p class="eyebrow">{message('journeyProgress')}</p>
+            <h2 id="step-heading-title">{message(currentStep.titleKey)}</h2>
+            <p class="muted">{message(currentStep.summaryKey)}</p>
+            {#if currentStep.blockedKey}
+              <p class="inline-notice">{message(currentStep.blockedKey)}</p>
+            {/if}
+          </section>
+        {/if}
+
+        <!-- The safe is a facility, not a stage: a locked one blocks every step,
+             and an operator who just unlocked it must still be able to see and
+             manage what is in it. So it is always present, never step-gated. -->
 		<section class="card vault-card" aria-labelledby="vault-title">
 			<div class="vault-heading">
 				<div>
@@ -1514,7 +1631,6 @@
 				</form>
 			{/if}
 		</section>
-        {/if}
 
         {#if activeStep === 'capabilities'}
         <section class="card capability-card" aria-labelledby="capability-title">
@@ -1640,55 +1756,59 @@
                 {#if nodeTargetKind === 'same-host'}<label><span>{message('nodeSudoPassword')}</span><input type="password" bind:value={nodeSudoPassword} autocomplete="off" /></label>{/if}
                 <div class="actions"><button type="submit" disabled={localBootstrapBusy}>{message('localBootstrapReview')}</button></div>
               </form>
-              <div class="actions" style="margin-top: 1rem;"><button type="button" onclick={() => activeStep = 'github'}>{message('continue')}</button></div>
+              <div class="actions" style="margin-top: 1rem;"><button type="button" onclick={continueJourney}>{message('continue')}</button></div>
             </section>
           {/if}
         </section>
         {/if}
 
-        {#if activeStep === 'github'}
-        <section class="card github-card" aria-labelledby="github-title">
-          <p class="eyebrow">{message('githubEyebrow')}</p>
-          <h2 id="github-title">{message('githubTitle')}</h2>
-          <p class="muted">{message('githubDescription')} <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">{message('githubTokenGuide')}</a></p>
-          {#if gitHubError}<p class="inline-error" role="alert">{gitHubError}</p>{/if}
-          <form onsubmit={(event) => { event.preventDefault(); void validateGitHubToken(); }}>
-            <label><span>{message('githubAuthority')}</span><select bind:value={gitHubAuthority}><option value="creation">{message('githubCreationAuthority')}</option><option value="ongoing">{message('githubOngoingAuthority')}</option></select></label>
-            <label><span>{message('githubToken')}</span><input type="password" bind:value={gitHubToken} required autocomplete="off" /></label>
-            <div class="actions"><button type="submit" disabled={gitHubBusy}>{message('githubValidate')}</button></div>
-          </form>
-          {#if gitHubStatus}<dl class="credential-metadata"><div><dt>{message('githubOwner')}</dt><dd>{gitHubStatus.owner}</dd></div><div><dt>{message('credentialExpires')}</dt><dd>{gitHubStatus.expiresAt || message('githubNoExpiry')}</dd></div><div><dt>{message('githubAuthority')}</dt><dd>{gitHubStatus.authority === 'creation' ? message('githubCreationAuthority') : message('githubOngoingAuthority')}</dd></div></dl>{/if}
-          {#if capabilityPlan && gitHubStatus?.authority === 'creation'}
-            <form class="github-establish" onsubmit={(event) => { event.preventDefault(); void establishGitHubOverlay(); }}><label><span>{message('githubRepositoryName')}</span><input bind:value={gitHubRepositoryName} required pattern="[A-Za-z0-9._-]+" /></label><div class="actions"><button type="submit" disabled={gitHubBusy}>{message('githubEstablish')}</button></div></form>
-          {/if}
-          {#if gitHubOverlayNotice}<p class="inline-notice" aria-live="polite">{gitHubOverlayNotice}</p>{/if}
-          <div class="actions" style="margin-top: 1rem;">
-            <button type="button" onclick={() => activeStep = 'generic-git'}>{gitHubStatus ? message('continue') : 'Skip GitHub'}</button>
-          </div>
-        </section>
-        {/if}
+        {#if activeStep === 'settings-repo'}
+        <section class="card github-card" aria-labelledby="settings-repo-title">
+          <p class="eyebrow">{message('stepSettingsRepoTitle')}</p>
+          <h2 id="settings-repo-title">{message('stepSettingsRepoTitle')}</h2>
+          <p class="muted">{message('stepSettingsRepoSummary')}</p>
 
-        {#if activeStep === 'generic-git'}
-        <section class="card generic-git-card" aria-labelledby="generic-git-title">
-          <p class="eyebrow">{message('genericGitEyebrow')}</p>
-          <h2 id="generic-git-title">{message('genericGitTitle')}</h2>
-          <p class="muted">{message('genericGitDescription')}</p>
-          {#if genericGitError}<p class="inline-error" role="alert">{genericGitError}</p>{/if}
-          <form onsubmit={(event) => { event.preventDefault(); void validateGenericGitCredentials(); }}>
-            <div class="form-grid"><label><span>{message('genericGitUsername')}</span><input bind:value={genericGitUsername} required autocomplete="username" /></label><label><span>{message('genericGitToken')}</span><input type="password" bind:value={genericGitToken} required autocomplete="off" /></label></div>
-            <div class="actions"><button type="submit" disabled={genericGitBusy}>{message('genericGitValidate')}</button></div>
-          </form>
-          {#if genericGitStatus}<p class="inline-notice">{genericGitStatus.repositoryUrl}</p>{/if}
-          {#if capabilityPlan && genericGitStatus}
-            <p class="muted">{message('genericGitApprovalHint')}</p>
-            <form class="github-establish" onsubmit={(event) => { event.preventDefault(); void establishGenericGitOverlay(); }}><div class="actions"><button type="submit" disabled={genericGitBusy}>{message('genericGitEstablish')}</button></div></form>
-            <form class="github-establish" onsubmit={(event) => { event.preventDefault(); void proposeGenericGitOverlay(); }}><div class="actions"><button class="secondary" type="submit" disabled={genericGitBusy}>{message('genericGitPropose')}</button></div></form>
+          <!-- One decision up front, instead of two skippable provider cards
+               that gave no hint they were alternatives rather than both required. -->
+          <fieldset class="provider-choice">
+            <legend>{message('settingsRepoChoice')}</legend>
+            <label class="check"><input type="radio" name="settings-provider" value="github" checked={settingsProvider === 'github'} onchange={() => { settingsProvider = 'github'; }} /><span>{message('settingsRepoGitHub')}</span></label>
+            <label class="check"><input type="radio" name="settings-provider" value="generic" checked={settingsProvider === 'generic'} onchange={() => { settingsProvider = 'generic'; }} /><span>{message('settingsRepoGeneric')}</span></label>
+          </fieldset>
+
+          {#if settingsProvider === 'github'}
+            <p class="muted">{message('githubDescription')} <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">{message('githubTokenGuide')}</a></p>
+            {#if gitHubError}<p class="inline-error" role="alert">{gitHubError}</p>{/if}
+            <form onsubmit={(event) => { event.preventDefault(); void validateGitHubToken(); }}>
+              <label><span>{message('githubAuthority')}</span><select bind:value={gitHubAuthority}><option value="creation">{message('githubCreationAuthority')}</option><option value="ongoing">{message('githubOngoingAuthority')}</option></select></label>
+              <label><span>{message('githubToken')}</span><input type="password" bind:value={gitHubToken} required autocomplete="off" /></label>
+              <div class="actions"><button type="submit" disabled={gitHubBusy}>{message('githubValidate')}</button></div>
+            </form>
+            {#if gitHubStatus}<dl class="credential-metadata"><div><dt>{message('githubOwner')}</dt><dd>{gitHubStatus.owner}</dd></div><div><dt>{message('credentialExpires')}</dt><dd>{gitHubStatus.expiresAt || message('githubNoExpiry')}</dd></div><div><dt>{message('githubAuthority')}</dt><dd>{gitHubStatus.authority === 'creation' ? message('githubCreationAuthority') : message('githubOngoingAuthority')}</dd></div></dl>{/if}
+            {#if capabilityPlan && gitHubStatus?.authority === 'creation'}
+              <form class="github-establish" onsubmit={(event) => { event.preventDefault(); void establishGitHubOverlay(); }}><label><span>{message('githubRepositoryName')}</span><input bind:value={gitHubRepositoryName} required pattern="[A-Za-z0-9._-]+" /></label><div class="actions"><button type="submit" disabled={gitHubBusy}>{message('githubEstablish')}</button></div></form>
+            {/if}
+            {#if gitHubOverlayNotice}<p class="inline-notice" aria-live="polite">{gitHubOverlayNotice}</p>{/if}
+          {:else if settingsProvider === 'generic'}
+            <p class="muted">{message('genericGitDescription')}</p>
+            {#if genericGitError}<p class="inline-error" role="alert">{genericGitError}</p>{/if}
+            <form onsubmit={(event) => { event.preventDefault(); void validateGenericGitCredentials(); }}>
+              <div class="form-grid"><label><span>{message('genericGitUsername')}</span><input bind:value={genericGitUsername} required autocomplete="username" /></label><label><span>{message('genericGitToken')}</span><input type="password" bind:value={genericGitToken} required autocomplete="off" /></label></div>
+              <div class="actions"><button type="submit" disabled={genericGitBusy}>{message('genericGitValidate')}</button></div>
+            </form>
+            {#if genericGitStatus}<p class="inline-notice">{genericGitStatus.repositoryUrl}</p>{/if}
+            {#if capabilityPlan && genericGitStatus}
+              <p class="muted">{message('genericGitApprovalHint')}</p>
+              <form class="github-establish" onsubmit={(event) => { event.preventDefault(); void establishGenericGitOverlay(); }}><div class="actions"><button type="submit" disabled={genericGitBusy}>{message('genericGitEstablish')}</button></div></form>
+              <form class="github-establish" onsubmit={(event) => { event.preventDefault(); void proposeGenericGitOverlay(); }}><div class="actions"><button class="secondary" type="submit" disabled={genericGitBusy}>{message('genericGitPropose')}</button></div></form>
+            {/if}
+            {#if genericGitOverlayNotice}<p class="inline-notice" aria-live="polite">{genericGitOverlayNotice}</p>{/if}
+            {#if genericGitProposal}<p class="inline-notice" aria-live="polite">{message('genericGitManualMerge')} <code>{genericGitProposal.branch}</code> · {genericGitProposal.commit}</p>{/if}
           {/if}
-          {#if genericGitOverlayNotice}<p class="inline-notice" aria-live="polite">{genericGitOverlayNotice}</p>{/if}
-          {#if genericGitProposal}<p class="inline-notice" aria-live="polite">{message('genericGitManualMerge')} <code>{genericGitProposal.branch}</code> · {genericGitProposal.commit}</p>{/if}
-          <div class="actions" style="margin-top: 1rem;">
-            <button type="button" onclick={() => activeStep = 'execute'}>{genericGitStatus ? message('continue') : 'Skip Generic Git'}</button>
-          </div>
+
+          {#if gitHubStatus || genericGitStatus}
+            <div class="actions" style="margin-top: 1rem;"><button type="button" onclick={continueJourney}>{message('continue')}</button></div>
+          {/if}
         </section>
         {/if}
 
@@ -1852,11 +1972,11 @@
               {/if}
             </section>
           {/if}
-          <div class="actions" style="margin-top: 1rem;"><button type="button" onclick={() => activeStep = 'github'}>{message('continue')}</button></div>
+          <div class="actions" style="margin-top: 1rem;"><button type="button" onclick={continueJourney}>{message('continue')}</button></div>
         </section>
         {/if}
 
-        {#if activeStep === 'execute'}
+        {#if activeStep === 'protect'}
         <section class="card offsite-card" aria-labelledby="offsite-title">
           <p class="eyebrow">{message('offsiteEyebrow')}</p>
           <h2 id="offsite-title">{message('offsiteTitle')}</h2>
@@ -1893,7 +2013,95 @@
             <dl class="credential-metadata"><div><dt>{message('offsiteValidationVerdict')}</dt><dd>{offsiteResultLabel(offsiteStatus.validation.result)}</dd></div><div><dt>{message('offsiteRemediation')}</dt><dd>{offsiteRemediationLabel(offsiteStatus.validation.remediationKey)}</dd></div>{#if offsiteStatus.validation.recoveryPointAt}<div><dt>{message('offsiteRecoveryPoint')}</dt><dd>{formatDateTime(locale, offsiteStatus.validation.recoveryPointAt)}</dd></div>{/if}</dl>
           {/if}
         </section>
+        {/if}
 
+        {#if activeStep === 'handoff'}
+        {#if activeProfile?.deploymentMode === 'local-lan' || activeProfile?.deploymentMode === 'local-public'}
+        <section class="card handoff-card" aria-labelledby="handoff-title">
+          <p class="eyebrow">{message('handoffEyebrow')}</p>
+          <h2 id="handoff-title">{activeProfile.deploymentMode === 'local-public' ? message('localPublicHandoffTitle') : message('handoffTitle')}</h2>
+          <p class="muted">{activeProfile.deploymentMode === 'local-public' ? message('localPublicHandoffDescription') : message('handoffDescription')}</p>
+          {#if handoffError}<p class="inline-error" role="alert">{handoffError}</p>{/if}
+          {#if handoffAssessment}
+            <section class="handoff-steps" aria-label={message('handoffStepsTitle')}>
+              <h3>{message('handoffStepsTitle')}</h3>
+              <ul class="handoff-checklist">
+                {#each handoffAssessment.steps as step (step.name)}
+                  <li class:complete={step.complete}><span aria-hidden="true">{step.complete ? '✓' : '○'}</span> {handoffStepLabel(step.name)}</li>
+                {/each}
+              </ul>
+            </section>
+          {/if}
+          {#if vaultStatus?.state === 'unlocked'}
+            {#if activeProfile.deploymentMode === 'local-lan'}
+              <div class="actions"><button type="button" onclick={() => void establishClusterCA()} disabled={handoffBusy}>{message('handoffClusterCAEstablish')}</button><button type="button" class="secondary" onclick={() => void installDeviceTrust()} disabled={handoffBusy}>{message('handoffDeviceTrustInstall')}</button></div>
+              {#if deviceTrustFingerprint}<p class="inline-notice">{message('handoffDeviceTrustFingerprint')}: <code>{deviceTrustFingerprint}</code></p>{/if}
+            {/if}
+            <form onsubmit={(event) => { event.preventDefault(); void establishPrivateNetwork(); }}>
+              <label><span>{message('handoffBaseDomain')}</span><input bind:value={handoffBaseDomain} required placeholder="smallworlds.internal" /></label>
+              <div class="actions"><button type="submit" disabled={handoffBusy}>{message('handoffPrivateNetworkEstablish')}</button></div>
+            </form>
+            <div class="actions"><button type="button" onclick={() => void detectTailscale()} disabled={handoffBusy}>{message('handoffTailscaleDetect')}</button></div>
+            {#if tailscaleOffer}
+              <p class="inline-notice">{tailscaleOffer.detected ? message('handoffTailscaleDetected') : message('handoffTailscaleAbsent')} {#if tailscaleOffer.acquisition.available}{message('handoffTailscaleAcquire')} {/if}<a href={tailscaleOffer.acquisition.manualInstructionsUrl} target="_blank" rel="noreferrer">{message('handoffTailscaleManual')}</a></p>
+            {/if}
+            <div class="actions"><button type="button" onclick={() => void establishEnrollment()} disabled={handoffBusy}>{message('handoffEnrollmentEstablish')}</button><button type="button" class="secondary" onclick={() => void consumeLauncherEnrollment()} disabled={handoffBusy}>{message('handoffLauncherConsume')}</button></div>
+            <div class="actions"><button type="button" onclick={() => void verifyHandoff()} disabled={handoffBusy}>{message('handoffVerify')}</button><button type="button" class="secondary" onclick={() => void closeTemporaryAccess()} disabled={handoffBusy}>{message('handoffCloseAccess')}</button></div>
+            <div class="actions"><button type="button" onclick={() => void claimFirstOwner()} disabled={handoffBusy}>{message('handoffFirstOwnerClaim')}</button><button type="button" onclick={() => void registerFirstOwner()} disabled={handoffBusy || !firstOwnerChallenge}>{message('handoffFirstOwnerRegister')}</button></div>
+          {:else}
+            <p class="muted">{message('handoffUnlockFirst')}</p>
+          {/if}
+          {#if handoffAssessment}
+            <section class="handoff-limitations" aria-label={message('handoffLimitations')}>
+              <h3>{message('handoffLimitations')}</h3>
+              <ul>{#each handoffAssessment.limitations as limitation (limitation)}<li>{limitation}</li>{/each}</ul>
+            </section>
+            {#if handoffAssessment.complete && handoffAssessment.consoleHandoffUrl}
+              <p class="inline-notice" data-testid="console-handoff-url">{message('handoffConsoleUrl')}: <a href={handoffAssessment.consoleHandoffUrl}>{handoffAssessment.consoleHandoffUrl}</a></p>
+            {/if}
+          {/if}
+        </section>
+        {/if}
+        {/if}
+
+        <section aria-labelledby="next-title">
+          <p class="eyebrow">{message('next')}</p>
+          <div class="card task-card">
+            <div>
+              <h2 id="next-title">{message('task')}</h2>
+              <p>{message('taskDescription')}</p>
+              {#if journey?.tasks[0]}<span class="badge">{journey.tasks[0].state}</span>{/if}
+            </div>
+            {#if !plan}
+              <button onclick={() => void createPlan()} disabled={busy}>{message('inspectPlan')}</button>
+            {/if}
+          </div>
+        </section>
+
+        {#if plan}
+          <section class="card plan-card" aria-labelledby="plan-title">
+            <p class="eyebrow">{message('capabilityPreview')}</p>
+            <h2 id="plan-title">{message('planTitle')}</h2>
+            <dl>
+              <div><dt>{message('digest')}</dt><dd data-testid="plan-digest"><code>{plan.digest}</code></dd></div>
+              <div><dt>{message('effect')}</dt><dd>{plan.effects?.map((entry) => planItemLabel(entry.code)).join('; ') || message('effect')}</dd></div>
+              <div><dt>{message('noRisk')}</dt><dd>{plan.risks?.map((entry) => planItemLabel(entry.code)).join('; ') || message('noRisk')}</dd></div>
+              {#if plan.preconditions.bootstrapRelease}<div><dt>{message('capabilityRelease')}</dt><dd>{plan.preconditions.bootstrapRelease}</dd></div>{/if}
+              {#if plan.preconditions.overlayCommit}<div><dt>{message('localBootstrapOverlayCommit')}</dt><dd><code>{plan.preconditions.overlayCommit}</code></dd></div>{/if}
+              {#if plan.preconditions.dataDirectory}<div><dt>{message('localBootstrapDataDirectory')}</dt><dd><code>{plan.preconditions.dataDirectory}</code></dd></div>{/if}
+            </dl>
+            <div class="actions">
+              <button onclick={() => void approvePlan()} disabled={busy || run?.state === 'running'}>{message('approve')}</button>
+            </div>
+          </section>
+        {/if}
+
+        <section class="card retire-card" aria-labelledby="retire-title">
+          <p class="eyebrow">{decommissionMessage('eyebrow')}</p>
+          <h2 id="retire-title">{message('retireTitle')}</h2>
+          <p class="muted">{message('retireDescription')}</p>
+          <div class="actions"><button type="button" class="secondary" aria-expanded={showRetire} onclick={() => showRetire = !showRetire}>{showRetire ? message('retireHide') : message('retireShow')}</button></div>
+          {#if showRetire}
         <section class="card decommission-card" aria-labelledby="decommission-title">
           <p class="eyebrow">{decommissionMessage('eyebrow')}</p>
           <h2 id="decommission-title">{decommissionMessage('preserveTitle')}</h2>
@@ -1984,88 +2192,8 @@
             {/if}
           {/if}
         </section>
-
-
-
-        {#if activeProfile?.deploymentMode === 'local-lan' || activeProfile?.deploymentMode === 'local-public'}
-        <section class="card handoff-card" aria-labelledby="handoff-title">
-          <p class="eyebrow">{message('handoffEyebrow')}</p>
-          <h2 id="handoff-title">{activeProfile.deploymentMode === 'local-public' ? message('localPublicHandoffTitle') : message('handoffTitle')}</h2>
-          <p class="muted">{activeProfile.deploymentMode === 'local-public' ? message('localPublicHandoffDescription') : message('handoffDescription')}</p>
-          {#if handoffError}<p class="inline-error" role="alert">{handoffError}</p>{/if}
-          {#if handoffAssessment}
-            <section class="handoff-steps" aria-label={message('handoffStepsTitle')}>
-              <h3>{message('handoffStepsTitle')}</h3>
-              <ul class="handoff-checklist">
-                {#each handoffAssessment.steps as step (step.name)}
-                  <li class:complete={step.complete}><span aria-hidden="true">{step.complete ? '✓' : '○'}</span> {handoffStepLabel(step.name)}</li>
-                {/each}
-              </ul>
-            </section>
-          {/if}
-          {#if vaultStatus?.state === 'unlocked'}
-            {#if activeProfile.deploymentMode === 'local-lan'}
-              <div class="actions"><button type="button" onclick={() => void establishClusterCA()} disabled={handoffBusy}>{message('handoffClusterCAEstablish')}</button><button type="button" class="secondary" onclick={() => void installDeviceTrust()} disabled={handoffBusy}>{message('handoffDeviceTrustInstall')}</button></div>
-              {#if deviceTrustFingerprint}<p class="inline-notice">{message('handoffDeviceTrustFingerprint')}: <code>{deviceTrustFingerprint}</code></p>{/if}
-            {/if}
-            <form onsubmit={(event) => { event.preventDefault(); void establishPrivateNetwork(); }}>
-              <label><span>{message('handoffBaseDomain')}</span><input bind:value={handoffBaseDomain} required placeholder="smallworlds.internal" /></label>
-              <div class="actions"><button type="submit" disabled={handoffBusy}>{message('handoffPrivateNetworkEstablish')}</button></div>
-            </form>
-            <div class="actions"><button type="button" onclick={() => void detectTailscale()} disabled={handoffBusy}>{message('handoffTailscaleDetect')}</button></div>
-            {#if tailscaleOffer}
-              <p class="inline-notice">{tailscaleOffer.detected ? message('handoffTailscaleDetected') : message('handoffTailscaleAbsent')} {#if tailscaleOffer.acquisition.available}{message('handoffTailscaleAcquire')} {/if}<a href={tailscaleOffer.acquisition.manualInstructionsUrl} target="_blank" rel="noreferrer">{message('handoffTailscaleManual')}</a></p>
-            {/if}
-            <div class="actions"><button type="button" onclick={() => void establishEnrollment()} disabled={handoffBusy}>{message('handoffEnrollmentEstablish')}</button><button type="button" class="secondary" onclick={() => void consumeLauncherEnrollment()} disabled={handoffBusy}>{message('handoffLauncherConsume')}</button></div>
-            <div class="actions"><button type="button" onclick={() => void verifyHandoff()} disabled={handoffBusy}>{message('handoffVerify')}</button><button type="button" class="secondary" onclick={() => void closeTemporaryAccess()} disabled={handoffBusy}>{message('handoffCloseAccess')}</button></div>
-            <div class="actions"><button type="button" onclick={() => void claimFirstOwner()} disabled={handoffBusy}>{message('handoffFirstOwnerClaim')}</button><button type="button" onclick={() => void registerFirstOwner()} disabled={handoffBusy || !firstOwnerChallenge}>{message('handoffFirstOwnerRegister')}</button></div>
-          {:else}
-            <p class="muted">{message('handoffUnlockFirst')}</p>
-          {/if}
-          {#if handoffAssessment}
-            <section class="handoff-limitations" aria-label={message('handoffLimitations')}>
-              <h3>{message('handoffLimitations')}</h3>
-              <ul>{#each handoffAssessment.limitations as limitation (limitation)}<li>{limitation}</li>{/each}</ul>
-            </section>
-            {#if handoffAssessment.complete && handoffAssessment.consoleHandoffUrl}
-              <p class="inline-notice" data-testid="console-handoff-url">{message('handoffConsoleUrl')}: <a href={handoffAssessment.consoleHandoffUrl}>{handoffAssessment.consoleHandoffUrl}</a></p>
-            {/if}
           {/if}
         </section>
-        {/if}
-
-        <section aria-labelledby="next-title">
-          <p class="eyebrow">{message('next')}</p>
-          <div class="card task-card">
-            <div>
-              <h2 id="next-title">{message('task')}</h2>
-              <p>{message('taskDescription')}</p>
-              {#if journey?.tasks[0]}<span class="badge">{journey.tasks[0].state}</span>{/if}
-            </div>
-            {#if !plan}
-              <button onclick={() => void createPlan()} disabled={busy}>{message('inspectPlan')}</button>
-            {/if}
-          </div>
-        </section>
-
-        {#if plan}
-          <section class="card plan-card" aria-labelledby="plan-title">
-            <p class="eyebrow">{message('capabilityPreview')}</p>
-            <h2 id="plan-title">{message('planTitle')}</h2>
-            <dl>
-              <div><dt>{message('digest')}</dt><dd data-testid="plan-digest"><code>{plan.digest}</code></dd></div>
-              <div><dt>{message('effect')}</dt><dd>{plan.effects?.map((entry) => planItemLabel(entry.code)).join('; ') || message('effect')}</dd></div>
-              <div><dt>{message('noRisk')}</dt><dd>{plan.risks?.map((entry) => planItemLabel(entry.code)).join('; ') || message('noRisk')}</dd></div>
-              {#if plan.preconditions.bootstrapRelease}<div><dt>{message('capabilityRelease')}</dt><dd>{plan.preconditions.bootstrapRelease}</dd></div>{/if}
-              {#if plan.preconditions.overlayCommit}<div><dt>{message('localBootstrapOverlayCommit')}</dt><dd><code>{plan.preconditions.overlayCommit}</code></dd></div>{/if}
-              {#if plan.preconditions.dataDirectory}<div><dt>{message('localBootstrapDataDirectory')}</dt><dd><code>{plan.preconditions.dataDirectory}</code></dd></div>{/if}
-            </dl>
-            <div class="actions">
-              <button onclick={() => void approvePlan()} disabled={busy || run?.state === 'running'}>{message('approve')}</button>
-            </div>
-          </section>
-        {/if}
-        {/if}
 
         <section aria-labelledby="activity-title">
           <p class="eyebrow">{message('activity')}</p>
@@ -2118,6 +2246,25 @@
   .eyebrow { margin: 0 0 .35rem; color: #5b6e61; font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .12em; }
   .profile-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
   .card { border-radius: 1rem; background: white; border: 1px solid #d5ded7; box-shadow: 0 10px 30px rgba(26, 55, 38, .06); padding: clamp(1.25rem, 3vw, 2rem); }
+
+  /* Journey rail: where the operator is, what is behind them, what is still
+     out of reach and why. Wraps to a single column on narrow screens. */
+  .journey-rail { margin: 0 0 1.5rem; }
+  .journey-rail ol { list-style: none; margin: 0; padding: 0; display: grid; gap: .4rem; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); }
+  .journey-rail li { display: flex; }
+  .journey-rail button { width: 100%; display: grid; grid-template-columns: auto 1fr; gap: .15rem .6rem; align-items: start; text-align: left; background: white; border: 1px solid #d5ded7; border-radius: .75rem; padding: .7rem .8rem; color: inherit; font: inherit; min-height: 0; }
+  .journey-rail li.locked button { background: #f4f7f5; }
+  .journey-rail .rail-index { grid-row: 1 / span 2; display: grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; background: #e6ede8; color: #2c4a37; font-weight: 800; font-size: .8rem; }
+  .journey-rail .rail-title { font-weight: 750; font-size: .92rem; }
+  .journey-rail .rail-state { font-size: .76rem; color: #5b6e61; }
+  .journey-rail li.done button { border-color: #b7cfc0; }
+  .journey-rail li.done .rail-index { background: #2c6b45; color: white; }
+  .journey-rail li.current button { border-color: #2c6b45; box-shadow: 0 0 0 2px rgba(44, 107, 69, .18); }
+  .journey-rail li.current .rail-index { background: #2c6b45; color: white; }
+  .step-heading { margin-bottom: 1rem; }
+  .provider-choice { display: grid; gap: .5rem; border: 1px solid #d5ded7; border-radius: .75rem; padding: 1rem; margin-bottom: 1.25rem; }
+  .provider-choice legend { font-weight: 750; padding: 0 .4rem; }
+  .retire-card { margin-top: 2rem; border-color: #e3cfcf; }
   .form-card { max-width: 42rem; }
   form, form label { display: grid; gap: .5rem; }
   form { gap: 1.25rem; }

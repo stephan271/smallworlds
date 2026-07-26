@@ -67,6 +67,9 @@ test('Operator completes and reopens the launcher journey in English and German'
 			await vault.getByRole('button', { name: 'Store credential' }).click();
 			await expect(vault.getByText('Current', { exact: true })).toBeVisible();
 			await expect(page.getByText(secret)).toHaveCount(0);
+			// The recovery bundle sits behind a disclosure so it cannot be
+			// stumbled into; open it before exercising the export.
+			await page.getByRole('button', { name: /^Recovery Bundle\.\.\./ }).click();
 			const recovery = page.getByRole('region', { name: 'Recovery Bundle' });
 			await expect(recovery).toBeVisible();
 			await recovery.getByLabel('Recovery passphrase').first().fill('playwright-recovery-passphrase');
@@ -86,6 +89,12 @@ test('Operator completes and reopens the launcher journey in English and German'
 		}
 
     if (journey.language === 'en') {
+      // The journey is staged now, so offsite protection lives on its own step.
+      // Reaching it ahead of its prerequisites is allowed — the step says what
+      // is still missing rather than refusing to open.
+      await page.getByRole('navigation', { name: 'Setup progress' })
+        .getByRole('button', { name: /Protect against losing the machine/ })
+        .click();
       const offsite = page.getByRole('region', { name: 'Offsite backup destination' });
       await offsite.getByLabel('S3 endpoint (HTTPS)').fill('https://s3.eu-central-003.backblazeb2.com');
       await offsite.getByLabel('Region').fill('eu-central-003');
