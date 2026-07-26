@@ -49,19 +49,25 @@ test('Operator plans a Linux-node bootstrap and observes interruption recovery',
   });
 
   await page.goto('/?token=local-bootstrap-token');
-  await page.getByRole('button', { name: 'Create another profile' }).click();
-  const profile = page.getByRole('region', { name: 'Create Cluster Profile' });
-  await profile.getByLabel('Profile name').fill(profileName);
-  await profile.getByRole('button', { name: 'Create profile' }).click();
+  await page.getByRole('button', { name: 'Set up another installation' }).click();
+  const profile = page.getByRole('region', { name: 'Set up a new installation' });
+  await profile.getByLabel('Name this installation').fill(profileName);
+  await profile.getByRole('button', { name: 'Create installation' }).click();
 
-  const node = page.getByRole('region', { name: 'Inspect Local Cluster Node' });
+  // A new installation opens on the first stage; the machine is a later one and
+  // is reached through the journey rail rather than by scrolling.
+  await page.getByRole('navigation', { name: 'Setup progress' })
+    .getByRole('button', { name: /Choose the computer that will run it/ })
+    .click();
+
+  const node = page.getByRole('region', { name: 'The computer that will run it' });
   await node.getByLabel('Target').selectOption('same-host');
-  await node.getByLabel('Persistent data directory').fill('/data/smallworlds-acceptance');
-  await node.getByRole('button', { name: 'Inspect node' }).click();
-  await expect(node.getByText('Ready to plan')).toBeVisible();
+  await node.getByLabel("Where your community's data is kept").fill('/data/smallworlds-acceptance');
+  await node.getByRole('button', { name: 'Check this computer' }).click();
+  await expect(node.getByText('Suitable — ready to continue')).toBeVisible();
 
-  const bootstrap = node.getByRole('region', { name: 'Bootstrap Kubernetes and GitOps' });
-  await bootstrap.getByLabel('Base domain').fill('home.example');
+  const bootstrap = node.getByRole('region', { name: 'Install onto this computer' });
+  await bootstrap.getByLabel('Your web address').fill('home.example');
   await bootstrap.getByLabel('Kubernetes Secret manifests (kept outside Git)').fill('apiVersion: v1\nkind: Secret\ndata:\n  token: browser-only-secret');
   await bootstrap.getByRole('button', { name: 'Reinspect and create Change Plan' }).click();
   await expect(page.getByTestId('plan-digest')).toHaveText('a'.repeat(64));
@@ -69,7 +75,8 @@ test('Operator plans a Linux-node bootstrap and observes interruption recovery',
   await expect(page.getByText('/var/lib/smallworlds-data', { exact: true })).toBeVisible();
   await expect(page.getByText('browser-only-secret')).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'Approve and run' }).click();
+  await page.getByRole('button', { name: 'Approve and start' }).click();
+  // The sidebar carries the run state for the installation as a whole.
   await expect(page.getByRole('status')).toContainText('interrupted');
   await expect(page.getByRole('status')).toContainText('Verified');
   expect(runReads).toBeGreaterThan(1);

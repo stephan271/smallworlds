@@ -86,9 +86,9 @@ test('browser bootstrap survives a Launcher interruption after a durable node ma
       }, selectedRunID);
       await page.reload();
       await expect(page.getByRole('status')).toContainText('Running');
-      const cancellationVault = page.getByRole('region', { name: 'Launcher Vault' });
-      await cancellationVault.getByLabel('Vault passphrase').fill(vaultPassphrase);
-      await cancellationVault.getByRole('button', { name: 'Unlock vault' }).click();
+      const cancellationVault = page.getByRole('region', { name: 'Password safe (Launcher Vault)' });
+      await cancellationVault.getByLabel('Safe passphrase').fill(vaultPassphrase);
+      await cancellationVault.getByRole('button', { name: 'Open the safe' }).click();
       if (recoverRunID) {
         await expect(cancellationVault.getByText('Unlocked', { exact: true })).toBeVisible();
         await expect(page.getByRole('status')).toContainText('Verified', { timeout: convergenceTimeout });
@@ -105,58 +105,66 @@ test('browser bootstrap survives a Launcher interruption after a durable node ma
       return;
     }
 
-    const vault = page.getByRole('region', { name: 'Launcher Vault' });
+    const vault = page.getByRole('region', { name: 'Password safe (Launcher Vault)' });
+    // The journey is staged, so each stage is opened from the rail. Looking
+    // ahead is allowed; the stage itself says what is still missing.
+    const rail = page.getByRole('navigation', { name: 'Setup progress' });
     if (!resumeSetup) {
-      const profile = page.getByRole('region', { name: 'Create Cluster Profile' });
-      await profile.getByLabel('Profile name').fill(`Disposable acceptance ${Date.now()}`);
-      await profile.getByLabel('Deployment mode').selectOption('local-lan');
-      await profile.getByRole('button', { name: 'Create profile' }).click();
+      const profile = page.getByRole('region', { name: 'Set up a new installation' });
+      await profile.getByLabel('Name this installation').fill(`Disposable acceptance ${Date.now()}`);
+      await profile.getByLabel('Where it runs').selectOption('local-lan');
+      await profile.getByRole('button', { name: 'Create installation' }).click();
 
-      await vault.getByLabel('Vault passphrase').fill(vaultPassphrase);
-      await vault.getByRole('button', { name: 'Unlock vault' }).click();
+      await vault.getByLabel('Safe passphrase').fill(vaultPassphrase);
+      await vault.getByRole('button', { name: 'Open the safe' }).click();
       await expect(vault.getByText('Unlocked', { exact: true })).toBeVisible();
 
-      const capabilities = page.getByRole('region', { name: 'Cluster Capabilities' });
-      await capabilities.getByLabel('Selection mode').selectOption('minimal');
-      await capabilities.getByLabel('Pinned SmallWorlds release').fill('v1.2.27');
-      await capabilities.getByLabel('Private overlay repository').fill(repositoryURL);
-      await capabilities.getByLabel('Base domain').fill(domain);
+      const capabilities = page.getByRole('region', { name: 'What the infrastructure will offer' });
+      await capabilities.getByLabel('How much to install').selectOption('minimal');
+      await capabilities.getByLabel('SmallWorlds version').fill('v1.2.27');
+      await capabilities.getByLabel('Your private settings repository').fill(repositoryURL);
+      await capabilities.getByLabel('Your web address').fill(domain);
       const capabilityPlanResponse = page.waitForResponse('**/api/v1/capabilities/plan');
-      await capabilities.getByRole('button', { name: 'Review GitOps overlay' }).click();
+      await capabilities.getByRole('button', { name: 'Show me the exact changes' }).click();
       expect((await capabilityPlanResponse).status()).toBe(201);
       await expect(capabilities.getByTestId('overlay-diff')).toContainText('v1.2.27');
 
       const capabilityApproval = page.waitForResponse((response) => response.url().includes('/api/v1/plans/') && response.url().endsWith('/approve'));
-      await page.getByRole('button', { name: 'Approve and run' }).click();
+      await page.getByRole('button', { name: 'Approve and start' }).click();
       expect((await capabilityApproval).status()).toBe(202);
       await expect(page.getByRole('status')).toContainText('Verified');
 
-      const genericGit = page.getByRole('region', { name: 'HTTPS Git overlay access' });
-      await genericGit.getByLabel('Git username').fill(gitUsername);
-      await genericGit.getByLabel('Git access token').fill(gitToken);
+      // Both Git providers now live behind one explicit choice on the settings
+      // stage, rather than two cards that looked like separate obligations.
+      await rail.getByRole('button', { name: /Choose where your settings are kept/ }).click();
+      const settingsRepo = page.getByRole('region', { name: 'Choose where your settings are kept' });
+      await settingsRepo.getByLabel('Use a Git repository I already have').check();
+      await settingsRepo.getByLabel('Git username').fill(gitUsername);
+      await settingsRepo.getByLabel('Git access token').fill(gitToken);
       const validationResponse = page.waitForResponse('**/api/v1/generic-git/token/validate');
-      await genericGit.getByRole('button', { name: 'Validate and store access' }).click();
+      await settingsRepo.getByRole('button', { name: 'Validate and store access' }).click();
       expect((await validationResponse).status()).toBe(200);
-      await expect(genericGit.getByText(repositoryURL, { exact: true })).toBeVisible();
+      await expect(settingsRepo.getByText(repositoryURL, { exact: true })).toBeVisible();
       const establishResponse = page.waitForResponse('**/api/v1/generic-git/overlay/establish');
-      await genericGit.getByRole('button', { name: 'Initialize HTTPS Git overlay' }).click();
+      await settingsRepo.getByRole('button', { name: 'Initialize HTTPS Git overlay' }).click();
       expect((await establishResponse).status()).toBe(201);
-      await expect(genericGit).toContainText(`${repositoryURL} @`);
+      await expect(settingsRepo).toContainText(`${repositoryURL} @`);
     } else {
       await expect(vault).toBeVisible();
       if (await vault.getByText('Locked', { exact: true }).isVisible()) {
-        await vault.getByLabel('Vault passphrase').fill(vaultPassphrase);
-        await vault.getByRole('button', { name: 'Unlock vault' }).click();
+        await vault.getByLabel('Safe passphrase').fill(vaultPassphrase);
+        await vault.getByRole('button', { name: 'Open the safe' }).click();
       }
       await expect(vault.getByText('Unlocked', { exact: true })).toBeVisible();
     }
 
-    const assets = page.getByRole('region', { name: 'Verified bootstrap assets' });
-    await assets.getByLabel('Pinned SmallWorlds release').fill('v1.2.27');
+    await rail.getByRole('button', { name: /Download the installer files/ }).click();
+    const assets = page.getByRole('region', { name: 'Installer files' });
+    await assets.getByLabel('SmallWorlds version').fill('v1.2.27');
     const inspectAssetsResponse = page.waitForResponse((response) => response.url().includes('/api/v1/bootstrap-assets?'));
-    await assets.getByRole('button', { name: 'Inspect asset requirements' }).click();
+    await assets.getByRole('button', { name: 'Show which files are needed' }).click();
     expect((await inspectAssetsResponse).status()).toBe(200);
-    const acquireAssets = assets.getByRole('button', { name: 'Download and verify assets' });
+    const acquireAssets = assets.getByRole('button', { name: 'Download and check the files' });
     if (await acquireAssets.isEnabled()) {
       const acquireAssetsResponse = page.waitForResponse('**/api/v1/bootstrap-assets/acquire', { timeout: 180_000 });
       await acquireAssets.click();
@@ -164,10 +172,11 @@ test('browser bootstrap survives a Launcher interruption after a durable node ma
     }
     await expect(assets).toContainText('ready');
 
-    const node = page.getByRole('region', { name: 'Inspect Local Cluster Node' });
+    await rail.getByRole('button', { name: /Choose the computer that will run it/ }).click();
+    const node = page.getByRole('region', { name: 'The computer that will run it' });
     await node.getByLabel('Target').selectOption('remote');
-    await node.getByLabel('Persistent data directory').fill(dataDirectory);
-    await node.getByLabel('Host name or IP address').fill(sshHost);
+    await node.getByLabel("Where your community's data is kept").fill(dataDirectory);
+    await node.getByLabel('Its name or address on the network').fill(sshHost);
     await node.getByLabel('SSH username').fill(sshUser);
     await node.getByLabel('SSH authentication').selectOption('agent');
     const probeResponse = page.waitForResponse('**/api/v1/nodes/probe');
@@ -178,12 +187,12 @@ test('browser bootstrap survives a Launcher interruption after a durable node ma
     await node.getByRole('button', { name: 'Confirm and trust' }).click();
     expect((await trustResponse).status()).toBe(201);
     const inspectNodeResponse = page.waitForResponse('**/api/v1/nodes/inspect');
-    await node.getByRole('button', { name: 'Inspect node' }).click();
+    await node.getByRole('button', { name: 'Check this computer' }).click();
     expect((await inspectNodeResponse).status()).toBe(200);
-    await expect(node.getByText('Ready to plan')).toBeVisible();
+    await expect(node.getByText('Suitable — ready to continue')).toBeVisible();
 
-    const bootstrap = node.getByRole('region', { name: 'Bootstrap Kubernetes and GitOps' });
-    await bootstrap.getByLabel('Base domain').fill(domain);
+    const bootstrap = node.getByRole('region', { name: 'Install onto this computer' });
+    await bootstrap.getByLabel('Your web address').fill(domain);
     await bootstrap.getByLabel('Kubernetes node name').fill('smallworlds-acceptance');
     const clusterSecrets = [
       'apiVersion: v1',
@@ -238,7 +247,7 @@ test('browser bootstrap survives a Launcher interruption after a durable node ma
     const markerWatcher = spawn('ssh', sshArguments(sshTarget, "while ! sudo -n test -f /etc/smallworlds/bootstrap-started; do sleep 0.05; done"), { stdio: 'ignore' });
     const markerObserved = waitForChild(markerWatcher, 10 * 60_000);
     const bootstrapApproval = page.waitForResponse((response) => response.url().includes('/api/v1/plans/') && response.url().endsWith('/approve'));
-    await page.getByRole('button', { name: 'Approve and run' }).click();
+    await page.getByRole('button', { name: 'Approve and start' }).click();
     expect((await bootstrapApproval).status()).toBe(202);
     await expect(page.getByRole('status')).toContainText('bootstrap-atomic-operation', { timeout: 120_000 });
     await markerObserved;
@@ -277,9 +286,9 @@ test('browser bootstrap survives a Launcher interruption after a durable node ma
 
     await page.goto(`${baseURL}/?token=${encodeURIComponent(launchToken)}`);
     await expect(page.getByRole('status')).toContainText(/waiting-for-vault|Running/);
-    const restartedVault = page.getByRole('region', { name: 'Launcher Vault' });
-    await restartedVault.getByLabel('Vault passphrase').fill(vaultPassphrase);
-    await restartedVault.getByRole('button', { name: 'Unlock vault' }).click();
+    const restartedVault = page.getByRole('region', { name: 'Password safe (Launcher Vault)' });
+    await restartedVault.getByLabel('Safe passphrase').fill(vaultPassphrase);
+    await restartedVault.getByRole('button', { name: 'Open the safe' }).click();
     await expect(restartedVault.getByText('Unlocked', { exact: true })).toBeVisible();
     await expect(page.getByRole('status')).toContainText('Verified', { timeout: convergenceTimeout });
     await expect(page.getByRole('status')).toContainText('verification-complete');
