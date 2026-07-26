@@ -19,6 +19,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/stephan271/smallworlds/operator-console/internal/fileprotection"
 )
@@ -162,6 +163,10 @@ type Manager struct {
 	cacheDirectory string
 	catalog        Catalog
 	fetcher        Fetcher
+	// Descriptors verified from a published manifest, so one journey does not
+	// refetch and reverify the same manifest at every step.
+	resolvedMutex sync.Mutex
+	resolved      map[string][]Descriptor
 }
 
 func NewManager(dataDirectory string, catalog Catalog, fetcher Fetcher) (*Manager, error) {
@@ -172,7 +177,7 @@ func NewManager(dataDirectory string, catalog Catalog, fetcher Fetcher) (*Manage
 	if fetcher == nil {
 		fetcher = HTTPFetcher{}
 	}
-	return &Manager{cacheDirectory: cacheDirectory, catalog: catalog, fetcher: fetcher}, nil
+	return &Manager{cacheDirectory: cacheDirectory, catalog: catalog, fetcher: fetcher, resolved: map[string][]Descriptor{}}, nil
 }
 
 const defaultReleaseSigningPublicKey = "eQCLQJVXRoXY1nSSKuhRsDMoLBh2EjkGo9GVe6vLP/0="
@@ -215,8 +220,56 @@ func DefaultCatalog() Catalog {
 	}
 }
 
-func (manager *Manager) Requirements(release string) ([]Status, error) {
+// resolve names the assets of a release. A descriptor compiled into this launcher
+// wins outright — it needs no network and cannot be influenced. Only when the
+// launcher has never heard of the release does it read that release's published
+// manifest, which is accepted solely on the compiled signing key's word. This is
+// what lets an operator install the newest release without rebuilding the
+// launcher, and it is also the only path by which a release the launcher was not
+// built with can ever be installed.
+func (manager *Manager) resolve(ctx context.Context, release string) ([]Descriptor, error) {
 	descriptors, err := manager.catalog.Resolve(release)
+	if err == nil {
+		return descriptors, nil
+	}
+	if !errors.Is(err, ErrUnknownRelease) {
+		return nil, err
+	}
+	// Only a SmallWorlds release publishes a manifest. Toolchain artifacts share
+	// this catalog under identifiers of their own shape ("tofu-1.10.6+..."), and
+	// there is nothing to fetch for those: unknown stays unknown.
+	if ValidateRelease(release) != nil {
+		return nil, ErrUnknownRelease
+	}
+	// Without a compiled signing key there is no anchor to judge a manifest by,
+	// so there is nothing this launcher could safely install for a release it was
+	// not built with.
+	if len(manager.catalog.TrustedPublicKey) != ed25519.PublicKeySize {
+		return nil, ErrUnknownRelease
+	}
+	manager.resolvedMutex.Lock()
+	cached, ok := manager.resolved[release]
+	manager.resolvedMutex.Unlock()
+	if ok {
+		return cached, nil
+	}
+	contents, err := manager.fetchManifest(ctx, release)
+	if err != nil {
+		return nil, err
+	}
+	descriptors, err = DescriptorsFromManifest(contents, release, manager.catalog.TrustedPublicKey)
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(descriptors, func(left, right int) bool { return descriptors[left].ID < descriptors[right].ID })
+	manager.resolvedMutex.Lock()
+	manager.resolved[release] = descriptors
+	manager.resolvedMutex.Unlock()
+	return descriptors, nil
+}
+
+func (manager *Manager) Requirements(ctx context.Context, release string) ([]Status, error) {
+	descriptors, err := manager.resolve(ctx, release)
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +285,7 @@ func (manager *Manager) Requirements(release string) ([]Status, error) {
 }
 
 func (manager *Manager) Acquire(ctx context.Context, release string) ([]Status, error) {
-	descriptors, err := manager.catalog.Resolve(release)
+	descriptors, err := manager.resolve(ctx, release)
 	if err != nil {
 		return nil, err
 	}
@@ -250,8 +303,8 @@ func (manager *Manager) Acquire(ctx context.Context, release string) ([]Status, 
 // OpenVerified returns a read-only handle to one already verified asset. It
 // keeps cache paths private while giving Launcher-owned executors a streaming
 // input; callers cannot select an arbitrary local executable or URL.
-func (manager *Manager) OpenVerified(release, id string) (*os.File, Descriptor, error) {
-	descriptors, err := manager.catalog.Resolve(release)
+func (manager *Manager) OpenVerified(ctx context.Context, release, id string) (*os.File, Descriptor, error) {
+	descriptors, err := manager.resolve(ctx, release)
 	if err != nil {
 		return nil, Descriptor{}, err
 	}

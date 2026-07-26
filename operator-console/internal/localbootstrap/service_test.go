@@ -110,7 +110,7 @@ func TestServiceResumesAnInterruptedRunWithoutLeakingSecretsToActivity(t *testin
 		return value, nil
 	}
 	runner := &resumableRunner{}
-	service := localbootstrap.NewService(store, func(_, _ string) (io.ReadCloser, bootstrapassets.Descriptor, error) {
+	service := localbootstrap.NewService(store, func(context.Context, string, string) (io.ReadCloser, bootstrapassets.Descriptor, error) {
 		return io.NopCloser(strings.NewReader("archive")), bootstrapassets.Descriptor{SHA256: binding.AssetSHA256}, nil
 	}, loader, runner)
 	service.Execute(run.ID)
@@ -192,7 +192,7 @@ func TestServiceDefersCancellationUntilTheAtomicCheckpointFinishes(t *testing.T)
 		t.Fatal(err)
 	}
 	loader := func(string) (string, error) { return "", vault.ErrSecretNotFound }
-	service := localbootstrap.NewService(store, func(_, _ string) (io.ReadCloser, bootstrapassets.Descriptor, error) {
+	service := localbootstrap.NewService(store, func(context.Context, string, string) (io.ReadCloser, bootstrapassets.Descriptor, error) {
 		return io.NopCloser(strings.NewReader("archive")), bootstrapassets.Descriptor{SHA256: binding.AssetSHA256}, nil
 	}, loader, cancellationRunner{store: store})
 	service.Execute(run.ID)

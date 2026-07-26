@@ -18,7 +18,7 @@ type stubSource struct {
 	acquireCalls     int
 }
 
-func (source *stubSource) Requirements(release string) ([]bootstrapassets.Status, error) {
+func (source *stubSource) Requirements(ctx context.Context, release string) ([]bootstrapassets.Status, error) {
 	source.requestedRelease = release
 	return source.statuses, source.err
 }
@@ -42,7 +42,7 @@ func TestReleaseBindsThePinnedVersions(t *testing.T) {
 		t.Fatalf("release %q does not name the pinned versions", release)
 	}
 	source := &stubSource{statuses: readyStatuses()}
-	if _, err := Inspect(source); err != nil {
+	if _, err := Inspect(t.Context(), source); err != nil {
 		t.Fatalf("inspect: %v", err)
 	}
 	if source.requestedRelease != release {
@@ -67,7 +67,7 @@ func TestToolchainReadyOnlyWhenEveryArtifactIsVerified(t *testing.T) {
 	if interrupted.Ready || interrupted.ReasonKey != "toolchain-not-yet-acquired" {
 		t.Fatalf("partial toolchain reported ready: %+v", interrupted)
 	}
-	missingProvider, err := Inspect(&stubSource{statuses: readyStatuses()[:1]})
+	missingProvider, err := Inspect(t.Context(), &stubSource{statuses: readyStatuses()[:1]})
 	if err != nil {
 		t.Fatalf("inspect: %v", err)
 	}

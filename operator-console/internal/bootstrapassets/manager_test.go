@@ -117,13 +117,13 @@ func TestOpenVerifiedExposesOnlyAnAlreadyVerifiedAssetStream(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := manager.OpenVerified(descriptor.Release, descriptor.ID); err == nil {
+	if _, _, err := manager.OpenVerified(t.Context(), descriptor.Release, descriptor.ID); err == nil {
 		t.Fatal("opened an asset before verification")
 	}
 	if _, err := manager.Acquire(context.Background(), descriptor.Release); err != nil {
 		t.Fatal(err)
 	}
-	file, opened, err := manager.OpenVerified(descriptor.Release, descriptor.ID)
+	file, opened, err := manager.OpenVerified(t.Context(), descriptor.Release, descriptor.ID)
 	if err != nil {
 		t.Fatal(err)
 	}

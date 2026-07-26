@@ -341,6 +341,10 @@
       capabilityRepositoryURL = overlayIdentity.repositoryUrl || capabilityRepositoryURL;
       capabilityRelease = overlayIdentity.release || capabilityRelease;
       capabilityDomain = overlayIdentity.domain || capabilityDomain;
+      // The install has to use the address the overlay recorded — the launcher
+      // refuses a plan that disagrees with it. Leaving this field blank meant
+      // retyping it from memory and getting a mismatch for a typo.
+      localBootstrapDomain = overlayIdentity.domain || localBootstrapDomain;
     } catch {
       overlayIdentity = null;
     }
@@ -566,7 +570,9 @@
   function localBootstrapErrorMessage(code: string): string {
     switch (code) {
       case 'gitops_overlay_required': return message('localBootstrapOverlayRequired');
-      case 'local_bootstrap_release_mismatch': return message('localBootstrapReleaseMismatch');
+      case 'local_bootstrap_release_mismatch': return message('localBootstrapReleaseMismatch')
+        .replaceAll('{overlay}', overlayIdentity?.release ?? capabilityRelease);
+      case 'local_bootstrap_release_unsupported': return message('localBootstrapReleaseUnsupported');
       case 'local_bootstrap_domain_mismatch': return message('localBootstrapDomainMismatch');
       case 'bootstrap_assets_not_ready': return message('localBootstrapAssetsNotReady');
       case 'bootstrap_asset_release_unavailable': return message('bootstrapAssetUnavailable');
@@ -835,6 +841,10 @@
       // approval part of the action instead of a separate step nothing points to.
       await api.approvePlan(capabilityPlan.plan.id);
       const identity = await api.establishGitHubOverlay({ profileId: activeProfile.id, planId: capabilityPlan.plan.id, repositoryName: gitHubRepositoryName, mode: capabilityMode, communityIds: capabilityApps, release: capabilityRelease, domain: capabilityDomain });
+      // Treat a just-established overlay exactly like a reopened one, so the
+      // stage shows what was recorded and the install picks up its address.
+      overlayIdentity = identity;
+      localBootstrapDomain = identity.domain || localBootstrapDomain;
       gitHubOverlayNotice = `${identity.repositoryUrl} @ ${identity.commit}`;
     } catch (reason) {
       gitHubError = reason instanceof Error ? reason.message : 'github_overlay_failed';
@@ -866,6 +876,10 @@
     try {
       await api.approvePlan(capabilityPlan.plan.id);
       const identity = await api.establishGenericGitOverlay({ profileId: activeProfile.id, planId: capabilityPlan.plan.id, repositoryUrl: capabilityRepositoryURL, mode: capabilityMode, communityIds: capabilityApps, release: capabilityRelease, domain: capabilityDomain });
+      // Treat a just-established overlay exactly like a reopened one, so the
+      // stage shows what was recorded and the install picks up its address.
+      overlayIdentity = identity;
+      localBootstrapDomain = identity.domain || localBootstrapDomain;
       genericGitOverlayNotice = `${identity.repositoryUrl} @ ${identity.commit}`;
     } catch (reason) {
       genericGitError = reason instanceof Error ? reason.message : 'generic_git_overlay_failed';
@@ -1420,8 +1434,11 @@
         profileId: activeProfile.id,
         target: currentNodeTarget(),
         authentication: { kind: nodeAuthentication, ...(nodePassword ? { password: nodePassword } : {}), ...(nodePrivateKey ? { privateKey: nodePrivateKey } : {}), ...(nodeKeyPassphrase ? { keyPassphrase: nodeKeyPassphrase } : {}), ...(nodeSudoPassword ? { sudoPassword: nodeSudoPassword } : {}) },
-        release: 'v1.2.27',
-        configuration: { domain: localBootstrapDomain, environmentExtension: localBootstrapEnvironment, dataDirectory: localBootstrapDataDirectory, nodeName: localBootstrapNodeName, acmeEmail: localBootstrapACMEEmail, manageDns: localBootstrapManageDNS },
+        // The release this project was pinned to when its settings repository was
+        // established. The launcher installs any release whose signed manifest
+        // verifies, so there is nothing to hardcode here.
+        release: overlayIdentity?.release || capabilityRelease,
+        configuration: { domain: localBootstrapDomain || overlayIdentity?.domain || capabilityDomain, environmentExtension: localBootstrapEnvironment, dataDirectory: localBootstrapDataDirectory, nodeName: localBootstrapNodeName, acmeEmail: localBootstrapACMEEmail, manageDns: localBootstrapManageDNS },
         ...(activeProfile.deploymentMode === 'local-public' ? { publicExposure: { dns01Provider: 'hetzner' as const, dnsZone: localBootstrapDomain, dnsToken: localPublicDNSToken, publicIpBehavior: 'dynamic-ddns' as const, routerAcknowledged: localPublicRouterAcknowledged } } : {}),
         ...(localBootstrapSecrets ? { secretsManifest: localBootstrapSecrets } : {})
       });

@@ -4599,7 +4599,8 @@
           },
           "release": {
             "type": "string",
-            "const": "v1.2.27"
+            "pattern": "^v[0-9]{1,4}\\.[0-9]{1,4}\\.[0-9]{1,6}(-[0-9A-Za-z.]{1,32})?$",
+            "description": "The SmallWorlds release to install. Any release whose published bootstrap asset manifest verifies against the launcher’s compiled release signing key is installable; the launcher does not carry a fixed list."
           },
           "configuration": {
             "$ref": "#/components/schemas/LocalBootstrapConfiguration"

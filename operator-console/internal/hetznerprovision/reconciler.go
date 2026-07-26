@@ -73,7 +73,7 @@ func (UnavailableReconciler) Apply(context.Context, ReconcileRequest) (Outcome, 
 // always one the manager verified by digest and signature; no caller can point
 // the reconciler at an executable of its choosing.
 type BinaryResolver interface {
-	VerifiedPath(release, id string) (string, error)
+	VerifiedPath(ctx context.Context, release, id string) (string, error)
 }
 
 // TofuReconciler runs the pinned OpenTofu against a Cluster Profile's isolated
@@ -105,7 +105,7 @@ func (reconciler TofuReconciler) Apply(ctx context.Context, request ReconcileReq
 	if reconciler.Workspaces == nil || reconciler.Binaries == nil {
 		return Outcome{}, ErrReconcilerUnavailable
 	}
-	binary, err := reconciler.Binaries.VerifiedPath(request.Binding.ToolchainRelease, openTofuArtifactID())
+	binary, err := reconciler.Binaries.VerifiedPath(ctx, request.Binding.ToolchainRelease, openTofuArtifactID())
 	if err != nil {
 		return Outcome{}, fmt.Errorf("%w: %v", ErrReconcilerUnavailable, err)
 	}

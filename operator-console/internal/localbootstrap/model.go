@@ -19,7 +19,10 @@ import (
 
 var ErrInvalidBinding = errors.New("local bootstrap plan binding is invalid")
 
-const SupportedRelease = "v1.2.27"
+// A binding records the release it was planned for. Which releases exist, and
+// which this launcher may install, is decided by signed release evidence in the
+// bootstrap asset manager — so this validates the identifier's shape only.
+var safeRelease = regexp.MustCompile(`^v[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,6}(-[0-9A-Za-z.]{1,32})?$`)
 
 var safeCommit = regexp.MustCompile(`^[a-f0-9]{40,64}$`)
 var safeProfileValue = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
@@ -118,7 +121,7 @@ func (binding Binding) Validate() error {
 	if !strings.HasPrefix(binding.NodeIdentity, "sha256:") && !strings.HasPrefix(binding.NodeIdentity, "SHA256:") {
 		return fmt.Errorf("%w: node identity", ErrInvalidBinding)
 	}
-	if !safeCommit.MatchString(binding.InspectionDigest) || binding.InspectedAt.IsZero() || binding.Release != SupportedRelease || !safeProfileValue.MatchString(binding.AssetID) || !safeCommit.MatchString(binding.AssetSHA256) {
+	if !safeCommit.MatchString(binding.InspectionDigest) || binding.InspectedAt.IsZero() || !safeRelease.MatchString(binding.Release) || !safeProfileValue.MatchString(binding.AssetID) || !safeCommit.MatchString(binding.AssetSHA256) {
 		return fmt.Errorf("%w: inspected release", ErrInvalidBinding)
 	}
 	repository, err := url.Parse(binding.OverlayRepositoryURL)

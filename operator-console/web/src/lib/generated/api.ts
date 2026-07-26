@@ -1816,8 +1816,8 @@ export interface components {
             profileId: string;
             target: components["schemas"]["NodeTarget"];
             authentication: components["schemas"]["NodeAuthentication"];
-            /** @constant */
-            release: "v1.2.27";
+            /** @description The SmallWorlds release to install. Any release whose published bootstrap asset manifest verifies against the launcher’s compiled release signing key is installable; the launcher does not carry a fixed list. */
+            release: string;
             configuration: components["schemas"]["LocalBootstrapConfiguration"];
             /** Format: password */
             secretsManifest?: string;

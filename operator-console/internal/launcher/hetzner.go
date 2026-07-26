@@ -76,8 +76,8 @@ func (unavailableConvergenceObserver) Observe(context.Context, hetznerprovision.
 // manager checked by digest and signature.
 type assetBinaries struct{ manager *bootstrapassets.Manager }
 
-func (binaries assetBinaries) VerifiedPath(release, id string) (string, error) {
-	file, _, err := binaries.manager.OpenVerified(release, id)
+func (binaries assetBinaries) VerifiedPath(ctx context.Context, release, id string) (string, error) {
+	file, _, err := binaries.manager.OpenVerified(ctx, release, id)
 	if err != nil {
 		return "", err
 	}
@@ -233,7 +233,7 @@ func (server *Server) hetznerStatus(response http.ResponseWriter, request *http.
 		return
 	}
 	view := hetznerView(record)
-	toolchain, err := tofu.Inspect(server.assets)
+	toolchain, err := tofu.Inspect(request.Context(), server.assets)
 	if err == nil {
 		view["toolchain"] = toolchain
 	} else {
@@ -524,7 +524,7 @@ func (server *Server) bindHetznerPlan(ctx context.Context, profile state.Profile
 	if err != nil {
 		return hetznerprovision.Binding{}, errHetznerOverlayRequired
 	}
-	toolchain, err := tofu.Inspect(server.assets)
+	toolchain, err := tofu.Inspect(ctx, server.assets)
 	if err != nil || !toolchain.Ready {
 		return hetznerprovision.Binding{}, errHetznerToolchainRequired
 	}
@@ -718,7 +718,7 @@ func (server *Server) observeHetznerProject(ctx context.Context, binding hetzner
 		observed.Release = overlay.Release
 		observed.OverlayRepositoryURL, observed.OverlayCommit, observed.OverlayRelease = overlay.RepositoryURL, overlay.Commit, overlay.Release
 	}
-	toolchain, err := tofu.Inspect(server.assets)
+	toolchain, err := tofu.Inspect(ctx, server.assets)
 	if err == nil {
 		observed.ToolchainRelease, observed.ToolchainReady = toolchain.Release, toolchain.Ready
 	}

@@ -44,7 +44,7 @@ type Runner interface {
 	Observe(context.Context, RunRequest) (Observation, error)
 }
 
-type AssetOpener func(release, id string) (io.ReadCloser, bootstrapassets.Descriptor, error)
+type AssetOpener func(ctx context.Context, release, id string) (io.ReadCloser, bootstrapassets.Descriptor, error)
 type SecretLoader func(key string) (string, error)
 
 type Service struct {
@@ -126,7 +126,7 @@ func (service *Service) Execute(runID string) {
 		service.completeOrRetryConvergence(ctx, run, observation)
 		return
 	}
-	archive, descriptor, err := service.openAsset(binding.Release, binding.AssetID)
+	archive, descriptor, err := service.openAsset(ctx, binding.Release, binding.AssetID)
 	if err != nil {
 		_ = service.checkpoint(ctx, run, "waiting-for-assets")
 		return
@@ -306,8 +306,8 @@ func (service *Service) fail(ctx context.Context, run state.RunRecord, checkpoin
 }
 
 func OpenManagerAsset(manager *bootstrapassets.Manager) AssetOpener {
-	return func(release, id string) (io.ReadCloser, bootstrapassets.Descriptor, error) {
-		file, descriptor, err := manager.OpenVerified(release, id)
+	return func(ctx context.Context, release, id string) (io.ReadCloser, bootstrapassets.Descriptor, error) {
+		file, descriptor, err := manager.OpenVerified(ctx, release, id)
 		if err != nil {
 			return nil, bootstrapassets.Descriptor{}, fmt.Errorf("open bootstrap archive: %w", err)
 		}

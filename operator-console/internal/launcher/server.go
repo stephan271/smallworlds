@@ -2666,8 +2666,8 @@ func (server *Server) bootstrapAssets(response http.ResponseWriter, request *htt
 		writeError(response, http.StatusBadRequest, "bootstrap_asset_release_required")
 		return
 	}
-	assets, err := server.assets.Requirements(release)
-	if errors.Is(err, bootstrapassets.ErrUnknownRelease) {
+	assets, err := server.assets.Requirements(request.Context(), release)
+	if errors.Is(err, bootstrapassets.ErrUnknownRelease) || errors.Is(err, bootstrapassets.ErrUntrustedManifest) {
 		writeError(response, http.StatusConflict, "bootstrap_asset_release_unavailable")
 		return
 	}
@@ -2707,7 +2707,7 @@ func (server *Server) acquireBootstrapAssets(response http.ResponseWriter, reque
 		return
 	}
 	assets, err := server.assets.Acquire(request.Context(), input.Release)
-	if errors.Is(err, bootstrapassets.ErrUnknownRelease) {
+	if errors.Is(err, bootstrapassets.ErrUnknownRelease) || errors.Is(err, bootstrapassets.ErrUntrustedManifest) {
 		writeError(response, http.StatusConflict, "bootstrap_asset_release_unavailable")
 		return
 	}
@@ -3038,7 +3038,11 @@ func (server *Server) planLocalBootstrap(response http.ResponseWriter, request *
 		writeError(response, http.StatusBadRequest, "invalid_local_bootstrap_plan")
 		return
 	}
-	if input.Release != localbootstrap.SupportedRelease {
+	// Which releases are installable is settled by signed evidence, not by a
+	// version compiled into this launcher: the asset check further down accepts
+	// any release whose published manifest verifies against the trusted release
+	// key. Only the shape of the identifier is rejected here.
+	if err := bootstrapassets.ValidateRelease(input.Release); err != nil {
 		writeError(response, http.StatusConflict, "local_bootstrap_release_unsupported")
 		return
 	}
@@ -3153,8 +3157,8 @@ func (server *Server) planLocalBootstrap(response http.ResponseWriter, request *
 		writeError(response, http.StatusConflict, "local_bootstrap_domain_mismatch")
 		return
 	}
-	assetStatuses, err := server.assets.Requirements(input.Release)
-	if errors.Is(err, bootstrapassets.ErrUnknownRelease) {
+	assetStatuses, err := server.assets.Requirements(request.Context(), input.Release)
+	if errors.Is(err, bootstrapassets.ErrUnknownRelease) || errors.Is(err, bootstrapassets.ErrUntrustedManifest) {
 		writeError(response, http.StatusConflict, "bootstrap_asset_release_unavailable")
 		return
 	}

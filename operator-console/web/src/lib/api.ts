@@ -152,11 +152,11 @@ export const api = {
   validateGitHubToken: (profileId: string, token: string, authority: 'creation' | 'ongoing') =>
     request<GitHubTokenStatus>('/api/v1/github/token/validate', { method: 'POST', body: JSON.stringify({ profileId, token, authority }) }),
   establishGitHubOverlay: (input: { profileId: string; planId: string; repositoryName: string; mode: CapabilityMode; communityIds: string[]; release: string; domain: string }) =>
-    request<{ repositoryUrl: string; commit: string }>('/api/v1/github/overlay/establish', { method: 'POST', body: JSON.stringify(input) }),
+    request<OverlayIdentity>('/api/v1/github/overlay/establish', { method: 'POST', body: JSON.stringify(input) }),
   validateGenericGitCredentials: (profileId: string, repositoryUrl: string, username: string, token: string) =>
     request<GenericGitCredentialStatus>('/api/v1/generic-git/token/validate', { method: 'POST', body: JSON.stringify({ profileId, repositoryUrl, username, token }) }),
   establishGenericGitOverlay: (input: { profileId: string; planId: string; repositoryUrl: string; mode: CapabilityMode; communityIds: string[]; release: string; domain: string }) =>
-    request<{ repositoryUrl: string; commit: string }>('/api/v1/generic-git/overlay/establish', { method: 'POST', body: JSON.stringify(input) }),
+    request<OverlayIdentity>('/api/v1/generic-git/overlay/establish', { method: 'POST', body: JSON.stringify(input) }),
   proposeGenericGitOverlay: (input: { profileId: string; planId: string; repositoryUrl: string; mode: CapabilityMode; communityIds: string[]; release: string; domain: string }) =>
     request<GenericGitProposal>('/api/v1/generic-git/overlay/propose', { method: 'POST', body: JSON.stringify(input) }),
   getBootstrapAssetRequirements: (release: string) => request<BootstrapAssetRequirements>(`/api/v1/bootstrap-assets?release=${encodeURIComponent(release)}`),

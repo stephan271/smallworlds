@@ -54,7 +54,7 @@ func ArtifactIDs() []string {
 // satisfies it directly: descriptors are compiled in, digests and signatures
 // are checked before an artifact is usable, and no caller can supply a URL.
 type AssetSource interface {
-	Requirements(release string) ([]bootstrapassets.Status, error)
+	Requirements(ctx context.Context, release string) ([]bootstrapassets.Status, error)
 	Acquire(ctx context.Context, release string) ([]bootstrapassets.Status, error)
 }
 
@@ -72,8 +72,8 @@ type Toolchain struct {
 
 // Inspect reports the current state of the pinned toolchain without
 // downloading anything.
-func Inspect(source AssetSource) (Toolchain, error) {
-	statuses, err := source.Requirements(Release())
+func Inspect(ctx context.Context, source AssetSource) (Toolchain, error) {
+	statuses, err := source.Requirements(ctx, Release())
 	if err != nil {
 		return unavailable(), toolchainError(err)
 	}

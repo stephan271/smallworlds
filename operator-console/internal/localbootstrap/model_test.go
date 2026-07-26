@@ -48,7 +48,10 @@ func TestBindingRejectsMutableOverlayAndShellUnsafeConfiguration(t *testing.T) {
 		"http repository": func(binding *localbootstrap.Binding) { binding.OverlayRepositoryURL = "http://git.example/config" },
 		"relative data":   func(binding *localbootstrap.Binding) { binding.Configuration.DataDirectory = "../../etc" },
 		"unsafe email":    func(binding *localbootstrap.Binding) { binding.Configuration.ACMEEmail = "admin@example.test'\nROOT=1" },
-		"legacy payload":  func(binding *localbootstrap.Binding) { binding.Release = "v1.2.25" },
+		// A binding no longer names one blessed release — any release whose signed
+		// manifest verifies is installable — but the identifier's shape still has
+		// to be safe to carry into a command line.
+		"unsafe release": func(binding *localbootstrap.Binding) { binding.Release = "v1.2.25; rm -rf /" },
 	} {
 		t.Run(name, func(t *testing.T) {
 			binding := validBinding()
