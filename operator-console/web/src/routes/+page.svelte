@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type FullDecommissionResult, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type HandoffAssessment, type HetznerChangePlan, type HetznerPlanResult, type HetznerPresets, type HetznerPresetTier, type HetznerProject, type HetznerToolchain, type HetznerWorkspace, type TemporaryAccess, type NodeCapabilities, type NodeInspectionResult, type NodeProbeResult, type NodeTarget, type OffsitePlan, type OffsiteProposal, type OffsiteProtection, type PreserveDataDecommissionResult, type RecoveryBundlePreview, type SetupJourney, type SetupSettings, type TailscaleClientOffer, type VaultStatus, type WorkflowRun } from '$lib/api';
+  import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type FullDecommissionResult, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type HandoffAssessment, type HetznerChangePlan, type HetznerPlanResult, type HetznerPresets, type HetznerPresetTier, type HetznerProject, type HetznerToolchain, type HetznerWorkspace, type TemporaryAccess, type NodeCapabilities, type NodeInspectionResult, type NodeProbeResult, type NodeTarget, type NodeTrust, type OffsitePlan, type OverlayIdentity, type OffsiteProposal, type OffsiteProtection, type PreserveDataDecommissionResult, type RecoveryBundlePreview, type SetupJourney, type SetupSettings, type TailscaleClientOffer, type VaultStatus, type WorkflowRun } from '$lib/api';
   import { decommissionCopy } from '$lib/decommission-copy';
   import { formatCurrency, formatDateTime, formatNumber } from '$lib/format';
   import { translate, type Locale, type MessageKey } from '$lib/i18n';
@@ -92,6 +92,10 @@
   let nodeSudoPassword = $state('');
   let nodeProbe: NodeProbeResult | null = $state(null);
   let nodeInspection: NodeInspectionResult | null = $state(null);
+  // Recorded in earlier sessions rather than observed in this one: which machine
+  // this profile pinned, and which settings repository it deploys from.
+  let nodeTrust: NodeTrust | null = $state(null);
+  let overlayIdentity: OverlayIdentity | null = $state(null);
   let nodeError = $state('');
   let nodeBusy = $state(false);
   let cleanNodeBusy = $state(false);
@@ -188,10 +192,16 @@
     const rentsMachine = mode === 'hetzner';
     const runsOwnMachine = mode === 'local-lan' || mode === 'local-public';
 
-    const chosen = capabilityPlan !== null;
+    // Evidence recorded in an earlier session counts just as much as evidence
+    // observed in this one — an established overlay proves the capabilities were
+    // chosen and the repository written, however long ago the browser was closed.
+    const chosen = capabilityPlan !== null || overlayIdentity !== null;
     const installersReady = bootstrapAssets !== null && bootstrapAssets.assets.every((asset) => asset.state === 'ready');
+    // A pinned host key is deliberately not enough here: it proves which machine
+    // this is, not that the machine is still suitable to install onto. That
+    // verdict is only ever a fresh inspection's to give.
     const machineReady = rentsMachine ? hetznerPlan !== null : nodeInspection?.assessment.ready === true;
-    const repositoryReady = gitHubStatus !== null || genericGitStatus !== null;
+    const repositoryReady = gitHubStatus !== null || genericGitStatus !== null || overlayIdentity !== null;
 
     const list: Step[] = [
       { id: 'capabilities', titleKey: 'stepCapabilitiesTitle', summaryKey: 'stepCapabilitiesSummary', done: chosen, blockedKey: '' },
@@ -281,6 +291,23 @@
       // A profile with no saved answers yet simply keeps the defaults.
     }
     credentials = vaultStatus?.state === 'unlocked' ? await api.listCredentials(profile.id) : [];
+    // Everything this browser session observed belongs to the profile it was
+    // observed for. Carrying it into another profile would claim its stages were
+    // done on evidence about a different cluster.
+    capabilityPlan = null;
+    capabilityError = '';
+    bootstrapAssets = null;
+    bootstrapAssetError = '';
+    nodeProbe = null;
+    nodeInspection = null;
+    nodeError = '';
+    sshKeyPlanned = false;
+    gitHubStatus = null;
+    gitHubError = '';
+    gitHubOverlayNotice = '';
+    genericGitStatus = null;
+    genericGitError = '';
+    genericGitProposal = null;
     plan = null;
     activities = [];
     handoffAssessment = null;
@@ -297,6 +324,25 @@
       offsiteStatus = await api.getOffsiteProtection(profile.id);
     } catch {
       offsiteStatus = null;
+    }
+    // A recorded machine is authoritative over the typed answer: it is the one
+    // whose host key was actually confirmed. Fall back to the saved answer so a
+    // profile that has not got that far keeps what the operator already typed.
+    try {
+      nodeTrust = await api.getNodeTrust(profile.id);
+      nodeHost = nodeTrust.host || nodeHost;
+      nodePort = nodeTrust.port || nodePort;
+      nodeUsername = nodeTrust.username || nodeUsername;
+    } catch {
+      nodeTrust = null;
+    }
+    try {
+      overlayIdentity = await api.getOverlayIdentity(profile.id);
+      capabilityRepositoryURL = overlayIdentity.repositoryUrl || capabilityRepositoryURL;
+      capabilityRelease = overlayIdentity.release || capabilityRelease;
+      capabilityDomain = overlayIdentity.domain || capabilityDomain;
+    } catch {
+      overlayIdentity = null;
     }
     hetznerTokenValue = '';
     hetznerPresets = null;
@@ -1906,6 +1952,18 @@
           <h2 id="node-title">{message('nodeTitle')}</h2>
           <p class="muted">{message('nodeDescription')}</p>
           {#if nodeError}<p class="inline-error" role="alert">{nodeError}</p>{/if}
+          <!-- What an earlier session already confirmed about this machine. Shown
+               before the form, so a returning operator recognises the cluster
+               instead of facing fields that look like a fresh start. -->
+          {#if nodeTrust}
+            <dl class="credential-metadata" data-testid="recorded-node">
+              <div><dt>{message('nodeRecordedHost')}</dt><dd><code>{nodeTrust.host}:{nodeTrust.port}</code></dd></div>
+              <div><dt>{message('nodeUsername')}</dt><dd><code>{nodeTrust.username}</code></dd></div>
+              <div><dt>{message('nodeFingerprint')}</dt><dd><code>{nodeTrust.fingerprint}</code></dd></div>
+              <div><dt>{message('nodeRecordedConfirmedAt')}</dt><dd>{formatDateTime(locale, nodeTrust.confirmedAt)}</dd></div>
+            </dl>
+            <p class="muted">{message('nodeRecordedHint')}</p>
+          {/if}
           <form onsubmit={(event) => { event.preventDefault(); void inspectNode(); }} onchange={rememberAnswers}>
             <label><span>{message('nodeTarget')}</span><select bind:value={nodeTargetKind}><option value="remote">{message('nodeRemote')}</option>{#if nodeCapabilities?.sameHostSupported}<option value="same-host">{message('nodeSameHost')}</option>{/if}</select></label>
             {#if activeProfile?.deploymentMode === 'local-lan' || activeProfile?.deploymentMode === 'local-public'}<label><span>{message('localBootstrapDataDirectory')}</span><input bind:value={localBootstrapDataDirectory} required /></label>{/if}
@@ -2020,6 +2078,19 @@
           <p class="eyebrow">{message('stepSettingsRepoTitle')}</p>
           <h2 id="settings-repo-title">{message('stepSettingsRepoTitle')}</h2>
           <p class="muted">{message('stepSettingsRepoSummary')}</p>
+
+          <!-- The repository an earlier session established. Without this an
+               existing cluster looks as though it had none, and the obvious next
+               move would be to establish a second one. -->
+          {#if overlayIdentity}
+            <dl class="credential-metadata" data-testid="recorded-overlay">
+              <div><dt>{message('overlayRecordedRepository')}</dt><dd><a href={overlayIdentity.repositoryUrl} target="_blank" rel="noreferrer">{overlayIdentity.repository}</a></dd></div>
+              <div><dt>{message('capabilityRelease')}</dt><dd><code>{overlayIdentity.release}</code></dd></div>
+              <div><dt>{message('overlayRecordedCommit')}</dt><dd><code>{overlayIdentity.commit.slice(0, 12)}</code></dd></div>
+              <div><dt>{message('overlayRecordedAt')}</dt><dd>{formatDateTime(locale, overlayIdentity.recordedAt)}</dd></div>
+            </dl>
+            <p class="muted">{message('overlayRecordedHint')}</p>
+          {/if}
 
           <!-- One decision up front, instead of two skippable provider cards
                that gave no hint they were alternatives rather than both required. -->

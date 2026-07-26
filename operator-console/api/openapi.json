@@ -2625,6 +2625,60 @@
           }
         }
       }
+    },
+    "/api/v1/profiles/{id}/node-trust": {
+      "get": {
+        "operationId": "getProfileNodeTrust",
+        "summary": "Read the machine this profile has pinned",
+        "description": "Returns the recorded SSH host-key confirmation for the profile's cluster node, so a returning Operator sees the machine's address, port, and account without reprobing it. Absent until a host key has been confirmed.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProfileID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recorded evidence for this profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeTrust"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/profiles/{id}/overlay": {
+      "get": {
+        "operationId": "getProfileOverlayIdentity",
+        "summary": "Read the settings repository this profile established",
+        "description": "Returns the recorded GitOps Overlay identity — repository, pinned release, and commit — so a returning Operator sees which repository the cluster deploys from without re-establishing it. Absent until an Overlay has been established.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProfileID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recorded evidence for this profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverlayIdentity"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5773,6 +5827,39 @@
             "type": "boolean"
           },
           "recordedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "NodeTrust": {
+        "type": "object",
+        "description": "The machine whose SSH host key this profile has pinned. Recorded, secret-free, and durable, so a returning Operator sees which computer the cluster belongs to without probing it again.",
+        "required": [
+          "profileId",
+          "host",
+          "port",
+          "username",
+          "fingerprint",
+          "confirmedAt"
+        ],
+        "properties": {
+          "profileId": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer"
+          },
+          "username": {
+            "type": "string"
+          },
+          "fingerprint": {
+            "type": "string"
+          },
+          "confirmedAt": {
             "type": "string",
             "format": "date-time"
           }

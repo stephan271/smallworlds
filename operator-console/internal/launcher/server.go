@@ -3550,6 +3550,36 @@ func (server *Server) profile(response http.ResponseWriter, request *http.Reques
 		server.profileSetupSettings(response, request, current, profileID)
 		return
 	}
+	// Recorded, secret-free evidence a returning Operator needs in order to see
+	// where an existing cluster stands. Without these, everything the Launcher
+	// observed in an earlier session would live only in the browser tab that
+	// observed it, and reopening a profile would look like starting over.
+	if len(parts) == 2 && parts[1] == "node-trust" && request.Method == http.MethodGet {
+		trust, err := server.store.GetNodeTrust(request.Context(), profileID)
+		if errors.Is(err, state.ErrNotFound) {
+			writeError(response, http.StatusNotFound, "node_trust_not_recorded")
+			return
+		}
+		if err != nil {
+			writeError(response, http.StatusInternalServerError, "node_trust_unavailable")
+			return
+		}
+		writeJSON(response, http.StatusOK, trust)
+		return
+	}
+	if len(parts) == 2 && parts[1] == "overlay" && request.Method == http.MethodGet {
+		overlay, err := server.store.GetOverlayIdentity(request.Context(), profileID)
+		if errors.Is(err, state.ErrNotFound) {
+			writeError(response, http.StatusNotFound, "overlay_not_established")
+			return
+		}
+		if err != nil {
+			writeError(response, http.StatusInternalServerError, "overlay_unavailable")
+			return
+		}
+		writeJSON(response, http.StatusOK, overlay)
+		return
+	}
 	if len(parts) >= 2 && parts[1] == "credentials" {
 		server.profileCredentials(response, request, current, profileID, parts[2:])
 		return

@@ -1249,6 +1249,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/profiles/{id}/node-trust": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the machine this profile has pinned
+         * @description Returns the recorded SSH host-key confirmation for the profile's cluster node, so a returning Operator sees the machine's address, port, and account without reprobing it. Absent until a host key has been confirmed.
+         */
+        get: operations["getProfileNodeTrust"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{id}/overlay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the settings repository this profile established
+         * @description Returns the recorded GitOps Overlay identity — repository, pinned release, and commit — so a returning Operator sees which repository the cluster deploys from without re-establishing it. Absent until an Overlay has been established.
+         */
+        get: operations["getProfileOverlayIdentity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2136,6 +2176,16 @@ export interface components {
             /** Format: date-time */
             recordedAt?: string;
         };
+        /** @description The machine whose SSH host key this profile has pinned. Recorded, secret-free, and durable, so a returning Operator sees which computer the cluster belongs to without probing it again. */
+        NodeTrust: {
+            profileId: string;
+            host: string;
+            port: number;
+            username: string;
+            fingerprint: string;
+            /** Format: date-time */
+            confirmedAt: string;
+        };
     };
     responses: {
         /** @description Invalid request */
@@ -2478,7 +2528,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Private overlay initialized from an approved plan */
+            /** @description Private overlay initialized from an approved plan, in a newly created repository or an adopted empty one */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -4246,6 +4296,52 @@ export interface operations {
                 };
                 content?: never;
             };
+        };
+    };
+    getProfileNodeTrust: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProfileID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recorded evidence for this profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NodeTrust"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getProfileOverlayIdentity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProfileID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recorded evidence for this profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverlayIdentity"];
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
     };
 }
