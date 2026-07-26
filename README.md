@@ -1,3 +1,9 @@
+
+# Talks
+
+Watch the [SmallWorlds Lightning Talk](https://rawcdn.githack.com/stephan271/smallworlds/30beb50/lightning_talk.html).
+> Refer to the [SmallWorlds Architecture Diagram](smallworlds_architecture.md) for system topology and data flows.
+
 # SmallWorlds Setup Guide
 
 <p align="center">
@@ -12,13 +18,6 @@
 > **Not Hetzner-only.** `smallworlds-init.sh` supports two deployment targets: **`hetzner`** (a Hetzner Cloud VM provisioned by Terraform) and **`local`** (an existing Linux machine in your LAN, bootstrapped in place over SSH — no cloud account needed). Hetzner is still required for **public DNS** — either via Terraform on the `hetzner` target, or via a free Hetzner DNS zone + API token on an **internet-exposed** `local` deployment. A LAN-only `local` deployment needs no Hetzner account, no domain registration, and no cloud resources at all. See the "Deployment Instructions" section below and `doc/local-deployment.md` for details.
 
 This document outlines the deployment process for a SmallWorlds GitOps cluster. The architecture relies on an upstream foundation repository and a private, user-controlled configuration repository.
-
-
-# Talks
-
-Watch the [SmallWorlds Lightning Talk](https://rawcdn.githack.com/stephan271/smallworlds/30beb50/lightning_talk.html).
-> [!TIP]
-> Refer to the [SmallWorlds Architecture Diagram](smallworlds_architecture.md) for system topology and data flows.
 
 ## System Components
 
