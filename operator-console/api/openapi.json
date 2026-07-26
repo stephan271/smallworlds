@@ -362,7 +362,7 @@
         },
         "responses": {
           "201": {
-            "description": "Private overlay initialized from an approved plan",
+            "description": "Private overlay initialized from an approved plan, in a newly created repository or an adopted empty one",
             "content": {
               "application/json": {
                 "schema": {

@@ -107,6 +107,97 @@ func TestApprovedCapabilityPlanEstablishesGitHubOverlayAndRecordsIdentity(t *tes
 	}
 }
 
+func TestEstablishGitHubOverlayAdoptsAnExistingEmptyRepository(t *testing.T) {
+	response := establishOverlayAgainstProvider(t, func(response http.ResponseWriter, request *http.Request) {
+		switch request.URL.Path {
+		case "/user/repos":
+			response.WriteHeader(http.StatusUnprocessableEntity)
+		case "/user":
+			response.Header().Set("X-OAuth-Scopes", "repo")
+			_, _ = response.Write([]byte(`{"login":"octocat"}`))
+		case "/repos/octocat/overlay":
+			_, _ = response.Write([]byte(`{"full_name":"octocat/overlay","html_url":"https://github.com/octocat/overlay","default_branch":"main","private":true}`))
+		case "/repos/octocat/overlay/git/ref/heads/main":
+			response.WriteHeader(http.StatusConflict)
+		case "/repos/octocat/overlay/git/blobs":
+			_, _ = response.Write([]byte(`{"sha":"blob"}`))
+		case "/repos/octocat/overlay/git/trees":
+			_, _ = response.Write([]byte(`{"sha":"tree"}`))
+		case "/repos/octocat/overlay/git/commits":
+			_, _ = response.Write([]byte(`{"sha":"adopted123"}`))
+		case "/repos/octocat/overlay/git/refs":
+			_, _ = response.Write([]byte(`{"ref":"refs/heads/main"}`))
+		default:
+			http.NotFound(response, request)
+		}
+	})
+	if response.StatusCode != http.StatusCreated {
+		t.Fatalf("establish status=%d body=%s", response.StatusCode, readAll(t, response))
+	}
+	if body := readAll(t, response); !bytes.Contains(body, []byte("adopted123")) {
+		t.Fatalf("identity missing commit: %s", body)
+	}
+}
+
+func TestEstablishGitHubOverlayRefusesARepositoryThatAlreadyHasCommits(t *testing.T) {
+	response := establishOverlayAgainstProvider(t, func(response http.ResponseWriter, request *http.Request) {
+		switch request.URL.Path {
+		case "/user/repos":
+			response.WriteHeader(http.StatusUnprocessableEntity)
+		case "/user":
+			response.Header().Set("X-OAuth-Scopes", "repo")
+			_, _ = response.Write([]byte(`{"login":"octocat"}`))
+		case "/repos/octocat/overlay":
+			_, _ = response.Write([]byte(`{"full_name":"octocat/overlay","html_url":"https://github.com/octocat/overlay","default_branch":"main","private":true}`))
+		case "/repos/octocat/overlay/git/ref/heads/main":
+			_, _ = response.Write([]byte(`{"object":{"sha":"existing"}}`))
+		default:
+			t.Errorf("unexpected mutation of a non-empty repository: %s %s", request.Method, request.URL.Path)
+			http.NotFound(response, request)
+		}
+	})
+	if response.StatusCode != http.StatusConflict {
+		t.Fatalf("establish status=%d body=%s", response.StatusCode, readAll(t, response))
+	}
+	if body := readAll(t, response); !bytes.Contains(body, []byte("github_repository_not_empty")) {
+		t.Fatalf("unexpected refusal: %s", body)
+	}
+}
+
+// establishOverlayAgainstProvider walks the journey up to an approved capability
+// plan and returns the raw response of the GitHub overlay establishment step.
+func establishOverlayAgainstProvider(t *testing.T, handle http.HandlerFunc) *http.Response {
+	t.Helper()
+	provider := httptest.NewServer(handle)
+	defer provider.Close()
+	handler, err := launcher.New(launcher.Config{DataDir: t.TempDir(), LaunchToken: "overlay-launch", GitHubClient: github.New(provider.URL, provider.Client())})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = handler.Close() })
+	cookie, csrf := exchange(t, handler, "overlay-launch")
+	profile := createProfile(t, handler, cookie, csrf, "Overlay", "en", "local-lan")
+	unlockVaultForRecoveryTest(t, handler, cookie, csrf)
+	tokenBody, _ := json.Marshal(map[string]string{"profileId": profile.ID, "token": "github_pat_secret", "authority": "creation"})
+	response := request(t, handler, http.MethodPost, "/api/v1/github/token/validate", tokenBody, cookie, map[string]string{"X-CSRF-Token": csrf})
+	response.Body.Close()
+	planBody, _ := json.Marshal(map[string]any{"profileId": profile.ID, "mode": "minimal", "communityIds": []string{}, "release": "v1.2.3", "repositoryUrl": "https://github.com/octocat/overlay.git", "domain": "home.example"})
+	response = request(t, handler, http.MethodPost, "/api/v1/capabilities/plan", planBody, cookie, map[string]string{"X-CSRF-Token": csrf})
+	var planned struct {
+		Plan struct {
+			ID string `json:"id"`
+		} `json:"plan"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&planned); err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	response = request(t, handler, http.MethodPost, "/api/v1/plans/"+planned.Plan.ID+"/approve", nil, cookie, map[string]string{"X-CSRF-Token": csrf})
+	response.Body.Close()
+	establishBody, _ := json.Marshal(map[string]any{"profileId": profile.ID, "planId": planned.Plan.ID, "repositoryName": "overlay", "mode": "minimal", "communityIds": []string{}, "release": "v1.2.3", "domain": "home.example"})
+	return request(t, handler, http.MethodPost, "/api/v1/github/overlay/establish", establishBody, cookie, map[string]string{"X-CSRF-Token": csrf})
+}
+
 func readAll(t *testing.T, response *http.Response) []byte {
 	t.Helper()
 	defer response.Body.Close()

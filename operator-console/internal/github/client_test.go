@@ -2,6 +2,7 @@ package github_test
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -51,6 +52,72 @@ func TestCreatePrivateRepositoryAndInitialCommitWithoutGitCLI(t *testing.T) {
 	}
 	if repository.FullName != "octocat/smallworlds-overlay" || commit != "abc123" || len(calls) != 5 {
 		t.Fatalf("repository=%#v commit=%q calls=%v", repository, commit, calls)
+	}
+}
+
+func TestCreatePrivateRepositoryAdoptsAnExistingEmptyRepository(t *testing.T) {
+	var calls []string
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		calls = append(calls, request.Method+" "+request.URL.Path)
+		switch request.URL.Path {
+		case "/user/repos":
+			response.WriteHeader(http.StatusUnprocessableEntity)
+			_, _ = response.Write([]byte(`{"message":"Repository creation failed.","errors":[{"message":"name already exists on this account"}]}`))
+		case "/user":
+			response.Header().Set("X-OAuth-Scopes", "repo")
+			_, _ = response.Write([]byte(`{"login":"octocat"}`))
+		case "/repos/octocat/smallworlds-overlay":
+			_, _ = response.Write([]byte(`{"full_name":"octocat/smallworlds-overlay","html_url":"https://github.com/octocat/smallworlds-overlay","default_branch":"main","private":true}`))
+		case "/repos/octocat/smallworlds-overlay/git/ref/heads/main":
+			response.WriteHeader(http.StatusConflict)
+			_, _ = response.Write([]byte(`{"message":"Git Repository is empty."}`))
+		default:
+			http.NotFound(response, request)
+		}
+	}))
+	defer server.Close()
+	repository, err := github.New(server.URL, server.Client()).CreatePrivateRepository(t.Context(), "token", "smallworlds-overlay")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repository.FullName != "octocat/smallworlds-overlay" || repository.DefaultBranch != "main" {
+		t.Fatalf("repository=%#v calls=%v", repository, calls)
+	}
+}
+
+func TestCreatePrivateRepositoryRefusesAnExistingRepositoryItWouldOverwrite(t *testing.T) {
+	for _, testcase := range []struct {
+		name       string
+		repository string
+		ref        int
+		want       error
+	}{
+		{"holds commits", `{"full_name":"octocat/overlay","default_branch":"main","private":true}`, http.StatusOK, github.ErrRepositoryNotEmpty},
+		{"is public", `{"full_name":"octocat/overlay","default_branch":"main","private":false}`, http.StatusConflict, github.ErrRepositoryNotPrivate},
+	} {
+		t.Run(testcase.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+				switch request.URL.Path {
+				case "/user/repos":
+					response.WriteHeader(http.StatusUnprocessableEntity)
+				case "/user":
+					response.Header().Set("X-OAuth-Scopes", "repo")
+					_, _ = response.Write([]byte(`{"login":"octocat"}`))
+				case "/repos/octocat/overlay":
+					_, _ = response.Write([]byte(testcase.repository))
+				case "/repos/octocat/overlay/git/ref/heads/main":
+					response.WriteHeader(testcase.ref)
+					_, _ = response.Write([]byte(`{"object":{"sha":"existing"}}`))
+				default:
+					http.NotFound(response, request)
+				}
+			}))
+			defer server.Close()
+			_, err := github.New(server.URL, server.Client()).CreatePrivateRepository(t.Context(), "token", "overlay")
+			if !errors.Is(err, testcase.want) {
+				t.Fatalf("error = %v, want %v", err, testcase.want)
+			}
+		})
 	}
 }
 

@@ -16,6 +16,8 @@ import (
 var ErrRateLimited = errors.New("github rate limit exceeded")
 var ErrInsufficientAuthority = errors.New("github token lacks required authority")
 var ErrUnauthorized = errors.New("github token was rejected")
+var ErrRepositoryNotEmpty = errors.New("github repository already contains commits")
+var ErrRepositoryNotPrivate = errors.New("github repository is not private")
 
 type Authority string
 
@@ -39,6 +41,7 @@ type Repository struct {
 	FullName      string `json:"full_name"`
 	HTMLURL       string `json:"html_url"`
 	DefaultBranch string `json:"default_branch"`
+	Private       bool   `json:"private"`
 }
 type Proposal struct {
 	URL    string `json:"url"`
@@ -117,8 +120,12 @@ func (client *Client) CreatePrivateRepository(ctx context.Context, token, name s
 		return Repository{}, err
 	}
 	defer response.Body.Close()
+	// A name that is already taken is not a dead end: an empty repository the
+	// Operator created ahead of time — or one left behind by a run that failed
+	// between creation and the initial commit — is adopted instead, so the
+	// journey stays resumable without a second repository name.
 	if response.StatusCode == http.StatusUnprocessableEntity {
-		return Repository{}, fmt.Errorf("github repository conflict")
+		return client.adoptEmptyRepository(ctx, token, name)
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return Repository{}, fmt.Errorf("github repository creation failed: %s", response.Status)
@@ -128,6 +135,60 @@ func (client *Client) CreatePrivateRepository(ctx context.Context, token, name s
 		return Repository{}, fmt.Errorf("decode github repository")
 	}
 	return repository, nil
+}
+
+// adoptEmptyRepository takes over a repository that already exists under the
+// token's owner, but only when nothing would be overwritten and it is private.
+// Anything else is refused rather than silently reconfigured — a repository with
+// commits may already be the Desired Configuration of a running cluster.
+func (client *Client) adoptEmptyRepository(ctx context.Context, token, name string) (Repository, error) {
+	status, err := client.ValidateToken(ctx, token, CreationAuthority)
+	if err != nil {
+		return Repository{}, err
+	}
+	response, err := client.doJSON(ctx, token, http.MethodGet, "/repos/"+status.Owner+"/"+name, nil)
+	if err != nil {
+		return Repository{}, err
+	}
+	var repository Repository
+	if response.StatusCode >= 200 && response.StatusCode < 300 {
+		err = json.NewDecoder(response.Body).Decode(&repository)
+	} else {
+		err = fmt.Errorf("status %s", response.Status)
+	}
+	response.Body.Close()
+	if err != nil || repository.FullName == "" || repository.DefaultBranch == "" {
+		return Repository{}, fmt.Errorf("inspect existing github repository: %w", err)
+	}
+	if !repository.Private {
+		return Repository{}, ErrRepositoryNotPrivate
+	}
+	empty, err := client.repositoryIsEmpty(ctx, token, repository)
+	if err != nil {
+		return Repository{}, err
+	}
+	if !empty {
+		return Repository{}, ErrRepositoryNotEmpty
+	}
+	return repository, nil
+}
+
+func (client *Client) repositoryIsEmpty(ctx context.Context, token string, repository Repository) (bool, error) {
+	response, err := client.doJSON(ctx, token, http.MethodGet, "/repos/"+repository.FullName+"/git/ref/heads/"+repository.DefaultBranch, nil)
+	if err != nil {
+		return false, err
+	}
+	defer response.Body.Close()
+	// GitHub answers 404 when the default branch has no ref yet and 409 while
+	// the repository holds no commits at all; both mean adopting it overwrites
+	// nothing.
+	if response.StatusCode == http.StatusNotFound || response.StatusCode == http.StatusConflict {
+		return true, nil
+	}
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return false, fmt.Errorf("inspect github default branch: %s", response.Status)
+	}
+	return false, nil
 }
 
 func (client *Client) WriteInitialFiles(ctx context.Context, token string, repository Repository, files map[string]string) (string, error) {

@@ -2308,6 +2308,14 @@ func (server *Server) establishGitHubOverlay(response http.ResponseWriter, reque
 		return
 	}
 	repository, err := server.github.CreatePrivateRepository(request.Context(), token, input.RepositoryName)
+	if errors.Is(err, github.ErrRepositoryNotEmpty) {
+		writeError(response, http.StatusConflict, "github_repository_not_empty")
+		return
+	}
+	if errors.Is(err, github.ErrRepositoryNotPrivate) {
+		writeError(response, http.StatusConflict, "github_repository_not_private")
+		return
+	}
 	if err != nil {
 		writeError(response, http.StatusBadGateway, "github_repository_creation_failed")
 		return

@@ -2031,7 +2031,7 @@
 
           {#if settingsProvider === 'github'}
             <p class="muted">{message('githubDescription')} <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">{message('githubTokenGuide')}</a></p>
-            {#if gitHubError}<p class="inline-error" role="alert">{gitHubError}</p>{/if}
+            {#if gitHubError}<p class="inline-error" role="alert">{gitHubError === 'github_repository_not_empty' ? message('githubRepositoryNotEmpty') : gitHubError === 'github_repository_not_private' ? message('githubRepositoryNotPrivate') : gitHubError}</p>{/if}
             <form onsubmit={(event) => { event.preventDefault(); void validateGitHubToken(); }} onchange={rememberAnswers}>
               <label><span>{message('githubAuthority')}</span><select bind:value={gitHubAuthority}><option value="creation">{message('githubCreationAuthority')}</option><option value="ongoing">{message('githubOngoingAuthority')}</option></select></label>
               <label><span>{message('githubToken')}</span><input type="password" bind:value={gitHubToken} required={!gitHubTokenStored} autocomplete="off" />{#if gitHubTokenStored}<small class="muted">{message('secretAlreadySaved')}</small>{/if}</label>
@@ -2039,7 +2039,7 @@
             </form>
             {#if gitHubStatus}<dl class="credential-metadata"><div><dt>{message('githubOwner')}</dt><dd>{gitHubStatus.owner}</dd></div><div><dt>{message('credentialExpires')}</dt><dd>{gitHubStatus.expiresAt || message('githubNoExpiry')}</dd></div><div><dt>{message('githubAuthority')}</dt><dd>{gitHubStatus.authority === 'creation' ? message('githubCreationAuthority') : message('githubOngoingAuthority')}</dd></div></dl>{/if}
             {#if capabilityPlan && gitHubStatus?.authority === 'creation'}
-              <form class="github-establish" onsubmit={(event) => { event.preventDefault(); void establishGitHubOverlay(); }} onchange={rememberAnswers}><label><span>{message('githubRepositoryName')}</span><input bind:value={gitHubRepositoryName} required pattern="[A-Za-z0-9._-]+" /></label><div class="actions"><button type="submit" disabled={gitHubBusy}>{message('githubEstablish')}</button></div></form>
+              <form class="github-establish" onsubmit={(event) => { event.preventDefault(); void establishGitHubOverlay(); }} onchange={rememberAnswers}><label><span>{message('githubRepositoryName')}</span><input bind:value={gitHubRepositoryName} required pattern="[A-Za-z0-9._-]+" /><small class="muted">{message('githubRepositoryHint')}</small></label><div class="actions"><button type="submit" disabled={gitHubBusy}>{message('githubEstablish')}</button></div></form>
             {/if}
             {#if gitHubOverlayNotice}<p class="inline-notice" aria-live="polite">{gitHubOverlayNotice}</p>{/if}
           {:else if settingsProvider === 'generic'}
