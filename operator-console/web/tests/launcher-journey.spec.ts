@@ -56,17 +56,20 @@ test('Operator completes and reopens the launcher journey in English and German'
 		const vault = page.getByRole('region', { name: /password safe|passwort-tresor/i });
 		await expect(vault).toBeVisible();
 		if (journey.language === 'en') {
+			// The passphrase is the fallback: it only appears once the operator asks
+			// for it, so it does not compete with the computer's own login.
+			await expect(vault.getByText('Or use a passphrase')).toHaveCount(0);
+			await vault.getByRole('button', { name: 'Unlock another way' }).click();
 			await expect(vault.getByText('Or use a passphrase')).toBeVisible();
 			await vault.getByLabel('Safe passphrase').fill('playwright-vault-passphrase');
 			await vault.getByRole('button', { name: 'Open the safe' }).focus();
 			await page.keyboard.press('Enter');
 			await expect(vault.getByText('Unlocked', { exact: true })).toBeVisible();
-			const secret = 'playwright-secret-must-not-render';
-			await vault.getByLabel('Access token for your settings repository').fill(secret);
-			await vault.getByLabel('When this token stops working').fill('2035-04-05T06:07:08Z');
-			await vault.getByRole('button', { name: 'Store credential' }).click();
-			await expect(vault.getByText('Current', { exact: true })).toBeVisible();
-			await expect(page.getByText(secret)).toHaveCount(0);
+			// The safe reports what it holds and asks for nothing: every secret is
+			// collected by the step that needs it, so there is no field here that
+			// the operator has to guess the purpose of.
+			await expect(vault.getByText('Nothing has to be entered here', { exact: false })).toBeVisible();
+			await expect(vault.locator('input')).toHaveCount(0);
 			// The recovery bundle lives in the sidebar, not in the journey, so it
 			// cannot be stumbled into; opening it takes over the panel and closing
 			// it returns the operator to the step they were on.
@@ -82,14 +85,8 @@ test('Operator completes and reopens the launcher journey in English and German'
 			await expect(page.getByRole('navigation', { name: 'Setup progress' })).toBeVisible();
 		} else {
 			await expect(vault.getByText('Entsperrt', { exact: true })).toBeVisible();
-			await vault.getByLabel('Zugriffstoken für Ihr Einstellungs-Repository').fill('erstes-geheimnis-darf-nicht-erscheinen');
-			await vault.getByLabel('Wann dieses Token abläuft').fill('2036-05-06T07:08:09Z');
-			await vault.getByRole('button', { name: 'Zugangsschlüssel speichern' }).click();
-			await vault.getByLabel('Zugriffstoken für Ihr Einstellungs-Repository').fill('ersatz-geheimnis-darf-nicht-erscheinen');
-			await vault.getByRole('button', { name: 'Zugangsschlüssel ersetzen' }).click();
-			await expect(vault.getByText('Aktuell', { exact: true })).toBeVisible();
-			await vault.getByRole('button', { name: 'Zugangsschlüssel entfernen' }).click();
 			await expect(vault.getByText('Kein Zugangsschlüssel gespeichert')).toBeVisible();
+			await expect(vault.locator('input')).toHaveCount(0);
 		}
 
     if (journey.language === 'en') {

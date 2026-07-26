@@ -43,8 +43,6 @@
   let vaultError = $state('');
   let vaultBusy = $state(false);
   let vaultPassphrase = $state('');
-  let credentialValue = $state('');
-  let credentialExpiresAt = $state('');
   let recoveryPassphrase = $state('');
   let recoveryRecipients = $state('');
   let recoveryIdentity = $state('');
@@ -159,6 +157,7 @@
   let fullDecommissionError = $state('');
   let activeStep: StepId = $state('capabilities');
   let showRecovery = $state(false);
+  let showPassphraseUnlock = $state(false);
   let showRetire = $state(false);
   let creating = $state(true);
   let editing = $state(false);
@@ -495,21 +494,6 @@
       credentials = activeProfile ? await api.listCredentials(activeProfile.id) : [];
     } catch (reason) {
       vaultError = vaultErrorMessage(reason instanceof Error ? reason.message : 'vault_unlock_failed');
-    } finally {
-      vaultBusy = false;
-    }
-  }
-
-  async function storeCredential(): Promise<void> {
-    if (!activeProfile) return;
-    vaultBusy = true;
-    vaultError = '';
-    try {
-      await api.storeCredential(activeProfile.id, credentialValue, credentialExpiresAt);
-      credentialValue = '';
-      credentials = await api.listCredentials(activeProfile.id);
-    } catch (reason) {
-      vaultError = vaultErrorMessage(reason instanceof Error ? reason.message : 'credential_storage_failed');
     } finally {
       vaultBusy = false;
     }
@@ -1303,8 +1287,15 @@
     }
   }
 
+  /** Deletes what the inspection found in the way. Irreversible and unbacked,
+   *  so the exact paths are named once more at the point of no return. */
   async function cleanNode(): Promise<void> {
     if (!activeProfile) return;
+    const target = nodeTargetKind === 'remote' ? nodeHost : message('nodeSameHost');
+    const confirmation = message('foreignInstallConfirm')
+      .replace('{host}', target)
+      .replace('{paths}', foreignRemovalPaths.join('\n'));
+    if (!window.confirm(confirmation)) return;
     cleanNodeBusy = true;
     nodeError = '';
     try {
@@ -1345,6 +1336,60 @@
     } finally {
       localBootstrapBusy = false;
     }
+  }
+
+  /** Says in words what an inspection found in the way. The launcher reports
+   *  these as codes; showing the code alone left the operator to guess whether
+   *  a machine was unsuitable, occupied, or merely already half set up. */
+  function blockerLabel(code: string): string {
+    const port = /^port\.(\d+)\.occupied$/.exec(code);
+    if (port) return message('blockerPortOccupied').replace('{port}', port[1]);
+    const labels: Record<string, MessageKey> = {
+      'node.os.unsupported': 'blockerOsUnsupported',
+      'node.systemd.missing': 'blockerSystemdMissing',
+      'node.kernel.unsupported': 'blockerKernelUnsupported',
+      'node.privilege.unavailable': 'blockerPrivilegeUnavailable',
+      'capacity.memory.insufficient': 'blockerMemoryInsufficient',
+      'capacity.disk.insufficient': 'blockerDiskInsufficient',
+      'installation.profile.mismatch': 'blockerProfileMismatch',
+      'installation.kubernetes.foreign': 'blockerKubernetesForeign',
+      'installation.kubernetes.unknown': 'blockerKubernetesUnknown',
+      'installation.kubernetes.existing': 'blockerKubernetesExisting',
+      'installation.data.foreign': 'blockerDataForeign',
+      'installation.data.unknown': 'blockerDataUnknown',
+      'installation.data.existing': 'blockerDataExisting'
+    };
+    return labels[code] ? message(labels[code]) : code;
+  }
+
+  /** Exactly what "remove what is in the way" deletes, in the order the
+   *  launcher deletes it. Mirrors the command in clean_node.go — the operator
+   *  is asked to approve this list, so it may not be an approximation. */
+  const foreignRemovalPaths = $derived([
+    '/var/lib/rancher/k3s',
+    '/etc/rancher',
+    '/etc/smallworlds',
+    localBootstrapDataDirectory
+  ]);
+
+  /** Names one entry in the safe. Every row used to claim it was the settings
+   *  repository token, whatever it actually held; an unknown kind now shows its
+   *  own identifier rather than borrowing someone else's name. */
+  function credentialLabel(kind: string): string {
+    const labels: Record<string, MessageKey> = {
+      'git-provider-token': 'gitProviderToken',
+      'github-creation-token': 'githubToken',
+      'github-ongoing-token': 'githubToken',
+      'generic-git-token': 'genericGitToken',
+      'hetzner-project-token': 'hetznerToken',
+      'local-public-dns-token': 'localPublicDNSToken',
+      'node-password': 'nodePassword',
+      'node-private-key': 'nodePrivateKey',
+      'node-sudo-password': 'nodeSudoPassword',
+      'offsite-s3-access-key': 'offsiteAccessKey',
+      'offsite-s3-secret': 'offsiteSecretKey'
+    };
+    return labels[kind] ? message(labels[kind]) : kind;
   }
 
   function rotationLabel(status: string): string {
@@ -1762,7 +1807,17 @@
 				</p>
 				{#if vaultStatus?.osCredentialStoreAvailable}
 					<button onclick={() => void unlockVault('operating-system')} disabled={vaultBusy}>{message('unlockWithOSStore')}</button>
+					<!-- With the computer's own login available, a passphrase field beside
+					     it only reads as a second thing to fill in. It stays reachable for
+					     anyone who set one up, but does not compete with the way that
+					     works on this machine. -->
+					{#if !showPassphraseUnlock}
+						<div class="actions" style="margin-top: 1rem;">
+							<button type="button" class="secondary" onclick={() => showPassphraseUnlock = true}>{message('passphraseFallbackShow')}</button>
+						</div>
+					{/if}
 				{/if}
+				{#if showPassphraseUnlock || !vaultStatus?.osCredentialStoreAvailable}
 				<div class="fallback">
 					<h3>{message('passphraseFallback')}</h3>
 					<p class="muted">{message('passphraseFallbackDescription')}</p>
@@ -1774,33 +1829,29 @@
 						<div class="actions"><button type="submit" disabled={vaultBusy}>{message('unlockVault')}</button></div>
 					</form>
 				</div>
+				{/if}
 			{:else}
+				<!-- The safe reports what it holds; it does not ask for anything. Each
+				     stage collects the secret it needs where that secret makes sense,
+				     so there is no field here that the operator has to guess at. -->
+				<p class="muted">{message('vaultNoInput')}</p>
 				{#if credentials.length > 0}
 					{#each credentials as credential (credential.kind)}
 						<dl class="credential-metadata">
-							<div><dt>{message('gitProviderToken')}</dt><dd><span class="badge">{credential.present ? message('credentialPresent') : message('noCredential')}</span></dd></div>
+							<div><dt>{credentialLabel(credential.kind)}</dt><dd><span class="badge">{credential.present ? message('credentialPresent') : message('noCredential')}</span></dd></div>
 							<div><dt>{message('credentialSource')}</dt><dd>{credential.source === 'operator' ? message('sourceOperator') : credential.source}</dd></div>
 							<div><dt>{message('credentialExpires')}</dt><dd>{credential.expiresAt}</dd></div>
 							<div><dt>{message('rotationStatus')}</dt><dd>{rotationLabel(credential.rotationStatus)}</dd></div>
 						</dl>
 					{/each}
+					<!-- Only the orphaned kind can be cleared from here. Removing a secret
+					     a stage depends on belongs to that stage, not to this overview. -->
+					{#if secretStored('git-provider-token')}
+						<div class="actions"><button type="button" class="danger" onclick={() => void removeCredential()} disabled={vaultBusy}>{message('removeCredential')}</button></div>
+					{/if}
 				{:else}
 					<p class="muted">{message('noCredential')}</p>
 				{/if}
-				<form class="credential-form" onsubmit={(event) => { event.preventDefault(); void storeCredential(); }}>
-					<label>
-						<span>{message('gitProviderToken')}</span>
-						<input type="password" bind:value={credentialValue} required autocomplete="off" />
-					</label>
-					<label>
-						<span>{message('credentialExpiry')}</span>
-						<input bind:value={credentialExpiresAt} required placeholder="2030-01-02T03:04:05Z" />
-					</label>
-					<div class="actions">
-						{#if credentials.length > 0}<button type="button" class="danger" onclick={() => void removeCredential()} disabled={vaultBusy}>{message('removeCredential')}</button>{/if}
-						<button type="submit" disabled={vaultBusy}>{credentials.length > 0 ? message('replaceCredential') : message('storeCredential')}</button>
-					</div>
-				</form>
 			{/if}
 		</section>
 
@@ -1825,7 +1876,7 @@
             <div class="actions"><button type="submit" disabled={capabilityBusy}>{message('capabilityReview')}</button></div>
           </form>
           {#if capabilityPlan}
-            <section class="capability-preview" aria-labelledby="capability-preview-title"><p class="eyebrow">{message('capabilityPreview')}</p><h3 id="capability-preview-title">{message('capabilityPlanReady')}</h3><dl><div><dt>{message('capabilityMemory')}</dt><dd>{capabilityPlan.overlay.assessment.resources.memoryMi} MiB</dd></div><div><dt>{message('capabilityStorage')}</dt><dd>{capabilityPlan.overlay.assessment.resources.storageGi} GiB</dd></div><div><dt>{message('capabilityExposure')}</dt><dd>{capabilityPlan.overlay.assessment.exposure.join(', ')}</dd></div><div><dt>{message('capabilityProtection')}</dt><dd>{capabilityPlan.overlay.assessment.protection.join(', ')}</dd></div></dl><div data-testid="overlay-diff" class="overlay-diff" role="textbox" aria-readonly="true" tabindex="0" aria-label={message('capabilityOverlayDiff')}>{capabilityPlan.overlay.diff}</div></section>
+            <section class="capability-preview" aria-labelledby="capability-preview-title"><p class="eyebrow">{message('capabilityPreview')}</p><h3 id="capability-preview-title">{message('capabilityPlanReady')}</h3><dl><div><dt>{message('capabilityMemory')}</dt><dd>{capabilityPlan.overlay.assessment.resources.memoryMi} MiB</dd></div><div><dt>{message('capabilityStorage')}</dt><dd>{capabilityPlan.overlay.assessment.resources.storageGi} GiB</dd></div></dl><div data-testid="overlay-diff" class="overlay-diff" role="textbox" aria-readonly="true" tabindex="0" aria-label={message('capabilityOverlayDiff')}>{capabilityPlan.overlay.diff}</div></section>
             <div class="actions" style="margin-top: 1rem;"><button type="button" onclick={() => activeStep = 'assets'}>{message('continue')}</button></div>
           {/if}
         </section>
@@ -1873,15 +1924,45 @@
             <dl class="credential-metadata">
               <div><dt>{message('nodeOperatingSystem')}</dt><dd>{nodeInspection.report.operatingSystem} / {nodeInspection.report.architecture}</dd></div>
               <div><dt>{message('nodeCapacity')}</dt><dd>{formatNumber(locale, nodeInspection.report.capacity.memoryMi)} MiB · {formatNumber(locale, nodeInspection.report.capacity.diskGi)} GiB</dd></div>
-              <div><dt>{message('nodeAssessment')}</dt><dd>{nodeInspection.assessment.ready ? message('nodeReady') : nodeInspection.assessment.blockers.map((blocker) => blocker.code).join(', ')}</dd></div>
+              <div><dt>{message('nodeAssessment')}</dt><dd>
+                {#if nodeInspection.assessment.ready}
+                  {message('nodeReady')}
+                {:else}
+                  <!-- One finding per line, in words. The raw codes said nothing
+                       to the operator about what was actually in the way. -->
+                  <ul class="blocker-list">
+                    {#each nodeInspection.assessment.blockers as blocker (blocker.code)}
+                      <li>{blockerLabel(blocker.code)} <code>{blocker.code}</code></li>
+                    {/each}
+                  </ul>
+                {/if}
+              </dd></div>
             </dl>
             {#if !nodeInspection.assessment.ready && nodeInspection.assessment.blockers.some(b => b.code === 'installation.kubernetes.foreign' || b.code === 'installation.data.foreign')}
-              <div class="actions" style="margin-top: 1rem; border-top: 1px solid var(--border-subtle); padding-top: 1rem;">
-                <p class="inline-error" style="margin-bottom: 0.5rem; font-size: 0.875rem;">{message('foreignInstallFound')}</p>
-                <button class="secondary danger" style="color: var(--text-error); border-color: var(--text-error);" onclick={() => void cleanNode()} disabled={cleanNodeBusy}>
-                  {cleanNodeBusy ? message('foreignInstallRemoving') : message('foreignInstallRemove')}
-                </button>
-              </div>
+              <!-- Removal runs the k3s uninstaller and rm -rf over fixed paths plus
+                   the data directory (internal/launcher/clean_node.go). The list
+                   below is that command spelled out; keep the two in step. -->
+              <section class="foreign-install" aria-labelledby="foreign-install-title">
+                <h4 id="foreign-install-title">{message('foreignInstallFound')}</h4>
+                <p>{message('foreignInstallEffectTitle')}</p>
+                <ul>
+                  {#if nodeInspection.assessment.blockers.some(b => b.code === 'installation.kubernetes.foreign')}
+                    <li>{message('foreignInstallEffectK3S')}</li>
+                  {/if}
+                  <li>
+                    {message('foreignInstallEffectPaths')}
+                    <ul>
+                      {#each foreignRemovalPaths as path (path)}<li><code>{path}</code></li>{/each}
+                    </ul>
+                  </li>
+                </ul>
+                <p class="inline-error">{message('foreignInstallIrreversible')}</p>
+                <div class="actions">
+                  <button class="danger" onclick={() => void cleanNode()} disabled={cleanNodeBusy}>
+                    {cleanNodeBusy ? message('foreignInstallRemoving') : message('foreignInstallRemove')}
+                  </button>
+                </div>
+              </section>
             {/if}
             {#if nodeTargetKind === 'remote'}
               <div class="actions">
@@ -2449,6 +2530,12 @@
   .journey-rail li.current button { border-color: #2c6b45; box-shadow: 0 0 0 2px rgba(44, 107, 69, .18); }
   .journey-rail li.current .rail-index { background: #2c6b45; color: white; }
   .step-heading { margin-bottom: 1rem; }
+  .blocker-list { margin: 0; padding-left: 1.1rem; display: grid; gap: .35rem; }
+  .blocker-list code { color: #6b7a70; }
+  /* Destructive and unbacked, so it is spelled out rather than summarised. */
+  .foreign-install { margin-top: 1.25rem; border: 1px solid #b5473b; border-radius: .75rem; padding: 1rem; }
+  .foreign-install h4 { margin: 0 0 .5rem; }
+  .foreign-install ul { margin: .4rem 0; padding-left: 1.1rem; display: grid; gap: .3rem; }
   .provider-choice { display: grid; gap: .5rem; border: 1px solid #d5ded7; border-radius: .75rem; padding: 1rem; margin-bottom: 1.25rem; }
   .provider-choice legend { font-weight: 750; padding: 0 .4rem; }
   .retire-card { margin-top: 2rem; border-color: #e3cfcf; }
@@ -2482,7 +2569,6 @@
 	.fallback { margin-top: 1.25rem; border-top: 1px solid #dce5de; padding-top: 1.25rem; }
 	.fallback h3 { margin: 0; }
 	.inline-error { padding: .8rem; border-radius: .65rem; background: #fff1ee; color: #78281f; }
-	.credential-form { margin-top: 1.25rem; border-top: 1px solid #dce5de; padding-top: 1.25rem; }
 	.credential-metadata { margin: 1.25rem 0 0; }
 	.recovery-card { margin: 0 0 2rem; border-left: 5px solid #ef9f27; }
 	.capability-card { margin: 0 0 2rem; border-left: 5px solid #315c9a; }
