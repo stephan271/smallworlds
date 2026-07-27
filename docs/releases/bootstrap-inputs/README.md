@@ -16,7 +16,16 @@ arbitrary values from an Operator's browser.
 `v1.2.25.json` is the first release candidate. `v1.2.26.json` adds the hardened,
 resumable local-node bootstrap contract. `v1.2.27.json` retains the same
 reviewed upstream versions while incorporating fixes from the first destructive
-browser qualification. They pin K3s `v1.36.2+k3s1` and
-Argo CD `v3.4.5`, with digests independently retrieved from their official
-release locations on 2026-07-20. It is not published until a maintainer creates
+browser qualification. `v1.2.28.json` is the first release to also carry the
+cross-platform Bootstrap Launcher artifacts, whose packaging script did not yet
+exist at `v1.2.27`; it retains the same reviewed upstream versions. They pin K3s
+`v1.36.2+k3s1` and Argo CD `v3.4.5`, with digests independently retrieved from
+their official release locations on 2026-07-20 and re-verified against those
+same locations on 2026-07-27. A lock is not published until a maintainer creates
 the matching SmallWorlds tag and explicitly runs the release workflow.
+
+A published release is complete only when **both** release workflows have run
+against its tag: **Publish Bootstrap Assets** attaches the server's installation
+payload, and **Publish Bootstrap Launcher** attaches the five native launcher
+archives with their signed `SHA256SUMS`. A tag carrying only the first is
+installable by an existing launcher but offers no way to obtain one.

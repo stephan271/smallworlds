@@ -244,9 +244,44 @@ create a profile before you have decided anything.
 
 ### How you download it
 
-Go to the SmallWorlds project's GitHub Releases page and open the latest
-release. Each release contains one archive per platform, plus the files needed
-to check that the archive is genuine.
+Open the SmallWorlds project's GitHub Releases page in an ordinary web browser
+and open the latest release. **This needs nothing but a browser** — no account,
+no SmallWorlds software, no tooling of any kind. That is the whole reason there
+is no circularity here: obtaining the launcher is an act that requires only the
+web, and everything else follows from having it.
+
+One release page carries several unrelated families of file. Most of them are
+not for you. A release looks roughly like this:
+
+```
+Release v1.2.25
+│
+├─ FOR YOU — pick exactly one, matching your laptop
+│   smallworlds-bootstrap-launcher_v1.2.25_linux_amd64.tar.gz
+│   smallworlds-bootstrap-launcher_v1.2.25_linux_arm64.tar.gz
+│   smallworlds-bootstrap-launcher_v1.2.25_darwin_amd64.tar.gz
+│   smallworlds-bootstrap-launcher_v1.2.25_darwin_arm64.tar.gz
+│   smallworlds-bootstrap-launcher_v1.2.25_windows_amd64.zip
+│
+├─ FOR YOU — so you can check the file above is genuine
+│   SHA256SUMS            the expected fingerprint of each archive
+│   SHA256SUMS.sig        a signature over that list
+│   SHA256SUMS.pub        the public key that signature belongs to
+│
+├─ NOT FOR YOU — the launcher fetches these later, for the server
+│   smallworlds-bootstrap-v1.2.25-linux-amd64.tar.gz
+│   smallworlds-bootstrap-v1.2.25-linux-amd64.tar.gz.sha256
+│   smallworlds-bootstrap-v1.2.25-linux-amd64.tar.gz.sig
+│   bootstrap-assets.manifest.json
+│
+└─ reference material
+    the software bill of materials and third-party licence notices
+```
+
+Download one launcher archive and the three `SHA256SUMS*` files. Ignore the
+rest: those are the server's installation materials from section 5, and the
+launcher will retrieve them itself when the time comes. They share a release
+page because they are published together, not because you interact with both.
 
 | Your laptop | Download this |
 | --- | --- |
@@ -256,16 +291,24 @@ to check that the archive is genuine.
 | macOS, Apple Silicon (M1 and later) | `smallworlds-bootstrap-launcher_vX.Y.Z_darwin_arm64.tar.gz` |
 | Windows, Intel/AMD 64-bit | `smallworlds-bootstrap-launcher_vX.Y.Z_windows_amd64.zip` |
 
-Alongside them the release publishes `SHA256SUMS` (the expected fingerprint of
-each archive), `SHA256SUMS.sig` (a signature over that list),
-`SHA256SUMS.pub` (the public key that signature belongs to), a software bill of
-materials, and third-party licence notices.
-
 **Check the download before you run it.** Compute the SHA-256 of the archive you
 downloaded and compare it with the matching line in `SHA256SUMS`. If they differ,
 delete the file and download it again. This takes thirty seconds and is the only
 manual verification step in the whole process — everything the launcher fetches
-later, it verifies by itself.
+later, it verifies by itself, using trust it carries inside the file you just
+checked.
+
+### Which version to take, and what it commits you to
+
+Take the latest. The version number in the launcher's filename is **where it was
+published**, not **what it will install**. You choose which SmallWorlds release
+your installation runs later, when you create the profile in step 1, and the
+launcher fetches that release's materials at that point.
+
+So downloading the launcher from release v1.2.25 does not oblige you to install
+v1.2.25, and a launcher you downloaded months ago can install a release that did
+not exist when you downloaded it. What it cannot do is install a release whose
+materials are not signed by the key built into it.
 
 ### Running it
 
