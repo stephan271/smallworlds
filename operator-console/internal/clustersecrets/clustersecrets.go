@@ -101,7 +101,18 @@ func Generate(repository Repository) (Generated, error) {
 	if err != nil {
 		return Generated{}, err
 	}
+	// The namespaces come first and in the same file. k3s applies this manifest
+	// from its auto-apply directory long before Argo CD has created anything, so
+	// a Secret whose namespace does not exist yet is simply refused — the first
+	// run of this generator produced twelve hundred "namespaces \"keycloak\" not
+	// found" retries before Argo CD caught up. smallworlds-init.sh has always
+	// interleaved them for exactly this reason. The argocd namespace is left out
+	// on purpose: the Argo CD installation owns it, and this manifest should not
+	// take that over.
 	documents := []document{
+		{APIVersion: "v1", Kind: "Namespace", Metadata: metadata{Name: "keycloak"}},
+		{APIVersion: "v1", Kind: "Namespace", Metadata: metadata{Name: "monitoring"}},
+		{APIVersion: "v1", Kind: "Namespace", Metadata: metadata{Name: "garage-system"}},
 		{
 			APIVersion: "v1", Kind: "Secret", Type: "Opaque",
 			Metadata:   metadata{Name: keycloakSecretName, Namespace: "keycloak"},
@@ -178,7 +189,7 @@ func ReadCredentials(manifest string) (Credentials, error) {
 
 type metadata struct {
 	Name      string            `yaml:"name"`
-	Namespace string            `yaml:"namespace"`
+	Namespace string            `yaml:"namespace,omitempty"`
 	Labels    map[string]string `yaml:"labels,omitempty"`
 }
 
@@ -187,7 +198,7 @@ type document struct {
 	Kind       string            `yaml:"kind"`
 	Metadata   metadata          `yaml:"metadata"`
 	Type       string            `yaml:"type,omitempty"`
-	StringData map[string]string `yaml:"stringData"`
+	StringData map[string]string `yaml:"stringData,omitempty"`
 }
 
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"

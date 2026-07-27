@@ -115,3 +115,28 @@ func TestReadCredentialsReportsNothingForAnUnfamiliarManifest(t *testing.T) {
 		t.Fatalf("credentials were claimed from an unfamiliar manifest: %#v", credentials)
 	}
 }
+
+// k3s applies this manifest from its auto-apply directory long before Argo CD
+// has created anything, so a Secret whose namespace does not exist yet is
+// refused outright. Shipping the namespaces in the same file is what keeps a
+// first installation from spending its opening minutes in a retry loop.
+func TestGeneratedManifestBringsTheNamespacesItsSecretsNeed(t *testing.T) {
+	generated, err := clustersecrets.Generate(repository())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, namespace := range []string{"keycloak", "monitoring", "garage-system"} {
+		if !strings.Contains(generated.Manifest, "kind: Namespace") || !strings.Contains(generated.Manifest, "name: "+namespace+"\n") {
+			t.Fatalf("namespace %q is not created by the manifest:\n%s", namespace, generated.Manifest)
+		}
+	}
+	// The Argo CD installation owns its own namespace; taking it over from a
+	// manifest k3s applies would be a quiet fight over the same object.
+	if strings.Contains(generated.Manifest, "kind: Namespace\nmetadata:\n    name: argocd") {
+		t.Fatalf("the manifest claims the argocd namespace:\n%s", generated.Manifest)
+	}
+	credentials, err := clustersecrets.ReadCredentials(generated.Manifest)
+	if err != nil || credentials != generated.Credentials {
+		t.Fatalf("namespaces confused the credential read-back: %#v, err = %v", credentials, err)
+	}
+}
