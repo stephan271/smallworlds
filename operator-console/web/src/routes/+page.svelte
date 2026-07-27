@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type FullDecommissionResult, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type HandoffAssessment, type HetznerChangePlan, type HetznerPlanResult, type HetznerPresets, type HetznerPresetTier, type HetznerProject, type HetznerToolchain, type HetznerWorkspace, type TemporaryAccess, type NodeCapabilities, type NodeInspectionResult, type NodeProbeResult, type NodeTarget, type NodeTrust, type OffsitePlan, type OverlayIdentity, type OffsiteProposal, type OffsiteProtection, type PreserveDataDecommissionResult, type RecoveryBundlePreview, type SetupSettings, type TailscaleClientOffer, type VaultStatus, type WorkflowRun } from '$lib/api';
+  import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type ClusterDetail, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type FullDecommissionResult, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type HandoffAssessment, type HetznerChangePlan, type HetznerPlanResult, type HetznerPresets, type HetznerPresetTier, type HetznerProject, type HetznerToolchain, type HetznerWorkspace, type TemporaryAccess, type NodeCapabilities, type NodeInspectionResult, type NodeProbeResult, type NodeTarget, type NodeTrust, type OffsitePlan, type OverlayIdentity, type OffsiteProposal, type OffsiteProtection, type PreserveDataDecommissionResult, type RecoveryBundlePreview, type SetupSettings, type TailscaleClientOffer, type VaultStatus, type WorkflowRun } from '$lib/api';
   import { decommissionCopy } from '$lib/decommission-copy';
   import { formatCurrency, formatDateTime, formatNumber } from '$lib/format';
   import { translate, type Locale, type MessageKey } from '$lib/i18n';
@@ -48,6 +48,13 @@
    *  claim a cluster exists because a rehearsal succeeded. */
   let runPurpose: 'install' | 'self-test' | 'retire' | '' = $state('');
   let activities: ActivityEvent[] = $state([]);
+  // What the cluster itself says it is doing. The checkpoint list says a run is
+  // unfinished; only this says why, and the difference between "still starting"
+  // and "waiting for a Secret nobody supplied" is the whole question.
+  let clusterDetail: ClusterDetail | null = $state(null);
+  let clusterDetailError = $state('');
+  let clusterDetailBusy = $state(false);
+  let detailTimer: number | undefined;
   let vaultStatus: VaultStatus | null = $state(null);
   let credentials: CredentialMetadata[] = $state([]);
   let vaultError = $state('');
@@ -336,6 +343,47 @@
     await acquireHetznerToolchain();
   }
 
+  /** Reads the cluster and, while anything is still unsettled, keeps reading.
+   *  A convergence that takes twenty minutes is normal; twenty minutes with no
+   *  way to see what is happening is not. */
+  async function refreshClusterDetail(schedule = true): Promise<void> {
+    if (!activeProfile || clusterDetailBusy) return;
+    clusterDetailBusy = true;
+    clusterDetailError = '';
+    const profileId = activeProfile.id;
+    try {
+      clusterDetail = await api.getClusterDetail(profileId);
+    } catch (reason) {
+      clusterDetail = null;
+      clusterDetailError = reason instanceof Error ? reason.message : 'cluster_detail_unavailable';
+    } finally {
+      clusterDetailBusy = false;
+    }
+    if (detailTimer) window.clearTimeout(detailTimer);
+    // Only while someone is looking at it, and only while there is movement to
+    // see. A converged cluster is refreshed when asked for, not on a loop.
+    const settled = clusterDetail !== null && clusterDetail.workloads.length === 0 && clusterDetail.applications.every((application) => application.sync === 'Synced' && application.health === 'Healthy');
+    if (!schedule || activeTab !== 'activity' || settled) return;
+    detailTimer = window.setTimeout(() => {
+      if (activeTab === 'activity') void refreshClusterDetail();
+    }, 15000);
+  }
+
+  function openActivityTab(): void {
+    activeTab = 'activity';
+    void refreshClusterDetail();
+  }
+
+  function clusterDetailMessage(code: string): string {
+    switch (code) {
+      case 'cluster_not_installed': return message('clusterDetailNotInstalled');
+      case 'vault_locked': return message('handoffUnlockFirst');
+      case 'cluster_detail_precondition_changed': return message('localBootstrapHostKeyMismatch');
+      case 'cluster_detail_unreachable': return message('clusterDetailUnreachable');
+      default: return message('clusterDetailUnavailable');
+    }
+  }
+
   async function ensureTailscaleOffer(): Promise<void> {
     if (tailscaleOffer) return;
     try {
@@ -394,6 +442,7 @@
   onDestroy(() => {
     eventSource?.close();
     if (pollTimer) window.clearTimeout(pollTimer);
+    if (detailTimer) window.clearTimeout(detailTimer);
   });
 
   async function selectProfile(profile: ClusterProfile): Promise<void> {
@@ -429,6 +478,8 @@
     installPlan = null;
     selfTestPlan = null;
     activities = [];
+    clusterDetail = null;
+    clusterDetailError = '';
     handoffAssessment = null;
     tailscaleOffer = null;
     deviceTrustFingerprint = '';
@@ -636,6 +687,11 @@
   const dnsTokenStored = $derived(secretStored('local-public-dns-token'));
   const nodePasswordStored = $derived(secretStored('node-password'));
   const nodePrivateKeyStored = $derived(secretStored('node-private-key'));
+  const clusterSecretsStored = $derived(secretStored('cluster-secrets-manifest'));
+  /** A manifest typed now, or one already custodied from an earlier attempt.
+   *  The launcher refuses the plan without either, so the button does too —
+   *  being told before the twenty-minute install rather than after it. */
+  const clusterSecretsSupplied = $derived.by(() => localBootstrapSecrets.trim() !== '' || clusterSecretsStored);
 
   function vaultErrorMessage(code: string): string {
     switch (code) {
@@ -719,6 +775,7 @@
       case 'invalid_cluster_secrets_manifest': return message('localBootstrapInvalidSecrets');
       case 'dns_provider_token_required': return message('localBootstrapDNSTokenRequired');
       case 'router_forwarding_acknowledgement_required': return message('localBootstrapRouterRequired');
+      case 'cluster_secrets_required': return message('localBootstrapSecretsRequired');
       case 'vault_locked': return message('handoffUnlockFirst');
       default: return code;
     }
@@ -1970,7 +2027,7 @@
         <nav class="tabs" aria-label={message('sections')}>
           <div role="tablist" aria-label={message('sections')}>
             <button role="tab" id="tab-setup" aria-controls="panel-setup" aria-selected={activeTab === 'setup'} tabindex={activeTab === 'setup' ? 0 : -1} class:selected={activeTab === 'setup'} onclick={() => activeTab = 'setup'}>{message('tabSetup')}</button>
-            <button role="tab" id="tab-activity" aria-controls="panel-activity" aria-selected={activeTab === 'activity'} tabindex={activeTab === 'activity' ? 0 : -1} class:selected={activeTab === 'activity'} onclick={() => activeTab = 'activity'}>{message('tabActivity')}</button>
+            <button role="tab" id="tab-activity" aria-controls="panel-activity" aria-selected={activeTab === 'activity'} tabindex={activeTab === 'activity' ? 0 : -1} class:selected={activeTab === 'activity'} onclick={openActivityTab}>{message('tabActivity')}</button>
             <button role="tab" id="tab-manage" aria-controls="panel-manage" aria-selected={activeTab === 'manage'} tabindex={activeTab === 'manage' ? 0 : -1} class:selected={activeTab === 'manage'} onclick={() => { activeTab = 'manage'; showRecovery = false; }}>{message('tabManage')}</button>
           </div>
         </nav>
@@ -2506,18 +2563,37 @@
                   <div><dt>{message('localBootstrapDataDirectory')}</dt><dd><code>{localBootstrapDataDirectory}</code></dd></div>
                 </dl>
 
+                <!-- Not an advanced tweak: Keycloak, Garage and Grafana each
+                     mount a Secret this is the only source of. Without it the
+                     install succeeds, Argo CD reports Degraded, and the pods sit
+                     in CreateContainerConfigError indefinitely — so the stage
+                     asks for it plainly and will not plan without it. -->
+                <form onsubmit={(event) => event.preventDefault()}>
+                  <label>
+                    <span>{message('localBootstrapSecrets')}</span>
+                    <textarea bind:value={localBootstrapSecrets} rows="8" autocomplete="off" placeholder="apiVersion: v1&#10;kind: Secret&#10;metadata:&#10;  name: keycloak-admin-creds&#10;  namespace: keycloak&#10;stringData:&#10;  admin-password: …"></textarea>
+                    {#if clusterSecretsStored}
+                      <small class="muted">{message('secretAlreadySaved')}</small>
+                    {:else}
+                      <small class="muted">{message('localBootstrapSecretsHint')}</small>
+                    {/if}
+                  </label>
+                </form>
+                {#if !clusterSecretsSupplied}
+                  <p class="inline-notice">{message('localBootstrapSecretsRequired')}</p>
+                {/if}
+
                 <div class="advanced">
                   <button type="button" class="secondary" aria-expanded={advancedInstall} onclick={() => advancedInstall = !advancedInstall}>{advancedInstall ? message('advancedHide') : message('advancedShow')}</button>
                   {#if advancedInstall}
                     <div class="advanced-body">
                       <p class="muted">{message('advancedHint')}</p>
-                      <label><span>{message('localBootstrapSecrets')}</span><textarea bind:value={localBootstrapSecrets} autocomplete="off" placeholder="apiVersion: v1&#10;kind: Secret&#10;…"></textarea></label>
                       {#if nodeTargetKind === 'same-host'}<label><span>{message('nodeSudoPassword')}</span><input type="password" bind:value={nodeSudoPassword} autocomplete="off" /></label>{/if}
                     </div>
                   {/if}
                 </div>
 
-                <div class="actions"><button type="button" onclick={() => void planLocalBootstrap()} disabled={localBootstrapBusy || !installerFilesReady}>{message('localBootstrapReview')}</button></div>
+                <div class="actions"><button type="button" onclick={() => void planLocalBootstrap()} disabled={localBootstrapBusy || !installerFilesReady || !clusterSecretsSupplied}>{message('localBootstrapReview')}</button></div>
 
                 {#if installPlan}
                   <section class="capability-preview">
@@ -2698,6 +2774,85 @@
                 {#if run.state === 'running' && run.cancellationState === 'not-requested'}<button class="secondary" onclick={() => void cancelRun()} disabled={busy}>{message('cancel')}</button>{/if}
               </div>
             {/if}
+            <!-- What the cluster says about itself. The checkpoint list below
+                 records what this console did; this records what came of it,
+                 which is the part a stalled convergence turns on. -->
+            <section class="card detail-card" aria-labelledby="cluster-detail-title">
+              <div class="vault-heading">
+                <div>
+                  <p class="eyebrow">{message('clusterDetailEyebrow')}</p>
+                  <h3 id="cluster-detail-title">{message('clusterDetailTitle')}</h3>
+                </div>
+                <button type="button" class="secondary" onclick={() => void refreshClusterDetail(false)} disabled={clusterDetailBusy}>{clusterDetailBusy ? message('clusterDetailReading') : message('clusterDetailRefresh')}</button>
+              </div>
+              {#if clusterDetailError}
+                <p class="inline-notice">{clusterDetailMessage(clusterDetailError)}</p>
+              {:else if clusterDetail}
+                <p class="muted">{message('clusterDetailObservedAt')}: {formatDateTime(locale, clusterDetail.observedAt)}</p>
+
+                <h4>{message('clusterDetailNodes')}</h4>
+                <ul class="handoff-checklist">
+                  {#each clusterDetail.nodes as node (node.name)}
+                    <li class:complete={node.ready}><span aria-hidden="true">{node.ready ? '✓' : '○'}</span> <code>{node.name}</code> {node.ready ? message('clusterDetailNodeReady') : message('clusterDetailNodeNotReady')} {#if node.version}<span class="muted">{node.version}</span>{/if}</li>
+                  {:else}
+                    <li><span aria-hidden="true">○</span> {message('clusterDetailNoNodes')}</li>
+                  {/each}
+                </ul>
+
+                <h4>{message('clusterDetailApplications')}</h4>
+                {#if clusterDetail.applications.length === 0}
+                  <p class="muted">{message('clusterDetailNoApplications')}</p>
+                {:else}
+                  <div class="table-scroll">
+                    <table>
+                      <thead><tr><th scope="col">{message('clusterDetailApplication')}</th><th scope="col">{message('clusterDetailSync')}</th><th scope="col">{message('clusterDetailHealth')}</th></tr></thead>
+                      <tbody>
+                        {#each clusterDetail.applications as application (application.name)}
+                          <tr class:attention={application.sync !== 'Synced' || application.health !== 'Healthy'}>
+                            <th scope="row"><code>{application.name}</code></th>
+                            <td>{application.sync || '—'}</td>
+                            <td>{application.health || '—'}{#if application.message}<br /><small class="muted">{application.message}</small>{/if}</td>
+                          </tr>
+                        {/each}
+                      </tbody>
+                    </table>
+                  </div>
+                {/if}
+
+                <h4>{message('clusterDetailWorkloads')}</h4>
+                {#if clusterDetail.workloads.length === 0}
+                  <p class="inline-notice">{message('clusterDetailWorkloadsSettled')}</p>
+                {:else}
+                  <p class="muted">{message('clusterDetailWorkloadsHint')}</p>
+                  <div class="table-scroll">
+                    <table>
+                      <thead><tr><th scope="col">{message('clusterDetailWorkload')}</th><th scope="col">{message('clusterDetailState')}</th><th scope="col">{message('clusterDetailReason')}</th></tr></thead>
+                      <tbody>
+                        {#each clusterDetail.workloads as workload (workload.namespace + '/' + workload.name)}
+                          <tr class="attention">
+                            <th scope="row"><code>{workload.namespace}/{workload.name}</code></th>
+                            <td>{workload.phase || '—'}{#if workload.ready} · {workload.ready}{/if}{#if workload.restarts}<br /><small class="muted">{message('clusterDetailRestarts')}: {formatNumber(locale, workload.restarts)}</small>{/if}</td>
+                            <!-- The cluster's own words. Without them a reason
+                                 code sends an operator hunting for the cause. -->
+                            <td>{workload.reason || '—'}{#if workload.message}<br /><small class="muted">{workload.message}</small>{/if}</td>
+                          </tr>
+                        {/each}
+                      </tbody>
+                    </table>
+                  </div>
+                  {#if clusterDetail.workloadsTruncated}<p class="muted">{message('clusterDetailTruncated')}</p>{/if}
+                {/if}
+
+                {#if clusterDetail.markers.length > 0}
+                  <h4>{message('clusterDetailMarkers')}</h4>
+                  <p class="muted">{clusterDetail.markers.join(' · ')}</p>
+                {/if}
+              {:else}
+                <p class="muted">{message('clusterDetailReading')}</p>
+              {/if}
+            </section>
+
+            <h3>{message('activityRecordHeading')}</h3>
             {#if activities.length === 0}
               <p class="muted">{message('activityEmpty')}</p>
             {:else}
@@ -3101,6 +3256,16 @@
   dt { color: #617066; font-weight: 700; }
   dd { margin: 0; overflow-wrap: anywhere; }
   code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85em; }
+  /* What the cluster reports. Wide content scrolls inside its own box rather
+     than pushing the page sideways. */
+  .detail-card { border-left: 5px solid #315c9a; }
+  .detail-card h4 { margin: 1.25rem 0 .5rem; }
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  th, td { text-align: left; vertical-align: top; padding: .5rem .6rem; border-top: 1px solid #e0e6e1; }
+  thead th { color: #617066; font-weight: 700; font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; }
+  tbody th { font-weight: 600; }
+  tr.attention td, tr.attention th { background: #fdf4ec; }
   .timeline { list-style: none; padding: 0; display: grid; gap: .65rem; }
   .timeline li { display: flex; align-items: center; gap: .7rem; }
   .timeline li > span:first-child { width: .7rem; height: .7rem; flex: 0 0 auto; border-radius: 50%; background: #176b45; }
@@ -3142,6 +3307,8 @@
     button.secondary:hover { background: #284433; }
     .run-status { background: #263b2e; }
     .run-status.verified, .badge, .inline-notice { background: #204a32; color: #e2f8e8; }
+    th, td { border-color: #466b55; }
+    tr.attention td, tr.attention th { background: #3a2f22; }
     .inline-error, .error { background: #4a2622; color: #ffe9e4; }
   }
   @media (prefers-reduced-motion: reduce) { :global(*) { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }

@@ -55,6 +55,14 @@ func (runner *successfulBootstrapRunner) Observe(_ context.Context, _ localboots
 	return localbootstrap.Observation{CommandCompleted: true, K3SReady: true, ArgoCDReady: true, OverlaySynced: true, ObservedAt: time.Now().UTC()}, nil
 }
 
+func (runner *successfulBootstrapRunner) Detail(_ context.Context, _ localbootstrap.RunRequest) (localbootstrap.Detail, error) {
+	return localbootstrap.Detail{
+		Nodes:        []localbootstrap.NodeCondition{{Name: "smallworlds-local-node", Ready: true, Version: "v1.36.2+k3s1"}},
+		Applications: []localbootstrap.ApplicationCondition{{Name: "smallworlds-root", Sync: "Synced", Health: "Degraded"}},
+		Workloads:    []localbootstrap.WorkloadCondition{{Namespace: "keycloak", Name: "keycloak-keycloakx-0", Phase: "Pending", Ready: "0/1", Reason: "CreateContainerConfigError", Message: `secret "keycloak-admin-creds" not found`}},
+	}, nil
+}
+
 func TestLocalBootstrapPlanReinspectsBindsAndExecutesWithoutSecretLeakage(t *testing.T) {
 	contents := []byte("verified bootstrap archive")
 	digest := sha256.Sum256(contents)
@@ -185,10 +193,23 @@ func TestLocalBootstrapPlanReinspectsBindsAndExecutesWithoutSecretLeakage(t *tes
 	}
 	response.Body.Close()
 	publicDNSSecret := "dns-token-secret-value"
-	unacknowledgedBody, _ := json.Marshal(map[string]any{
+	// A cluster whose Secrets were never supplied installs perfectly and then
+	// sits Degraded forever, because Keycloak, Garage and Grafana each mount one
+	// this manifest is the only source of. The plan is refused instead.
+	secretlessBody, _ := json.Marshal(map[string]any{
 		"profileId": publicProfile.ID, "target": map[string]any{"kind": "same-host"}, "authentication": map[string]any{"kind": "agent"}, "release": descriptor.Release,
 		"configuration":  map[string]any{"domain": "public.example", "dataDirectory": "/data/public", "nodeName": "public-node", "acmeEmail": "operator@public.example", "manageDns": false},
-		"publicExposure": map[string]any{"dns01Provider": "hetzner", "dnsZone": "public.example", "dnsToken": "unacknowledged-secret", "publicIpBehavior": "dynamic-ddns", "routerAcknowledged": false},
+		"publicExposure": map[string]any{"dns01Provider": "hetzner", "dnsZone": "public.example", "dnsToken": "secretless-token", "publicIpBehavior": "dynamic-ddns", "routerAcknowledged": true},
+	})
+	response = request(t, handler, http.MethodPost, "/api/v1/local-bootstrap/plan", secretlessBody, cookie, map[string]string{"X-CSRF-Token": csrf})
+	if response.StatusCode != http.StatusConflict || !bytes.Contains(readAll(t, response), []byte("cluster_secrets_required")) {
+		t.Fatal("a bootstrap plan without Cluster Secrets was not refused")
+	}
+	unacknowledgedBody, _ := json.Marshal(map[string]any{
+		"profileId": publicProfile.ID, "target": map[string]any{"kind": "same-host"}, "authentication": map[string]any{"kind": "agent"}, "release": descriptor.Release,
+		"configuration":   map[string]any{"domain": "public.example", "dataDirectory": "/data/public", "nodeName": "public-node", "acmeEmail": "operator@public.example", "manageDns": false},
+		"publicExposure":  map[string]any{"dns01Provider": "hetzner", "dnsZone": "public.example", "dnsToken": "unacknowledged-secret", "publicIpBehavior": "dynamic-ddns", "routerAcknowledged": false},
+		"secretsManifest": "apiVersion: v1\nkind: Secret\ndata:\n  token: cluster-secret-value\n",
 	})
 	response = request(t, handler, http.MethodPost, "/api/v1/local-bootstrap/plan", unacknowledgedBody, cookie, map[string]string{"X-CSRF-Token": csrf})
 	if response.StatusCode != http.StatusConflict || !bytes.Contains(readAll(t, response), []byte("router_forwarding_acknowledgement_required")) || dnsProvider.seenToken == "unacknowledged-secret" {
@@ -196,8 +217,9 @@ func TestLocalBootstrapPlanReinspectsBindsAndExecutesWithoutSecretLeakage(t *tes
 	}
 	publicPlanBody, _ := json.Marshal(map[string]any{
 		"profileId": publicProfile.ID, "target": map[string]any{"kind": "same-host"}, "authentication": map[string]any{"kind": "agent"}, "release": descriptor.Release,
-		"configuration":  map[string]any{"domain": "public.example", "dataDirectory": "/data/public", "nodeName": "public-node", "acmeEmail": "operator@public.example", "manageDns": false},
-		"publicExposure": map[string]any{"dns01Provider": "hetzner", "dnsZone": "public.example", "dnsToken": publicDNSSecret, "publicIpBehavior": "dynamic-ddns", "routerAcknowledged": true},
+		"configuration":   map[string]any{"domain": "public.example", "dataDirectory": "/data/public", "nodeName": "public-node", "acmeEmail": "operator@public.example", "manageDns": false},
+		"publicExposure":  map[string]any{"dns01Provider": "hetzner", "dnsZone": "public.example", "dnsToken": publicDNSSecret, "publicIpBehavior": "dynamic-ddns", "routerAcknowledged": true},
+		"secretsManifest": "apiVersion: v1\nkind: Secret\ndata:\n  token: cluster-secret-value\n",
 	})
 	response = request(t, handler, http.MethodPost, "/api/v1/local-bootstrap/plan", publicPlanBody, cookie, map[string]string{"X-CSRF-Token": csrf})
 	if response.StatusCode != http.StatusCreated {
@@ -214,6 +236,27 @@ func TestLocalBootstrapPlanReinspectsBindsAndExecutesWithoutSecretLeakage(t *tes
 	}
 	if dnsProvider.seenToken != publicDNSSecret {
 		t.Fatal("DNS provider did not receive the write-only token")
+	}
+
+	// What the cluster is doing, in the cluster's own words. A run parked at
+	// awaiting-convergence says something is unfinished and nothing about what,
+	// so this has to be readable while that run is still in flight.
+	response = request(t, handler, http.MethodGet, "/api/v1/cluster-detail?profileId="+publicProfile.ID, nil, cookie, nil)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("cluster detail status = %d: %s", response.StatusCode, readAll(t, response))
+	}
+	detailBody := readAll(t, response)
+	for _, expected := range []string{`"smallworlds-root"`, `"Degraded"`, `"keycloak-keycloakx-0"`, `secret \"keycloak-admin-creds\" not found`} {
+		if !bytes.Contains(detailBody, []byte(expected)) {
+			t.Fatalf("cluster detail missing %s: %s", expected, detailBody)
+		}
+	}
+	// A profile that never installed anything has no cluster to describe, and
+	// says so rather than reporting an empty healthy one.
+	freshProfile := createProfile(t, handler, cookie, csrf, "Never installed", "en", "local-lan")
+	response = request(t, handler, http.MethodGet, "/api/v1/cluster-detail?profileId="+freshProfile.ID, nil, cookie, nil)
+	if response.StatusCode != http.StatusConflict || !bytes.Contains(readAll(t, response), []byte("cluster_not_installed")) {
+		t.Fatal("cluster detail for an uninstalled profile was not refused")
 	}
 
 	response = request(t, handler, http.MethodGet, "/api/v1/events?profileId="+profile.ID, nil, cookie, nil)

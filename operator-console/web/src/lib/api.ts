@@ -36,6 +36,8 @@ export type HandoffReport = components['schemas']['HandoffReport'];
 export type HandoffClosure = components['schemas']['HandoffClosure'];
 export type FirstOwnerState = components['schemas']['FirstOwnerState'];
 export type HandoffAssessment = components['schemas']['HandoffAssessment'];
+/** What the installed cluster is doing right now, in the cluster's own words. */
+export type ClusterDetail = components['schemas']['ClusterDetail'];
 export type OffsiteProtection = components['schemas']['OffsiteProtection'];
 export type OffsitePlan = components['schemas']['OffsitePlan'];
 export type OffsiteProposal = components['schemas']['OffsiteProposal'];
@@ -184,6 +186,7 @@ export const api = {
   registerFirstOwner: (profileId: string, registration: { credentialId: string; clientDataJson: string; attestationObject: string }) =>
     request<FirstOwnerState>('/api/v1/first-owner/register', { method: 'POST', body: JSON.stringify({ profileId, ...registration }) }),
   getHandoffAssessment: (profileId: string) => request<HandoffAssessment>(`/api/v1/handoff-assessment?profileId=${encodeURIComponent(profileId)}`),
+  getClusterDetail: (profileId: string) => request<ClusterDetail>(`/api/v1/cluster-detail?profileId=${encodeURIComponent(profileId)}`),
   getOffsiteProtection: (profileId: string) => request<OffsiteProtection>(`/api/v1/offsite?profileId=${encodeURIComponent(profileId)}`),
   inspectOffsiteDestination: (input: OffsiteDestinationInput) => request<OffsiteProtection>('/api/v1/offsite/inspect', { method: 'POST', body: JSON.stringify(input) }),
   planOffsiteProtection: (profileId: string, acknowledged: boolean) => request<OffsitePlan>('/api/v1/offsite/plan', { method: 'POST', body: JSON.stringify({ profileId, acknowledged }) }),

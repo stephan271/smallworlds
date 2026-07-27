@@ -192,7 +192,9 @@ test('browser bootstrap survives a Launcher interruption after a durable node ma
     await rail.getByRole('button', { name: /Install it/ }).click();
     const bootstrap = page.getByRole('region', { name: 'Install it' });
     await expect(bootstrap.getByText('downloaded and checked', { exact: false })).toBeVisible({ timeout: 180_000 });
-    await bootstrap.getByRole('button', { name: 'Advanced settings' }).click();
+    // Cluster Secrets are a required input with no default, so they sit on the
+    // form itself and the stage refuses to plan until they are supplied.
+    await expect(bootstrap.getByRole('button', { name: 'Reinspect and create Change Plan' })).toBeDisabled();
     const clusterSecrets = [
       'apiVersion: v1',
       'kind: Secret',

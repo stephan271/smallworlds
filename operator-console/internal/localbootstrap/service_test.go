@@ -38,6 +38,10 @@ func (runner cancellationRunner) Observe(context.Context, localbootstrap.RunRequ
 	return localbootstrap.Observation{}, errors.New("unexpected observation")
 }
 
+func (runner cancellationRunner) Detail(context.Context, localbootstrap.RunRequest) (localbootstrap.Detail, error) {
+	return localbootstrap.Detail{}, errors.New("unexpected detail")
+}
+
 func (runner *resumableRunner) Run(_ context.Context, request localbootstrap.RunRequest) (localbootstrap.Observation, error) {
 	runner.calls++
 	if strings.Contains(request.Secrets, "cluster-secret-value") == false || request.Credentials.Password != "node-password-value" {
@@ -58,6 +62,10 @@ func (runner *resumableRunner) Observe(_ context.Context, _ localbootstrap.RunRe
 		return localbootstrap.Observation{CommandCompleted: true, K3SReady: true, ArgoCDReady: true, OverlaySynced: false, ObservedAt: time.Now().UTC()}, nil
 	}
 	return localbootstrap.Observation{CommandCompleted: true, K3SReady: true, ArgoCDReady: true, OverlaySynced: true, ObservedAt: time.Now().UTC()}, nil
+}
+
+func (runner *resumableRunner) Detail(_ context.Context, _ localbootstrap.RunRequest) (localbootstrap.Detail, error) {
+	return localbootstrap.Detail{Nodes: []localbootstrap.NodeCondition{{Name: "node", Ready: true}}}, nil
 }
 
 func TestServiceResumesAnInterruptedRunWithoutLeakingSecretsToActivity(t *testing.T) {

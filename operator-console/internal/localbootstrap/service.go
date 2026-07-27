@@ -42,6 +42,7 @@ type RunRequest struct {
 type Runner interface {
 	Run(context.Context, RunRequest) (Observation, error)
 	Observe(context.Context, RunRequest) (Observation, error)
+	Detail(context.Context, RunRequest) (Detail, error)
 }
 
 type AssetOpener func(ctx context.Context, release, id string) (io.ReadCloser, bootstrapassets.Descriptor, error)
@@ -250,6 +251,26 @@ func (service *Service) validateExternalPreconditions(ctx context.Context, bindi
 		}
 	}
 	return nil
+}
+
+// Detail reads what the installed cluster is doing right now. It mutates
+// nothing and is safe to call while a run is in flight — which is exactly when
+// it is wanted, because "awaiting-convergence" on its own does not distinguish
+// a cluster that is still starting from one that never will.
+func (service *Service) Detail(ctx context.Context, profileID string) (Detail, error) {
+	planRecord, err := service.store.LatestBootstrapPlanForProfile(ctx, profileID)
+	if err != nil {
+		return Detail{}, err
+	}
+	binding, err := ParseBinding(planRecord.Binding)
+	if err != nil || binding.ProfileID != profileID {
+		return Detail{}, fmt.Errorf("bootstrap binding is unusable")
+	}
+	credentials, err := service.loadCredentials(binding)
+	if err != nil {
+		return Detail{}, err
+	}
+	return service.runner.Detail(ctx, RunRequest{Binding: binding, Credentials: credentials, Cancelled: func() bool { return false }})
 }
 
 func (service *Service) loadCredentials(binding Binding) (nodeinspect.Credentials, error) {

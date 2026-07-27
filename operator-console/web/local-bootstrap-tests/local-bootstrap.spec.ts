@@ -83,9 +83,17 @@ test('Operator plans a Linux-node bootstrap and observes interruption recovery',
   await rail.getByRole('button', { name: /Install it/ }).click();
   const bootstrap = page.getByRole('region', { name: 'Install it' });
   await expect(bootstrap.getByText('Installer files for v1.2.27 downloaded and checked.')).toBeVisible();
-  await bootstrap.getByRole('button', { name: 'Advanced settings' }).click();
+
+  // Without Cluster Secrets the install would finish and then never start, so
+  // the stage will not plan one. The field is on the form itself rather than
+  // behind Advanced: there is no sensible default for it to hide.
+  const createPlan = bootstrap.getByRole('button', { name: 'Reinspect and create Change Plan' });
+  await expect(createPlan).toBeDisabled();
+  await expect(bootstrap.getByText('Without these the installation finishes and then never starts', { exact: false })).toBeVisible();
+
   await bootstrap.getByLabel('Kubernetes Secret manifests (kept outside Git)').fill('apiVersion: v1\nkind: Secret\ndata:\n  token: browser-only-secret');
-  await bootstrap.getByRole('button', { name: 'Reinspect and create Change Plan' }).click();
+  await expect(createPlan).toBeEnabled();
+  await createPlan.click();
   await expect(page.getByTestId('plan-digest')).toHaveText('a'.repeat(64));
   await expect(page.getByText('k3s and workloads can restart', { exact: false })).toBeVisible();
   await expect(page.getByText('/var/lib/smallworlds-data', { exact: true })).toBeVisible();

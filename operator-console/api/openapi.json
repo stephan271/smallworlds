@@ -2528,7 +2528,7 @@
       "post": {
         "operationId": "narrowHetznerTemporaryAccess",
         "summary": "Narrow the temporary public administration path to the Operator's own address",
-        "description": "Re-derives the scope of the temporary SSH and Kubernetes API access from a freshly observed Operator address. It cannot reopen a closed path: restoring administrative access to a handed-over cluster is a separate decision. An address that is unobserved, privately routed, or carrier-grade NAT leaves the path open with the reason stated, because a scope that admits nobody — or that moves — would lock the Operator out.",
+        "description": "Re-derives the scope of the temporary SSH and Kubernetes API access from a freshly observed Operator address. It cannot reopen a closed path: restoring administrative access to a handed-over cluster is a separate decision. An address that is unobserved, privately routed, or carrier-grade NAT leaves the path open with the reason stated, because a scope that admits nobody \u2014 or that moves \u2014 would lock the Operator out.",
         "requestBody": {
           "required": true,
           "content": {
@@ -2657,7 +2657,7 @@
       "get": {
         "operationId": "getProfileOverlayIdentity",
         "summary": "Read the settings repository this profile established",
-        "description": "Returns the recorded GitOps Overlay identity — repository, pinned release, and commit — so a returning Operator sees which repository the cluster deploys from without re-establishing it. Absent until an Overlay has been established.",
+        "description": "Returns the recorded GitOps Overlay identity \u2014 repository, pinned release, and commit \u2014 so a returning Operator sees which repository the cluster deploys from without re-establishing it. Absent until an Overlay has been established.",
         "parameters": [
           {
             "$ref": "#/components/parameters/ProfileID"
@@ -2676,6 +2676,49 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/cluster-detail": {
+      "get": {
+        "summary": "Read what the installed cluster is doing right now",
+        "description": "Read-only evidence behind a convergence verdict: node readiness, every Argo CD Application's sync and health, and the workloads that are not settled together with the reason the cluster itself gives. Safe to call while a run is in flight.",
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cluster detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClusterDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Profile not found"
+          },
+          "409": {
+            "description": "No installed cluster, or the machine identity changed"
+          },
+          "423": {
+            "description": "Launcher Vault is locked"
+          },
+          "502": {
+            "description": "The Cluster Node could not be reached"
           }
         }
       }
@@ -4605,7 +4648,7 @@
           "release": {
             "type": "string",
             "pattern": "^v[0-9]{1,4}\\.[0-9]{1,4}\\.[0-9]{1,6}(-[0-9A-Za-z.]{1,32})?$",
-            "description": "The SmallWorlds release to install. Any release whose published bootstrap asset manifest verifies against the launcher’s compiled release signing key is installable; the launcher does not carry a fixed list."
+            "description": "The SmallWorlds release to install. Any release whose published bootstrap asset manifest verifies against the launcher\u2019s compiled release signing key is installable; the launcher does not carry a fixed list."
           },
           "configuration": {
             "$ref": "#/components/schemas/LocalBootstrapConfiguration"
@@ -5868,6 +5911,121 @@
           "confirmedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "ClusterDetail": {
+        "type": "object",
+        "description": "One read-only picture of the cluster. Unsettled workloads only: a Running pod with every container ready says nothing, and listing it would bury the ones that cannot start.",
+        "required": [
+          "observedAt",
+          "markers",
+          "nodes",
+          "applications",
+          "workloads"
+        ],
+        "properties": {
+          "observedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "markers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Durable bootstrap markers found in /etc/smallworlds."
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClusterNodeCondition"
+            }
+          },
+          "applications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClusterApplicationCondition"
+            }
+          },
+          "workloads": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClusterWorkloadCondition"
+            }
+          },
+          "workloadsTruncated": {
+            "type": "boolean",
+            "description": "True when more unsettled workloads exist than were reported."
+          }
+        }
+      },
+      "ClusterNodeCondition": {
+        "type": "object",
+        "required": [
+          "name",
+          "ready"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "ready": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "ClusterApplicationCondition": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "sync": {
+            "type": "string"
+          },
+          "health": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "ClusterWorkloadCondition": {
+        "type": "object",
+        "required": [
+          "namespace",
+          "name"
+        ],
+        "properties": {
+          "namespace": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "phase": {
+            "type": "string"
+          },
+          "ready": {
+            "type": "string"
+          },
+          "restarts": {
+            "type": "integer"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string",
+            "description": "What the cluster itself says is wrong. Never a credential value."
           }
         }
       }

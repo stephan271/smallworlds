@@ -131,6 +131,7 @@ type Server struct {
 	offsiteValidator          OffsiteValidationRunner
 	hetzner                   HetznerProvider
 	hetznerProvision          *hetznerprovision.Service
+	localBootstrap            *localbootstrap.Service
 	decommissionInspector     PreserveDecommissionInspector
 	decommissionExecutor      PreserveDecommissionExecutor
 	decommissionActive        sync.Map
@@ -267,6 +268,7 @@ func New(config Config) (*Server, error) {
 		offsiteValidator: offsiteValidationRunner,
 
 		hetzner:                   hetznerProvider,
+		localBootstrap:            bootstrapService,
 		decommissionInspector:     decommissionInspector,
 		decommissionExecutor:      decommissionExecutor,
 		fullDecommissionInspector: fullDecommissionInspector,
@@ -381,6 +383,8 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.registerFirstOwner(response, request)
 	case request.URL.Path == "/api/v1/handoff-assessment":
 		server.handoffAssessment(response, request)
+	case request.URL.Path == "/api/v1/cluster-detail":
+		server.clusterDetail(response, request)
 	case request.URL.Path == "/api/v1/hetzner":
 		server.hetznerStatus(response, request)
 	case request.URL.Path == "/api/v1/hetzner/token/validate":
@@ -1188,6 +1192,59 @@ func (server *Server) handoffAssessment(response http.ResponseWriter, request *h
 		return
 	}
 	writeJSON(response, http.StatusOK, assessment)
+}
+
+// clusterDetail reports what the installed cluster is doing, in the cluster's
+// own words. It is read-only and deliberately reachable while a run is in
+// flight: a run parked at awaiting-convergence tells an Operator that something
+// is not finished, and nothing whatever about what.
+//
+// Every failure here is an ordinary answer rather than an error the interface
+// has to apologise for — there may be no installation yet, the vault may be
+// locked, the machine may be unreachable. Each of those is a true and useful
+// thing to say, so each is reported as such.
+func (server *Server) clusterDetail(response http.ResponseWriter, request *http.Request) {
+	if _, ok := server.authenticatedSession(request); !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodGet {
+		response.Header().Set("Allow", "GET")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	profileID := request.URL.Query().Get("profileId")
+	if profileID == "" {
+		writeError(response, http.StatusBadRequest, "profile_required")
+		return
+	}
+	if _, err := server.store.GetProfile(request.Context(), profileID); errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusNotFound, "profile_not_found")
+		return
+	} else if err != nil {
+		writeError(response, http.StatusInternalServerError, "cluster_detail_unavailable")
+		return
+	}
+	if server.localBootstrap == nil {
+		writeError(response, http.StatusConflict, "cluster_not_installed")
+		return
+	}
+	detail, err := server.localBootstrap.Detail(request.Context(), profileID)
+	switch {
+	case errors.Is(err, state.ErrNotFound):
+		writeError(response, http.StatusConflict, "cluster_not_installed")
+		return
+	case errors.Is(err, vault.ErrLocked):
+		writeError(response, http.StatusLocked, "vault_locked")
+		return
+	case errors.Is(err, localbootstrap.ErrExecutionPrecondition):
+		writeError(response, http.StatusConflict, "cluster_detail_precondition_changed")
+		return
+	case err != nil:
+		writeError(response, http.StatusBadGateway, "cluster_detail_unreachable")
+		return
+	}
+	writeJSON(response, http.StatusOK, detail)
 }
 
 func (server *Server) claimFirstOwner(response http.ResponseWriter, request *http.Request) {
@@ -3270,10 +3327,25 @@ func (server *Server) planLocalBootstrap(response http.ResponseWriter, request *
 			writeError(response, http.StatusInternalServerError, "cluster_secrets_storage_failed")
 			return
 		}
+		// Recorded like any other custodied secret, so the interface can say that
+		// one exists — and stop demanding it — without ever seeing its value.
+		if err := server.store.UpsertCredentialReference(request.Context(), state.CredentialReference{ProfileID: profile.ID, Kind: "cluster-secrets-manifest", VaultKey: secretVaultKey, Source: "operator", ExpiresAt: time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC), RotationStatus: "current"}); err != nil {
+			writeError(response, http.StatusInternalServerError, "cluster_secrets_storage_failed")
+			return
+		}
 	} else if present, containsErr := server.vault.Contains(profile.ID + "/cluster-secrets-manifest"); containsErr == nil && present {
 		secretVaultKey = profile.ID + "/cluster-secrets-manifest"
 	} else if errors.Is(containsErr, vault.ErrLocked) {
 		writeError(response, http.StatusLocked, "vault_locked")
+		return
+	}
+	// Refuse rather than build a cluster that cannot start. Keycloak, Garage and
+	// Grafana each mount a Secret this manifest is the only source of; without it
+	// the install completes, Argo CD reports Degraded, and the pods sit in
+	// CreateContainerConfigError for as long as anyone is willing to wait. That
+	// is a far worse outcome than being told now.
+	if secretVaultKey == "" {
+		writeError(response, http.StatusConflict, "cluster_secrets_required")
 		return
 	}
 	inspectionDigest, err := localbootstrap.InspectionDigest(report)

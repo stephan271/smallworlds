@@ -43,6 +43,72 @@ func (runner ProductionRunner) Observe(ctx context.Context, request RunRequest) 
 	return runner.observeSameHost(ctx, request)
 }
 
+// Detail reads what the cluster is doing without changing anything. It repeats
+// the same identity and authorisation checks as an observation: a diagnosis
+// taken from a machine that is no longer the one this profile pinned would be
+// worse than no diagnosis at all.
+func (runner ProductionRunner) Detail(ctx context.Context, request RunRequest) (Detail, error) {
+	if err := request.Binding.Validate(); err != nil {
+		return Detail{}, err
+	}
+	if request.Binding.Target.Kind == nodeinspect.RemoteTarget {
+		return runner.detailRemote(ctx, request)
+	}
+	return runner.detailSameHost(ctx, request)
+}
+
+func (runner ProductionRunner) detailRemote(ctx context.Context, request RunRequest) (Detail, error) {
+	client, err := nodeinspect.DialTrusted(ctx, request.Binding.Target, request.Credentials, request.Binding.HostFingerprint)
+	if err != nil {
+		return Detail{}, fmt.Errorf("%w: connect trusted node", ErrInterrupted)
+	}
+	defer client.Close()
+	if err := nodeinspect.ValidateSudoCredential(client, request.Credentials.SudoPassword); err != nil {
+		return Detail{}, fmt.Errorf("%w: sudo authorization", ErrExecutionPrecondition)
+	}
+	identity, err := readRemoteNodeIdentity(client)
+	if err != nil || identity != request.Binding.NodeIdentity {
+		return Detail{}, fmt.Errorf("%w: remote node identity changed", ErrExecutionPrecondition)
+	}
+	command := detailCommand
+	if request.Binding.Target.Username != "root" {
+		command = "sudo -n sh -c " + shellQuote(command)
+	} else {
+		command = "sh -c " + shellQuote(command)
+	}
+	output, err := readSSHOutput(client, command)
+	if err != nil {
+		return Detail{}, fmt.Errorf("%w: read cluster detail", ErrInterrupted)
+	}
+	return ParseDetail(output, time.Now()), nil
+}
+
+func (runner ProductionRunner) detailSameHost(ctx context.Context, request RunRequest) (Detail, error) {
+	inspect := runner.SameHostInspector
+	if inspect == nil {
+		inspect = nodeinspect.InspectSameHost
+	}
+	report, err := inspect(request.Binding.ProfileID, request.Binding.Configuration.DataDirectory)
+	if err != nil || report.NodeIdentity != request.Binding.NodeIdentity {
+		return Detail{}, fmt.Errorf("%w: same-host node identity changed", ErrExecutionPrecondition)
+	}
+	name, arguments := "sh", []string{"-c", detailCommand}
+	if os.Geteuid() != 0 {
+		if err := validateLocalSudo(ctx, request.Credentials.SudoPassword); err != nil {
+			return Detail{}, fmt.Errorf("%w: sudo authorization", ErrExecutionPrecondition)
+		}
+		name, arguments = "sudo", []string{"-n", "sh", "-c", detailCommand}
+	}
+	process := exec.CommandContext(ctx, name, arguments...)
+	var stdout bytes.Buffer
+	process.Stdout = &stdout
+	process.Stderr = io.Discard
+	if err := process.Run(); err != nil {
+		return Detail{}, fmt.Errorf("%w: read cluster detail", ErrInterrupted)
+	}
+	return ParseDetail(stdout.String(), time.Now()), nil
+}
+
 func (runner ProductionRunner) observeRemote(ctx context.Context, request RunRequest) (Observation, error) {
 	client, err := nodeinspect.DialTrusted(ctx, request.Binding.Target, request.Credentials, request.Binding.HostFingerprint)
 	if err != nil {
@@ -381,6 +447,24 @@ func runSSHSession(client *ssh.Client, command string, stdin io.Reader) error {
 	session.Stdout = io.Discard
 	session.Stderr = io.Discard
 	return session.Run(command)
+}
+
+// readSSHOutput runs one command and keeps what it printed. The observation
+// path deliberately discards output — it only needs an exit status — but a
+// diagnosis is nothing but the output.
+func readSSHOutput(client *ssh.Client, command string) (string, error) {
+	session, err := client.NewSession()
+	if err != nil {
+		return "", err
+	}
+	defer session.Close()
+	var stdout bytes.Buffer
+	session.Stdout = &stdout
+	session.Stderr = io.Discard
+	if err := session.Run(command); err != nil {
+		return "", err
+	}
+	return stdout.String(), nil
 }
 
 func readRemoteNodeIdentity(client *ssh.Client) (string, error) {

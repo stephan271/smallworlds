@@ -64,6 +64,7 @@ func TestOpenAPIContractDescribesLauncherWorkflow(t *testing.T) {
 		"/api/v1/first-owner":                        {"get"},
 		"/api/v1/first-owner/claim":                  {"post"},
 		"/api/v1/first-owner/register":               {"post"},
+		"/api/v1/cluster-detail":                     {"get"},
 		"/api/v1/handoff-assessment":                 {"get"},
 		"/api/v1/hetzner":                            {"get"},
 		"/api/v1/hetzner/token/validate":             {"post"},

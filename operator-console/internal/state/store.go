@@ -1057,6 +1057,21 @@ func (store *Store) listPlansForProfile(ctx context.Context, profileID string) (
 	return plans, rows.Err()
 }
 
+// LatestBootstrapPlanForProfile returns the most recent bootstrap plan recorded
+// for one profile. Reading what a cluster is doing needs the binding that says
+// which machine it is and how to reach it, and the newest plan is the only one
+// that still describes the installation as it stands.
+func (store *Store) LatestBootstrapPlanForProfile(ctx context.Context, profileID string) (BootstrapPlanRecord, error) {
+	records, err := store.listBootstrapPlansForProfile(ctx, profileID)
+	if err != nil {
+		return BootstrapPlanRecord{}, err
+	}
+	if len(records) == 0 {
+		return BootstrapPlanRecord{}, ErrNotFound
+	}
+	return records[len(records)-1], nil
+}
+
 func (store *Store) listBootstrapPlansForProfile(ctx context.Context, profileID string) ([]BootstrapPlanRecord, error) {
 	rows, err := store.database.QueryContext(ctx, `SELECT plan_id, profile_id, binding_json, created_at FROM bootstrap_plans WHERE profile_id = ? ORDER BY created_at`, profileID)
 	if err != nil {
