@@ -7,6 +7,9 @@ import (
 	"encoding/base64"
 	"errors"
 	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -127,5 +130,67 @@ func TestShellQuoteCannotCreateAdditionalConfigurationStatements(t *testing.T) {
 	quoted := shellQuote("value'\nINJECTED=yes")
 	if quoted != "'value'\"'\"'\nINJECTED=yes'" {
 		t.Fatalf("quoted value = %q", quoted)
+	}
+}
+
+// The guard that stops a retry from starting a second installer beside a live
+// one is three subtleties in one line — it must not match the shell that runs
+// it, it must invert pgrep's answer, and it must not read a missing pgrep as
+// "all clear". Getting any of them wrong reinstalls a cluster on top of itself,
+// so the line is exercised through a real shell rather than read.
+func TestNoBootstrapInFlightCommandAnswersThroughARealShell(t *testing.T) {
+	if _, err := exec.LookPath("pgrep"); err != nil {
+		t.Skip("pgrep is unavailable on this machine")
+	}
+	ask := func() error {
+		return exec.Command("sh", "-c", noBootstrapInFlightCommand).Run()
+	}
+	// Nothing is installing: the command must succeed, which also proves it does
+	// not match its own command line.
+	if err := ask(); err != nil {
+		t.Fatalf("a quiet node was reported busy: %v", err)
+	}
+	directory := t.TempDir()
+	script := filepath.Join(directory, "bootstrap-local-node.sh")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\nsleep 30\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	installer := exec.Command("/bin/sh", script)
+	if err := installer.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = installer.Process.Kill()
+		_, _ = installer.Process.Wait()
+	}()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if ask() != nil {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatal("a running installer was not noticed")
+}
+
+// Merely naming the script is not running it. Anything on the node whose
+// command line quotes the path — an editor, a copy, a shell reading this very
+// test — would otherwise be mistaken for an installation in progress and make
+// every attempt wait for a process that does not exist.
+func TestACommandLineThatOnlyMentionsTheInstallerIsNotMistakenForOne(t *testing.T) {
+	if _, err := exec.LookPath("pgrep"); err != nil {
+		t.Skip("pgrep is unavailable on this machine")
+	}
+	mention := exec.Command("sleep", "30", "--", `printf '%s' "bootstrap-local-node.sh"`)
+	if err := mention.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = mention.Process.Kill()
+		_, _ = mention.Process.Wait()
+	}()
+	time.Sleep(100 * time.Millisecond)
+	if err := exec.Command("sh", "-c", noBootstrapInFlightCommand).Run(); err != nil {
+		t.Fatalf("a command that only mentions the installer was read as one running: %v", err)
 	}
 }

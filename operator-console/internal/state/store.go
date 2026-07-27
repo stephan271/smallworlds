@@ -1412,6 +1412,22 @@ func (store *Store) AppendEvent(ctx context.Context, event EventRecord) (EventRe
 	return event, nil
 }
 
+// CountRunCheckpoints reports how often a run has reached a checkpoint. The
+// Activity Record is the durable account of what a run already did, so a retry
+// budget counted from it survives a launcher restart — an attempt budget kept
+// in memory would reset on every crash, which is exactly when it matters.
+func (store *Store) CountRunCheckpoints(ctx context.Context, runID, checkpoint string) (int, error) {
+	var count int
+	err := store.database.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM events
+		WHERE run_id = ? AND type = 'run.checkpoint' AND parameters = ?
+	`, runID, `{"checkpoint":"`+checkpoint+`"}`).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count run checkpoints: %w", err)
+	}
+	return count, nil
+}
+
 func (store *Store) ListEvents(ctx context.Context, profileID string, afterID int64) ([]EventRecord, error) {
 	rows, err := store.database.QueryContext(ctx, `
 		SELECT id, profile_id, run_id, type, message_key, parameters, occurred_at

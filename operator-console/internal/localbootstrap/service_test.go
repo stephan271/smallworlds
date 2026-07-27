@@ -209,3 +209,154 @@ func TestServiceDefersCancellationUntilTheAtomicCheckpointFinishes(t *testing.T)
 		t.Fatalf("cancelled run = %#v, err = %v", cancelled, err)
 	}
 }
+
+// --- Bounded retries, node exclusivity, and one run at a time -------------
+//
+// A bootstrap attempt installs a cluster on a real machine. Repeating that
+// unattended every ten seconds is not resilience: a single interrupted run once
+// became two bootstraps uninstalling each other's k3s on the same node while
+// nobody was watching. These pin the three rules that stop it.
+
+type bootstrapFixture struct {
+	store   *state.Store
+	plan    state.PlanRecord
+	profile state.Profile
+	binding localbootstrap.Binding
+	now     time.Time
+}
+
+func newBootstrapFixture(t *testing.T) bootstrapFixture {
+	t.Helper()
+	store, err := state.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	ctx := context.Background()
+	now := time.Now().UTC()
+	profile := state.Profile{ID: "profile-1", Name: "Home", Language: "en", DeploymentMode: "local-lan", Revision: 1, CreatedAt: now}
+	if _, err := store.CreateProfile(ctx, profile); err != nil {
+		t.Fatal(err)
+	}
+	overlay := state.OverlayIdentity{ProfileID: profile.ID, Provider: "github", Repository: "example/config", RepositoryURL: "https://github.com/example/config", Release: "v1.2.27", Commit: strings.Repeat("c", 40), RecordedAt: now}
+	if err := store.RecordOverlayIdentity(ctx, overlay); err != nil {
+		t.Fatal(err)
+	}
+	trust := state.NodeTrust{ProfileID: profile.ID, Host: "node.internal", Port: 22, Username: "operator", Fingerprint: "SHA256:pinned", ConfirmedAt: now}
+	if err := store.RecordNodeTrust(ctx, trust); err != nil {
+		t.Fatal(err)
+	}
+	plan := state.PlanRecord{ID: "plan-1", ProfileID: profile.ID, Intent: "BootstrapLocalNode", Digest: "digest", Status: "approved", ProfileRevision: 1, CreatedAt: now}
+	binding := localbootstrap.Binding{PlanID: plan.ID, ProfileID: profile.ID, ProfileRevision: 1, Target: nodeinspect.Target{Kind: nodeinspect.RemoteTarget, Host: trust.Host, Port: trust.Port, Username: trust.Username}, HostFingerprint: trust.Fingerprint, NodeIdentity: trust.Fingerprint, InspectionDigest: strings.Repeat("a", 64), InspectedAt: now, Release: "v1.2.27", AssetID: "bootstrap-linux-amd64", AssetSHA256: strings.Repeat("b", 64), OverlayRepositoryURL: overlay.RepositoryURL, OverlayCommit: overlay.Commit, OverlayRelease: overlay.Release, AuthenticationKind: "agent", Configuration: localbootstrap.Configuration{Domain: "example.internal", DataDirectory: "/var/lib/smallworlds-data", NodeName: "smallworlds-node"}}
+	plan.Digest = binding.PlanDigest(plan.Intent)
+	if err := store.CreatePlan(ctx, plan); err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := binding.Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.RecordBootstrapPlan(ctx, state.BootstrapPlanRecord{PlanID: plan.ID, ProfileID: profile.ID, Binding: encoded, CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	return bootstrapFixture{store: store, plan: plan, profile: profile, binding: binding, now: now}
+}
+
+func (fixture bootstrapFixture) createRun(t *testing.T, id string, createdAt time.Time) {
+	t.Helper()
+	run := state.RunRecord{ID: id, PlanID: fixture.plan.ID, ProfileID: fixture.profile.ID, State: "running", CurrentCheckpoint: "approved", CancellationState: "not-requested", CreatedAt: createdAt, UpdatedAt: createdAt}
+	if err := fixture.store.CreateRun(context.Background(), run); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func (fixture bootstrapFixture) service(runner localbootstrap.Runner) *localbootstrap.Service {
+	return localbootstrap.NewService(fixture.store, func(context.Context, string, string) (io.ReadCloser, bootstrapassets.Descriptor, error) {
+		return io.NopCloser(strings.NewReader("archive")), bootstrapassets.Descriptor{SHA256: fixture.binding.AssetSHA256}, nil
+	}, func(string) (string, error) { return "", vault.ErrSecretNotFound }, runner)
+}
+
+type stubRunner struct {
+	calls int
+	err   error
+}
+
+func (runner *stubRunner) Run(context.Context, localbootstrap.RunRequest) (localbootstrap.Observation, error) {
+	runner.calls++
+	return localbootstrap.Observation{}, runner.err
+}
+
+func (runner *stubRunner) Observe(context.Context, localbootstrap.RunRequest) (localbootstrap.Observation, error) {
+	return localbootstrap.Observation{}, errors.New("unexpected observation")
+}
+
+func (runner *stubRunner) Detail(context.Context, localbootstrap.RunRequest) (localbootstrap.Detail, error) {
+	return localbootstrap.Detail{}, errors.New("unexpected detail")
+}
+
+func TestRepeatedInterruptionEndsTheRunInsteadOfReinstallingForever(t *testing.T) {
+	fixture := newBootstrapFixture(t)
+	fixture.createRun(t, "run-1", fixture.now)
+	runner := &stubRunner{err: localbootstrap.ErrInterrupted}
+	service := fixture.service(runner)
+	ctx := context.Background()
+	for attempt := 1; attempt <= 5; attempt++ {
+		service.Execute("run-1")
+		run, err := fixture.store.GetRun(ctx, "run-1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if attempt < 5 && (run.State != "running" || run.CurrentCheckpoint != "interrupted") {
+			t.Fatalf("attempt %d: run = %#v", attempt, run)
+		}
+		if attempt == 5 && (run.State != "failed" || run.CurrentCheckpoint != "execution-abandoned") {
+			t.Fatalf("the run never gave up: %#v", run)
+		}
+	}
+	if runner.calls != 5 {
+		t.Fatalf("installer attempts = %d, want 5", runner.calls)
+	}
+	// The budget is counted from the Activity Record, so a launcher restart
+	// cannot hand a crash-looping run a fresh set of attempts.
+	interrupted, err := fixture.store.CountRunCheckpoints(ctx, "run-1", "interrupted")
+	if err != nil || interrupted != 5 {
+		t.Fatalf("recorded interruptions = %d, err = %v", interrupted, err)
+	}
+	service.Execute("run-1")
+	if runner.calls != 5 {
+		t.Fatalf("a failed run was executed again: calls = %d", runner.calls)
+	}
+}
+
+func TestAnInstallerAlreadyRunningOnTheNodeIsWaitedForRatherThanDoubled(t *testing.T) {
+	fixture := newBootstrapFixture(t)
+	fixture.createRun(t, "run-1", fixture.now)
+	runner := &stubRunner{err: localbootstrap.ErrAttemptInFlight}
+	fixture.service(runner).Execute("run-1")
+	ctx := context.Background()
+	run, err := fixture.store.GetRun(ctx, "run-1")
+	if err != nil || run.State != "running" || run.CurrentCheckpoint != "awaiting-previous-attempt" {
+		t.Fatalf("run = %#v, err = %v", run, err)
+	}
+	// Waiting for someone else's installer is not a failed attempt of our own;
+	// spending the budget on it would abandon a run that never got to try.
+	interrupted, err := fixture.store.CountRunCheckpoints(ctx, "run-1", "interrupted")
+	if err != nil || interrupted != 0 {
+		t.Fatalf("waiting consumed the retry budget: %d, err = %v", interrupted, err)
+	}
+}
+
+func TestASecondRunForTheSameCommunityWaitsForTheOlderOne(t *testing.T) {
+	fixture := newBootstrapFixture(t)
+	fixture.createRun(t, "run-older", fixture.now)
+	fixture.createRun(t, "run-newer", fixture.now.Add(time.Minute))
+	runner := &stubRunner{err: localbootstrap.ErrInterrupted}
+	fixture.service(runner).Execute("run-newer")
+	run, err := fixture.store.GetRun(context.Background(), "run-newer")
+	if err != nil || run.CurrentCheckpoint != "awaiting-other-run" {
+		t.Fatalf("run = %#v, err = %v", run, err)
+	}
+	if runner.calls != 0 {
+		t.Fatal("a second installation started while another run was still going")
+	}
+}

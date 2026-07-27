@@ -17,6 +17,12 @@ import (
 var ErrInterrupted = errors.New("local bootstrap execution interrupted")
 var ErrExecutionPrecondition = errors.New("local bootstrap execution precondition changed")
 
+// ErrAttemptInFlight reports that the node is still running a bootstrap from an
+// earlier attempt. It is deliberately not an ErrInterrupted: nothing failed and
+// nothing should be retried against the machine yet — the right response is to
+// wait for the installer that is already there.
+var ErrAttemptInFlight = errors.New("local bootstrap attempt already running on the node")
+
 type Observation struct {
 	CommandCompleted        bool
 	K3SReady                bool
@@ -48,17 +54,31 @@ type Runner interface {
 type AssetOpener func(ctx context.Context, release, id string) (io.ReadCloser, bootstrapassets.Descriptor, error)
 type SecretLoader func(key string) (string, error)
 
+// A bootstrap attempt installs a cluster on a real machine. maxAttempts bounds
+// how often that may be repeated unattended before the run ends as failed, and
+// maxRetryDelay bounds how far the wait between attempts is allowed to grow.
+const (
+	defaultMaxAttempts = 5
+	maxRetryDelay      = 5 * time.Minute
+	// Waiting deliberately costs no attempt — a run that never got to try must
+	// not be abandoned for someone else's installer. But an unbounded wait is
+	// the same defect in a politer form: a node that can never be asked, or an
+	// older run that never finishes, would leave a timer going round forever.
+	maxWaitCheckpoints = 60
+)
+
 type Service struct {
-	store      *state.Store
-	openAsset  AssetOpener
-	loadSecret SecretLoader
-	runner     Runner
-	active     sync.Map
-	retryDelay time.Duration
+	store       *state.Store
+	openAsset   AssetOpener
+	loadSecret  SecretLoader
+	runner      Runner
+	active      sync.Map
+	retryDelay  time.Duration
+	maxAttempts int
 }
 
 func NewService(store *state.Store, openAsset AssetOpener, loadSecret SecretLoader, runner Runner) *Service {
-	return &Service{store: store, openAsset: openAsset, loadSecret: loadSecret, runner: runner, retryDelay: 10 * time.Second}
+	return &Service{store: store, openAsset: openAsset, loadSecret: loadSecret, runner: runner, retryDelay: 10 * time.Second, maxAttempts: defaultMaxAttempts}
 }
 
 func (service *Service) Execute(runID string) {
@@ -69,6 +89,20 @@ func (service *Service) Execute(runID string) {
 	ctx := context.Background()
 	run, err := service.store.GetRun(ctx, runID)
 	if err != nil || run.State != "running" {
+		return
+	}
+	// One installation per community at a time. Two approved plans for the same
+	// profile could each be started, and after a launcher restart ResumeActive
+	// woke every run that was mid-flight at once — both then installed onto the
+	// same machine. The older run keeps the node; this one waits rather than
+	// being thrown away, because the elder may yet fail and hand it over.
+	if service.supersededByOlderRun(ctx, run) {
+		if service.waitedTooLong(ctx, run, "awaiting-other-run") {
+			service.fail(ctx, run, "abandoned-waiting", "local_bootstrap.waited_too_long")
+			return
+		}
+		_ = service.checkpoint(ctx, run, "awaiting-other-run")
+		service.scheduleRetryAfter(run.ID, service.retryDelay)
 		return
 	}
 	planRecord, err := service.store.GetBootstrapPlan(ctx, run.PlanID)
@@ -185,8 +219,31 @@ func (service *Service) Execute(runID string) {
 			service.fail(ctx, run, "execution-precondition-changed", "local_bootstrap.precondition_changed")
 			return
 		}
+		// A previous attempt is still installing on this node. Waiting is the only
+		// safe answer: starting a second one alongside it is what turned a single
+		// interrupted run into two bootstraps uninstalling each other's k3s. It is
+		// not a failed attempt either, so it must not spend the budget.
+		if errors.Is(err, ErrAttemptInFlight) {
+			if service.waitedTooLong(ctx, run, "awaiting-previous-attempt") {
+				service.fail(ctx, run, "abandoned-waiting", "local_bootstrap.waited_too_long")
+				return
+			}
+			_ = service.checkpoint(ctx, run, "awaiting-previous-attempt")
+			service.scheduleRetryAfter(run.ID, service.retryDelay)
+			return
+		}
+		// Every attempt here re-runs the installer on a real machine. Repeating
+		// that forever every ten seconds is not resilience — it is an unattended
+		// loop that reinstalls a cluster on top of itself for as long as nobody
+		// is watching. Count what already happened, back off, and end honestly.
+		attempts, countErr := service.store.CountRunCheckpoints(ctx, run.ID, "interrupted")
+		if countErr == nil && attempts+1 >= service.maxAttempts {
+			_ = service.checkpoint(ctx, run, "interrupted")
+			service.fail(ctx, run, "execution-abandoned", "local_bootstrap.execution_abandoned")
+			return
+		}
 		_ = service.checkpoint(ctx, run, "interrupted")
-		service.scheduleRetry(run.ID)
+		service.scheduleRetryAfter(run.ID, service.backoff(attempts+1))
 		return
 	}
 	if !observation.CommandCompleted {
@@ -231,8 +288,50 @@ func (service *Service) completeOrRetryConvergence(ctx context.Context, run stat
 	_ = service.store.CompleteRunVerification(ctx, run.ID, "verification-complete", "cluster.gitops.converged", observedAt)
 }
 
+// supersededByOlderRun reports whether another still-running bootstrap for the
+// same profile was created first. Deciding by creation time rather than by
+// which goroutine got there first keeps the answer the same across restarts,
+// so a resumed pair cannot swap places and both proceed.
+func (service *Service) supersededByOlderRun(ctx context.Context, run state.RunRecord) bool {
+	active, err := service.store.ListActiveRuns(ctx)
+	if err != nil {
+		return false
+	}
+	for _, other := range active {
+		if other.ID != run.ID && other.ProfileID == run.ProfileID && other.CreatedAt.Before(run.CreatedAt) {
+			return true
+		}
+	}
+	return false
+}
+
+// waitedTooLong reports whether a run has been held back so often that it is
+// no longer waiting for anything that is going to happen.
+func (service *Service) waitedTooLong(ctx context.Context, run state.RunRecord, checkpoint string) bool {
+	waits, err := service.store.CountRunCheckpoints(ctx, run.ID, checkpoint)
+	return err == nil && waits >= maxWaitCheckpoints
+}
+
 func (service *Service) scheduleRetry(runID string) {
-	time.AfterFunc(service.retryDelay, func() { service.Execute(runID) })
+	service.scheduleRetryAfter(runID, service.retryDelay)
+}
+
+func (service *Service) scheduleRetryAfter(runID string, delay time.Duration) {
+	time.AfterFunc(delay, func() { service.Execute(runID) })
+}
+
+// backoff spreads repeated installation attempts out instead of hammering the
+// node at a fixed ten seconds. Convergence polling deliberately keeps the flat
+// interval: watching a cluster settle changes nothing and may take a while.
+func (service *Service) backoff(attempt int) time.Duration {
+	delay := service.retryDelay
+	for count := 1; count < attempt && delay < maxRetryDelay; count++ {
+		delay *= 2
+	}
+	if delay > maxRetryDelay {
+		delay = maxRetryDelay
+	}
+	return delay
 }
 
 func (service *Service) validateExternalPreconditions(ctx context.Context, binding Binding) error {

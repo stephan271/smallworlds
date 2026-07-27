@@ -209,6 +209,17 @@ func (runner ProductionRunner) runRemote(ctx context.Context, request RunRequest
 	if request.Cancelled() {
 		return Observation{}, ErrInterrupted
 	}
+	// Nothing may start a second installer beside one that is still running. The
+	// bootstrap lives on the SSH session, so a dropped connection leaves it alive
+	// on the node while the launcher sees a failure and retries — that is how one
+	// interrupted run became two bootstraps uninstalling each other's k3s. The
+	// bracket in the pattern keeps it from matching the shell that evaluates it,
+	// and the negation means the check has to succeed *and* find nothing: a node
+	// that cannot be asked counts as busy, because guessing wrong here starts a
+	// second installation.
+	if err := privileged(noBootstrapInFlightCommand, nil); err != nil {
+		return Observation{}, ErrAttemptInFlight
+	}
 	if err := request.Checkpoint("bootstrap-atomic-operation"); err != nil {
 		return Observation{}, err
 	}
@@ -278,6 +289,17 @@ func (runner ProductionRunner) runSameHost(ctx context.Context, request RunReque
 	if request.Cancelled() {
 		return Observation{}, ErrInterrupted
 	}
+	// Nothing may start a second installer beside one that is still running. The
+	// bootstrap lives on the SSH session, so a dropped connection leaves it alive
+	// on the node while the launcher sees a failure and retries — that is how one
+	// interrupted run became two bootstraps uninstalling each other's k3s. The
+	// bracket in the pattern keeps it from matching the shell that evaluates it,
+	// and the negation means the check has to succeed *and* find nothing: a node
+	// that cannot be asked counts as busy, because guessing wrong here starts a
+	// second installation.
+	if err := privileged(noBootstrapInFlightCommand, nil); err != nil {
+		return Observation{}, ErrAttemptInFlight
+	}
 	if err := request.Checkpoint("bootstrap-atomic-operation"); err != nil {
 		return Observation{}, err
 	}
@@ -334,6 +356,20 @@ func (runner ProductionRunner) observe(ctx context.Context, binding Binding, exe
 		}
 	}
 }
+
+// noBootstrapInFlightCommand exits zero only when the node could be asked and
+// nothing is running. Both halves matter: a bare negated pgrep would turn a
+// missing pgrep (exit 127) into "all clear" and start a second installer, which
+// is precisely the failure this guard exists to prevent. Anything else — a
+// match, a node that cannot answer — means do not start one.
+//
+// The bracket keeps the pattern from matching the shell that evaluates it: the
+// checking command line contains "[.]", which the regex does not match. The
+// trailing boundary keeps it from matching a command line that merely mentions
+// the file — the installer is always invoked as the script followed by its
+// config argument, so anything with the name buried mid-string is somebody
+// reading or copying it, not running it.
+const noBootstrapInFlightCommand = `command -v pgrep >/dev/null 2>&1 && ! pgrep -f 'bootstrap-local-node[.]sh( |$)' >/dev/null 2>&1`
 
 const observeK3SCommand = `test -f /etc/smallworlds/k3s-ready && k3s kubectl get nodes -o jsonpath='{range .items[*]}{range .status.conditions[?(@.type=="Ready")]}{.status}{end}{end}' | grep -q True`
 const observeArgoCDCommand = `test -f /etc/smallworlds/argocd-ready && k3s kubectl -n argocd rollout status deployment/argocd-server --timeout=1s >/dev/null 2>&1`
