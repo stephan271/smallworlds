@@ -25,6 +25,7 @@ export type NodeTarget = components['schemas']['NodeTarget'];
 export type NodeProbeResult = components['schemas']['NodeProbeResult'];
 export type NodeTrust = components['schemas']['NodeTrust'];
 export type OverlayIdentity = components['schemas']['OverlayIdentity'];
+export type ClusterSecretCredentials = components['schemas']['ClusterSecretCredentials'];
 export type NodeInspectionResult = components['schemas']['NodeInspectionResult'];
 export type LocalBootstrapPlanResult = components['schemas']['LocalBootstrapPlanResult'];
 export type ClusterCAReferenceView = components['schemas']['ClusterCAReferenceView'];
@@ -153,6 +154,8 @@ export const api = {
     request<CapabilityPlanResult>('/api/v1/capabilities/plan', { method: 'POST', body: JSON.stringify(input) }),
   validateGitHubToken: (profileId: string, token: string, authority: 'creation' | 'ongoing') =>
     request<GitHubTokenStatus>('/api/v1/github/token/validate', { method: 'POST', body: JSON.stringify({ profileId, token, authority }) }),
+  revealClusterSecretCredentials: (profileId: string) =>
+    request<ClusterSecretCredentials>('/api/v1/cluster-secrets/credentials', { method: 'POST', body: JSON.stringify({ profileId }) }),
   establishGitHubOverlay: (input: { profileId: string; planId: string; repositoryName: string; mode: CapabilityMode; communityIds: string[]; release: string; domain: string; environmentExtension?: string }) =>
     request<OverlayIdentity>('/api/v1/github/overlay/establish', { method: 'POST', body: JSON.stringify(input) }),
   validateGenericGitCredentials: (profileId: string, repositoryUrl: string, username: string, token: string) =>

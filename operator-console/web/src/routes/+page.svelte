@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type ClusterDetail, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type FullDecommissionResult, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type HandoffAssessment, type HetznerChangePlan, type HetznerPlanResult, type HetznerPresets, type HetznerPresetTier, type HetznerProject, type HetznerToolchain, type HetznerWorkspace, type TemporaryAccess, type NodeCapabilities, type NodeInspectionResult, type NodeProbeResult, type NodeTarget, type NodeTrust, type OffsitePlan, type OverlayIdentity, type OffsiteProposal, type OffsiteProtection, type PreserveDataDecommissionResult, type RecoveryBundlePreview, type SetupSettings, type TailscaleClientOffer, type VaultStatus, type WorkflowRun } from '$lib/api';
+  import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type ClusterDetail, type ClusterSecretCredentials, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type FullDecommissionResult, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type HandoffAssessment, type HetznerChangePlan, type HetznerPlanResult, type HetznerPresets, type HetznerPresetTier, type HetznerProject, type HetznerToolchain, type HetznerWorkspace, type TemporaryAccess, type NodeCapabilities, type NodeInspectionResult, type NodeProbeResult, type NodeTarget, type NodeTrust, type OffsitePlan, type OverlayIdentity, type OffsiteProposal, type OffsiteProtection, type PreserveDataDecommissionResult, type RecoveryBundlePreview, type SetupSettings, type TailscaleClientOffer, type VaultStatus, type WorkflowRun } from '$lib/api';
   import { decommissionCopy } from '$lib/decommission-copy';
   import { formatCurrency, formatDateTime, formatNumber } from '$lib/format';
   import { translate, type Locale, type MessageKey } from '$lib/i18n';
@@ -136,6 +136,10 @@
   let localPublicDNSToken = $state('');
   let localPublicRouterAcknowledged = $state(false);
   let localBootstrapSecrets = $state('');
+  let advancedSecrets = $state(false);
+  let clusterCredentials: ClusterSecretCredentials | null = $state(null);
+  let clusterCredentialsBusy = $state(false);
+  let clusterCredentialsError = $state('');
   let localBootstrapError = $state('');
   let localBootstrapBusy = $state(false);
   /** The change plan for building the cluster, whichever mode builds it. */
@@ -688,10 +692,6 @@
   const nodePasswordStored = $derived(secretStored('node-password'));
   const nodePrivateKeyStored = $derived(secretStored('node-private-key'));
   const clusterSecretsStored = $derived(secretStored('cluster-secrets-manifest'));
-  /** A manifest typed now, or one already custodied from an earlier attempt.
-   *  The launcher refuses the plan without either, so the button does too —
-   *  being told before the twenty-minute install rather than after it. */
-  const clusterSecretsSupplied = $derived.by(() => localBootstrapSecrets.trim() !== '' || clusterSecretsStored);
 
   function vaultErrorMessage(code: string): string {
     switch (code) {
@@ -1624,6 +1624,23 @@
     }
   }
 
+  /** The two logins a person actually uses. They are read back out of the
+   *  password safe on request rather than held here, so leaving the stage puts
+   *  them away again. */
+  async function showClusterCredentials(): Promise<void> {
+    if (!activeProfile) return;
+    clusterCredentialsBusy = true;
+    clusterCredentialsError = '';
+    try {
+      clusterCredentials = await api.revealClusterSecretCredentials(activeProfile.id);
+    } catch (reason) {
+      clusterCredentials = null;
+      clusterCredentialsError = localBootstrapErrorMessage(reason instanceof Error ? reason.message : 'cluster_secrets_read_failed');
+    } finally {
+      clusterCredentialsBusy = false;
+    }
+  }
+
   async function planLocalBootstrap(): Promise<void> {
     if (!activeProfile) return;
     localBootstrapBusy = true;
@@ -1646,6 +1663,9 @@
       localBootstrapSecrets = '';
       localPublicDNSToken = '';
       clearNodeSecrets();
+      // Planning is where the Cluster Secrets come into being, so what the safe
+      // holds has just changed and the stage can now offer to show the logins.
+      credentials = await api.listCredentials(activeProfile.id).catch(() => credentials);
     } catch (reason) {
       localBootstrapError = reason instanceof Error ? reason.message : 'local_bootstrap_plan_failed';
     } finally {
@@ -2563,25 +2583,53 @@
                   <div><dt>{message('localBootstrapDataDirectory')}</dt><dd><code>{localBootstrapDataDirectory}</code></dd></div>
                 </dl>
 
-                <!-- Not an advanced tweak: Keycloak, Garage and Grafana each
-                     mount a Secret this is the only source of. Without it the
-                     install succeeds, Argo CD reports Degraded, and the pods sit
-                     in CreateContainerConfigError indefinitely — so the stage
-                     asks for it plainly and will not plan without it. -->
-                <form onsubmit={(event) => event.preventDefault()}>
-                  <label>
-                    <span>{message('localBootstrapSecrets')}</span>
-                    <textarea bind:value={localBootstrapSecrets} rows="8" autocomplete="off" placeholder="apiVersion: v1&#10;kind: Secret&#10;metadata:&#10;  name: keycloak-admin-creds&#10;  namespace: keycloak&#10;stringData:&#10;  admin-password: …"></textarea>
-                    {#if clusterSecretsStored}
-                      <small class="muted">{message('secretAlreadySaved')}</small>
-                    {:else}
-                      <small class="muted">{message('localBootstrapSecretsHint')}</small>
-                    {/if}
-                  </label>
-                </form>
-                {#if !clusterSecretsSupplied}
-                  <p class="inline-notice">{message('localBootstrapSecretsRequired')}</p>
+                <!-- Keycloak, Garage and Grafana each mount a Secret this is
+                     the only source of, and Argo CD cannot read the settings
+                     repository without its credential. Asking an Operator to
+                     author them meant asking for machine credentials nobody ever
+                     reads and for a token this console already holds — so it
+                     writes them itself, and the field below is only for someone
+                     who wants to override that. -->
+                <p class="muted">{message('localBootstrapSecretsGenerated')}</p>
+                {#if clusterSecretsStored}
+                  <div class="actions">
+                    <button type="button" class="secondary" onclick={() => void showClusterCredentials()} disabled={clusterCredentialsBusy}>{message('localBootstrapCredentialsShow')}</button>
+                  </div>
+                  {#if clusterCredentials}
+                    <section class="capability-preview">
+                      <h3>{message('localBootstrapCredentialsTitle')}</h3>
+                      {#if clusterCredentials.present}
+                        <dl class="credential-metadata">
+                          <div><dt>{message('localBootstrapCredentialsKeycloak')}</dt><dd><code>{clusterCredentials.credentials?.keycloakAdminUser} / {clusterCredentials.credentials?.keycloakAdminPassword}</code></dd></div>
+                          <div><dt>{message('localBootstrapCredentialsGrafana')}</dt><dd><code>{clusterCredentials.credentials?.grafanaAdminUser} / {clusterCredentials.credentials?.grafanaAdminPassword}</code></dd></div>
+                        </dl>
+                        <p class="muted">{message('localBootstrapCredentialsHint')}</p>
+                      {:else}
+                        <p class="muted">{message('localBootstrapCredentialsNone')}</p>
+                      {/if}
+                    </section>
+                  {/if}
+                  {#if clusterCredentialsError}<p class="inline-error" role="alert">{clusterCredentialsError}</p>{/if}
                 {/if}
+
+                <div class="advanced">
+                  <button type="button" class="secondary" aria-expanded={advancedSecrets} onclick={() => advancedSecrets = !advancedSecrets}>{advancedSecrets ? message('advancedHide') : message('advancedShow')}</button>
+                  {#if advancedSecrets}
+                    <div class="advanced-body">
+                      <form onsubmit={(event) => event.preventDefault()}>
+                        <label>
+                          <span>{message('localBootstrapSecrets')}</span>
+                          <textarea bind:value={localBootstrapSecrets} rows="8" autocomplete="off" placeholder="apiVersion: v1&#10;kind: Secret&#10;metadata:&#10;  name: keycloak-admin-creds&#10;  namespace: keycloak&#10;stringData:&#10;  admin-password: …"></textarea>
+                          {#if clusterSecretsStored}
+                            <small class="muted">{message('secretAlreadySaved')}</small>
+                          {:else}
+                            <small class="muted">{message('localBootstrapSecretsOverride')}</small>
+                          {/if}
+                        </label>
+                      </form>
+                    </div>
+                  {/if}
+                </div>
 
                 <div class="advanced">
                   <button type="button" class="secondary" aria-expanded={advancedInstall} onclick={() => advancedInstall = !advancedInstall}>{advancedInstall ? message('advancedHide') : message('advancedShow')}</button>
@@ -2593,7 +2641,7 @@
                   {/if}
                 </div>
 
-                <div class="actions"><button type="button" onclick={() => void planLocalBootstrap()} disabled={localBootstrapBusy || !installerFilesReady || !clusterSecretsSupplied}>{message('localBootstrapReview')}</button></div>
+                <div class="actions"><button type="button" onclick={() => void planLocalBootstrap()} disabled={localBootstrapBusy || !installerFilesReady}>{message('localBootstrapReview')}</button></div>
 
                 {#if installPlan}
                   <section class="capability-preview">
@@ -2903,7 +2951,7 @@
               {#each credentials as credential (credential.kind)}
                 <dl class="credential-metadata">
                   <div><dt>{credentialLabel(credential.kind)}</dt><dd><span class="badge">{credential.present ? message('credentialPresent') : message('noCredential')}</span></dd></div>
-                  <div><dt>{message('credentialSource')}</dt><dd>{credential.source === 'operator' ? message('sourceOperator') : credential.source}</dd></div>
+                  <div><dt>{message('credentialSource')}</dt><dd>{credential.source === 'operator' ? message('sourceOperator') : credential.source === 'generated' ? message('sourceGenerated') : credential.source}</dd></div>
                   <div><dt>{message('credentialExpires')}</dt><dd>{credential.expiresAt}</dd></div>
                   <div><dt>{message('rotationStatus')}</dt><dd>{rotationLabel(credential.rotationStatus)}</dd></div>
                 </dl>

@@ -1365,6 +1365,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/cluster-secrets/credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reveal the two Cluster Secret logins a person actually uses
+         * @description Returns the Keycloak and Grafana admin credentials from the custodied Cluster Secrets manifest. Machine credentials in the same manifest are never returned. Reports present=false when the manifest was supplied by the Operator and names its Secrets differently.
+         */
+        post: operations["revealClusterSecretCredentials"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2298,6 +2318,19 @@ export interface components {
             reason?: string;
             /** @description What the cluster itself says is wrong. Never a credential value. */
             message?: string;
+        };
+        ProfileScopedRequest: {
+            profileId: string;
+        };
+        ClusterSecretCredentials: {
+            /** @description Whether any recognisable administration credential was found. */
+            present: boolean;
+            credentials: {
+                keycloakAdminUser?: string;
+                keycloakAdminPassword?: string;
+                grafanaAdminUser?: string;
+                grafanaAdminPassword?: string;
+            };
         };
     };
     responses: {
@@ -4455,6 +4488,34 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+        };
+    };
+    revealClusterSecretCredentials: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileScopedRequest"];
+            };
+        };
+        responses: {
+            /** @description Cluster administration credentials */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClusterSecretCredentials"];
+                };
+            };
+            409: components["responses"]["Conflict"];
+            423: components["responses"]["Locked"];
         };
     };
 }

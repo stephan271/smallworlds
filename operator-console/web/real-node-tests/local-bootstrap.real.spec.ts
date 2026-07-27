@@ -56,11 +56,6 @@ test('browser bootstrap survives a Launcher interruption after a durable node ma
   const domain = required('SMALLWORLDS_ACCEPTANCE_DOMAIN');
   const dataDirectory = required('SMALLWORLDS_ACCEPTANCE_NODE_DATA_DIR');
   const vaultPassphrase = required('SMALLWORLDS_ACCEPTANCE_VAULT_PASSPHRASE');
-  const keycloakPassword = required('SMALLWORLDS_ACCEPTANCE_KEYCLOAK_PASSWORD');
-  const inviteSecret = required('SMALLWORLDS_ACCEPTANCE_INVITE_SECRET');
-  const garageRPCSecret = required('SMALLWORLDS_ACCEPTANCE_GARAGE_RPC_SECRET');
-  const garageAdminToken = required('SMALLWORLDS_ACCEPTANCE_GARAGE_ADMIN_TOKEN');
-  const grafanaPassword = required('SMALLWORLDS_ACCEPTANCE_GRAFANA_PASSWORD');
   const resumeSetup = process.env.SMALLWORLDS_ACCEPTANCE_RESUME_SETUP === '1';
   const cancelRunID = process.env.SMALLWORLDS_ACCEPTANCE_CANCEL_RUN_ID;
   const recoverRunID = process.env.SMALLWORLDS_ACCEPTANCE_RECOVER_RUN_ID;
@@ -192,58 +187,18 @@ test('browser bootstrap survives a Launcher interruption after a durable node ma
     await rail.getByRole('button', { name: /Install it/ }).click();
     const bootstrap = page.getByRole('region', { name: 'Install it' });
     await expect(bootstrap.getByText('downloaded and checked', { exact: false })).toBeVisible({ timeout: 180_000 });
-    // Cluster Secrets are a required input with no default, so they sit on the
-    // form itself and the stage refuses to plan until they are supplied.
-    await expect(bootstrap.getByRole('button', { name: 'Reinspect and create Change Plan' })).toBeDisabled();
-    const clusterSecrets = [
-      'apiVersion: v1',
-      'kind: Secret',
-      'metadata:',
-      '  name: keycloak-admin-creds',
-      '  namespace: keycloak',
-      'type: Opaque',
-      'stringData:',
-      `  admin-password: ${JSON.stringify(keycloakPassword)}`,
-      `  bulk-invite-secret: ${JSON.stringify(inviteSecret)}`,
-      '---',
-      'apiVersion: v1',
-      'kind: Secret',
-      'metadata:',
-      '  name: smallworlds-acceptance-repository',
-      '  namespace: argocd',
-      '  labels:',
-      '    argocd.argoproj.io/secret-type: repository',
-      'stringData:',
-      '  type: git',
-      `  url: ${JSON.stringify(repositoryURL)}`,
-      `  username: ${JSON.stringify(gitUsername)}`,
-      `  password: ${JSON.stringify(gitToken)}`,
-      '---',
-      'apiVersion: v1',
-      'kind: Secret',
-      'metadata:',
-      '  name: grafana-admin-creds',
-      '  namespace: monitoring',
-      'type: Opaque',
-      'stringData:',
-      '  admin-user: "admin"',
-      `  admin-password: ${JSON.stringify(grafanaPassword)}`,
-      '---',
-      'apiVersion: v1',
-      'kind: Secret',
-      'metadata:',
-      '  name: garage-auth-secret',
-      '  namespace: garage-system',
-      'type: Opaque',
-      'stringData:',
-      `  rpcSecret: ${JSON.stringify(garageRPCSecret)}`,
-      `  adminToken: ${JSON.stringify(garageAdminToken)}`
-    ].join('\n');
-    await bootstrap.getByLabel('Kubernetes Secret manifests (kept outside Git)').fill(clusterSecrets);
+    // Cluster Secrets are created by the console, not typed: the machine
+    // credentials nobody reads, and Argo CD's access to the settings repository
+    // out of the credential already in the Vault. Nothing is supplied here, and
+    // the stage must plan anyway.
+    await expect(bootstrap.getByRole('button', { name: 'Reinspect and create Change Plan' })).toBeEnabled();
     const bootstrapPlanResponse = page.waitForResponse('**/api/v1/local-bootstrap/plan', { timeout: 120_000 });
     await bootstrap.getByRole('button', { name: 'Reinspect and create Change Plan' }).click();
     expect((await bootstrapPlanResponse).status()).toBe(201);
     await expect(page.getByText(dataDirectory, { exact: true })).toBeVisible();
+    await bootstrap.getByRole('button', { name: 'Show the administrator logins' }).click();
+    await expect(bootstrap.getByText('Keycloak administrator')).toBeVisible();
+    await expect(bootstrap.getByText('Grafana administrator')).toBeVisible();
 
     const markerWatcher = spawn('ssh', sshArguments(sshTarget, "while ! sudo -n test -f /etc/smallworlds/bootstrap-started; do sleep 0.05; done"), { stdio: 'ignore' });
     const markerObserved = waitForChild(markerWatcher, 10 * 60_000);

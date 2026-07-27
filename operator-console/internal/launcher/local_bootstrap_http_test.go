@@ -195,15 +195,44 @@ func TestLocalBootstrapPlanReinspectsBindsAndExecutesWithoutSecretLeakage(t *tes
 	publicDNSSecret := "dns-token-secret-value"
 	// A cluster whose Secrets were never supplied installs perfectly and then
 	// sits Degraded forever, because Keycloak, Garage and Grafana each mount one
-	// this manifest is the only source of. The plan is refused instead.
+	// this manifest is the only source of. Rather than refuse and send the
+	// Operator away to write machine credentials by hand, the console creates
+	// them — and Argo CD's repository credential out of the Vault it already
+	// holds — then hands back only the two logins a person actually uses.
 	secretlessBody, _ := json.Marshal(map[string]any{
 		"profileId": publicProfile.ID, "target": map[string]any{"kind": "same-host"}, "authentication": map[string]any{"kind": "agent"}, "release": descriptor.Release,
 		"configuration":  map[string]any{"domain": "public.example", "dataDirectory": "/data/public", "nodeName": "public-node", "acmeEmail": "operator@public.example", "manageDns": false},
 		"publicExposure": map[string]any{"dns01Provider": "hetzner", "dnsZone": "public.example", "dnsToken": "secretless-token", "publicIpBehavior": "dynamic-ddns", "routerAcknowledged": true},
 	})
 	response = request(t, handler, http.MethodPost, "/api/v1/local-bootstrap/plan", secretlessBody, cookie, map[string]string{"X-CSRF-Token": csrf})
-	if response.StatusCode != http.StatusConflict || !bytes.Contains(readAll(t, response), []byte("cluster_secrets_required")) {
-		t.Fatal("a bootstrap plan without Cluster Secrets was not refused")
+	if response.StatusCode != http.StatusCreated {
+		t.Fatalf("a bootstrap plan without supplied Cluster Secrets was refused: %d %s", response.StatusCode, readAll(t, response))
+	}
+	generatedPlanResponse := readAll(t, response)
+	revealBody, _ := json.Marshal(map[string]string{"profileId": publicProfile.ID})
+	response = request(t, handler, http.MethodPost, "/api/v1/cluster-secrets/credentials", revealBody, cookie, map[string]string{"X-CSRF-Token": csrf})
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("cluster credential reveal status = %d: %s", response.StatusCode, readAll(t, response))
+	}
+	var revealed struct {
+		Present     bool `json:"present"`
+		Credentials struct {
+			KeycloakAdminUser     string `json:"keycloakAdminUser"`
+			KeycloakAdminPassword string `json:"keycloakAdminPassword"`
+			GrafanaAdminPassword  string `json:"grafanaAdminPassword"`
+		} `json:"credentials"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&revealed); err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if !revealed.Present || revealed.Credentials.KeycloakAdminUser != "admin" || len(revealed.Credentials.KeycloakAdminPassword) != 32 || revealed.Credentials.GrafanaAdminPassword == revealed.Credentials.KeycloakAdminPassword {
+		t.Fatalf("generated cluster credentials = %#v", revealed)
+	}
+	// Generated or supplied, a Cluster Secret value has no business in a Change
+	// Plan the browser renders.
+	if bytes.Contains(generatedPlanResponse, []byte(revealed.Credentials.KeycloakAdminPassword)) || bytes.Contains(generatedPlanResponse, []byte(revealed.Credentials.GrafanaAdminPassword)) {
+		t.Fatal("the bootstrap plan leaked a generated cluster credential")
 	}
 	unacknowledgedBody, _ := json.Marshal(map[string]any{
 		"profileId": publicProfile.ID, "target": map[string]any{"kind": "same-host"}, "authentication": map[string]any{"kind": "agent"}, "release": descriptor.Release,

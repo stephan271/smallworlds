@@ -348,6 +348,8 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.planNodeSSHKey(response, request)
 	case request.URL.Path == "/api/v1/local-bootstrap/plan":
 		server.planLocalBootstrap(response, request)
+	case request.URL.Path == "/api/v1/cluster-secrets/credentials":
+		server.revealClusterSecretCredentials(response, request)
 	case request.URL.Path == "/api/v1/cluster-ca":
 		server.clusterCAStatus(response, request)
 	case request.URL.Path == "/api/v1/cluster-ca/establish":
@@ -3338,14 +3340,31 @@ func (server *Server) planLocalBootstrap(response http.ResponseWriter, request *
 		writeError(response, http.StatusLocked, "vault_locked")
 		return
 	}
-	// Refuse rather than build a cluster that cannot start. Keycloak, Garage and
-	// Grafana each mount a Secret this manifest is the only source of; without it
-	// the install completes, Argo CD reports Degraded, and the pods sit in
-	// CreateContainerConfigError for as long as anyone is willing to wait. That
-	// is a far worse outcome than being told now.
+	// Nothing supplied and nothing kept: create them. Asking an Operator to
+	// author these by hand was asking for machine credentials nobody ever reads
+	// (Garage's RPC secret and admin token, the bulk-invite secret) and for a
+	// repository credential this console already holds in its own Vault.
+	// smallworlds-init.sh has always generated them for the shell path; the
+	// console refusing to was the regression.
 	if secretVaultKey == "" {
-		writeError(response, http.StatusConflict, "cluster_secrets_required")
-		return
+		generated, generateErr := server.generateClusterSecrets(request.Context(), profile.ID, overlay)
+		if errors.Is(generateErr, vault.ErrLocked) {
+			writeError(response, http.StatusLocked, "vault_locked")
+			return
+		}
+		// Refuse rather than build a cluster that cannot start. Keycloak, Garage
+		// and Grafana each mount a Secret this manifest is the only source of, and
+		// Argo CD cannot read the private settings repository without its
+		// credential; without them the install completes, Argo CD reports
+		// Degraded, and the pods sit in CreateContainerConfigError for as long as
+		// anyone is willing to wait. That is a far worse outcome than being told
+		// now — so a manifest that cannot be completed is not written at all.
+		if generateErr != nil {
+			log.Printf("cluster secrets: generate for profile %s: %v", profile.ID, generateErr)
+			writeError(response, http.StatusConflict, "cluster_secrets_required")
+			return
+		}
+		secretVaultKey = generated
 	}
 	inspectionDigest, err := localbootstrap.InspectionDigest(report)
 	if err != nil {

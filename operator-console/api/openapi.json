@@ -2722,6 +2722,46 @@
           }
         }
       }
+    },
+    "/api/v1/cluster-secrets/credentials": {
+      "post": {
+        "operationId": "revealClusterSecretCredentials",
+        "summary": "Reveal the two Cluster Secret logins a person actually uses",
+        "description": "Returns the Keycloak and Grafana admin credentials from the custodied Cluster Secrets manifest. Machine credentials in the same manifest are never returned. Reports present=false when the manifest was supplied by the Operator and names its Secrets differently.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileScopedRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cluster administration credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClusterSecretCredentials"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "423": {
+            "$ref": "#/components/responses/Locked"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -6031,6 +6071,47 @@
           "message": {
             "type": "string",
             "description": "What the cluster itself says is wrong. Never a credential value."
+          }
+        }
+      },
+      "ProfileScopedRequest": {
+        "type": "object",
+        "required": [
+          "profileId"
+        ],
+        "properties": {
+          "profileId": {
+            "type": "string"
+          }
+        }
+      },
+      "ClusterSecretCredentials": {
+        "type": "object",
+        "required": [
+          "present",
+          "credentials"
+        ],
+        "properties": {
+          "present": {
+            "type": "boolean",
+            "description": "Whether any recognisable administration credential was found."
+          },
+          "credentials": {
+            "type": "object",
+            "properties": {
+              "keycloakAdminUser": {
+                "type": "string"
+              },
+              "keycloakAdminPassword": {
+                "type": "string"
+              },
+              "grafanaAdminUser": {
+                "type": "string"
+              },
+              "grafanaAdminPassword": {
+                "type": "string"
+              }
+            }
           }
         }
       }
