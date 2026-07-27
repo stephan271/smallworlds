@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"runtime"
 	"strconv"
@@ -2306,7 +2307,7 @@ func (server *Server) validateGitHubToken(response http.ResponseWriter, request 
 			return
 		}
 	}
-	writeJSON(response, http.StatusOK, map[string]any{"owner": status.Owner, "expiresAt": status.ExpiresAt, "authority": input.Authority, "stored": true})
+	writeJSON(response, http.StatusOK, map[string]any{"owner": status.Owner, "expiresAt": status.ExpiresAt, "authority": input.Authority, "stored": true, "authorityVerified": status.AuthorityVerified})
 }
 
 func (server *Server) establishGitHubOverlay(response http.ResponseWriter, request *http.Request) {
@@ -2376,16 +2377,14 @@ func (server *Server) establishGitHubOverlay(response http.ResponseWriter, reque
 		writeError(response, http.StatusConflict, "github_repository_not_private")
 		return
 	}
-	if err != nil {
-		writeError(response, http.StatusBadGateway, "github_repository_creation_failed")
+	if refuseGitHubOverlay(response, "create overlay repository", "github_repository_creation_failed", err) {
 		return
 	}
 	for path, contents := range overlay.Files {
 		overlay.Files[path] = strings.ReplaceAll(contents, "https://github.com/placeholder/"+input.RepositoryName+".git", repository.HTMLURL+".git")
 	}
 	commit, err := server.github.WriteInitialFiles(request.Context(), token, repository, overlay.Files)
-	if err != nil {
-		writeError(response, http.StatusBadGateway, "github_overlay_initialization_failed")
+	if refuseGitHubOverlay(response, "write overlay files", "github_overlay_initialization_failed", err) {
 		return
 	}
 	identity := state.OverlayIdentity{ProfileID: input.ProfileID, Provider: "github", Repository: repository.FullName, RepositoryURL: repository.HTMLURL, Release: input.Release, Commit: commit, Domain: input.Domain, MemoryMi: overlay.Assessment.Resources.MemoryMi, StorageGi: overlay.Assessment.Resources.StorageGi, RecordedAt: time.Now().UTC()}
@@ -4061,4 +4060,27 @@ func writeJSON(response http.ResponseWriter, status int, value any) {
 
 func writeError(response http.ResponseWriter, status int, code string) {
 	writeJSON(response, status, map[string]string{"code": code})
+}
+
+// refuseGitHubOverlay answers a failed GitHub call with the most specific
+// refusal the Operator can act on, and writes the provider's own explanation to
+// the launcher's output. The browser keeps seeing a stable code — GitHub's
+// wording is diagnostic detail, not something to render into a journey — but
+// without it a refusal like "Git Repository is empty." is invisible to
+// everyone, and an Operator is told to retry something that cannot succeed.
+// Reports whether the request has been answered.
+func refuseGitHubOverlay(response http.ResponseWriter, operation, fallback string, err error) bool {
+	if err == nil {
+		return false
+	}
+	log.Printf("github overlay: %s: %v", operation, err)
+	switch {
+	case errors.Is(err, github.ErrRateLimited):
+		writeError(response, http.StatusTooManyRequests, "github_rate_limited")
+	case errors.Is(err, github.ErrUnauthorized), errors.Is(err, github.ErrInsufficientAuthority):
+		writeError(response, http.StatusForbidden, "github_token_insufficient_authority")
+	default:
+		writeError(response, http.StatusBadGateway, fallback)
+	}
+	return true
 }

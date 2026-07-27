@@ -1764,6 +1764,8 @@ export interface components {
             /** @enum {string} */
             authority: "creation" | "ongoing";
             stored: boolean;
+            /** @description Whether the token's permissions could actually be read. Only classic tokens publish them as scopes; a fine-grained token reports nothing, so its authority is settled by the first real call. */
+            authorityVerified: boolean;
         };
         GitHubOverlayEstablishInput: components["schemas"]["CapabilityPlanInput"] & {
             planId: string;

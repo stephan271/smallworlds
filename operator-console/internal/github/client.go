@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"sort"
 	"strings"
@@ -31,6 +32,12 @@ type TokenStatus struct {
 	ExpiresAt             time.Time `json:"expiresAt"`
 	CanCreateRepositories bool      `json:"canCreateRepositories"`
 	Scopes                []string  `json:"scopes"`
+	// AuthorityVerified reports whether the token's permissions could actually be
+	// read here. Only classic tokens publish them, as scopes in a response
+	// header. A fine-grained token — the kind the console asks the Operator to
+	// create — publishes nothing, so its authority stays a claim until the first
+	// real call either accepts or refuses it.
+	AuthorityVerified bool `json:"authorityVerified"`
 }
 type Client struct {
 	baseURL    string
@@ -86,11 +93,18 @@ func (client *Client) ValidateToken(ctx context.Context, token string, authority
 	if expires := response.Header.Get("GitHub-Authentication-Token-Expiration"); expires != "" {
 		status.ExpiresAt, _ = time.Parse("2006-01-02 15:04:05 MST", expires)
 	}
+	// Scopes are a classic-token mechanism. A fine-grained personal access token
+	// authenticates perfectly well and reports no scopes at all, so demanding
+	// them here refused exactly the tokens this console tells the Operator to
+	// create. Its permissions are left unverified instead, and the call that
+	// needs them reports the truth — refusing a working token up front is worse
+	// than accepting one that turns out to be too narrow one step later.
+	status.AuthorityVerified = len(status.Scopes) > 0
+	if !status.AuthorityVerified {
+		return status, nil
+	}
 	status.CanCreateRepositories = hasScope(status.Scopes, "repo") || hasScope(status.Scopes, "administration:write")
 	if authority == CreationAuthority && !status.CanCreateRepositories {
-		return TokenStatus{}, ErrInsufficientAuthority
-	}
-	if authority == OngoingAuthority && len(status.Scopes) == 0 {
 		return TokenStatus{}, ErrInsufficientAuthority
 	}
 	return status, nil
@@ -128,7 +142,7 @@ func (client *Client) CreatePrivateRepository(ctx context.Context, token, name s
 		return client.adoptEmptyRepository(ctx, token, name)
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return Repository{}, fmt.Errorf("github repository creation failed: %s", response.Status)
+		return Repository{}, refusal("create github repository", response)
 	}
 	var repository Repository
 	if err := json.NewDecoder(response.Body).Decode(&repository); err != nil || repository.FullName == "" || repository.DefaultBranch == "" {
@@ -191,14 +205,36 @@ func (client *Client) repositoryIsEmpty(ctx context.Context, token string, repos
 	return false, nil
 }
 
+// WriteInitialFiles lays the rendered Overlay into a repository that holds no
+// commits at all. GitHub refuses every Git Database write against such a
+// repository — blobs, trees and commits all answer 409 "Git Repository is
+// empty." — so the first file cannot go in as a blob. The Contents API is the
+// one write endpoint an empty repository accepts, and it produces a real
+// initial commit; the remaining files then go in through the normal
+// blob/tree/commit path on top of it, which keeps the written file set exactly
+// the one the Operator approved and never force-pushes.
 func (client *Client) WriteInitialFiles(ctx context.Context, token string, repository Repository, files map[string]string) (string, error) {
 	paths := make([]string, 0, len(files))
 	for path := range files {
 		paths = append(paths, path)
 	}
 	sort.Strings(paths)
-	treeEntries := make([]map[string]string, 0, len(paths))
-	for _, path := range paths {
+	if len(paths) == 0 {
+		return "", fmt.Errorf("no github overlay files to write")
+	}
+	seed, err := client.createFirstCommit(ctx, token, repository, paths[0], files[paths[0]])
+	if err != nil {
+		return "", err
+	}
+	if len(paths) == 1 {
+		return seed, nil
+	}
+	baseTree, err := client.readCommitTree(ctx, token, repository, seed)
+	if err != nil {
+		return "", fmt.Errorf("inspect github overlay initial commit: %w", err)
+	}
+	treeEntries := make([]map[string]string, 0, len(paths)-1)
+	for _, path := range paths[1:] {
 		contents := files[path]
 		payload, _ := json.Marshal(map[string]string{"content": base64.StdEncoding.EncodeToString([]byte(contents)), "encoding": "base64"})
 		response, err := client.doJSON(ctx, token, http.MethodPost, "/repos/"+repository.FullName+"/git/blobs", payload)
@@ -208,16 +244,18 @@ func (client *Client) WriteInitialFiles(ctx context.Context, token string, repos
 		var blob struct {
 			SHA string `json:"sha"`
 		}
-		if response.StatusCode >= 200 && response.StatusCode < 300 {
-			err = json.NewDecoder(response.Body).Decode(&blob)
+		if response.StatusCode < 200 || response.StatusCode >= 300 {
+			err = refusal("create github overlay blob", response)
+		} else if err = json.NewDecoder(response.Body).Decode(&blob); err == nil && blob.SHA == "" {
+			err = fmt.Errorf("create github overlay blob: no sha returned")
 		}
 		response.Body.Close()
-		if err != nil || blob.SHA == "" {
-			return "", fmt.Errorf("create github overlay blob")
+		if err != nil {
+			return "", err
 		}
 		treeEntries = append(treeEntries, map[string]string{"path": path, "mode": "100644", "type": "blob", "sha": blob.SHA})
 	}
-	treePayload, _ := json.Marshal(map[string]any{"tree": treeEntries})
+	treePayload, _ := json.Marshal(map[string]any{"base_tree": baseTree, "tree": treeEntries})
 	treeResponse, err := client.doJSON(ctx, token, http.MethodPost, "/repos/"+repository.FullName+"/git/trees", treePayload)
 	if err != nil {
 		return "", err
@@ -225,14 +263,16 @@ func (client *Client) WriteInitialFiles(ctx context.Context, token string, repos
 	var tree struct {
 		SHA string `json:"sha"`
 	}
-	if treeResponse.StatusCode >= 200 && treeResponse.StatusCode < 300 {
-		err = json.NewDecoder(treeResponse.Body).Decode(&tree)
+	if treeResponse.StatusCode < 200 || treeResponse.StatusCode >= 300 {
+		err = refusal("create github overlay tree", treeResponse)
+	} else if err = json.NewDecoder(treeResponse.Body).Decode(&tree); err == nil && tree.SHA == "" {
+		err = fmt.Errorf("create github overlay tree: no sha returned")
 	}
 	treeResponse.Body.Close()
-	if err != nil || tree.SHA == "" {
-		return "", fmt.Errorf("create github overlay tree")
+	if err != nil {
+		return "", err
 	}
-	commitPayload, _ := json.Marshal(map[string]string{"message": "Initialize SmallWorlds GitOps Overlay", "tree": tree.SHA})
+	commitPayload, _ := json.Marshal(map[string]any{"message": "Initialize SmallWorlds GitOps Overlay", "tree": tree.SHA, "parents": []string{seed}})
 	commitResponse, err := client.doJSON(ctx, token, http.MethodPost, "/repos/"+repository.FullName+"/git/commits", commitPayload)
 	if err != nil {
 		return "", err
@@ -240,24 +280,79 @@ func (client *Client) WriteInitialFiles(ctx context.Context, token string, repos
 	var commit struct {
 		SHA string `json:"sha"`
 	}
-	if commitResponse.StatusCode >= 200 && commitResponse.StatusCode < 300 {
-		err = json.NewDecoder(commitResponse.Body).Decode(&commit)
+	if commitResponse.StatusCode < 200 || commitResponse.StatusCode >= 300 {
+		err = refusal("create github overlay commit", commitResponse)
+	} else if err = json.NewDecoder(commitResponse.Body).Decode(&commit); err == nil && commit.SHA == "" {
+		err = fmt.Errorf("create github overlay commit: no sha returned")
 	}
 	commitResponse.Body.Close()
-	if err != nil || commit.SHA == "" {
-		return "", fmt.Errorf("create github overlay commit")
-	}
-	refPayload, _ := json.Marshal(map[string]string{"ref": "refs/heads/" + repository.DefaultBranch, "sha": commit.SHA})
-	refResponse, err := client.doJSON(ctx, token, http.MethodPost, "/repos/"+repository.FullName+"/git/refs", refPayload)
 	if err != nil {
 		return "", err
 	}
-	if refResponse.StatusCode < 200 || refResponse.StatusCode >= 300 {
-		refResponse.Body.Close()
-		return "", fmt.Errorf("create github overlay branch")
+	// A fast-forward from the initial commit this call just made, so the default
+	// branch is never rewritten even here.
+	advancePayload, _ := json.Marshal(map[string]any{"sha": commit.SHA, "force": false})
+	advanced, err := client.doJSON(ctx, token, http.MethodPatch, "/repos/"+repository.FullName+"/git/refs/heads/"+repository.DefaultBranch, advancePayload)
+	if err != nil {
+		return "", err
 	}
-	refResponse.Body.Close()
+	if advanced.StatusCode < 200 || advanced.StatusCode >= 300 {
+		err = refusal("advance github overlay branch", advanced)
+		advanced.Body.Close()
+		return "", err
+	}
+	advanced.Body.Close()
 	return commit.SHA, nil
+}
+
+// createFirstCommit writes a single file through the Contents API, which is the
+// only way to give an empty repository its first commit without a Git client.
+func (client *Client) createFirstCommit(ctx context.Context, token string, repository Repository, path, contents string) (string, error) {
+	payload, _ := json.Marshal(map[string]string{"message": "Begin SmallWorlds GitOps Overlay", "content": base64.StdEncoding.EncodeToString([]byte(contents)), "branch": repository.DefaultBranch})
+	response, err := client.doJSON(ctx, token, http.MethodPut, "/repos/"+repository.FullName+"/contents/"+path, payload)
+	if err != nil {
+		return "", err
+	}
+	var created struct {
+		Commit struct {
+			SHA string `json:"sha"`
+		} `json:"commit"`
+	}
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		err = refusal("create github overlay initial commit", response)
+	} else if err = json.NewDecoder(response.Body).Decode(&created); err == nil && created.Commit.SHA == "" {
+		err = fmt.Errorf("create github overlay initial commit: no sha returned")
+	}
+	response.Body.Close()
+	if err != nil {
+		return "", err
+	}
+	return created.Commit.SHA, nil
+}
+
+// refusal describes a call GitHub turned down. It keeps GitHub's own
+// explanation — "Git Repository is empty.", "Resource not accessible by
+// personal access token" — because a bare code tells the Operator to retry
+// something that will never succeed, and tells whoever reads the launcher's
+// output nothing at all. Only the message field is read, never the whole body.
+// 403 and 404 are both how GitHub says a token may not do this: a fine-grained
+// token without the needed permission is told the resource does not exist.
+func refusal(operation string, response *http.Response) error {
+	var payload struct {
+		Message string `json:"message"`
+	}
+	_ = json.NewDecoder(io.LimitReader(response.Body, 4096)).Decode(&payload)
+	detail := response.Status
+	if payload.Message != "" {
+		detail += ": " + payload.Message
+	}
+	switch response.StatusCode {
+	case http.StatusUnauthorized:
+		return fmt.Errorf("%s: %s: %w", operation, detail, ErrUnauthorized)
+	case http.StatusForbidden, http.StatusNotFound:
+		return fmt.Errorf("%s: %s: %w", operation, detail, ErrInsufficientAuthority)
+	}
+	return fmt.Errorf("%s: %s", operation, detail)
 }
 
 func (client *Client) doJSON(ctx context.Context, token, method, path string, payload []byte) (*http.Response, error) {

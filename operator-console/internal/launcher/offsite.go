@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -445,6 +446,9 @@ func (server *Server) proposeOffsite(response http.ResponseWriter, request *http
 		}
 		submitted, err := server.github.CreateProposalWithFiles(request.Context(), token, github.Repository{FullName: identity.Repository, DefaultBranch: "main"}, branch, offsite.ProposalTitle, offsiteProposalBody(changePlan.Reference), files)
 		if err != nil {
+			// One refusal code covers every way this can fail, so GitHub's own
+			// explanation only survives in the launcher's output.
+			log.Printf("github overlay: propose offsite change: %v", err)
 			writeError(response, http.StatusBadGateway, "offsite_proposal_failed")
 			return
 		}

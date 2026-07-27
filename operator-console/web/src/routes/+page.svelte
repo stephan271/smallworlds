@@ -2190,7 +2190,7 @@
                     <label><span>{message('githubToken')}</span><input type="password" bind:value={gitHubToken} required={!gitHubTokenStored} autocomplete="off" />{#if gitHubTokenStored}<small class="muted">{message('secretAlreadySaved')}</small>{/if}</label>
                     <div class="actions"><button type="submit" disabled={gitHubBusy}>{message('githubValidate')}</button></div>
                   </form>
-                  {#if gitHubStatus}<dl class="credential-metadata"><div><dt>{message('githubOwner')}</dt><dd>{gitHubStatus.owner}</dd></div><div><dt>{message('credentialExpires')}</dt><dd>{gitHubStatus.expiresAt || message('githubNoExpiry')}</dd></div><div><dt>{message('githubAuthority')}</dt><dd>{gitHubStatus.authority === 'creation' ? message('githubCreationAuthority') : message('githubOngoingAuthority')}</dd></div></dl>{/if}
+                  {#if gitHubStatus}<dl class="credential-metadata"><div><dt>{message('githubOwner')}</dt><dd>{gitHubStatus.owner}</dd></div><div><dt>{message('credentialExpires')}</dt><dd>{gitHubStatus.expiresAt || message('githubNoExpiry')}</dd></div><div><dt>{message('githubAuthority')}</dt><dd>{gitHubStatus.authority === 'creation' ? message('githubCreationAuthority') : message('githubOngoingAuthority')}</dd></div></dl>{#if !gitHubStatus.authorityVerified}<p class="muted">{message('githubAuthorityUnverified')}</p>{/if}{/if}
                 {:else if settingsProvider === 'generic'}
                   <p class="muted">{message('genericGitDescription')}</p>
                   {#if genericGitError}<p class="inline-error" role="alert">{settingsRepoErrorMessage(genericGitError)}</p>{/if}

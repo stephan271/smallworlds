@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stephan271/smallworlds/operator-console/internal/github"
@@ -48,22 +49,61 @@ func TestGitHubTokenValidationStoresOnlySafeMetadata(t *testing.T) {
 	}
 }
 
+// emptyOverlayRepository answers the way GitHub does for a repository that holds
+// no commits at all: every Git Database write is refused with 409 "Git
+// Repository is empty." until the Contents API has laid down the first file.
+// Requests it handled return true.
+type emptyOverlayRepository struct {
+	fullName string
+	commit   string
+	seeded   bool
+}
+
+func (repository *emptyOverlayRepository) serve(response http.ResponseWriter, request *http.Request) bool {
+	prefix := "/repos/" + repository.fullName
+	if strings.HasPrefix(request.URL.Path, prefix+"/contents/") {
+		repository.seeded = true
+		response.WriteHeader(http.StatusCreated)
+		_, _ = response.Write([]byte(`{"commit":{"sha":"seed"}}`))
+		return true
+	}
+	if !strings.HasPrefix(request.URL.Path, prefix+"/git/") {
+		return false
+	}
+	if !repository.seeded {
+		response.WriteHeader(http.StatusConflict)
+		_, _ = response.Write([]byte(`{"message":"Git Repository is empty."}`))
+		return true
+	}
+	switch request.URL.Path {
+	case prefix + "/git/commits/seed":
+		_, _ = response.Write([]byte(`{"tree":{"sha":"seed-tree"}}`))
+	case prefix + "/git/blobs":
+		_, _ = response.Write([]byte(`{"sha":"blob"}`))
+	case prefix + "/git/trees":
+		_, _ = response.Write([]byte(`{"sha":"tree"}`))
+	case prefix + "/git/commits":
+		_, _ = response.Write([]byte(`{"sha":"` + repository.commit + `"}`))
+	case prefix + "/git/refs/heads/main":
+		_, _ = response.Write([]byte(`{"object":{"sha":"` + repository.commit + `"}}`))
+	default:
+		return false
+	}
+	return true
+}
+
 func TestApprovedCapabilityPlanEstablishesGitHubOverlayAndRecordsIdentity(t *testing.T) {
+	repository := &emptyOverlayRepository{fullName: "octocat/overlay", commit: "commit123"}
 	provider := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if repository.serve(response, request) {
+			return
+		}
 		switch request.URL.Path {
 		case "/user":
 			response.Header().Set("X-OAuth-Scopes", "repo")
 			_, _ = response.Write([]byte(`{"login":"octocat"}`))
 		case "/user/repos":
 			_, _ = response.Write([]byte(`{"full_name":"octocat/overlay","html_url":"https://github.com/octocat/overlay","default_branch":"main"}`))
-		case "/repos/octocat/overlay/git/blobs":
-			_, _ = response.Write([]byte(`{"sha":"blob"}`))
-		case "/repos/octocat/overlay/git/trees":
-			_, _ = response.Write([]byte(`{"sha":"tree"}`))
-		case "/repos/octocat/overlay/git/commits":
-			_, _ = response.Write([]byte(`{"sha":"commit123"}`))
-		case "/repos/octocat/overlay/git/refs":
-			_, _ = response.Write([]byte(`{"ref":"refs/heads/main"}`))
 		default:
 			http.NotFound(response, request)
 		}
@@ -108,7 +148,11 @@ func TestApprovedCapabilityPlanEstablishesGitHubOverlayAndRecordsIdentity(t *tes
 }
 
 func TestEstablishGitHubOverlayAdoptsAnExistingEmptyRepository(t *testing.T) {
+	repository := &emptyOverlayRepository{fullName: "octocat/overlay", commit: "adopted123"}
 	response := establishOverlayAgainstProvider(t, func(response http.ResponseWriter, request *http.Request) {
+		if repository.serve(response, request) {
+			return
+		}
 		switch request.URL.Path {
 		case "/user/repos":
 			response.WriteHeader(http.StatusUnprocessableEntity)
@@ -117,16 +161,6 @@ func TestEstablishGitHubOverlayAdoptsAnExistingEmptyRepository(t *testing.T) {
 			_, _ = response.Write([]byte(`{"login":"octocat"}`))
 		case "/repos/octocat/overlay":
 			_, _ = response.Write([]byte(`{"full_name":"octocat/overlay","html_url":"https://github.com/octocat/overlay","default_branch":"main","private":true}`))
-		case "/repos/octocat/overlay/git/ref/heads/main":
-			response.WriteHeader(http.StatusConflict)
-		case "/repos/octocat/overlay/git/blobs":
-			_, _ = response.Write([]byte(`{"sha":"blob"}`))
-		case "/repos/octocat/overlay/git/trees":
-			_, _ = response.Write([]byte(`{"sha":"tree"}`))
-		case "/repos/octocat/overlay/git/commits":
-			_, _ = response.Write([]byte(`{"sha":"adopted123"}`))
-		case "/repos/octocat/overlay/git/refs":
-			_, _ = response.Write([]byte(`{"ref":"refs/heads/main"}`))
 		default:
 			http.NotFound(response, request)
 		}
