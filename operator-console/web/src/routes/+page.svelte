@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { api, initializeSession, type BootstrapAssetRequirements, type CapabilityCatalog, type ClusterDetail, type ClusterSecretCredentials, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type FullDecommissionResult, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type HandoffAssessment, type HetznerChangePlan, type HetznerPlanResult, type HetznerPresets, type HetznerPresetTier, type HetznerProject, type HetznerToolchain, type HetznerWorkspace, type TemporaryAccess, type NodeCapabilities, type NodeInspectionResult, type NodeProbeResult, type NodeTarget, type NodeTrust, type OffsitePlan, type OverlayIdentity, type OffsiteProposal, type OffsiteProtection, type PreserveDataDecommissionResult, type RecoveryBundlePreview, type SetupSettings, type TailscaleClientOffer, type VaultStatus, type WorkflowRun } from '$lib/api';
+  import { api, initializeSession, RequestError, type BootstrapAssetRequirements, type CapabilityCatalog, type ClusterDetail, type ClusterSecretCredentials, type CapabilityMode, type CapabilityPlanResult, type ChangePlan, type ClusterProfile, type CredentialMetadata, type FullDecommissionResult, type GenericGitCredentialStatus, type GenericGitProposal, type GitHubTokenStatus, type HandoffAssessment, type HetznerChangePlan, type HetznerPlanResult, type HetznerPresets, type HetznerPresetTier, type HetznerProject, type HetznerToolchain, type HetznerWorkspace, type TemporaryAccess, type NodeCapabilities, type NodeInspectionResult, type NodeProbeResult, type NodeTarget, type NodeTrust, type OffsitePlan, type OverlayIdentity, type OffsiteProposal, type OffsiteProtection, type PreserveDataDecommissionResult, type RecoveryBundlePreview, type SetupSettings, type TailscaleClientOffer, type VaultStatus, type WorkflowRun } from '$lib/api';
   import { decommissionCopy } from '$lib/decommission-copy';
   import { formatCurrency, formatDateTime, formatNumber } from '$lib/format';
   import { translate, type Locale, type MessageKey } from '$lib/i18n';
@@ -141,6 +141,7 @@
   let clusterCredentialsBusy = $state(false);
   let clusterCredentialsError = $state('');
   let localBootstrapError = $state('');
+  let localBootstrapBlockers: NodeInspectionResult['assessment']['blockers'] = $state([]);
   let localBootstrapBusy = $state(false);
   /** The change plan for building the cluster, whichever mode builds it. */
   let installPlan: ChangePlan | null = $state(null);
@@ -771,6 +772,7 @@
       case 'bootstrap_asset_release_unavailable': return message('bootstrapAssetUnavailable');
       case 'node_host_key_confirmation_required': return message('localBootstrapHostKeyRequired');
       case 'node_host_key_mismatch': return message('localBootstrapHostKeyMismatch');
+      case 'node_bootstrap_preconditions_failed': return message('localBootstrapPreconditionsFailed');
       case 'node_reinspection_failed': return message('localBootstrapReinspectionFailed');
       case 'invalid_cluster_secrets_manifest': return message('localBootstrapInvalidSecrets');
       case 'dns_provider_token_required': return message('localBootstrapDNSTokenRequired');
@@ -1645,6 +1647,7 @@
     if (!activeProfile) return;
     localBootstrapBusy = true;
     localBootstrapError = '';
+    localBootstrapBlockers = [];
     try {
       const result = await api.planLocalBootstrap({
         profileId: activeProfile.id,
@@ -1668,6 +1671,11 @@
       credentials = await api.listCredentials(activeProfile.id).catch(() => credentials);
     } catch (reason) {
       localBootstrapError = reason instanceof Error ? reason.message : 'local_bootstrap_plan_failed';
+      // A refusal for failed preconditions carries the assessment that lists
+      // them. The launcher has always sent it; the stage simply threw it away.
+      localBootstrapBlockers = reason instanceof RequestError
+        ? ((reason.details.assessment as NodeInspectionResult['assessment'] | undefined)?.blockers ?? [])
+        : [];
     } finally {
       localBootstrapBusy = false;
     }
@@ -2576,7 +2584,16 @@
                      only as the refusal that follows a click. Said up front it is
                      guidance; said afterwards it reads as a failure. -->
                 {#if !overlayIdentity}<p class="inline-notice">{message('localBootstrapOverlayRequired')}</p>{/if}
-                {#if localBootstrapError}<p class="inline-error" role="alert">{localBootstrapErrorMessage(localBootstrapError)}</p>{/if}
+                {#if localBootstrapError}
+                  <p class="inline-error" role="alert">{localBootstrapErrorMessage(localBootstrapError)}</p>
+                  {#if localBootstrapBlockers.length > 0}
+                    <ul class="blocker-list">
+                      {#each localBootstrapBlockers as blocker (blocker.code)}
+                        <li>{blockerLabel(blocker.code)} <code>{blocker.code}</code></li>
+                      {/each}
+                    </ul>
+                  {/if}
+                {/if}
                 <dl class="credential-metadata">
                   <div><dt>{message('capabilityDomain')}</dt><dd><code>{overlayIdentity?.domain || domain}{environmentExtension}</code></dd></div>
                   <div><dt>{message('capabilityRelease')}</dt><dd><code>{overlayIdentity?.release || release}</code></dd></div>

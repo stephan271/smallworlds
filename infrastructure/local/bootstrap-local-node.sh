@@ -152,15 +152,28 @@ fi
 # A node is only claimed after the foreign-installation guard above. Markers
 # are deliberately small, durable evidence used by the Launcher to resume at
 # safe boundaries after an SSH or process interruption.
+#
+# Readable on purpose. The Launcher inspects this node over SSH as an ordinary
+# user and never elevates merely to look — that is what lets it promise it
+# changes nothing while inspecting. A root-only directory made exactly the
+# evidence it needs invisible: its own node then read as somebody else's
+# ("installation.data.foreign") and no interruption could ever be observed, so
+# nothing was ever resumable. Nothing secret lives here — the run's Cluster
+# Secrets stay under /var/lib/smallworlds-launcher with umask 077, and the
+# issuer manifest only names a Secret rather than containing one.
 mkdir -p "$MARKER_DIR"
-chmod 700 "$MARKER_DIR"
+chmod 755 "$MARKER_DIR"
 printf '%s\n' "$PROFILE_ID" > "$MARKER_DIR/profile-id"
 printf '%s\n' "$BOOTSTRAP_RUN_ID" > "$MARKER_DIR/bootstrap-run-id"
+chmod 644 "$MARKER_DIR/profile-id" "$MARKER_DIR/bootstrap-run-id"
 touch "$MARKER_DIR/bootstrap-started"
 on_bootstrap_failure() {
     touch "$MARKER_DIR/bootstrap-interrupted"
 }
-trap on_bootstrap_failure ERR INT TERM
+# HUP belongs here: the bootstrap runs on the Launcher's SSH session, so a
+# dropped connection is the most likely interruption of all, and without it the
+# one signal that actually arrives left no evidence behind.
+trap on_bootstrap_failure ERR INT TERM HUP
 
 MEM_GB=$(awk '/MemTotal/ {printf "%d", $2/1024/1024}' /proc/meminfo)
 if [ "$MEM_GB" -lt 16 ]; then
@@ -539,7 +552,7 @@ fi
 rm -f "$CONFIG_FILE"
 rm -f "$MARKER_DIR/bootstrap-interrupted"
 touch "$MARKER_DIR/bootstrap-complete"
-trap - ERR INT TERM
+trap - ERR INT TERM HUP
 
 echo -e "${GREEN}Local node bootstrap complete. Node IP: ${NODE_IP}${NC}"
 echo -e "${GREEN}Kubeconfig exported to ${EXPORT_KUBECONFIG} (retrieved and deleted by the installer).${NC}"

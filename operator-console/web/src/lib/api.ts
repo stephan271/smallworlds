@@ -62,10 +62,23 @@ export type FullDecommissionResult = { plan: ChangePlan; decommission: FullDecom
 
 let csrfToken = '';
 
+/** A refusal that carries its reason. Some endpoints answer with more than a
+ *  code — a bootstrap plan turned down for failed preconditions ships the
+ *  assessment listing exactly what is in the way. Throwing the code alone left
+ *  the operator with one word and nothing to act on. */
+export class RequestError extends Error {
+  readonly details: Record<string, unknown>;
+  constructor(code: string, details: Record<string, unknown>) {
+    super(code);
+    this.name = 'RequestError';
+    this.details = details;
+  }
+}
+
 async function decode<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    const failure = (await response.json().catch(() => ({ code: 'request_failed' }))) as { code: string };
-    throw new Error(failure.code);
+    const failure = (await response.json().catch(() => ({ code: 'request_failed' }))) as { code: string } & Record<string, unknown>;
+    throw new RequestError(failure.code, failure);
   }
   return (await response.json()) as T;
 }

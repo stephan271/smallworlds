@@ -63,6 +63,21 @@ tar -xOzf "$archive_one" ./metadata.json | grep -F '"version": "v1.31.5+k3s1"' >
 [ "$(tar -xOzf "$archive_one" ./third-party/k3s-version)" = 'v1.31.5+k3s1' ]
 [ "$(tar -xOzf "$archive_one" ./third-party/argocd-version)" = 'v2.14.5' ]
 
+# The Launcher inspects a node over SSH as an ordinary user and never elevates
+# merely to look, so the ownership markers this script writes have to be
+# readable from there. A root-only marker directory made a node's own
+# installation read as somebody else's and no interruption observable at all.
+packaged_bootstrap="$(tar -xOzf "$archive_one" ./bootstrap-local-node.sh)"
+printf '%s' "$packaged_bootstrap" | grep -F 'chmod 755 "$MARKER_DIR"' >/dev/null
+printf '%s' "$packaged_bootstrap" | grep -F 'chmod 644 "$MARKER_DIR/profile-id"' >/dev/null
+if printf '%s' "$packaged_bootstrap" | grep -F 'chmod 700 "$MARKER_DIR"' >/dev/null; then
+    echo 'marker directory must stay readable for unprivileged inspection' >&2
+    exit 1
+fi
+# The bootstrap runs on the Launcher's SSH session, so a dropped connection is
+# the likeliest interruption and must leave the interrupted marker behind.
+printf '%s' "$packaged_bootstrap" | grep -F 'trap on_bootstrap_failure ERR INT TERM HUP' >/dev/null
+
 if PATH="$mock_bin:$PATH" FIXTURE_DIRECTORY="$fixture_directory" "$builder" \
     --release v1.2.24 \
     --k3s-version v1.31.5+k3s1 \
