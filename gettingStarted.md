@@ -56,31 +56,68 @@ The Cluster Node needs to be a supported Linux system with systemd, enough CPU,
 memory and disk for the applications you choose, and a user you can log into
 with either root or sudo rights.
 
-### How they relate
+### The third participant — GitHub
+
+There is a third machine involved that you do not own and never administer:
+GitHub. It plays two quite different roles, and keeping them apart avoids a lot
+of confusion.
+
+**Role one — where the SmallWorlds software comes from.** The public SmallWorlds
+project on GitHub publishes the launcher downloads for each operating system,
+the signed installation packages for each release, and the shared configuration
+that every SmallWorlds installation is built from. This is a read-only
+relationship: you take from it, you never write to it.
+
+**Role two — where *your* configuration lives.** Your installation gets its own
+**private** repository, holding the settings for this one community: which
+applications you chose, your domain, your naming, and which SmallWorlds release
+you pinned to. Today this is also hosted on GitHub — or on another provider that
+speaks Git over HTTPS. You own it, and it contains no secrets.
+
+The reason it exists is that SmallWorlds does **not** configure the server by
+remote-controlling it. It writes the desired configuration into your repository,
+and the server continuously reads that repository and makes itself match. The
+repository, not the launcher, is the lasting source of truth.
+
+This has a hard ordering consequence, which is why the journey is arranged the
+way it is:
+
+> **The private settings repository must exist, and contain the initial
+> configuration, before any server is created or touched.** The very act of
+> installing the cluster is to point it at that repository. There is no way to
+> build the infrastructure first and configure it afterwards.
+
+### How they all relate
 
 ```
-        YOU
-         │
-         ▼
-┌──────────────────────┐        creates / installs / configures
-│  Launcher Host       │ ─────────────────────────────────────┐
-│  (your laptop)       │                                      │
-│                      │        writes configuration          ▼
-│  smallworlds-admin   │ ──────────────────────►  ┌────────────────────────┐
-│  + browser on        │        Git repository    │  Cluster Node          │
-│    127.0.0.1         │        ("settings repo") │  (the server)          │
-└──────────────────────┘                          │                        │
-         ▲                                        │  Kubernetes + Argo CD  │
-         │  after installation you administer     │  + all applications    │
-         └──── through the Private Network ──────►│                        │
-                                                  └────────────────────────┘
+   YOU
+    │ ① download the launcher by hand, once
+    ▼
+┌───────────────────────┐                    ┌────────────────────────────────┐
+│  Launcher Host        │  ② fetch signed    │  GITHUB                        │
+│  (your laptop)        │     install pkg    │                                │
+│                       │ ──────────────────►│  Public SmallWorlds project    │
+│  smallworlds-admin    │                    │   · launcher builds, per OS    │
+│  + browser on         │  ③ create + commit │   · signed install packages    │
+│    127.0.0.1          │     your config    │   · shared config, at a tag    │
+│                       │ ──────────────────►│                                │
+│                       │                    │  YOUR private settings repo    │
+└─────────┬─────────────┘                    │   · this installation's config │
+          │                                  └───────────────┬────────────────┘
+          │ ④ install Kubernetes + Argo CD,                  │
+          │   pointed at the settings repo                   │ ⑤ Argo CD reads
+          ▼                                                  │    it continuously
+┌─────────────────────────────────────────────────────────────▼──────────────┐
+│  Cluster Node (the server)                                                 │
+│  Kubernetes + Argo CD + every application you selected                     │
+└────────────────────────────────────────────────────────────────────────────┘
+          ▲
+          │ ⑥ from then on you administer it through the Private Network
+   YOU ───┘
 ```
 
-The third participant is a **Git repository** that you own. SmallWorlds does not
-configure the server by remote-controlling it. It writes the desired
-configuration into a private Git repository, and the server continuously pulls
-that repository and makes itself match. This is why the repository exists and
-why it is created early.
+Steps ② and ③ both happen before step ④. Step ⑤ never stops: as long as the
+cluster is running, it keeps making itself match what your repository says.
 
 ---
 
@@ -101,8 +138,8 @@ the product. Where a familiar word is deliberately avoided, that is noted.
 | **Journey Task** | One step of that progression, with prerequisites and evidence that it is done. |
 | **Launcher Vault** | The encrypted store on your laptop holding tokens, passwords and keys. Values go in and never come back out to the screen. |
 | **Cluster Capability** | One named thing the cluster provides. Either a Platform Service or a Community Application. |
-| **Platform Service** | A capability that supports the system itself: identity, database, storage, certificates, monitoring, backup. Mostly not optional. |
-| **Community Application** | A capability people actually use: files, photos, chat, code hosting, project tracking, mail. |
+| **Platform Service** | A capability that supports the system itself: identity, databases, storage, certificates, monitoring, backup, mail delivery, private networking. These are **not optional** — they are what the applications stand on, and they are installed in every mode. |
+| **Community Application** | A capability people actually use: file sharing, photos, video calls, webmail, code hosting, project tracking, drawing, document editing. **Every one of these is optional** — you pick which ones your community gets, and an installation with none of them is still a valid installation. (One nuance: a few require another, so choosing collaborative document editing also brings in the file-sharing application it plugs into.) |
 | **Settings repository (GitOps Overlay)** | Your own private Git repository holding this installation's configuration. It points at a fixed SmallWorlds release. (Not "the SmallWorlds repo" — that is the shared base.) |
 | **Bootstrap assets** | The signed installation package belonging to one SmallWorlds release, downloaded by the launcher. See section 5. |
 | **Change Plan** | An exact, reviewable description of one upcoming change: what it will do, what it costs, what could break, how to undo it. Nothing happens until you approve one. |
@@ -195,6 +232,10 @@ cluster normally needs Git, a GitHub CLI, Terraform or OpenTofu, `kubectl`, and 
 JavaScript runtime installed and configured. The launcher contains or fetches
 everything it needs, verified, so you install **one** thing.
 
+This is the only download you fetch by hand. The launcher later fetches a second,
+different package for the server itself — see section 5, which explains why the
+two are separate.
+
 ### When you download it
 
 Before anything else. It is step zero. You do not need an account, a domain, a
@@ -253,6 +294,34 @@ launcher is running on** is offered only by the Linux build.
 ---
 
 ## 5. Bootstrap assets
+
+### First: these are a different download from the launcher
+
+It is worth being explicit, because the two are easy to conflate. There are
+**two separate downloads**, and neither contains the other:
+
+| | **The launcher** | **The bootstrap assets** |
+| --- | --- | --- |
+| Who downloads it | You, by hand | The launcher, automatically |
+| When | Before anything else | Later, once you have chosen a release |
+| Runs on | Your laptop | The Cluster Node (the server) |
+| What it is | The administration program and its interface | The pinned Kubernetes and Argo CD software, plus the script that installs them |
+| Roughly | The tool | The materials the tool works with |
+| Verified how | You check the published checksum, once | The launcher checks the checksum and signature every time |
+
+So the launcher is downloaded separately and first — it has to be, since nothing
+else exists yet to fetch it for you. The bootstrap assets are then fetched *by*
+the launcher, and they are not for your laptop at all: their contents are
+destined for the server.
+
+A useful consequence of keeping them apart: the launcher and the SmallWorlds
+release it installs are versioned independently. A launcher you downloaded
+months ago can install a SmallWorlds release that did not exist when that
+launcher was built, because it learns about the release from a signed index at
+install time rather than having it baked in. What it will *not* do is accept a
+package signed by a key it does not already trust — that trust is compiled into
+the launcher binary you verified by hand, which is exactly why that one manual
+checksum check matters.
 
 ### Why they exist
 
@@ -379,6 +448,10 @@ Give the administrative email address, the domain name (or the local naming, in
 LAN-only mode), and the policy for how members will be invited to join.
 
 ### Phase C — Establish the settings repository
+
+This phase comes before any server is created or touched, and it has to: the
+installation in Phase E works by pointing the new cluster at this repository. It
+must already exist and already hold the configuration by then.
 
 **Step 5. Connect a Git provider.**
 Provide credentials for where the configuration will live.
