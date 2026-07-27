@@ -36,6 +36,18 @@ test('Operator plans a Linux-node bootstrap and observes interruption recovery',
     });
   });
 
+  // Installer files are fetched by the stage rather than asked for, so the
+  // install stage will always have gone looking for them by the time the
+  // operator reads the plan.
+  const assets = {
+    release: 'v1.2.27',
+    offlineBundleAvailability: 'future',
+    assets: [{ id: 'bootstrap-payload', release: 'v1.2.27', destination: '/tmp/bootstrap.tar.gz', sha256: 'd'.repeat(64), state: 'ready', bytes: 1024 }]
+  };
+  await page.route('**/api/v1/bootstrap-assets**', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(assets) });
+  });
+
   await page.route('**/api/v1/plans/bootstrap-plan/approve', async (route) => {
     await route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({ id: 'bootstrap-run', planId: 'bootstrap-plan', profileId: 'browser-profile', state: 'running', currentCheckpoint: 'approved', cancellationState: 'not-requested', verification: {}, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }) });
   });
@@ -54,20 +66,24 @@ test('Operator plans a Linux-node bootstrap and observes interruption recovery',
   await profile.getByLabel('Name this installation').fill(profileName);
   await profile.getByRole('button', { name: 'Create installation' }).click();
 
-  // A new installation opens on the first stage; the machine is a later one and
-  // is reached through the journey rail rather than by scrolling.
-  await page.getByRole('navigation', { name: 'Setup progress' })
-    .getByRole('button', { name: /Choose the computer that will run it/ })
-    .click();
+  // The web address is asked for once, in the stage about what the community
+  // gets. Nothing later asks for it again, and the install reads it from there.
+  const rail = page.getByRole('navigation', { name: 'Setup progress' });
+  const capabilities = page.getByRole('region', { name: 'What the infrastructure will offer' });
+  await capabilities.getByLabel('Your web address').fill('home.example');
 
+  // Each stage is reached through the journey rail rather than by scrolling.
+  await rail.getByRole('button', { name: /Choose the computer that will run it/ }).click();
   const node = page.getByRole('region', { name: 'The computer that will run it' });
   await node.getByLabel('Target').selectOption('same-host');
   await node.getByLabel("Where your community's data is kept").fill('/data/smallworlds-acceptance');
   await node.getByRole('button', { name: 'Check this computer' }).click();
   await expect(node.getByText('Suitable — ready to continue')).toBeVisible();
 
-  const bootstrap = node.getByRole('region', { name: 'Install onto this computer' });
-  await bootstrap.getByLabel('Your web address').fill('home.example');
+  await rail.getByRole('button', { name: /Install it/ }).click();
+  const bootstrap = page.getByRole('region', { name: 'Install it' });
+  await expect(bootstrap.getByText('Installer files for v1.2.27 downloaded and checked.')).toBeVisible();
+  await bootstrap.getByRole('button', { name: 'Advanced settings' }).click();
   await bootstrap.getByLabel('Kubernetes Secret manifests (kept outside Git)').fill('apiVersion: v1\nkind: Secret\ndata:\n  token: browser-only-secret');
   await bootstrap.getByRole('button', { name: 'Reinspect and create Change Plan' }).click();
   await expect(page.getByTestId('plan-digest')).toHaveText('a'.repeat(64));

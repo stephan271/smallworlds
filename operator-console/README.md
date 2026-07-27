@@ -6,6 +6,16 @@ The current fake `VerifyLauncher` Journey Task exercises the complete Inspect �
 
 The Setup Journey also includes the first Launcher Vault credential-custody flow. The launcher encrypts credential values in a separate age-encrypted file, stores only references and safe metadata in SQLite, and never returns a submitted value to the browser. It uses the native operating-system credential store for its random wrapping key when available, with a passphrase-unlocked fallback for headless Linux and other hosts where that facility cannot be used.
 
+## Interface shape
+
+The client is organised the way [`gettingStarted.md`](../gettingStarted.md) describes the journey, and that document is the specification for it. Three tabs sit under the installation's name:
+
+- **Setting up** — the ordered stages of the Setup Journey: choose what the community gets → establish the settings repository → prepare the machine → install → make administration private → protect the data → finish. The order is load-bearing: the repository must exist and hold the configuration before any machine is touched, because installing *is* the act of pointing a new cluster at it. Every stage is reachable at any time; one that cannot be worked on yet says why rather than disappearing, and each carries the same Back/Continue pair.
+- **What happened** — one Activity record for the whole installation, replayed from the event stream rather than only what the open browser session watched.
+- **This installation** — details, what the Launcher Vault holds, Recovery Bundle export and import, the `VerifyLauncher` rehearsal, and shutting the installation down. Decommissioning is offered only once there is something out there to shut down.
+
+Two rules shape what a stage shows. Anything the launcher can settle without a decision it settles silently and reports — the vault opens with the operating system's own credential store, bootstrap assets and the Hetzner toolchain are fetched by the stage that needs them, and the private network gets a default name. Anything with a sensible default sits behind that stage's *Advanced settings*. Each answer is asked for exactly once, in the stage it belongs to: the domain, release, environment extension and administration address are collected on the first stage and read from there by every later one.
+
 ## Build
 
 ```bash

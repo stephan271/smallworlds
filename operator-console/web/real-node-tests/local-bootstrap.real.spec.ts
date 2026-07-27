@@ -86,11 +86,15 @@ test('browser bootstrap survives a Launcher interruption after a durable node ma
       }, selectedRunID);
       await page.reload();
       await expect(page.getByRole('status')).toContainText('Running');
+      // The safe opens with this computer's own login where that works, so the
+      // prompt is a possibility rather than a certainty.
       const cancellationVault = page.getByRole('region', { name: 'Password safe (Launcher Vault)' });
-      await cancellationVault.getByLabel('Safe passphrase').fill(vaultPassphrase);
-      await cancellationVault.getByRole('button', { name: 'Open the safe' }).click();
+      if (await cancellationVault.isVisible()) {
+        await cancellationVault.getByLabel('Safe passphrase').fill(vaultPassphrase);
+        await cancellationVault.getByRole('button', { name: 'Open the safe' }).click();
+      }
       if (recoverRunID) {
-        await expect(cancellationVault.getByText('Unlocked', { exact: true })).toBeVisible();
+        await expect(cancellationVault).toHaveCount(0);
         await expect(page.getByRole('status')).toContainText('Verified', { timeout: convergenceTimeout });
         await expect(page.getByRole('status')).toContainText('verification-complete');
         const recoveredMarkers = execFileSync('ssh', sshArguments(sshTarget, "sudo -n find /etc/smallworlds -maxdepth 1 -type f -printf '%f\\n' | sort"), { encoding: 'utf8' });
@@ -105,7 +109,16 @@ test('browser bootstrap survives a Launcher interruption after a durable node ma
       return;
     }
 
+    // The safe opens with this computer's own login where that works, so the
+    // prompt appears only when the launcher genuinely has to ask.
     const vault = page.getByRole('region', { name: 'Password safe (Launcher Vault)' });
+    const unlockVault = async (): Promise<void> => {
+      if (await vault.isVisible()) {
+        await vault.getByLabel('Safe passphrase').fill(vaultPassphrase);
+        await vault.getByRole('button', { name: 'Open the safe' }).click();
+      }
+      await expect(vault).toHaveCount(0);
+    };
     // The journey is staged, so each stage is opened from the rail. Looking
     // ahead is allowed; the stage itself says what is still missing.
     const rail = page.getByRole('navigation', { name: 'Setup progress' });
@@ -115,62 +128,41 @@ test('browser bootstrap survives a Launcher interruption after a durable node ma
       await profile.getByLabel('Where it runs').selectOption('local-lan');
       await profile.getByRole('button', { name: 'Create installation' }).click();
 
-      await vault.getByLabel('Safe passphrase').fill(vaultPassphrase);
-      await vault.getByRole('button', { name: 'Open the safe' }).click();
-      await expect(vault.getByText('Unlocked', { exact: true })).toBeVisible();
+      await unlockVault();
 
+      // Phase B: what the community gets and what it is called. The version is
+      // advanced — the launcher already offers the latest published release.
       const capabilities = page.getByRole('region', { name: 'What the infrastructure will offer' });
       await capabilities.getByLabel('How much to install').selectOption('minimal');
+      await capabilities.getByRole('button', { name: 'Advanced settings' }).click();
       await capabilities.getByLabel('SmallWorlds version').fill('v1.2.27');
-      await capabilities.getByLabel('Your private settings repository').fill(repositoryURL);
       await capabilities.getByLabel('Your web address').fill(domain);
       const capabilityPlanResponse = page.waitForResponse('**/api/v1/capabilities/plan');
-      await capabilities.getByRole('button', { name: 'Show me the exact changes' }).click();
+      await capabilities.getByRole('button', { name: 'Work out what that needs' }).click();
       expect((await capabilityPlanResponse).status()).toBe(201);
-      await expect(capabilities.getByTestId('overlay-diff')).toContainText('v1.2.27');
 
-      const capabilityApproval = page.waitForResponse((response) => response.url().includes('/api/v1/plans/') && response.url().endsWith('/approve'));
-      await page.getByRole('button', { name: 'Approve and start' }).click();
-      expect((await capabilityApproval).status()).toBe(202);
-      await expect(page.getByRole('status')).toContainText('Verified');
-
-      // Both Git providers now live behind one explicit choice on the settings
-      // stage, rather than two cards that looked like separate obligations.
+      // Phase C: the repository has to exist and hold the configuration before
+      // any machine is touched, so it comes before the machine stage. Both Git
+      // providers live behind one explicit choice, and the exact file listing is
+      // shown immediately before the click that writes it.
       await rail.getByRole('button', { name: /Choose where your settings are kept/ }).click();
       const settingsRepo = page.getByRole('region', { name: 'Choose where your settings are kept' });
       await settingsRepo.getByLabel('Use a Git repository I already have').check();
+      await settingsRepo.getByLabel('Your private settings repository').fill(repositoryURL);
       await settingsRepo.getByLabel('Git username').fill(gitUsername);
       await settingsRepo.getByLabel('Git access token').fill(gitToken);
       const validationResponse = page.waitForResponse('**/api/v1/generic-git/token/validate');
       await settingsRepo.getByRole('button', { name: 'Validate and store access' }).click();
       expect((await validationResponse).status()).toBe(200);
       await expect(settingsRepo.getByText(repositoryURL, { exact: true })).toBeVisible();
+      await expect(settingsRepo.getByTestId('overlay-diff')).toContainText('v1.2.27');
       const establishResponse = page.waitForResponse('**/api/v1/generic-git/overlay/establish');
       await settingsRepo.getByRole('button', { name: 'Initialize HTTPS Git overlay' }).click();
       expect((await establishResponse).status()).toBe(201);
       await expect(settingsRepo).toContainText(`${repositoryURL} @`);
     } else {
-      await expect(vault).toBeVisible();
-      if (await vault.getByText('Locked', { exact: true }).isVisible()) {
-        await vault.getByLabel('Safe passphrase').fill(vaultPassphrase);
-        await vault.getByRole('button', { name: 'Open the safe' }).click();
-      }
-      await expect(vault.getByText('Unlocked', { exact: true })).toBeVisible();
+      await unlockVault();
     }
-
-    await rail.getByRole('button', { name: /Download the installer files/ }).click();
-    const assets = page.getByRole('region', { name: 'Installer files' });
-    await assets.getByLabel('SmallWorlds version').fill('v1.2.27');
-    const inspectAssetsResponse = page.waitForResponse((response) => response.url().includes('/api/v1/bootstrap-assets?'));
-    await assets.getByRole('button', { name: 'Show which files are needed' }).click();
-    expect((await inspectAssetsResponse).status()).toBe(200);
-    const acquireAssets = assets.getByRole('button', { name: 'Download and check the files' });
-    if (await acquireAssets.isEnabled()) {
-      const acquireAssetsResponse = page.waitForResponse('**/api/v1/bootstrap-assets/acquire', { timeout: 180_000 });
-      await acquireAssets.click();
-      expect((await acquireAssetsResponse).status()).toBe(201);
-    }
-    await expect(assets).toContainText('ready');
 
     await rail.getByRole('button', { name: /Choose the computer that will run it/ }).click();
     const node = page.getByRole('region', { name: 'The computer that will run it' });
@@ -191,9 +183,16 @@ test('browser bootstrap survives a Launcher interruption after a durable node ma
     expect((await inspectNodeResponse).status()).toBe(200);
     await expect(node.getByText('Suitable — ready to continue')).toBeVisible();
 
-    const bootstrap = node.getByRole('region', { name: 'Install onto this computer' });
-    await bootstrap.getByLabel('Your web address').fill(domain);
-    await bootstrap.getByLabel('Kubernetes node name').fill('smallworlds-acceptance');
+    await node.getByRole('button', { name: 'Advanced settings' }).click();
+    await node.getByLabel('Kubernetes node name').fill('smallworlds-acceptance');
+
+    // Phase E is its own stage: the installer files are fetched there without
+    // being asked for, and the web address is read from the settings repository
+    // rather than typed a second time.
+    await rail.getByRole('button', { name: /Install it/ }).click();
+    const bootstrap = page.getByRole('region', { name: 'Install it' });
+    await expect(bootstrap.getByText('downloaded and checked', { exact: false })).toBeVisible({ timeout: 180_000 });
+    await bootstrap.getByRole('button', { name: 'Advanced settings' }).click();
     const clusterSecrets = [
       'apiVersion: v1',
       'kind: Secret',
@@ -287,9 +286,11 @@ test('browser bootstrap survives a Launcher interruption after a durable node ma
     await page.goto(`${baseURL}/?token=${encodeURIComponent(launchToken)}`);
     await expect(page.getByRole('status')).toContainText(/waiting-for-vault|Running/);
     const restartedVault = page.getByRole('region', { name: 'Password safe (Launcher Vault)' });
-    await restartedVault.getByLabel('Safe passphrase').fill(vaultPassphrase);
-    await restartedVault.getByRole('button', { name: 'Open the safe' }).click();
-    await expect(restartedVault.getByText('Unlocked', { exact: true })).toBeVisible();
+    if (await restartedVault.isVisible()) {
+      await restartedVault.getByLabel('Safe passphrase').fill(vaultPassphrase);
+      await restartedVault.getByRole('button', { name: 'Open the safe' }).click();
+    }
+    await expect(restartedVault).toHaveCount(0);
     await expect(page.getByRole('status')).toContainText('Verified', { timeout: convergenceTimeout });
     await expect(page.getByRole('status')).toContainText('verification-complete');
 
