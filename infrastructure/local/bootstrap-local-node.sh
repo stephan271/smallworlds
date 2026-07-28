@@ -35,6 +35,9 @@
 #   DATA_DIR          where all persistent data lives (default
 #                     /var/lib/smallworlds-data); symlinked to
 #                     /mnt/smallworlds-data, which the manifests expect
+#   ETCD_DIR          where the cluster datastore lives (default
+#                     /var/lib/smallworlds-etcd, on the machine's own disk).
+#                     Must be fast storage — see the relocation below.
 #   NODE_NAME         stable k3s node name (default smallworlds-local-node)
 #   PROFILE_ID        Launcher profile that owns this installation. Required
 #                     for safe resume; never use a node already owned by a
@@ -100,6 +103,7 @@ ROOT_APP_GIT_REVISION="${ROOT_APP_GIT_REVISION:-}"
 ACME_EMAIL="${ACME_EMAIL:-}"
 MANAGE_DNS="${MANAGE_DNS:-}"
 DATA_DIR="${DATA_DIR:-/var/lib/smallworlds-data}"
+ETCD_DIR="${ETCD_DIR:-/var/lib/smallworlds-etcd}"
 NODE_NAME="${NODE_NAME:-smallworlds-local-node}"
 PROFILE_ID="${PROFILE_ID:?PROFILE_ID must be set in $CONFIG_FILE}"
 BOOTSTRAP_RUN_ID="${BOOTSTRAP_RUN_ID:?BOOTSTRAP_RUN_ID must be set in $CONFIG_FILE}"
@@ -235,6 +239,45 @@ if [ -d /var/lib/rancher/k3s ] && [ ! -L /var/lib/rancher/k3s ]; then
     rm -rf /var/lib/rancher/k3s
 fi
 ln -sfn "$DATA_DIR/k3s" /var/lib/rancher/k3s
+
+# etcd is the one thing here that must not live on a slow disk. It fsyncs every
+# write, and when the disk cannot keep up it fails to renew its leader lease;
+# k3s then exits and systemd restarts it. On a real installation that meant a
+# control plane dying every four minutes, pods stuck in Unknown, and Argo CD
+# waiting on hook jobs that no longer existed — with nothing in the cluster
+# itself looking wrong. The bulk data stays on the data disk where it belongs;
+# only the datastore moves to the machine's own storage.
+mkdir -p "$ETCD_DIR"
+ETCD_LINK="$DATA_DIR/k3s/server/db"
+mkdir -p "$DATA_DIR/k3s/server"
+if [ -d "$ETCD_LINK" ] && [ ! -L "$ETCD_LINK" ]; then
+    if systemctl is-active --quiet k3s 2>/dev/null; then
+        echo -e "${YELLOW}The cluster datastore is still on $DATA_DIR and k3s is running; it is left alone.${NC}" >&2
+        echo "Moving it means stopping the cluster. To do it by hand:" >&2
+        echo "    systemctl stop k3s" >&2
+        echo "    mv $ETCD_LINK/* $ETCD_DIR/ && rmdir $ETCD_LINK && ln -s $ETCD_DIR $ETCD_LINK" >&2
+        echo "    systemctl start k3s" >&2
+    else
+        cp -a "$ETCD_LINK/." "$ETCD_DIR/"
+        rm -rf "$ETCD_LINK"
+        ln -sfn "$ETCD_DIR" "$ETCD_LINK"
+    fi
+else
+    ln -sfn "$ETCD_DIR" "$ETCD_LINK"
+fi
+
+# Reported, not enforced: virtualized disks routinely claim to be rotational
+# when they are not, and refusing on that would turn a false reading into a
+# failed installation. A true reading, though, predicts exactly the failure
+# above.
+ETCD_SOURCE_DEVICE=$(df --output=source "$ETCD_DIR" 2>/dev/null | tail -1)
+ETCD_DISK=$(lsblk -no pkname "$ETCD_SOURCE_DEVICE" 2>/dev/null | head -1)
+[ -n "$ETCD_DISK" ] || ETCD_DISK=$(basename "${ETCD_SOURCE_DEVICE:-none}")
+if [ "$(cat "/sys/block/$ETCD_DISK/queue/rotational" 2>/dev/null || echo 0)" = "1" ]; then
+    echo -e "${YELLOW}Warning: $ETCD_DIR sits on $ETCD_DISK, which reports itself as a rotating disk.${NC}"
+    echo -e "${YELLOW}etcd needs low write latency; on a spinning disk the control plane loses its"
+    echo -e "leader lease and k3s restarts in a loop. Point ETCD_DIR at an SSD or NVMe.${NC}"
+fi
 touch "$MARKER_DIR/data-ready"
 
 # ------------------------------------------------------------------

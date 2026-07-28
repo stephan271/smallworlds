@@ -106,6 +106,16 @@ runcmd:
   - mkdir -p /var/lib/rancher
   - ln -sfn /mnt/smallworlds-data/k3s /var/lib/rancher/k3s
 
+  # etcd must not ride along on the attached volume. It fsyncs every write and
+  # drops its leader lease when the disk cannot keep up, and k3s then exits —
+  # a control plane that restarts every few minutes while the cluster itself
+  # looks healthy. Network-attached volume for the bulk data, the server's own
+  # local disk for the datastore. Mirrors the same relocation in
+  # infrastructure/local/bootstrap-local-node.sh.
+  - mkdir -p /var/lib/smallworlds-etcd /mnt/smallworlds-data/k3s/server
+  - if [ -d /mnt/smallworlds-data/k3s/server/db ] && [ ! -L /mnt/smallworlds-data/k3s/server/db ]; then cp -a /mnt/smallworlds-data/k3s/server/db/. /var/lib/smallworlds-etcd/ ; rm -rf /mnt/smallworlds-data/k3s/server/db ; fi
+  - ln -sfn /var/lib/smallworlds-etcd /mnt/smallworlds-data/k3s/server/db
+
 %{ if server_ip != "" ~}
   - NODE_IP=${server_ip}
 %{ else ~}

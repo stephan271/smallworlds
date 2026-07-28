@@ -18,7 +18,25 @@ re-creation. Bootstrap creates three subdirectories:
 |---|---|
 | `/mnt/smallworlds-data/garage` | Garage S3 data (static PV `garage-data-pv`) |
 | `/mnt/smallworlds-data/immich-library` | Immich photo/video originals (static PV `immich-library-pv`) |
-| `/mnt/smallworlds-data/k3s` | Symlink target of `/var/lib/rancher/k3s` — the k3s datastore **and all `local-path` PVCs** (`.../k3s/storage/`) |
+| `/mnt/smallworlds-data/k3s` | Symlink target of `/var/lib/rancher/k3s` — **all `local-path` PVCs** (`.../k3s/storage/`) and the container image store |
+| `/var/lib/smallworlds-etcd` | The cluster datastore, deliberately **not** on this volume — see below |
+
+### Why etcd is not on the data volume
+
+`…/k3s/server/db` is a symlink to `/var/lib/smallworlds-etcd` on the machine's
+own disk, on every deployment target. etcd fsyncs every write and gives up its
+leader lease when the disk cannot answer in time; k3s then exits with status 1
+and systemd restarts it. The symptom is not a storage error — it is a control
+plane that dies every few minutes, pods stuck in `Unknown`, and Argo CD waiting
+on hook jobs that no longer exist, while the cluster's own objects all look
+fine. A first LAN installation ran into exactly this with the data directory on
+a rotating disk: 22 restarts and 17,523 etcd "took too long" warnings in half an
+hour.
+
+The bulk data has the opposite need — capacity and sequential throughput — so it
+stays on the large volume. Bootstrap warns when the datastore's disk reports
+itself as rotational, but does not refuse: virtualized disks routinely
+misreport, and a false reading must not fail an installation.
 
 So both storage classes ultimately share the same 200 GB volume:
 
