@@ -2584,6 +2584,12 @@
                      only as the refusal that follows a click. Said up front it is
                      guidance; said afterwards it reads as a failure. -->
                 {#if !overlayIdentity}<p class="inline-notice">{message('localBootstrapOverlayRequired')}</p>{/if}
+                <!-- The node's own evidence outranks the run record: an
+                     installation whose connection dropped after the installer
+                     finished leaves a failed run behind a working cluster. -->
+                {#if nodeInspection?.assessment?.complete}
+                  <p class="inline-notice">{message('nodeAlreadyInstalled')}</p>
+                {/if}
                 {#if localBootstrapError}
                   <p class="inline-error" role="alert">{localBootstrapErrorMessage(localBootstrapError)}</p>
                   {#if localBootstrapBlockers.length > 0}

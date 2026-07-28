@@ -125,9 +125,16 @@ type Blocker struct {
 }
 
 type Assessment struct {
-	Ready     bool      `json:"ready"`
-	Resumable bool      `json:"resumable"`
-	Blockers  []Blocker `json:"blockers"`
+	Ready     bool `json:"ready"`
+	Resumable bool `json:"resumable"`
+	// Complete reports that this machine already carries a finished installation
+	// belonging to this community. The bootstrap writes the marker as its last
+	// act, and both inspectors have always read it — but nothing used it, so a
+	// run whose connection dropped after the installer finished left the console
+	// saying "failed" about a cluster that was up and serving. The node knows
+	// better than the run record does.
+	Complete bool      `json:"complete"`
+	Blockers []Blocker `json:"blockers"`
 }
 
 func (assessment Assessment) HasBlocker(code string) bool {
@@ -193,7 +200,8 @@ func Assess(report Report, requirements Requirements) Assessment {
 		}
 	}
 	sort.Slice(blockers, func(left, right int) bool { return blockers[left].Code < blockers[right].Code })
-	return Assessment{Ready: len(blockers) == 0, Resumable: resumable && len(blockers) == 0, Blockers: blockers}
+	complete := installation.Complete && installation.ProfileID == requirements.ProfileID
+	return Assessment{Ready: len(blockers) == 0, Resumable: resumable && len(blockers) == 0, Complete: complete, Blockers: blockers}
 }
 
 func HashNodeIdentity(identity string) string {

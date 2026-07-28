@@ -79,3 +79,33 @@ func TestAssessmentOffersOnlyRecognizedSameProfileInstallationAsResumable(t *tes
 		t.Fatalf("other profile was accepted: %#v", assessment)
 	}
 }
+
+// The bootstrap writes bootstrap-complete as its last act. Both inspectors have
+// always read it and nothing used it, so a run whose SSH session dropped after
+// the installer finished left the console reporting a failure about a cluster
+// that was up. The node's own evidence has to reach the assessment.
+func TestAssessReportsAFinishedInstallationOfThisCommunity(t *testing.T) {
+	requirements := nodeinspect.Requirements{ProfileID: "profile-1", MemoryMi: 1024, DiskGi: 10, DataDirectory: "/var/lib/smallworlds-data"}
+	report := nodeinspect.Report{
+		OperatingSystem: "linux", Systemd: true, KernelReady: true, Privilege: "sudo",
+		Capacity: nodeinspect.Capacity{CPUCores: 4, MemoryMi: 8192, DiskGi: 100},
+		Installation: nodeinspect.Installation{
+			Kubernetes: nodeinspect.ProfileOwned, SmallWorldsData: nodeinspect.ProfileOwned, ProfileID: "profile-1",
+			K3SReady: true, ArgoCDReady: true, OverlayApplied: true, Complete: true,
+		},
+	}
+	if assessment := nodeinspect.Assess(report, requirements); !assessment.Complete {
+		t.Fatalf("a finished installation was not reported as complete: %+v", assessment)
+	}
+	// Somebody else's finished installation is not this community's.
+	report.Installation.ProfileID = "profile-2"
+	if assessment := nodeinspect.Assess(report, requirements); assessment.Complete {
+		t.Fatal("another profile's installation was reported as this one's")
+	}
+	// And an unfinished one is not complete however far it got.
+	report.Installation.ProfileID = "profile-1"
+	report.Installation.Complete = false
+	if assessment := nodeinspect.Assess(report, requirements); assessment.Complete {
+		t.Fatal("an unfinished installation was reported as complete")
+	}
+}

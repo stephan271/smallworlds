@@ -4526,9 +4526,10 @@
       "NodeAssessment": {
         "type": "object",
         "required": [
+          "blockers",
+          "complete",
           "ready",
-          "resumable",
-          "blockers"
+          "resumable"
         ],
         "properties": {
           "ready": {
@@ -4550,6 +4551,10 @@
                 }
               }
             }
+          },
+          "complete": {
+            "type": "boolean",
+            "description": "Whether this machine already carries a finished installation belonging to this community."
           }
         }
       },

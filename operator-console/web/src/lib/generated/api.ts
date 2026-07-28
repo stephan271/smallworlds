@@ -1882,6 +1882,8 @@ export interface components {
             blockers: {
                 code: string;
             }[];
+            /** @description Whether this machine already carries a finished installation belonging to this community. */
+            complete: boolean;
         };
         NodeCapacity: {
             cpuCores: number;
