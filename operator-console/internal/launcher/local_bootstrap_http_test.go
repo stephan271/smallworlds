@@ -39,7 +39,11 @@ func (inspector *readyNodeInspector) InspectRemote(context.Context, nodeinspect.
 	return nodeinspect.Report{}, nodeinspect.Assessment{}, fmt.Errorf("unexpected remote inspection")
 }
 
-type successfulBootstrapRunner struct{ calls int }
+type successfulBootstrapRunner struct {
+	calls          int
+	adopted        string
+	adoptionDrifts bool
+}
 
 func (runner *successfulBootstrapRunner) Run(_ context.Context, request localbootstrap.RunRequest) (localbootstrap.Observation, error) {
 	runner.calls++
@@ -298,4 +302,59 @@ func TestLocalBootstrapPlanReinspectsBindsAndExecutesWithoutSecretLeakage(t *tes
 	if body := readAll(t, response); bytes.Contains(body, []byte("cluster-secret-value")) || bytes.Contains(body, []byte("git-secret")) {
 		t.Fatalf("activity leaked secrets: %s", body)
 	}
+
+	// The last step of a release update, and the one that had no path through
+	// the console at all: the root Application stays pinned to the commit
+	// approved at installation, so a merged proposal deployed nothing until
+	// somebody patched Kubernetes by hand.
+	//
+	// A revision that is not a full commit never reaches the cluster — a branch
+	// or a tag can be moved underneath it afterwards, which is the reason the
+	// pin exists.
+	for _, refused := range []string{"HEAD", "main", "v1.2.30", strings.Repeat("a", 39)} {
+		body, _ := json.Marshal(map[string]string{"profileId": publicProfile.ID, "revision": refused})
+		response = request(t, handler, http.MethodPost, "/api/v1/overlay/adopt", body, cookie, map[string]string{"X-CSRF-Token": csrf})
+		if response.StatusCode != http.StatusBadRequest {
+			t.Fatalf("revision %q was accepted: %d", refused, response.StatusCode)
+		}
+		response.Body.Close()
+		if runner.adopted != "" {
+			t.Fatalf("revision %q reached the cluster", refused)
+		}
+	}
+	reviewed := strings.Repeat("a", 40)
+	adoptBody, _ := json.Marshal(map[string]string{"profileId": publicProfile.ID, "revision": reviewed})
+	response = request(t, handler, http.MethodPost, "/api/v1/overlay/adopt", adoptBody, cookie, map[string]string{"X-CSRF-Token": csrf})
+	if response.StatusCode != http.StatusOK || !bytes.Contains(readAll(t, response), []byte(reviewed)) {
+		t.Fatalf("adopting a reviewed revision failed: %d", response.StatusCode)
+	}
+	if runner.adopted != reviewed {
+		t.Fatalf("the cluster was asked to adopt %q", runner.adopted)
+	}
+
+	// Recorded only once the cluster agrees. Recording a revision the cluster
+	// did not take would leave the console claiming a release it is not running,
+	// which is the failure this whole step exists to end.
+	runner.adoptionDrifts = true
+	unconfirmed := strings.Repeat("b", 40)
+	adoptBody, _ = json.Marshal(map[string]string{"profileId": publicProfile.ID, "revision": unconfirmed})
+	response = request(t, handler, http.MethodPost, "/api/v1/overlay/adopt", adoptBody, cookie, map[string]string{"X-CSRF-Token": csrf})
+	if response.StatusCode != http.StatusBadGateway {
+		t.Fatalf("an unconfirmed adoption was accepted: %d", response.StatusCode)
+	}
+	response.Body.Close()
+	response = request(t, handler, http.MethodGet, "/api/v1/profiles/"+publicProfile.ID+"/overlay", nil, cookie, nil)
+	recorded := readAll(t, response)
+	if bytes.Contains(recorded, []byte(unconfirmed)) || !bytes.Contains(recorded, []byte(reviewed)) {
+		t.Fatalf("the recorded overlay does not match what the cluster confirmed: %s", recorded)
+	}
+}
+
+func (runner *successfulBootstrapRunner) Adopt(_ context.Context, _ localbootstrap.RunRequest, revision string) (string, error) {
+	runner.adopted = revision
+	if runner.adoptionDrifts {
+		// A cluster that reports a different revision than the one asked for.
+		return "0000000000000000000000000000000000000000", nil
+	}
+	return revision, nil
 }

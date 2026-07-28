@@ -349,6 +349,8 @@ func (server *Server) ServeHTTP(response http.ResponseWriter, request *http.Requ
 		server.planNodeSSHKey(response, request)
 	case request.URL.Path == "/api/v1/local-bootstrap/plan":
 		server.planLocalBootstrap(response, request)
+	case request.URL.Path == "/api/v1/overlay/adopt":
+		server.adoptOverlayRevision(response, request)
 	case request.URL.Path == "/api/v1/cluster-secrets/credentials":
 		server.revealClusterSecretCredentials(response, request)
 	case request.URL.Path == "/api/v1/cluster-ca":

@@ -2762,6 +2762,46 @@
           }
         }
       }
+    },
+    "/api/v1/overlay/adopt": {
+      "post": {
+        "operationId": "adoptOverlayRevision",
+        "summary": "Carry a reviewed and merged overlay commit to the cluster",
+        "description": "Repoints the root Application at a reviewed commit and records it only once the cluster confirms the change. The revision must be a full commit: a branch or tag can be moved under a running cluster afterwards, which is why the root Application is pinned in the first place.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CSRFToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OverlayAdoption"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The overlay identity as the cluster now confirms it",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverlayIdentity"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "502": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -6117,6 +6157,23 @@
                 "type": "string"
               }
             }
+          }
+        }
+      },
+      "OverlayAdoption": {
+        "type": "object",
+        "required": [
+          "profileId",
+          "revision"
+        ],
+        "properties": {
+          "profileId": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40,64}$",
+            "description": "The reviewed and merged overlay commit, in full."
           }
         }
       }

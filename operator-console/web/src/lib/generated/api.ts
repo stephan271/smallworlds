@@ -1385,6 +1385,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/overlay/adopt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Carry a reviewed and merged overlay commit to the cluster
+         * @description Repoints the root Application at a reviewed commit and records it only once the cluster confirms the change. The revision must be a full commit: a branch or tag can be moved under a running cluster afterwards, which is why the root Application is pinned in the first place.
+         */
+        post: operations["adoptOverlayRevision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2333,6 +2353,11 @@ export interface components {
                 grafanaAdminUser?: string;
                 grafanaAdminPassword?: string;
             };
+        };
+        OverlayAdoption: {
+            profileId: string;
+            /** @description The reviewed and merged overlay commit, in full. */
+            revision: string;
         };
     };
     responses: {
@@ -4518,6 +4543,34 @@ export interface operations {
             };
             409: components["responses"]["Conflict"];
             423: components["responses"]["Locked"];
+        };
+    };
+    adoptOverlayRevision: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-Token": components["parameters"]["CSRFToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OverlayAdoption"];
+            };
+        };
+        responses: {
+            /** @description The overlay identity as the cluster now confirms it */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverlayIdentity"];
+                };
+            };
+            409: components["responses"]["Conflict"];
+            502: components["responses"]["Conflict"];
         };
     };
 }

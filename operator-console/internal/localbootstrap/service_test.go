@@ -360,3 +360,15 @@ func TestASecondRunForTheSameCommunityWaitsForTheOlderOne(t *testing.T) {
 		t.Fatal("a second installation started while another run was still going")
 	}
 }
+
+func (runner cancellationRunner) Adopt(_ context.Context, _ localbootstrap.RunRequest, revision string) (string, error) {
+	return revision, nil
+}
+
+func (runner *resumableRunner) Adopt(_ context.Context, _ localbootstrap.RunRequest, revision string) (string, error) {
+	return revision, nil
+}
+
+func (runner *stubRunner) Adopt(_ context.Context, _ localbootstrap.RunRequest, revision string) (string, error) {
+	return revision, nil
+}

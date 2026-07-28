@@ -10,6 +10,7 @@ import (
 
 	"github.com/stephan271/smallworlds/operator-console/internal/bootstrapassets"
 	"github.com/stephan271/smallworlds/operator-console/internal/nodeinspect"
+	"github.com/stephan271/smallworlds/operator-console/internal/overlayadoption"
 	"github.com/stephan271/smallworlds/operator-console/internal/state"
 	"github.com/stephan271/smallworlds/operator-console/internal/vault"
 )
@@ -49,6 +50,9 @@ type Runner interface {
 	Run(context.Context, RunRequest) (Observation, error)
 	Observe(context.Context, RunRequest) (Observation, error)
 	Detail(context.Context, RunRequest) (Detail, error)
+	// Adopt repoints the root Application at a reviewed overlay commit and
+	// returns the revision the cluster reports afterwards.
+	Adopt(ctx context.Context, request RunRequest, revision string) (string, error)
 }
 
 type AssetOpener func(ctx context.Context, release, id string) (io.ReadCloser, bootstrapassets.Descriptor, error)
@@ -370,6 +374,31 @@ func (service *Service) Detail(ctx context.Context, profileID string) (Detail, e
 		return Detail{}, err
 	}
 	return service.runner.Detail(ctx, RunRequest{Binding: binding, Credentials: credentials, Cancelled: func() bool { return false }})
+}
+
+// Adopt carries a reviewed and merged overlay commit to the cluster. It is the
+// last step of a release update and the only one that had no path through the
+// console: everything before it — verifying a signed release, reviewing the
+// Change Plan, opening the proposal, merging it — was supported, and then the
+// root Application stayed pinned to the previous commit until somebody patched
+// Kubernetes by hand.
+func (service *Service) Adopt(ctx context.Context, profileID, revision string) (string, error) {
+	if err := overlayadoption.ValidateRevision(revision); err != nil {
+		return "", err
+	}
+	planRecord, err := service.store.LatestBootstrapPlanForProfile(ctx, profileID)
+	if err != nil {
+		return "", err
+	}
+	binding, err := ParseBinding(planRecord.Binding)
+	if err != nil || binding.ProfileID != profileID {
+		return "", fmt.Errorf("bootstrap binding is unusable")
+	}
+	credentials, err := service.loadCredentials(binding)
+	if err != nil {
+		return "", err
+	}
+	return service.runner.Adopt(ctx, RunRequest{Binding: binding, Credentials: credentials, Cancelled: func() bool { return false }}, revision)
 }
 
 func (service *Service) loadCredentials(binding Binding) (nodeinspect.Credentials, error) {

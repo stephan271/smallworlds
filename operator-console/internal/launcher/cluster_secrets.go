@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/stephan271/smallworlds/operator-console/internal/clustersecrets"
+	"github.com/stephan271/smallworlds/operator-console/internal/overlayadoption"
 	"github.com/stephan271/smallworlds/operator-console/internal/state"
 	"github.com/stephan271/smallworlds/operator-console/internal/vault"
 )
@@ -142,4 +144,74 @@ func (server *Server) revealClusterSecretCredentials(response http.ResponseWrite
 		return
 	}
 	writeJSON(response, http.StatusOK, map[string]any{"credentials": credentials, "present": credentials.Present()})
+}
+
+// adoptOverlayRevision carries a reviewed and merged overlay commit to the
+// cluster. It is the step that closed the gap between "the proposal is merged"
+// and "the cluster runs it": the root Application is pinned to the commit
+// approved at installation and rewritten never, so until now a merged release
+// update deployed nothing.
+//
+// Deliberately separate from proposing. Merging is the Operator's act in their
+// own Git provider, and this console does not watch for it and act on its own —
+// adopting is a second, explicit approval that a reviewed commit may become
+// what the cluster runs.
+func (server *Server) adoptOverlayRevision(response http.ResponseWriter, request *http.Request) {
+	current, ok := server.authenticatedSession(request)
+	if !ok {
+		writeError(response, http.StatusUnauthorized, "authentication_required")
+		return
+	}
+	if request.Method != http.MethodPost {
+		response.Header().Set("Allow", "POST")
+		writeError(response, http.StatusMethodNotAllowed, "method_not_allowed")
+		return
+	}
+	if !sameToken(request.Header.Get("X-CSRF-Token"), current.csrfToken) {
+		writeError(response, http.StatusForbidden, "csrf_required")
+		return
+	}
+	var input struct {
+		ProfileID string `json:"profileId"`
+		Revision  string `json:"revision"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(response, request.Body, 8*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil || input.ProfileID == "" {
+		writeError(response, http.StatusBadRequest, "invalid_overlay_adoption")
+		return
+	}
+	if err := overlayadoption.ValidateRevision(input.Revision); err != nil {
+		writeError(response, http.StatusBadRequest, "overlay_revision_invalid")
+		return
+	}
+	identity, err := server.store.GetOverlayIdentity(request.Context(), input.ProfileID)
+	if errors.Is(err, state.ErrNotFound) {
+		writeError(response, http.StatusConflict, "gitops_overlay_required")
+		return
+	}
+	if err != nil {
+		writeError(response, http.StatusInternalServerError, "overlay_adoption_failed")
+		return
+	}
+	adopted, err := server.localBootstrap.Adopt(request.Context(), input.ProfileID, input.Revision)
+	if err != nil {
+		log.Printf("overlay adoption: profile %s: %v", input.ProfileID, err)
+		writeError(response, http.StatusBadGateway, "overlay_adoption_failed")
+		return
+	}
+	// Read back from the cluster rather than assumed from a patch that returned
+	// no error, and only then recorded: the identity says what is deployed, so
+	// it must not say so before the cluster agrees.
+	if adopted != input.Revision {
+		writeError(response, http.StatusBadGateway, "overlay_adoption_unconfirmed")
+		return
+	}
+	identity.Commit = adopted
+	identity.RecordedAt = time.Now().UTC()
+	if err := server.store.RecordOverlayIdentity(request.Context(), identity); err != nil {
+		writeError(response, http.StatusInternalServerError, "overlay_adoption_failed")
+		return
+	}
+	writeJSON(response, http.StatusOK, identity)
 }

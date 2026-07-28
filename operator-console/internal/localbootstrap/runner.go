@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/stephan271/smallworlds/operator-console/internal/nodeinspect"
+	"github.com/stephan271/smallworlds/operator-console/internal/overlayadoption"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -55,6 +56,84 @@ func (runner ProductionRunner) Detail(ctx context.Context, request RunRequest) (
 		return runner.detailRemote(ctx, request)
 	}
 	return runner.detailSameHost(ctx, request)
+}
+
+// Adopt repoints the root Application at a reviewed overlay commit and reads
+// back what the cluster now says, so the result is the cluster's answer rather
+// than the absence of an error.
+func (runner ProductionRunner) Adopt(ctx context.Context, request RunRequest, revision string) (string, error) {
+	if err := request.Binding.Validate(); err != nil {
+		return "", err
+	}
+	patch, err := overlayadoption.PatchCommand(revision)
+	if err != nil {
+		return "", err
+	}
+	if request.Binding.Target.Kind == nodeinspect.RemoteTarget {
+		return runner.adoptRemote(ctx, request, patch)
+	}
+	return runner.adoptSameHost(ctx, request, patch)
+}
+
+// adoptRemote and adoptSameHost repeat the identity and authorisation checks the
+// other privileged paths make. A pin moved on a machine that is no longer the
+// one this profile trusts would be worse than a pin not moved at all.
+func (runner ProductionRunner) adoptRemote(ctx context.Context, request RunRequest, patch string) (string, error) {
+	client, err := nodeinspect.DialTrusted(ctx, request.Binding.Target, request.Credentials, request.Binding.HostFingerprint)
+	if err != nil {
+		return "", fmt.Errorf("%w: connect trusted node", ErrInterrupted)
+	}
+	defer client.Close()
+	if err := nodeinspect.ValidateSudoCredential(client, request.Credentials.SudoPassword); err != nil {
+		return "", fmt.Errorf("%w: sudo authorization", ErrExecutionPrecondition)
+	}
+	identity, err := readRemoteNodeIdentity(client)
+	if err != nil || identity != request.Binding.NodeIdentity {
+		return "", fmt.Errorf("%w: remote node identity changed", ErrExecutionPrecondition)
+	}
+	elevate := func(command string) string {
+		if request.Binding.Target.Username != "root" {
+			return "sudo -n sh -c " + shellQuote(command)
+		}
+		return "sh -c " + shellQuote(command)
+	}
+	if _, err := readSSHOutput(client, elevate(patch)); err != nil {
+		return "", fmt.Errorf("%w: adopt overlay revision", ErrInterrupted)
+	}
+	adopted, err := readSSHOutput(client, elevate(overlayadoption.ReadRevisionCommand()))
+	if err != nil {
+		return "", fmt.Errorf("%w: read adopted revision", ErrInterrupted)
+	}
+	return strings.TrimSpace(adopted), nil
+}
+
+func (runner ProductionRunner) adoptSameHost(ctx context.Context, request RunRequest, patch string) (string, error) {
+	inspect := runner.SameHostInspector
+	if inspect == nil {
+		inspect = nodeinspect.InspectSameHost
+	}
+	report, err := inspect(request.Binding.ProfileID, request.Binding.Configuration.DataDirectory)
+	if err != nil || report.NodeIdentity != request.Binding.NodeIdentity {
+		return "", fmt.Errorf("%w: same-host node identity changed", ErrExecutionPrecondition)
+	}
+	run := func(command string) (string, error) {
+		arguments := []string{"-c", command}
+		name := "sh"
+		if os.Geteuid() != 0 {
+			name = "sudo"
+			arguments = []string{"-n", "sh", "-c", command}
+		}
+		output, err := exec.CommandContext(ctx, name, arguments...).Output()
+		return string(output), err
+	}
+	if _, err := run(patch); err != nil {
+		return "", fmt.Errorf("%w: adopt overlay revision", ErrInterrupted)
+	}
+	adopted, err := run(overlayadoption.ReadRevisionCommand())
+	if err != nil {
+		return "", fmt.Errorf("%w: read adopted revision", ErrInterrupted)
+	}
+	return strings.TrimSpace(adopted), nil
 }
 
 func (runner ProductionRunner) detailRemote(ctx context.Context, request RunRequest) (Detail, error) {
