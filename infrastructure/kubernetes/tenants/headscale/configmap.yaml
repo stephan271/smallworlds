@@ -6,9 +6,15 @@ metadata:
 data:
   # Deliberately partial: only the keys that need a non-default value for a
   # containerized, single-tenant deployment are listed here. Everything else
-  # (metrics/grpc listen addrs, unix_socket, log format, DNS/MagicDNS, ...)
-  # falls back to headscale's own built-in defaults — see
+  # (metrics/grpc listen addrs, unix_socket, log format, ...) falls back to
+  # headscale's own built-in defaults — see
   # https://github.com/juanfont/headscale/blob/main/config-example.yaml
+  #
+  # DNS is the exception and must be stated. As of v0.29 headscale's own
+  # defaults contradict each other: override_local_dns defaults to true while
+  # nameservers.global has no default at all, and the binary refuses to start
+  # with "dns.nameservers.global must be set when dns.override_local_dns is
+  # true". Leaving DNS unstated meant a crash loop, not a default.
   config.yaml: |
     server_url: https://vpn.smallworlds.network
     listen_addr: 0.0.0.0:8080
@@ -36,6 +42,19 @@ data:
       # a handful of operator/infra devices the lockout risk of a silent
       # expiry outweighs the security benefit of forcing periodic re-auth.
       expiry: 0
+
+    dns:
+      magic_dns: true
+      # Must differ from the server_url domain. Enrolled devices reach each
+      # other as <hostname>.smallworlds.internal, which is also the private
+      # base domain the Launcher hands administration over on.
+      base_domain: smallworlds.internal
+      # Operator devices keep their own resolvers. Which nameserver someone's
+      # laptop asks is not this project's decision to make on their behalf, and
+      # overriding it would additionally require naming a public resolver here.
+      override_local_dns: false
+      nameservers:
+        global: []
 
     noise:
       private_key_path: /var/lib/headscale/noise_private.key
