@@ -30,6 +30,17 @@ type Repository struct {
 	Password string
 }
 
+// Cluster is what the manifest needs to know about the installation itself.
+// DNSToken may be empty: a cluster whose names never leave the building has no
+// provider to talk to, and the Secrets that carry it are written empty rather
+// than omitted — the workloads that mount them refuse to start otherwise.
+type Cluster struct {
+	Domain               string
+	EnvironmentExtension string
+	AdminEmail           string
+	DNSToken             string
+}
+
 // Credentials are the two logins a person actually uses. Everything else in the
 // manifest is machine-to-machine and deliberately absent here.
 type Credentials struct {
@@ -61,25 +72,35 @@ const (
 	keycloakSecretName = "keycloak-admin-creds"
 	grafanaSecretName  = "grafana-admin-creds"
 	garageSecretName   = "garage-auth-secret"
-	// The name is arbitrary — Argo CD finds this Secret by its label, not by
-	// what it is called.
-	repositorySecretName = "smallworlds-overlay-repository"
+	// Not arbitrary: Renovate and the remediation agent both mount this Secret
+	// by name (apps/renovate-cronjob.yaml, tenants/remediation/deployment.yaml),
+	// so it is a project-wide contract rather than a label lookup.
+	repositorySecretName = "repo-git-creds"
+	stalwartSecretName   = "stalwart-dns-secrets"
+	dnsProviderSecret    = "hetzner"
+	globalConfigName     = "smallworlds-global-config"
 	adminUser            = "admin"
 )
 
 // References lists what Generate writes, in the order it writes it.
 func References() []Reference {
 	return []Reference{
+		{Namespace: "default", Name: globalConfigName},
 		{Namespace: "keycloak", Name: keycloakSecretName},
 		{Namespace: "argocd", Name: repositorySecretName},
 		{Namespace: "monitoring", Name: grafanaSecretName},
 		{Namespace: "garage-system", Name: garageSecretName},
+		{Namespace: "stalwart", Name: stalwartSecretName},
+		{Namespace: "cert-manager", Name: dnsProviderSecret},
 	}
 }
 
-func Generate(repository Repository) (Generated, error) {
+func Generate(repository Repository, cluster Cluster) (Generated, error) {
 	if repository.URL == "" || repository.Username == "" || repository.Password == "" {
 		return Generated{}, fmt.Errorf("cluster secrets need the settings repository and its credential")
+	}
+	if cluster.Domain == "" {
+		return Generated{}, fmt.Errorf("cluster secrets need the domain the installation was planned for")
 	}
 	keycloakPassword, err := alphanumeric(32)
 	if err != nil {
@@ -113,6 +134,16 @@ func Generate(repository Repository) (Generated, error) {
 		{APIVersion: "v1", Kind: "Namespace", Metadata: metadata{Name: "keycloak"}},
 		{APIVersion: "v1", Kind: "Namespace", Metadata: metadata{Name: "monitoring"}},
 		{APIVersion: "v1", Kind: "Namespace", Metadata: metadata{Name: "garage-system"}},
+		{APIVersion: "v1", Kind: "Namespace", Metadata: metadata{Name: "stalwart"}},
+		{APIVersion: "v1", Kind: "Namespace", Metadata: metadata{Name: "cert-manager"}},
+		// Read by the Immich and Nextcloud setup jobs for the administrator
+		// address. Not overlay material: it is delivered with the Secrets because
+		// the jobs that read it run before anything in Git is reconciled.
+		{
+			APIVersion: "v1", Kind: "ConfigMap",
+			Metadata: metadata{Name: globalConfigName, Namespace: "default"},
+			Data:     map[string]string{"ADMIN_EMAIL": cluster.AdminEmail, "DOMAIN": cluster.Domain, "ENV_EXT": cluster.EnvironmentExtension},
+		},
 		{
 			APIVersion: "v1", Kind: "Secret", Type: "Opaque",
 			Metadata:   metadata{Name: keycloakSecretName, Namespace: "keycloak"},
@@ -132,6 +163,21 @@ func Generate(repository Repository) (Generated, error) {
 			APIVersion: "v1", Kind: "Secret", Type: "Opaque",
 			Metadata:   metadata{Name: garageSecretName, Namespace: "garage-system"},
 			StringData: map[string]string{"rpcSecret": rpcSecret, "adminToken": adminToken},
+		},
+		// Stalwart's provisioner and cert-manager's DNS01 solver mount these
+		// whether or not a provider is in play. With names that stay inside the
+		// building the token is simply empty — an absent Secret would leave the
+		// pods in CreateContainerConfigError forever, which is a far worse way to
+		// express "no external DNS" than an empty value.
+		{
+			APIVersion: "v1", Kind: "Secret", Type: "Opaque",
+			Metadata:   metadata{Name: stalwartSecretName, Namespace: "stalwart"},
+			StringData: map[string]string{"HCLOUD_TOKEN": cluster.DNSToken, "DOMAIN": cluster.Domain, "ENV_EXT": cluster.EnvironmentExtension},
+		},
+		{
+			APIVersion: "v1", Kind: "Secret", Type: "Opaque",
+			Metadata:   metadata{Name: dnsProviderSecret, Namespace: "cert-manager"},
+			StringData: map[string]string{"token": cluster.DNSToken},
 		},
 	}
 	// Marshalled rather than assembled from strings: a repository credential is
@@ -199,6 +245,7 @@ type document struct {
 	Metadata   metadata          `yaml:"metadata"`
 	Type       string            `yaml:"type,omitempty"`
 	StringData map[string]string `yaml:"stringData,omitempty"`
+	Data       map[string]string `yaml:"data,omitempty"`
 }
 
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"

@@ -21,6 +21,7 @@ import (
 	"github.com/stephan271/smallworlds/operator-console/internal/bootstrapassets"
 	"github.com/stephan271/smallworlds/operator-console/internal/capability"
 	"github.com/stephan271/smallworlds/operator-console/internal/clusterca"
+	"github.com/stephan271/smallworlds/operator-console/internal/clustersecrets"
 	"github.com/stephan271/smallworlds/operator-console/internal/enrollment"
 	"github.com/stephan271/smallworlds/operator-console/internal/firstowner"
 	"github.com/stephan271/smallworlds/operator-console/internal/gatewayaccess"
@@ -3347,7 +3348,15 @@ func (server *Server) planLocalBootstrap(response http.ResponseWriter, request *
 	// smallworlds-init.sh has always generated them for the shell path; the
 	// console refusing to was the regression.
 	if secretVaultKey == "" {
-		generated, generateErr := server.generateClusterSecrets(request.Context(), profile.ID, overlay)
+		generated, generateErr := server.generateClusterSecrets(request.Context(), profile.ID, overlay, clustersecrets.Cluster{
+			Domain:               input.Configuration.Domain,
+			EnvironmentExtension: input.Configuration.EnvironmentExtension,
+			AdminEmail:           input.Configuration.ACMEEmail,
+			// Empty for a cluster whose names stay inside the building. The Secrets
+			// that carry it are written all the same: Stalwart's provisioner and
+			// cert-manager's solver mount them either way.
+			DNSToken: publicDNSToken(input.PublicExposure),
+		})
 		if errors.Is(generateErr, vault.ErrLocked) {
 			writeError(response, http.StatusLocked, "vault_locked")
 			return
@@ -4079,6 +4088,21 @@ func writeJSON(response http.ResponseWriter, status int, value any) {
 
 func writeError(response http.ResponseWriter, status int, code string) {
 	writeJSON(response, status, map[string]string{"code": code})
+}
+
+// publicDNSToken is the provider credential an internet-exposed installation
+// was planned with, and the empty string for one that was not.
+func publicDNSToken(exposure *struct {
+	DNS01Provider      string `json:"dns01Provider"`
+	DNSZone            string `json:"dnsZone"`
+	DNSToken           string `json:"dnsToken"`
+	PublicIPBehavior   string `json:"publicIpBehavior"`
+	RouterAcknowledged bool   `json:"routerAcknowledged"`
+}) string {
+	if exposure == nil {
+		return ""
+	}
+	return exposure.DNSToken
 }
 
 // refuseGitHubOverlay answers a failed GitHub call with the most specific

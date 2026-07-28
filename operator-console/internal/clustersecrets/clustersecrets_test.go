@@ -12,10 +12,15 @@ func repository() clustersecrets.Repository {
 	return clustersecrets.Repository{URL: "https://github.com/octocat/overlay", Username: "octocat", Password: "git-token"}
 }
 
+// A cluster whose names never leave the building: no provider token at all.
+func lanCluster() clustersecrets.Cluster {
+	return clustersecrets.Cluster{Domain: "home.example", AdminEmail: "operator@home.example"}
+}
+
 // The generated manifest has to satisfy the same gate an Operator-supplied one
 // does, or the console would be writing something it would refuse by hand.
 func TestGeneratedManifestPassesTheSameValidationAsASuppliedOne(t *testing.T) {
-	generated, err := clustersecrets.Generate(repository())
+	generated, err := clustersecrets.Generate(repository(), lanCluster())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,18 +49,18 @@ func TestGenerateRefusesWithoutARepositoryCredential(t *testing.T) {
 		{URL: "https://github.com/octocat/overlay", Password: "git-token"},
 		{URL: "https://github.com/octocat/overlay", Username: "octocat"},
 	} {
-		if _, err := clustersecrets.Generate(incomplete); err == nil {
+		if _, err := clustersecrets.Generate(incomplete, lanCluster()); err == nil {
 			t.Fatalf("a manifest was generated without Argo CD access: %#v", incomplete)
 		}
 	}
 }
 
 func TestGeneratedValuesAreDistinctAndFreshEveryTime(t *testing.T) {
-	first, err := clustersecrets.Generate(repository())
+	first, err := clustersecrets.Generate(repository(), lanCluster())
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := clustersecrets.Generate(repository())
+	second, err := clustersecrets.Generate(repository(), lanCluster())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +81,7 @@ func TestGeneratedValuesAreDistinctAndFreshEveryTime(t *testing.T) {
 // document — silently, and only on that Operator's cluster.
 func TestARepositoryTokenThatIsHostileToYAMLSurvivesIntact(t *testing.T) {
 	hostile := "ghp_a:b #c\n\"quoted\"\n  indented: value"
-	generated, err := clustersecrets.Generate(clustersecrets.Repository{URL: "https://git.example/overlay.git", Username: "operator", Password: hostile})
+	generated, err := clustersecrets.Generate(clustersecrets.Repository{URL: "https://git.example/overlay.git", Username: "operator", Password: hostile}, lanCluster())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +95,7 @@ func TestARepositoryTokenThatIsHostileToYAMLSurvivesIntact(t *testing.T) {
 }
 
 func TestReadCredentialsRecoversWhatWasGenerated(t *testing.T) {
-	generated, err := clustersecrets.Generate(repository())
+	generated, err := clustersecrets.Generate(repository(), lanCluster())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,11 +126,11 @@ func TestReadCredentialsReportsNothingForAnUnfamiliarManifest(t *testing.T) {
 // refused outright. Shipping the namespaces in the same file is what keeps a
 // first installation from spending its opening minutes in a retry loop.
 func TestGeneratedManifestBringsTheNamespacesItsSecretsNeed(t *testing.T) {
-	generated, err := clustersecrets.Generate(repository())
+	generated, err := clustersecrets.Generate(repository(), lanCluster())
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, namespace := range []string{"keycloak", "monitoring", "garage-system"} {
+	for _, namespace := range []string{"keycloak", "monitoring", "garage-system", "stalwart", "cert-manager"} {
 		if !strings.Contains(generated.Manifest, "kind: Namespace") || !strings.Contains(generated.Manifest, "name: "+namespace+"\n") {
 			t.Fatalf("namespace %q is not created by the manifest:\n%s", namespace, generated.Manifest)
 		}
@@ -138,5 +143,47 @@ func TestGeneratedManifestBringsTheNamespacesItsSecretsNeed(t *testing.T) {
 	credentials, err := clustersecrets.ReadCredentials(generated.Manifest)
 	if err != nil || credentials != generated.Credentials {
 		t.Fatalf("namespaces confused the credential read-back: %#v, err = %v", credentials, err)
+	}
+}
+
+// The three the console did not write on its first attempt. Stalwart's
+// provisioner, cert-manager's solver and Renovate each mount one by name, and
+// an absent Secret leaves them in CreateContainerConfigError indefinitely —
+// which is exactly how a first real installation spent its night.
+func TestGeneratedManifestCoversEverythingTheShellInstallerDelivers(t *testing.T) {
+	generated, err := clustersecrets.Generate(repository(), lanCluster())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, required := range []string{
+		"name: smallworlds-global-config", "ADMIN_EMAIL: operator@home.example",
+		"name: stalwart-dns-secrets", "name: hetzner",
+		// Renovate and the remediation agent mount this Secret by name.
+		"name: repo-git-creds",
+	} {
+		if !strings.Contains(generated.Manifest, required) {
+			t.Fatalf("manifest is missing %q:\n%s", required, generated.Manifest)
+		}
+	}
+	if err := localbootstrap.ValidateSecretsManifest(generated.Manifest); err != nil {
+		t.Fatalf("generated manifest refused: %v", err)
+	}
+}
+
+// An empty provider token is a real answer, not a missing one: the Secrets are
+// still written so the workloads that mount them can start.
+func TestAClusterWithoutAProviderTokenStillGetsTheSecretsThatCarryIt(t *testing.T) {
+	generated, err := clustersecrets.Generate(repository(), lanCluster())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(generated.Manifest, `HCLOUD_TOKEN: ""`) || !strings.Contains(generated.Manifest, `token: ""`) {
+		t.Fatalf("empty provider token was omitted instead of written:\n%s", generated.Manifest)
+	}
+}
+
+func TestGenerateRefusesWithoutTheDomainItWasPlannedFor(t *testing.T) {
+	if _, err := clustersecrets.Generate(repository(), clustersecrets.Cluster{AdminEmail: "operator@home.example"}); err == nil {
+		t.Fatal("a manifest was generated without a domain")
 	}
 }

@@ -19,12 +19,12 @@ import (
 // they were stored under. It is called only when the Operator supplied nothing
 // and nothing was kept from an earlier run, so it never overwrites a manifest
 // somebody chose.
-func (server *Server) generateClusterSecrets(ctx context.Context, profileID string, overlay state.OverlayIdentity) (string, error) {
+func (server *Server) generateClusterSecrets(ctx context.Context, profileID string, overlay state.OverlayIdentity, cluster clustersecrets.Cluster) (string, error) {
 	repository, err := server.overlayRepositoryCredential(profileID, overlay)
 	if err != nil {
 		return "", err
 	}
-	generated, err := clustersecrets.Generate(repository)
+	generated, err := clustersecrets.Generate(repository, cluster)
 	if err != nil {
 		return "", err
 	}
