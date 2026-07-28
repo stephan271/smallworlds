@@ -140,6 +140,10 @@
   let clusterCredentials: ClusterSecretCredentials | null = $state(null);
   let clusterCredentialsBusy = $state(false);
   let clusterCredentialsError = $state('');
+  let adoptRevision = $state('');
+  let adoptBusy = $state(false);
+  let adoptError = $state('');
+  let adoptDone = $state(false);
   let localBootstrapError = $state('');
   let localBootstrapBlockers: NodeInspectionResult['assessment']['blockers'] = $state([]);
   let localBootstrapBusy = $state(false);
@@ -1643,6 +1647,35 @@
     }
   }
 
+  /** Merging a proposal changes what is written down, not what runs: the root
+   *  application stays on the change you approved until you approve another.
+   *  This is that approval. */
+  async function adoptOverlay(): Promise<void> {
+    if (!activeProfile) return;
+    adoptBusy = true;
+    adoptError = '';
+    adoptDone = false;
+    try {
+      overlayIdentity = await api.adoptOverlayRevision(activeProfile.id, adoptRevision.trim());
+      adoptRevision = '';
+      adoptDone = true;
+    } catch (reason) {
+      adoptError = adoptErrorMessage(reason instanceof Error ? reason.message : 'overlay_adoption_failed');
+    } finally {
+      adoptBusy = false;
+    }
+  }
+
+  function adoptErrorMessage(code: string): string {
+    switch (code) {
+      case 'overlay_revision_invalid': return message('adoptInvalid');
+      case 'overlay_adoption_unconfirmed': return message('adoptUnconfirmed');
+      case 'gitops_overlay_required': return message('localBootstrapOverlayRequired');
+      case 'vault_locked': return message('handoffUnlockFirst');
+      default: return message('adoptFailed');
+    }
+  }
+
   async function planLocalBootstrap(): Promise<void> {
     if (!activeProfile) return;
     localBootstrapBusy = true;
@@ -2954,6 +2987,32 @@
             </dl>
             <div class="actions"><button class="secondary" onclick={showEditProfile}>{message('editProfile')}</button></div>
           </section>
+
+          <!-- Deliberately not automatic. The merge happens in the operator's own
+               Git provider; this console does not watch for it and act by itself.
+               Putting a change into service is a second, explicit approval. -->
+          {#if overlayIdentity}
+            <section class="card" aria-labelledby="adopt-title">
+              <p class="eyebrow">{message('overlayRecordedRepository')}</p>
+              <h2 id="adopt-title">{message('adoptTitle')}</h2>
+              <p class="muted">{message('adoptDescription')}</p>
+              <dl class="credential-metadata">
+                <div><dt>{message('adoptCurrent')}</dt><dd><code>{overlayIdentity.commit}</code></dd></div>
+              </dl>
+              <form onsubmit={(event) => event.preventDefault()}>
+                <label>
+                  <span>{message('adoptRevision')}</span>
+                  <input type="text" bind:value={adoptRevision} autocomplete="off" spellcheck="false" />
+                  <small class="muted">{message('adoptRevisionHint')}</small>
+                </label>
+              </form>
+              {#if adoptError}<p class="inline-error" role="alert">{adoptError}</p>{/if}
+              {#if adoptDone}<p class="inline-notice">{message('adoptDone')}</p>{/if}
+              <div class="actions">
+                <button type="button" onclick={() => void adoptOverlay()} disabled={adoptBusy || adoptRevision.trim() === ''}>{message('adoptAction')}</button>
+              </div>
+            </section>
+          {/if}
 
           <!-- The safe reports what it holds; it does not ask for anything. Each
                stage collects the secret it needs where that secret makes sense,

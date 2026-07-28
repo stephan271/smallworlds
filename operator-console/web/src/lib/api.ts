@@ -167,6 +167,8 @@ export const api = {
     request<CapabilityPlanResult>('/api/v1/capabilities/plan', { method: 'POST', body: JSON.stringify(input) }),
   validateGitHubToken: (profileId: string, token: string, authority: 'creation' | 'ongoing') =>
     request<GitHubTokenStatus>('/api/v1/github/token/validate', { method: 'POST', body: JSON.stringify({ profileId, token, authority }) }),
+  adoptOverlayRevision: (profileId: string, revision: string) =>
+    request<OverlayIdentity>('/api/v1/overlay/adopt', { method: 'POST', body: JSON.stringify({ profileId, revision }) }),
   revealClusterSecretCredentials: (profileId: string) =>
     request<ClusterSecretCredentials>('/api/v1/cluster-secrets/credentials', { method: 'POST', body: JSON.stringify({ profileId }) }),
   establishGitHubOverlay: (input: { profileId: string; planId: string; repositoryName: string; mode: CapabilityMode; communityIds: string[]; release: string; domain: string; environmentExtension?: string }) =>
