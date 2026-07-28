@@ -21,10 +21,32 @@ def generate_patches(app_name, domain, ext):
         'meet': f"meet{ext}.{domain}",
         'office': f"office{ext}.{domain}",
         'plan': f"plan{ext}.{domain}",
-        'deploy': f"deploy{ext}.{domain}"
+        'deploy': f"deploy{ext}.{domain}",
+        'vpn': f"vpn{ext}.{domain}"
     }
 
-    if app_name == "dashboard":
+    if app_name == "headscale":
+        patches += textwrap.indent(textwrap.dedent(f"""\
+          - target:
+              kind: Ingress
+              name: headscale
+            patch: |-
+              - op: replace
+                path: /spec/rules/0/host
+                value: {subdomains['vpn']}
+              - op: replace
+                path: /spec/tls/0/hosts/0
+                value: {subdomains['vpn']}
+          - target:
+              kind: Deployment
+              name: headscale
+            patch: |-
+              - op: replace
+                path: /spec/template/spec/containers/0/env/0/value
+                value: https://{subdomains['vpn']}
+        """), "  ")
+
+    elif app_name == "dashboard":
         patches += textwrap.indent(textwrap.dedent(f"""\
           - target:
               kind: Ingress

@@ -49,7 +49,12 @@ func (catalog Catalog) RenderOverlay(input OverlayInput) (Overlay, error) {
 	if err != nil {
 		return Overlay{}, err
 	}
-	apps := []string{"dashboard", "keycloak", "stalwart"}
+	// Always installed, and each one carries hostnames that have to follow the
+	// operator's domain — so each needs an overlay file of its own, whether or
+	// not anybody chose it. Headscale belongs here for the same reason the other
+	// three do: it is reached at an ordinary address before any device can join
+	// the network it coordinates.
+	apps := []string{"dashboard", "keycloak", "stalwart", "headscale"}
 	apps = append(apps, assessment.CommunityIDs...)
 	sort.Strings(apps)
 	files := map[string]string{}

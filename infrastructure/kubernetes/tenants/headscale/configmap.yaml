@@ -16,7 +16,9 @@ data:
   # with "dns.nameservers.global must be set when dns.override_local_dns is
   # true". Leaving DNS unstated meant a crash loop, not a default.
   config.yaml: |
-    server_url: https://vpn.smallworlds.network
+    # server_url is set through HEADSCALE_SERVER_URL on the Deployment, so the
+    # address an overlay has to change is a single value rather than this
+    # entire file.
     listen_addr: 0.0.0.0:8080
 
     prefixes:

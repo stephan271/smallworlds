@@ -15,6 +15,29 @@ import "strings"
 // the indentation a `patches:` sequence needs. {{sub}} placeholders are replaced
 // with the operator's own hostnames.
 var domainPatchTemplates = map[string]string{
+	// The coordination server has to be reachable before a device can join the
+	// network it coordinates, so it lives on an ordinary Ingress like any other
+	// application — and therefore has to follow the operator's domain. Without
+	// this entry it kept advertising the project's own vpn.smallworlds.network,
+	// which nobody but the project can hold a certificate for.
+	"headscale": `  - target:
+      kind: Ingress
+      name: headscale
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: {{vpn}}
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: {{vpn}}
+  - target:
+      kind: Deployment
+      name: headscale
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/value
+        value: https://{{vpn}}
+`,
 	"dashboard": `  - target:
       kind: Ingress
       name: dashboard
@@ -456,7 +479,7 @@ var domainPatchTemplates = map[string]string{
 // subdomainNames maps each placeholder to the label placed in front of the
 // operator's domain. The extension sits between label and domain, so a .dev
 // cluster can never collide with production's hostnames.
-var subdomainNames = []string{"dashboard", "identity", "files", "photos", "git", "mail", "webmail", "monitoring", "whiteboard", "meet", "office", "plan", "deploy"}
+var subdomainNames = []string{"dashboard", "identity", "files", "photos", "git", "mail", "webmail", "monitoring", "whiteboard", "meet", "office", "plan", "deploy", "vpn"}
 
 // DomainPatches returns the Kustomize patch entries that move one application's
 // hostnames onto the operator's domain, or "" when the application needs none.

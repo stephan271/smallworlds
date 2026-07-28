@@ -24,6 +24,14 @@ spec:
           image: docker.io/headscale/headscale:v0.29.2@sha256:d337f1be4a9155b330aa9077bf6c82d24ff0581b8e69390ebc6d7c623bb339ce
           imagePullPolicy: IfNotPresent
           args: ["serve"]
+          env:
+            # Headscale reads every config key from the environment too
+            # (viper, prefix HEADSCALE_, dots as underscores). The public
+            # address lives here rather than in the ConfigMap so an overlay can
+            # move it onto the operator's own domain with a one-value patch
+            # instead of rewriting the whole embedded config file.
+            - name: HEADSCALE_SERVER_URL
+              value: https://vpn.smallworlds.network
           ports:
             - name: http
               containerPort: 8080
