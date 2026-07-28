@@ -33,6 +33,11 @@ func TestSameHostInspectionReturnsSafeAssessmentOnLinux(t *testing.T) {
 }
 
 func TestNodeInspectionMeasuresTheSelectedDataDirectory(t *testing.T) {
+	// The same-host target is Linux-only by design: the launcher runs on macOS
+	// and Windows to install onto a remote Linux node, never onto itself.
+	if runtime.GOOS != "linux" {
+		t.Skip("same-host is intentionally Linux-only")
+	}
 	inspector := &readyNodeInspector{}
 	handler, err := launcher.New(launcher.Config{DataDir: t.TempDir(), LaunchToken: "selected-data-directory", NodeInspector: inspector})
 	if err != nil {

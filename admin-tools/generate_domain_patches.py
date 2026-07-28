@@ -545,8 +545,12 @@ def main():
     patches = generate_patches(args.app, args.domain, args.ext)
     
     if patches:
-        with open(getattr(args, 'kustomization_file'), 'a') as f:
-            with open(getattr(args, 'kustomization_file'), 'r') as r:
+        # newline="\n" on both handles: text mode would translate on Windows, and
+        # a kustomization with CRLF endings is not the file the console's own
+        # renderer produces for the same overlay. The parity test compares the
+        # two byte for byte, and was failing on Windows for exactly this.
+        with open(getattr(args, 'kustomization_file'), 'a', newline="\n") as f:
+            with open(getattr(args, 'kustomization_file'), 'r', newline="\n") as r:
                 content = r.read()
                 if "\npatches:" not in content:
                     f.write("\npatches:\n")

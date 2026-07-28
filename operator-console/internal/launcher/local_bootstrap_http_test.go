@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -64,6 +65,11 @@ func (runner *successfulBootstrapRunner) Detail(_ context.Context, _ localbootst
 }
 
 func TestLocalBootstrapPlanReinspectsBindsAndExecutesWithoutSecretLeakage(t *testing.T) {
+	// The same-host target is Linux-only by design: the launcher runs on macOS
+	// and Windows to install onto a remote Linux node, never onto itself.
+	if runtime.GOOS != "linux" {
+		t.Skip("same-host is intentionally Linux-only")
+	}
 	contents := []byte("verified bootstrap archive")
 	digest := sha256.Sum256(contents)
 	digestText := fmt.Sprintf("%x", digest[:])
