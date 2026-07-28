@@ -17,9 +17,9 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/stephan271/smallworlds/operator-console/internal/assessment"
+	"github.com/stephan271/smallworlds/operator-console/internal/capability"
 )
 
 var (
@@ -282,11 +282,25 @@ type Plan struct {
 	GitDiff           string              `json:"gitDiff"`
 }
 
-const PinsPath = "smallworlds-release.yaml"
+// Overlay is the operator's own overlay, which is what actually decides the
+// release a cluster runs. A plan needs it because moving between releases means
+// changing that overlay: the pinned base in every kustomization, and the
+// release the cluster reports about itself.
+type Overlay struct {
+	RepositoryURL        string `json:"repositoryUrl"`
+	Domain               string `json:"domain"`
+	EnvironmentExtension string `json:"environmentExtension,omitempty"`
+}
 
-// BuildPlan refuses incompatible profiles and renders the exact desired release
-// pins. The caller must obtain metadata from Catalog.Resolve first.
-func BuildPlan(profile ClusterProfile, metadata Metadata) (Plan, error) {
+// BuildPlan refuses incompatible profiles and renders the overlay the update
+// would commit. The caller must obtain metadata from Catalog.Resolve first.
+//
+// What it renders comes from the capability package — the same code that
+// establishes an overlay in the first place. It used to render a
+// smallworlds-release.yaml pins file instead, a file with no reader anywhere in
+// the project, so the proposal it produced would have merged without moving the
+// cluster to the new release at all.
+func BuildPlan(profile ClusterProfile, metadata Metadata, catalog capability.Catalog, overlay Overlay) (Plan, error) {
 	if err := metadata.validate(); err != nil {
 		return Plan{}, err
 	}
@@ -294,8 +308,13 @@ func BuildPlan(profile ClusterProfile, metadata Metadata) (Plan, error) {
 	if !compatibility.Compatible {
 		return Plan{}, ErrIncompatible
 	}
-	oldContent := renderPins(profile.BaseTag, profile.CatalogVersion, profile.Images, profile.Tools)
-	newContent := renderPins(metadata.BaseTag, metadata.CatalogVersion, metadata.Images, metadata.Tools)
+	change, err := catalog.RenderChange(
+		overlay.input(profile, profile.BaseTag),
+		overlay.input(profile, metadata.BaseTag),
+	)
+	if err != nil {
+		return Plan{}, err
+	}
 	plan := Plan{
 		FromBaseTag: profile.BaseTag, ToBaseTag: metadata.BaseTag,
 		CatalogVersion: metadata.CatalogVersion,
@@ -304,44 +323,43 @@ func BuildPlan(profile ClusterProfile, metadata Metadata) (Plan, error) {
 		ReleaseNotes:      append([]string(nil), metadata.ReleaseNotes...),
 		CapabilityChanges: append([]CapabilityChange(nil), metadata.CapabilityChanges...),
 		Risks:             metadata.Risks, Recovery: metadata.Recovery,
-		Files: map[string]string{PinsPath: newContent},
+		Files:   change.Files,
+		GitDiff: change.Diff,
 	}
-	plan.GitDiff = renderDiff(PinsPath, oldContent, newContent)
 	return plan, nil
 }
 
-func renderPins(baseTag string, catalogVersion int, images, tools map[string]string) string {
-	var result strings.Builder
-	fmt.Fprintf(&result, "apiVersion: smallworlds.io/v1alpha1\nkind: ReleasePins\nbaseTag: %s\ncatalogVersion: %d\n", baseTag, catalogVersion)
-	writePins(&result, "images", images)
-	writePins(&result, "tools", tools)
-	return result.String()
-}
-
-func writePins(result *strings.Builder, heading string, values map[string]string) {
-	result.WriteString(heading + ":\n")
-	names := make([]string, 0, len(values))
-	for name := range values {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	for _, name := range names {
-		fmt.Fprintf(result, "  %s: %s\n", name, values[name])
+// input describes the overlay as it stands at one base tag. The community
+// selection comes from the observed cluster profile rather than from anything
+// remembered here, so an update can never quietly re-decide which applications
+// a community runs.
+func (overlay Overlay) input(profile ClusterProfile, baseTag string) capability.OverlayInput {
+	return capability.OverlayInput{
+		Selection: capability.Selection{
+			Mode:           capability.Custom,
+			DeploymentMode: capability.DeploymentMode(profile.DeploymentMode),
+			CommunityIDs:   communityCapabilities(profile),
+		},
+		Release:              baseTag,
+		RepositoryURL:        overlay.RepositoryURL,
+		Domain:               overlay.Domain,
+		EnvironmentExtension: overlay.EnvironmentExtension,
 	}
 }
 
-func renderDiff(path, oldContent, newContent string) string {
-	var result strings.Builder
-	fmt.Fprintf(&result, "diff --git a/%s b/%s\n--- a/%s\n+++ b/%s\n", path, path, path, path)
-	for _, line := range strings.Split(strings.TrimSuffix(oldContent, "\n"), "\n") {
-		result.WriteString("-" + line + "\n")
+// communityCapabilities keeps only what an overlay names per application; the
+// platform services are always installed and are not part of the selection.
+func communityCapabilities(profile ClusterProfile) []string {
+	catalog := capability.DefaultCatalog()
+	selected := make([]string, 0, len(profile.Capabilities))
+	for _, id := range profile.Capabilities {
+		if entry, found := catalog.Entry(id); found && entry.Category == capability.CommunityApplication {
+			selected = append(selected, id)
+		}
 	}
-	for _, line := range strings.Split(strings.TrimSuffix(newContent, "\n"), "\n") {
-		result.WriteString("+" + line + "\n")
-	}
-	return result.String()
+	sort.Strings(selected)
+	return selected
 }
-
 func cloneMap(source map[string]string) map[string]string {
 	target := make(map[string]string, len(source))
 	for key, value := range source {

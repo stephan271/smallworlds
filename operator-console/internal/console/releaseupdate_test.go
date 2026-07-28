@@ -149,8 +149,11 @@ func TestReleaseUpdateHappyPathOpensOnlyManualProposal(t *testing.T) {
 		!strings.Contains(proposed.Body.String(), `"liveClusterMutated":false`) {
 		t.Fatalf("proposal did not state safety boundary: %s", proposed.Body.String())
 	}
-	if opener.files[releaseupdate.PinsPath] == "" ||
-		!strings.Contains(opener.files[releaseupdate.PinsPath], "baseTag: v1.3.0") {
+	// The proposal commits the overlay, which is what decides the release a
+	// cluster runs — not a pins file with no reader.
+	if opener.files["kustomization.yaml"] == "" ||
+		!strings.Contains(opener.files["kustomization.yaml"], "?ref=v1.3.0") ||
+		!strings.Contains(opener.files["overlay-config.yaml"], "smallworldsRelease: v1.3.0") {
 		t.Fatalf("proposal files = %#v", opener.files)
 	}
 }

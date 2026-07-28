@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"regexp"
 	"sort"
+	"strings"
 
 	"github.com/stephan271/smallworlds/operator-console/internal/assessment"
 	"github.com/stephan271/smallworlds/operator-console/internal/capability"
@@ -28,9 +29,16 @@ var pinnedRelease = regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-
 // overlay repository the ArgoCD Application is repointed to. Both mirror the
 // values issue 04/05 rendered into the overlay, so an add-capability proposal is
 // consistent with the overlay it amends.
+// OverlayTarget is the overlay a proposal is written against. Domain and
+// EnvironmentExtension are part of it because the hostnames belong to the
+// operator: a proposal that omitted them added applications on the project's
+// own addresses, which is not a cosmetic difference but an application nobody
+// can reach.
 type OverlayTarget struct {
-	Release       string `json:"release"`
-	RepositoryURL string `json:"repositoryUrl"`
+	Release              string `json:"release"`
+	RepositoryURL        string `json:"repositoryUrl"`
+	Domain               string `json:"domain"`
+	EnvironmentExtension string `json:"environmentExtension,omitempty"`
 }
 
 func (target OverlayTarget) validate() error {
@@ -40,6 +48,12 @@ func (target OverlayTarget) validate() error {
 	repository, err := url.Parse(target.RepositoryURL)
 	if err != nil || repository.Scheme != "https" || repository.Host == "" || repository.User != nil {
 		return fmt.Errorf("%w: repository URL must be credential-free HTTPS", ErrInvalidOverlayTarget)
+	}
+	// Rejected here rather than left to the renderer: an empty domain would
+	// otherwise surface as a rendering error at the moment of proposing, when
+	// the operator has already reviewed a plan.
+	if strings.TrimSpace(target.Domain) == "" {
+		return fmt.Errorf("%w: the overlay's domain is required", ErrInvalidOverlayTarget)
 	}
 	return nil
 }
@@ -149,9 +163,48 @@ func BuildPlan(catalog capability.Catalog, targetID string, states map[string]as
 		Resources:           compareResources(catalog, added, capacity),
 	}
 	plan.Exposure, plan.Protection, plan.PersistentData = implications(catalog, added)
-	plan.Files = proposalFiles(added, overlay)
-	plan.GitDiff = renderDiff(plan.Files)
+
+	// Rendered by the same code that establishes an overlay, against the
+	// selection as it stands and as it would stand. Anything this package
+	// rendered on its own would be a second opinion about a file format only
+	// one of them can be right about.
+	current := enabledCommunity(catalog, states)
+	proposed := append(append([]string(nil), current...), added...)
+	change, err := catalog.RenderChange(
+		overlay.input(mode, current),
+		overlay.input(mode, proposed),
+	)
+	if err != nil {
+		return Plan{}, err
+	}
+	plan.Files = change.Files
+	plan.GitDiff = change.Diff
 	return plan, nil
+}
+
+// input builds the overlay description this target and selection amount to.
+func (target OverlayTarget) input(mode capability.DeploymentMode, communityIDs []string) capability.OverlayInput {
+	return capability.OverlayInput{
+		Selection:            capability.Selection{Mode: capability.Custom, DeploymentMode: mode, CommunityIDs: communityIDs},
+		Release:              target.Release,
+		RepositoryURL:        target.RepositoryURL,
+		Domain:               target.Domain,
+		EnvironmentExtension: target.EnvironmentExtension,
+	}
+}
+
+// enabledCommunity is the overlay's current community selection, read from the
+// observed state rather than remembered separately, so a plan can never be
+// built against a selection the cluster no longer has.
+func enabledCommunity(catalog capability.Catalog, states map[string]assessment.CapabilityState) []string {
+	selected := make([]string, 0, len(states))
+	for _, entry := range catalog.Capabilities {
+		if entry.Category == capability.CommunityApplication && present(states[entry.ID]) {
+			selected = append(selected, entry.ID)
+		}
+	}
+	sort.Strings(selected)
+	return selected
 }
 
 func compareResources(catalog capability.Catalog, added []string, capacity Capacity) ResourceComparison {

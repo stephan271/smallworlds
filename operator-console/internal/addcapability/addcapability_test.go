@@ -27,7 +27,7 @@ func states(catalog capability.Catalog, community map[string]assessment.Capabili
 	return result
 }
 
-var overlay = OverlayTarget{Release: "v1.2.20", RepositoryURL: "https://github.com/community/overlay"}
+var overlay = OverlayTarget{Release: "v1.2.20", RepositoryURL: "https://github.com/community/overlay", Domain: "home.example"}
 
 func TestOffersOnlyDisabledOptionalCommunityApps(t *testing.T) {
 	catalog := capability.DefaultCatalog()
@@ -169,19 +169,26 @@ func TestBuildPlanRendersCatalogDerivedAdditiveDiff(t *testing.T) {
 	if !reflect.DeepEqual(plan.AddedCapabilities, []string{"excalidraw"}) {
 		t.Fatalf("added = %v, want [excalidraw]", plan.AddedCapabilities)
 	}
-	for _, path := range []string{"applications/excalidraw.yaml", "excalidraw/kustomization.yaml"} {
+	// The proposal is the whole overlay as it would stand, so the new
+	// application has a file and the root kustomization gains its entry.
+	for _, path := range []string{"excalidraw/kustomization.yaml", "kustomization.yaml", "overlay-config.yaml"} {
 		if _, ok := plan.Files[path]; !ok {
 			t.Errorf("proposal missing file %q", path)
 		}
 	}
-	// The diff is exactly the files, additively, and catalog-derived.
-	if plan.GitDiff != renderDiff(plan.Files) {
-		t.Fatal("GitDiff must equal the rendered proposal files")
+	if _, ok := plan.Files["applications/excalidraw.yaml"]; ok {
+		t.Error("proposal writes an applications/ directory no overlay root includes")
 	}
+	// Adding a capability never removes anything. The root kustomization gains
+	// lines; nothing that was there disappears.
 	for _, line := range strings.Split(strings.TrimSpace(plan.GitDiff), "\n") {
 		if strings.HasPrefix(line, "-") && !strings.HasPrefix(line, "--- ") {
 			t.Fatalf("diff has a removal line %q; adding a capability must be additive", line)
 		}
+	}
+	// The hostnames belong to the operator, not to the project.
+	if !strings.Contains(plan.Files["excalidraw/kustomization.yaml"], "whiteboard.home.example") {
+		t.Errorf("the added application keeps the project's own hostnames:\n%s", plan.Files["excalidraw/kustomization.yaml"])
 	}
 	if !strings.Contains(plan.GitDiff, "?ref=v1.2.20") {
 		t.Error("diff must pin the tenant at the overlay release")
@@ -189,10 +196,13 @@ func TestBuildPlanRendersCatalogDerivedAdditiveDiff(t *testing.T) {
 	if !strings.Contains(plan.GitDiff, "https://github.com/community/overlay") {
 		t.Error("diff must repoint the ArgoCD Application at the operator overlay")
 	}
-	// No credential-like material leaks into the reviewed diff.
-	lower := strings.ToLower(plan.GitDiff)
-	if strings.Contains(lower, "password:") || strings.Contains(lower, "token:") || strings.Contains(lower, "secret:") {
-		t.Error("diff must not contain secret-like fields")
+	// No credential-like material leaks into the reviewed diff. Checked with the
+	// overlay package's own rule rather than a substring search: a secret NAME
+	// belongs in an overlay (existingSecret: grafana-admin-creds is the safe
+	// thing to write), only a secret VALUE does not, and a second cruder copy of
+	// that distinction is how the two drift.
+	if err := capability.ValidateOverlay(capability.Overlay{Files: plan.Files, Diff: plan.GitDiff}); err != nil {
+		t.Errorf("proposal is not a valid overlay: %v", err)
 	}
 }
 

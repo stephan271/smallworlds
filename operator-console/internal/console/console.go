@@ -116,17 +116,21 @@ type Config struct {
 
 // Server is the in-cluster console HTTP handler.
 type Server struct {
-	config          Config
-	catalog         []assessment.CapabilityRef
-	byID            map[string]assessment.CapabilityRef
-	sessionKey      []byte
-	now             func() time.Time
-	random          io.Reader
-	links           deeplinks.Targets
-	mux             *http.ServeMux
-	richCatalog     capability.Catalog
-	deploymentMode  capability.DeploymentMode
-	overlayTarget   addcapability.OverlayTarget
+	config         Config
+	catalog        []assessment.CapabilityRef
+	byID           map[string]assessment.CapabilityRef
+	sessionKey     []byte
+	now            func() time.Time
+	random         io.Reader
+	links          deeplinks.Targets
+	mux            *http.ServeMux
+	richCatalog    capability.Catalog
+	deploymentMode capability.DeploymentMode
+	overlayTarget  addcapability.OverlayTarget
+
+	// One description of the overlay, shared by both proposal flows. Keeping a
+	// second copy for the release update is how the two would come to disagree
+	// about the same repository.
 	capacity        CapacityReporter
 	proposals       ProposalOpener
 	releaseCatalog  releaseupdate.Catalog

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -81,7 +82,7 @@ func newAdditionServer(t *testing.T, exchanger consoleauth.TokenExchanger, asses
 		Catalog:               refs,
 		RichCatalog:           rich,
 		DeploymentMode:        capability.Hetzner,
-		OverlayTarget:         addcapability.OverlayTarget{Release: "v1.2.20", RepositoryURL: "https://github.com/community/overlay"},
+		OverlayTarget:         addcapability.OverlayTarget{Release: "v1.2.20", RepositoryURL: "https://github.com/community/overlay", Domain: "home.example"},
 		Capacity:              capacity,
 		Proposals:             opener,
 		BaseDomain:            "sw.example.internal",
@@ -168,8 +169,16 @@ func TestAddCapabilityHappyPath(t *testing.T) {
 	if proposeBody.Commit != "abc123def456" || !proposeBody.MergeObserved {
 		t.Fatalf("propose body = %+v, want observed merge with commit", proposeBody)
 	}
-	if _, ok := opener.files["applications/excalidraw.yaml"]; !ok {
-		t.Fatalf("proposal files = %v, want the catalog-derived enable file", opener.files)
+	// The proposal commits the overlay as it would stand: a unit for the new
+	// application, and a root kustomization that names it. There is no
+	// applications/ directory — no overlay root has ever included one, so files
+	// written there would have merged and created nothing.
+	if _, ok := opener.files["applications/excalidraw.yaml"]; ok {
+		t.Fatalf("proposal writes into an applications/ directory nothing includes: %v", keysOf(opener.files))
+	}
+	if !strings.Contains(opener.files["excalidraw/kustomization.yaml"], "whiteboard.home.example") ||
+		!strings.Contains(opener.files["kustomization.yaml"], "name: excalidraw") {
+		t.Fatalf("proposal files = %v, want the catalog-derived overlay", keysOf(opener.files))
 	}
 
 	// The Activity Record shows the plan and the run's remote commit identity.
@@ -314,4 +323,13 @@ func TestNoRemovalAction(t *testing.T) {
 	if recorder.Code >= 200 && recorder.Code < 300 {
 		t.Fatalf("DELETE capability = %d, want a non-success (no removal in the first release)", recorder.Code)
 	}
+}
+
+func keysOf(files map[string]string) []string {
+	names := make([]string, 0, len(files))
+	for name := range files {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }

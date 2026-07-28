@@ -124,3 +124,116 @@ func ValidateOverlay(overlay Overlay) error {
 	}
 	return nil
 }
+
+// Change is what a proposal against an existing overlay commits: the complete
+// overlay as it should stand afterwards, and a diff against how it stands now.
+type Change struct {
+	Files map[string]string `json:"-"`
+	Diff  string            `json:"diff"`
+}
+
+// RenderChange renders the overlay for `to` and the diff from `from`.
+//
+// It exists so that every flow which proposes a change to an overlay — adding a
+// community application, moving to a new release — commits what this package
+// would have established, rather than its own idea of the same thing. Two such
+// ideas had drifted: one wrote an applications/ directory no overlay root ever
+// included, so its proposals would have merged and created nothing; the other
+// wrote a pins file with no reader anywhere. Both were invisible because
+// nothing rendered the real overlay next to them.
+func (catalog Catalog) RenderChange(from, to OverlayInput) (Change, error) {
+	before, err := catalog.RenderOverlay(from)
+	if err != nil {
+		return Change{}, fmt.Errorf("render the overlay as it stands: %w", err)
+	}
+	after, err := catalog.RenderOverlay(to)
+	if err != nil {
+		return Change{}, fmt.Errorf("render the overlay as proposed: %w", err)
+	}
+	paths := map[string]bool{}
+	for path := range before.Files {
+		paths[path] = true
+	}
+	for path := range after.Files {
+		paths[path] = true
+	}
+	ordered := make([]string, 0, len(paths))
+	for path := range paths {
+		ordered = append(ordered, path)
+	}
+	sort.Strings(ordered)
+	var diff strings.Builder
+	for _, path := range ordered {
+		old, existed := before.Files[path]
+		next, remains := after.Files[path]
+		if old == next {
+			continue
+		}
+		switch {
+		case !existed:
+			diff.WriteString("diff --git a/" + path + " b/" + path + "\nnew file mode 100644\n--- /dev/null\n+++ b/" + path + "\n")
+		case !remains:
+			diff.WriteString("diff --git a/" + path + " b/" + path + "\ndeleted file mode 100644\n--- a/" + path + "\n+++ /dev/null\n")
+		default:
+			diff.WriteString("diff --git a/" + path + " b/" + path + "\n--- a/" + path + "\n+++ b/" + path + "\n")
+		}
+		for _, line := range unifiedLines(lines(old), lines(next)) {
+			diff.WriteString(line + "\n")
+		}
+	}
+	return Change{Files: after.Files, Diff: diff.String()}, nil
+}
+
+// unifiedLines renders the change between two files as context, removals and
+// additions. A whole-file replacement would be far easier and useless to read:
+// adding one application to an overlay touches three lines of a forty-line root
+// kustomization, and an operator asked to approve it should see those three,
+// not the other thirty-seven twice.
+func unifiedLines(before, after []string) []string {
+	// Longest common subsequence over lines. Overlay files are tens of lines
+	// long, so the quadratic table is far cheaper than a dependency.
+	table := make([][]int, len(before)+1)
+	for row := range table {
+		table[row] = make([]int, len(after)+1)
+	}
+	for row := len(before) - 1; row >= 0; row-- {
+		for column := len(after) - 1; column >= 0; column-- {
+			if before[row] == after[column] {
+				table[row][column] = table[row+1][column+1] + 1
+			} else if table[row+1][column] >= table[row][column+1] {
+				table[row][column] = table[row+1][column]
+			} else {
+				table[row][column] = table[row][column+1]
+			}
+		}
+	}
+	rendered := make([]string, 0, len(before)+len(after))
+	row, column := 0, 0
+	for row < len(before) && column < len(after) {
+		switch {
+		case before[row] == after[column]:
+			rendered = append(rendered, " "+before[row])
+			row, column = row+1, column+1
+		case table[row+1][column] >= table[row][column+1]:
+			rendered = append(rendered, "-"+before[row])
+			row++
+		default:
+			rendered = append(rendered, "+"+after[column])
+			column++
+		}
+	}
+	for ; row < len(before); row++ {
+		rendered = append(rendered, "-"+before[row])
+	}
+	for ; column < len(after); column++ {
+		rendered = append(rendered, "+"+after[column])
+	}
+	return rendered
+}
+
+func lines(contents string) []string {
+	if contents == "" {
+		return nil
+	}
+	return strings.Split(strings.TrimSuffix(contents, "\n"), "\n")
+}

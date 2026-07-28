@@ -6,8 +6,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"sort"
 	"strings"
 	"testing"
+
+	"github.com/stephan271/smallworlds/operator-console/internal/capability"
 
 	"github.com/stephan271/smallworlds/operator-console/internal/assessment"
 )
@@ -97,14 +100,20 @@ func TestIncompatibleLauncherCanInspectButCannotBuildPlan(t *testing.T) {
 		available.Compatibility.Reasons[0] != "launcher-version-out-of-range" {
 		t.Fatalf("compatibility = %+v", available.Compatibility)
 	}
-	if _, err := BuildPlan(profile, available.Metadata); !errors.Is(err, ErrIncompatible) {
+	if _, err := BuildPlan(profile, available.Metadata, capability.DefaultCatalog(), testOverlay()); !errors.Is(err, ErrIncompatible) {
 		t.Fatalf("BuildPlan error = %v, want incompatible", err)
 	}
 }
 
-func TestBuildPlanIncludesExactPinsNotesChangesRisksAndRecovery(t *testing.T) {
+// The overlay is what decides which release a cluster runs, so a plan is
+// judged by the overlay it would commit.
+func testOverlay() Overlay {
+	return Overlay{RepositoryURL: "https://github.com/community/overlay.git", Domain: "home.example"}
+}
+
+func TestBuildPlanRendersTheOverlayTheUpdateWouldCommit(t *testing.T) {
 	metadata := testMetadata()
-	plan, err := BuildPlan(compatibleProfile(), metadata)
+	plan, err := BuildPlan(compatibleProfile(), metadata, capability.DefaultCatalog(), testOverlay())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,11 +123,36 @@ func TestBuildPlanIncludesExactPinsNotesChangesRisksAndRecovery(t *testing.T) {
 		len(plan.Risks.Exposure) == 0 || plan.Recovery.Expected == "" {
 		t.Fatalf("incomplete plan: %+v", plan)
 	}
-	if plan.Files[PinsPath] == "" || !strings.Contains(plan.GitDiff, "-baseTag: v1.2.20") ||
-		!strings.Contains(plan.GitDiff, "+baseTag: v1.3.0") ||
-		!strings.Contains(plan.GitDiff, metadata.Images["operator-console"]) {
-		t.Fatalf("diff does not carry exact immutable pins:\n%s", plan.GitDiff)
+	// The files are a real overlay, not a pins file nothing reads: the root
+	// kustomization, the config map, and one unit per application.
+	if plan.Files["kustomization.yaml"] == "" || plan.Files["overlay-config.yaml"] == "" {
+		t.Fatalf("plan does not render an overlay: %#v", keys(plan.Files))
 	}
+	if plan.Files["smallworlds-release.yaml"] != "" {
+		t.Error("plan still writes the pins file no reader consumes")
+	}
+	if err := capability.ValidateOverlay(capability.Overlay{Files: plan.Files, Diff: plan.GitDiff}); err != nil {
+		t.Errorf("planned overlay is not valid: %v", err)
+	}
+	// The diff moves the pinned base and says so where an operator can see it.
+	if !strings.Contains(plan.GitDiff, "-  - https://github.com/stephan271/smallworlds.git/infrastructure/kubernetes?ref=v1.2.20") ||
+		!strings.Contains(plan.GitDiff, "+  - https://github.com/stephan271/smallworlds.git/infrastructure/kubernetes?ref=v1.3.0") ||
+		!strings.Contains(plan.GitDiff, "+  smallworldsRelease: v1.3.0") {
+		t.Fatalf("diff does not move the pinned base:\n%s", plan.GitDiff)
+	}
+	// Unchanged files stay out of the diff entirely.
+	if strings.Contains(plan.GitDiff, "diff --git a/overlay-config.yaml") && !strings.Contains(plan.GitDiff, "+  smallworldsRelease: v1.3.0") {
+		t.Error("the config map appears in the diff without the change that put it there")
+	}
+}
+
+func keys(files map[string]string) []string {
+	names := make([]string, 0, len(files))
+	for name := range files {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func TestAssessAdoptionExposesPartialAndFailedStates(t *testing.T) {

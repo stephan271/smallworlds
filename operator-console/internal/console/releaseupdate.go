@@ -134,7 +134,7 @@ func (server *Server) handleUpdatePlan(response http.ResponseWriter, request *ht
 		writeError(response, http.StatusNotFound, "release_not_available")
 		return
 	}
-	plan, err := releaseupdate.BuildPlan(profile, metadata)
+	plan, err := releaseupdate.BuildPlan(profile, metadata, server.richCatalog, server.releaseOverlay())
 	if errors.Is(err, releaseupdate.ErrIncompatible) {
 		writeError(response, http.StatusConflict, "release_incompatible")
 		return
@@ -210,7 +210,7 @@ func (server *Server) handleUpdatePropose(response http.ResponseWriter, request 
 		writeError(response, http.StatusConflict, "release_metadata_changed")
 		return
 	}
-	rebuilt, err := releaseupdate.BuildPlan(profile, metadata)
+	rebuilt, err := releaseupdate.BuildPlan(profile, metadata, server.richCatalog, server.releaseOverlay())
 	if err != nil || diffDigest(rebuilt.GitDiff) != approvedDiff {
 		writeError(response, http.StatusConflict, "update_plan_mismatch")
 		return
@@ -301,4 +301,15 @@ func releaseProposalBody(plan releaseupdate.Plan) string {
 		strings.Join(plan.Risks.Exposure, "\n- "),
 		plan.Recovery.Expected,
 	)
+}
+
+// releaseOverlay is the same overlay the add-capability proposals are written
+// against. Both flows change the same files in the same repository, so they
+// read the operator's overlay from one place.
+func (server *Server) releaseOverlay() releaseupdate.Overlay {
+	return releaseupdate.Overlay{
+		RepositoryURL:        server.overlayTarget.RepositoryURL,
+		Domain:               server.overlayTarget.Domain,
+		EnvironmentExtension: server.overlayTarget.EnvironmentExtension,
+	}
 }
