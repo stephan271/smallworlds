@@ -102,3 +102,28 @@ could drift unnoticed. Each was only ever tested against itself.
 **Still open, unchanged:** Gap 3 (nothing sets the root Application's
 `targetRevision` after the merge, so adoption remains a manual `kubectl patch`)
 and Gap 1 (the cluster-side console ships from nothing — Issue 11).
+
+### 2026-07-28 — Gap 3 closed for the Launcher
+
+`internal/overlayadoption` (commit `bc0f44e`) carries a reviewed and merged
+overlay commit to the cluster: it repoints the root Application's
+`targetRevision`, reads the revision back, and records it only if the cluster
+agrees. Only a full commit is accepted — a branch or tag can be moved under a
+running cluster afterwards, which is why the pin exists — and the patch moves
+one field rather than replacing an object that carries the installation's own
+identity.
+
+The decision lives in its own package precisely so both consoles can use it. The
+Launcher exposes it at `POST /api/v1/overlay/adopt` and runs it over the same
+trusted SSH path as every other privileged step, with the same node-identity and
+sudo checks. The cluster-side console can reuse the package unchanged when it
+ships; it needs only its own way of running a privileged command, which it will
+have from inside the cluster.
+
+Adoption is deliberately separate from proposing. Merging happens in the
+Operator's own Git provider, and the console does not watch for it and act by
+itself: adopting is a second, explicit approval that a reviewed commit may
+become what the cluster runs.
+
+**Still open:** no interface offers it yet — the endpoint exists, the button
+does not — and Gap 1 (the cluster-side console ships from nothing, Issue 11).
