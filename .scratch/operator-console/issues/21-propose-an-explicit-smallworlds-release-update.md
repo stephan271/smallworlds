@@ -71,3 +71,34 @@ tests, and it makes the three existing handlers meaningful. Then Gap 3 as an
 explicitly approved step — it needs cluster access, so it belongs either to the
 cluster-side console or to the Launcher while it still holds that access. Gap 1
 stays with Issue 11.
+
+### 2026-07-28 — Gap 2 closed, and it was worse than recorded
+
+Following the thread found a third renderer, in the sibling flow. Both are now
+gone, merged into `capability.RenderChange` (commit `d6c614c`).
+
+**What Gap 2 actually was.** Three places wrote overlay content; only
+`capability.RenderOverlay` was right. Beside the pins file recorded above,
+`addcapability` wrote `applications/<app>.yaml` — no overlay root has ever
+included an `applications/` directory, so a merged proposal from that flow would
+have created nothing at all — and its tenant units carried no domain patches, so
+whatever it did create would have been published on this project's hostnames
+instead of the operator's. Both failures could only ever have surfaced as a
+merged pull request that changed nothing, which is the worst way to find out.
+
+**What changed.** `RenderChange` renders the overlay at the proposed input and
+diffs it against the current one, line by line. `addcapability.OverlayTarget`
+and the new `releaseupdate.Overlay` both carry the domain, because a proposal
+that cannot name the operator's hostnames cannot be correct.
+`addcapability/proposal.go` and `releaseupdate`'s `renderPins`/`PinsPath` are
+deleted.
+
+**What holds it.** Parity tests in `internal/capability/overlay_parity_test.go`
+compare each flow's proposal against a freshly established overlay, file by
+file, in the same spirit as the Go/Python domain-patch parity test — which
+exists for exactly this reason, and whose absence here is why three renderers
+could drift unnoticed. Each was only ever tested against itself.
+
+**Still open, unchanged:** Gap 3 (nothing sets the root Application's
+`targetRevision` after the merge, so adoption remains a manual `kubectl patch`)
+and Gap 1 (the cluster-side console ships from nothing — Issue 11).
