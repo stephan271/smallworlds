@@ -29,6 +29,28 @@ spec:
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: monitoring
+  # The chart emits explicitly empty values for options nobody set — env: null,
+  # initContainers: [], nodeSelector: {}, tolerations: [], subPath: null. The API
+  # server drops those rather than storing them, so under ServerSideApply the
+  # desired manifest carries fields the live object never will and the comparison
+  # never converges: loki-stack sat OutOfSync while healthy, indefinitely.
+  #
+  # Measured before deciding: applying the rendered chart with
+  # --server-side --dry-run=server changes exactly nothing on the live object
+  # apart from Argo CD's own tracking annotation. There is no drift to fix in the
+  # cluster, only a comparison to correct — and an application that is
+  # permanently OutOfSync for no reason teaches operators to ignore OutOfSync.
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      name: loki-stack
+      namespace: monitoring
+      jsonPointers:
+        - /spec/template/spec/initContainers
+        - /spec/template/spec/nodeSelector
+        - /spec/template/spec/tolerations
+        - /spec/template/spec/containers/0/env
+        - /spec/template/spec/containers/0/volumeMounts/0/subPath
   syncPolicy:
     automated:
       prune: true
