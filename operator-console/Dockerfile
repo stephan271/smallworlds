@@ -9,7 +9,14 @@
 # a ConfigMap in a stock image, a Go binary with an embedded client needs a real
 # build. It is kept to three stages and no runtime package manager.
 
-FROM node:22-alpine AS web
+# Both build stages are pinned to the machine doing the building, never to the
+# target architecture. Without that pin a multi-architecture build runs npm and
+# the Go compiler under QEMU emulation for every non-native target, which is
+# roughly an order of magnitude slower — the first attempt at publishing this
+# image was killed by a 45-minute job timeout for exactly that reason. The client
+# is architecture-independent JavaScript, and Go cross-compiles natively, so
+# neither stage has any business being emulated.
+FROM --platform=$BUILDPLATFORM node:22-alpine AS web
 WORKDIR /src
 # The lockfile is copied first so a source-only change does not reinstall the
 # whole toolchain.
@@ -23,7 +30,7 @@ RUN mkdir -p internal/webui/dist \
     && npm run generate:api \
     && npm run build
 
-FROM golang:1.25-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
@@ -32,9 +39,12 @@ COPY internal ./internal
 COPY api ./api
 COPY --from=web /src/internal/webui/dist ./internal/webui/dist
 ARG VERSION=devel
+# Supplied by BuildKit for each target in a multi-architecture build.
+ARG TARGETARCH
 # CGO is off: every dependency is pure Go (the SQLite driver included), which is
-# what lets the runtime stage carry no libc and no shell.
-RUN CGO_ENABLED=0 GOOS=linux go build \
+# what lets the runtime stage carry no libc and no shell — and what makes
+# GOARCH alone enough to produce the target binary from a native compiler.
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build \
       -trimpath \
       -ldflags "-s -w -X github.com/stephan271/smallworlds/operator-console/internal/buildinfo.Version=${VERSION}" \
       -o /out/smallworlds-admin ./cmd/smallworlds-admin
