@@ -11,7 +11,7 @@ var displayTranslations = map[string]map[string]string{
 }
 
 func init() {
-	for _, id := range []string{"cert-manager", "cert-manager-webhook-hetzner", "cloudnative-pg", "argocd-ingress", "garage", "persistent-storage", "traefik", "kube-prometheus-stack", "loki-stack", "hermes", "remediation", "velero", "backup-replicator", "alertmanager-config", "backup-alerts", "trivy-operator", "trivy-dashboard", "renovate-cronjob", "headscale", "dashboard", "keycloak", "stalwart", "forgejo", "immich", "nextcloud", "bulwark", "excalidraw", "jitsi", "collabora", "plane"} {
+	for _, id := range []string{"cert-manager", "cert-manager-webhook-hetzner", "cloudnative-pg", "argocd-ingress", "garage", "persistent-storage", "traefik", "kube-prometheus-stack", "loki-stack", "hermes", "remediation", "velero", "backup-replicator", "alertmanager-config", "backup-alerts", "trivy-operator", "trivy-dashboard", "renovate-cronjob", "headscale", "dashboard", "keycloak", "stalwart", "operator-console", "forgejo", "immich", "nextcloud", "bulwark", "excalidraw", "jitsi", "collabora", "plane"} {
 		displayTranslations["en"]["capability."+id] = id
 		displayTranslations["de"]["capability."+id] = id
 	}
@@ -86,9 +86,31 @@ func DefaultCatalog() Catalog {
 	}
 	entries := []Entry{
 		platform("cert-manager", 128, 1), platform("cert-manager-webhook-hetzner", 64, 1), platform("cloudnative-pg", 256, 2), platform("argocd-ingress", 64, 1), platform("garage", 512, 120), platform("persistent-storage", 64, 100), platform("traefik", 128, 1), platform("kube-prometheus-stack", 1024, 42), platform("loki-stack", 256, 20), platform("hermes", 128, 1), platform("remediation", 128, 1), platform("velero", 256, 5), platform("backup-replicator", 128, 2), platform("alertmanager-config", 32, 1), platform("backup-alerts", 32, 1), platform("trivy-operator", 256, 2), platform("trivy-dashboard", 128, 1), platform("renovate-cronjob", 128, 1), platform("headscale", 128, 5), platform("dashboard", 128, 1), platform("keycloak", 768, 40), platform("stalwart", 256, 20),
+		// The Operator Console is an ordinary Cluster Capability, deliberately.
+		// It is what lets the console assess itself and report itself degraded,
+		// and it is why the console must never be the only path by which a
+		// failure can be noticed (the alerting chain is independent of it).
+		operatorConsole(),
 		community("forgejo", 768, 30, "keycloak", "cloudnative-pg"), community("immich", 2048, 100, "keycloak", "cloudnative-pg", "garage"), community("nextcloud", 1024, 28, "keycloak", "cloudnative-pg", "garage"), community("bulwark", 256, 2, "stalwart", "keycloak"), community("excalidraw", 128, 1, "keycloak"), community("jitsi", 1024, 8, "keycloak"), community("collabora", 768, 4, "nextcloud"), community("plane", 1024, 30, "keycloak", "cloudnative-pg"),
 	}
 	return Catalog{Version: 1, Capabilities: entries}
+}
+
+// operatorConsole is the in-cluster Operator Console itself. It needs Keycloak
+// for its Console Roles, and it is reachable only through the Private Gateway.
+func operatorConsole() Entry {
+	return Entry{
+		ID:                       "operator-console",
+		DisplayKey:               "capability.operator-console",
+		Category:                 PlatformService,
+		Required:                 true,
+		Dependencies:             []string{"keycloak"},
+		SupportedDeploymentModes: []DeploymentMode{Hetzner, LocalLAN, LocalPublic},
+		Resources:                Resources{MemoryMi: 192, StorageGi: 1},
+		Exposure:                 "private-gateway",
+		Protection:               "cluster-backup",
+		Observer:                 "argocd-and-kubernetes",
+	}
 }
 
 func (catalog Catalog) Validate() error {
