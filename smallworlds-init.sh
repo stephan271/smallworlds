@@ -239,6 +239,11 @@ if [[ -z "$KC_PASS" ]]; then KC_PASS=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom
 if [[ -z "$INVITE_SECRET" ]]; then INVITE_SECRET=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32); fi
 if [[ -z "$GARAGE_RPC_SECRET" ]]; then GARAGE_RPC_SECRET=$(openssl rand -hex 32); fi
 if [[ -z "$GARAGE_ADMIN_TOKEN" ]]; then GARAGE_ADMIN_TOKEN=$(openssl rand -hex 32); fi
+# Signs the in-cluster Operator Console's session cookies. Absent, the console
+# invents one at startup, which is safe and logs every Operator out on each
+# restart. Nobody ever types it, so it is generated here with the other machine
+# credentials rather than asked for.
+if [[ -z "$CONSOLE_SESSION_KEY" ]]; then CONSOLE_SESSION_KEY=$(openssl rand -hex 32); fi
 if [[ -z "$GRAFANA_PASS" ]]; then GRAFANA_PASS=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32); fi
 
 # Save values to cache for next time
@@ -258,6 +263,7 @@ GITOPS_REPO_TOKEN="${GITOPS_REPO_TOKEN}"
 KC_PASS="${KC_PASS}"
 INVITE_SECRET="${INVITE_SECRET}"
 GARAGE_RPC_SECRET="${GARAGE_RPC_SECRET}"
+CONSOLE_SESSION_KEY="${CONSOLE_SESSION_KEY}"
 GARAGE_ADMIN_TOKEN="${GARAGE_ADMIN_TOKEN}"
 GRAFANA_PASS="${GRAFANA_PASS}"
 EOF
@@ -385,6 +391,20 @@ type: Opaque
 stringData:
   rpcSecret: "${GARAGE_RPC_SECRET}"
   adminToken: "${GARAGE_ADMIN_TOKEN}"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: operator-console
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: operator-console-session
+  namespace: operator-console
+type: Opaque
+stringData:
+  session-key: "${CONSOLE_SESSION_KEY}"
 EOF
 chmod 600 "$SECRETS_FILE"
 

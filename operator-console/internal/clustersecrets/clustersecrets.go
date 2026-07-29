@@ -77,6 +77,12 @@ const (
 	// so it is a project-wide contract rather than a label lookup.
 	repositorySecretName = "repo-git-creds"
 	stalwartSecretName   = "stalwart-dns-secrets"
+	// Mounted by the in-cluster Operator Console
+	// (tenants/operator-console/deployment.yaml). Without it the console signs
+	// session cookies with a key it invents at startup, which is safe but logs
+	// every Operator out on each restart — a machine credential nobody types,
+	// so it belongs here with the others rather than in anybody's hands.
+	consoleSessionSecret = "operator-console-session"
 	dnsProviderSecret    = "hetzner"
 	globalConfigName     = "smallworlds-global-config"
 	adminUser            = "admin"
@@ -122,6 +128,10 @@ func Generate(repository Repository, cluster Cluster) (Generated, error) {
 	if err != nil {
 		return Generated{}, err
 	}
+	consoleSessionKey, err := hexadecimal(32)
+	if err != nil {
+		return Generated{}, err
+	}
 	// The namespaces come first and in the same file. k3s applies this manifest
 	// from its auto-apply directory long before Argo CD has created anything, so
 	// a Secret whose namespace does not exist yet is simply refused — the first
@@ -136,6 +146,7 @@ func Generate(repository Repository, cluster Cluster) (Generated, error) {
 		{APIVersion: "v1", Kind: "Namespace", Metadata: metadata{Name: "garage-system"}},
 		{APIVersion: "v1", Kind: "Namespace", Metadata: metadata{Name: "stalwart"}},
 		{APIVersion: "v1", Kind: "Namespace", Metadata: metadata{Name: "cert-manager"}},
+		{APIVersion: "v1", Kind: "Namespace", Metadata: metadata{Name: "operator-console"}},
 		// Read by the Immich and Nextcloud setup jobs for the administrator
 		// address. Not overlay material: it is delivered with the Secrets because
 		// the jobs that read it run before anything in Git is reconciled.
@@ -178,6 +189,11 @@ func Generate(repository Repository, cluster Cluster) (Generated, error) {
 			APIVersion: "v1", Kind: "Secret", Type: "Opaque",
 			Metadata:   metadata{Name: dnsProviderSecret, Namespace: "cert-manager"},
 			StringData: map[string]string{"token": cluster.DNSToken},
+		},
+		{
+			APIVersion: "v1", Kind: "Secret", Type: "Opaque",
+			Metadata:   metadata{Name: consoleSessionSecret, Namespace: "operator-console"},
+			StringData: map[string]string{"session-key": consoleSessionKey},
 		},
 	}
 	// Marshalled rather than assembled from strings: a repository credential is

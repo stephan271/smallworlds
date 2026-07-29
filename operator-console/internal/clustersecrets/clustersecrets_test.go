@@ -1,8 +1,11 @@
 package clustersecrets_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/stephan271/smallworlds/operator-console/internal/clustersecrets"
 	"github.com/stephan271/smallworlds/operator-console/internal/localbootstrap"
@@ -185,5 +188,55 @@ func TestAClusterWithoutAProviderTokenStillGetsTheSecretsThatCarryIt(t *testing.
 func TestGenerateRefusesWithoutTheDomainItWasPlannedFor(t *testing.T) {
 	if _, err := clustersecrets.Generate(repository(), clustersecrets.Cluster{AdminEmail: "operator@home.example"}); err == nil {
 		t.Fatal("a manifest was generated without a domain")
+	}
+}
+
+// The in-cluster Operator Console mounts a session-signing key it never
+// generates for itself. When it is absent the console falls back to a
+// per-process key, which is safe and logs every Operator out on each restart —
+// so it is delivered with the other machine credentials, and its namespace has
+// to exist before the Secret lands in it.
+func TestGeneratedManifestCarriesTheConsoleSessionKey(t *testing.T) {
+	generated, err := clustersecrets.Generate(repository(), lanCluster())
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+
+	var found map[string]any
+	namespaces := map[string]bool{}
+	decoder := yaml.NewDecoder(strings.NewReader(generated.Manifest))
+	for {
+		document := map[string]any{}
+		if err := decoder.Decode(&document); err != nil {
+			break
+		}
+		metadata, _ := document["metadata"].(map[string]any)
+		name, _ := metadata["name"].(string)
+		if document["kind"] == "Namespace" {
+			namespaces[name] = true
+		}
+		if document["kind"] == "Secret" && name == "operator-console-session" {
+			found = document
+		}
+	}
+	if found == nil {
+		t.Fatal("the manifest carries no operator-console session Secret")
+	}
+	metadata := found["metadata"].(map[string]any)
+	if metadata["namespace"] != "operator-console" {
+		t.Fatalf("session Secret namespace = %v", metadata["namespace"])
+	}
+	if !namespaces["operator-console"] {
+		t.Fatal("the console namespace must be created before the Secret that lands in it")
+	}
+	key, _ := found["stringData"].(map[string]any)["session-key"].(string)
+	if len(key) < 32 {
+		t.Fatalf("session key is too short to sign anything: %q", key)
+	}
+
+	// It is a machine credential: nobody types it, so it must not be reported
+	// as one of the logins a person uses.
+	if strings.Contains(fmt.Sprintf("%+v", generated.Credentials), key) {
+		t.Fatal("the session key must not be revealed as an Operator credential")
 	}
 }
