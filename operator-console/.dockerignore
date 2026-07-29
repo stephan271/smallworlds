@@ -1,0 +1,10 @@
+.tmp/
+web/node_modules/
+web/.svelte-kit/
+web/playwright-report/
+web/reports/
+web/test-results/
+internal/webui/dist/
+smallworlds-admin
+Dockerfile
+README.md
