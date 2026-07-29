@@ -63,6 +63,13 @@ type DeliveryFacts struct {
 	HealthStatus     string
 	OperationPhase   string
 	LastReconciledAt time.Time
+
+	// specificationError records that Argo CD could not render the Application's
+	// source at all — a missing value, an unreachable ref, an invalid spec. It is
+	// read by the configuration observer, not the delivery translator: from
+	// inside the cluster it is the only evidence that the GitOps Overlay is
+	// incomplete, and that is a configuration fact rather than a delivery one.
+	specificationError bool
 }
 
 // RuntimeFacts is the observed Kubernetes runtime for a capability's workloads.
