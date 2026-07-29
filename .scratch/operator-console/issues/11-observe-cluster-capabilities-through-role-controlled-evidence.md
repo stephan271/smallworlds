@@ -2,15 +2,14 @@
 
 Status: complete
 
-> All nine acceptance criteria are implemented at the Go/OpenAPI/Svelte level
-> with unit, HTTP, and rendering tests across seven tracers (assessment engine,
-> OIDC auth + Console Roles, cluster observers, in-cluster serving mode, Svelte
-> screens, contextual deep links, durable compact plans/runs). The remaining
-> work — production JWKS exchanger, live cluster observers, Grafana/Argo OIDC
-> infra manifests, CRD-backed store, and binary serving-mode wiring — is the
-> operator-console/private-gateway tenant-deployment integration requiring a live
-> cluster, tracked as outstanding acceptance evidence, mirroring issue 09/10's
-> deferred qualification. See the Definition of done section below.
+> All nine acceptance criteria are implemented and tested across eight tracers
+> (assessment engine, OIDC auth + Console Roles, cluster observers, HTTP
+> surface, Svelte screens, contextual deep links, durable compact plans/runs,
+> and the serving tracer that made all of it run). The console is delivered as
+> its own tenant from a published image and assesses itself as an ordinary
+> Cluster Capability. Outstanding: the Private Gateway (with the Grafana/Argo
+> OIDC clients and pod NetworkPolicies that belong to it), live protection
+> evidence, and live-cluster qualification. See the Definition of done section.
 
 ## Implementation progress
 
@@ -177,20 +176,100 @@ unit tests.
   which introduce the first mutations; this tracer establishes the durable,
   restart-safe, Loki-referencing record model those build on.)
 
+- [x] **The console is actually served** (`internal/consoleauth/live.go`,
+  `internal/kubeclient`, `internal/observers/live.go`,
+  `internal/consoleworkflow/kubestore.go`, `internal/consoleserve`,
+  `operator-console/Dockerfile`, `infrastructure/kubernetes/tenants/operator-console/`)
+  — the deferred tenant-deployment integration below, closed. Until this, every
+  acceptance criterion was met by code that no process ran: the console existed
+  and nothing delivered it.
+
+  - **Production JWKS `TokenExchanger`** — OIDC discovery (with the issuer
+    re-checked against the requested one, so a discovery document cannot move
+    the console's trust anchor), the token request carrying the login's PKCE
+    verifier, `client_secret_basic` so a confidential client's secret never
+    rides in a body an access log might record, and JWS verification against the
+    realm's JWKS. The algorithm set is an allowlist — `none` is refused before
+    any key is consulted — and an unknown key id triggers exactly one
+    rate-limited JWKS refresh, so signing-key rotation is picked up without a
+    restart while forged key ids cannot turn the console into a request
+    amplifier against Keycloak.
+  - **Minimal Kubernetes client** (`internal/kubeclient`) — the REST API over
+    stdlib HTTP rather than client-go, keeping the dependency surface and the
+    image small. Projected ServiceAccount tokens are re-read periodically
+    (a console that cached one forever would start failing every read an hour
+    after rotation), responses are bounded, and a missing object is a distinct
+    error from a failed read.
+  - **Live cluster observers** — one snapshot per capability feeds all four
+    facets, so an assessment describes one moment rather than four drifting
+    ones. The load-bearing property: **runtime evidence is read from Kubernetes
+    directly, not from Argo CD's health roll-up**. Had it come from the same
+    Argo status as delivery, the engine's central invariant — an Argo-Healthy
+    delivery over a not-yet-ready workload never reads healthy — would have been
+    vacuous, and a test now pins exactly that. Probe evidence comes from Service
+    endpoints (an unready pod is removed from them); certificate readiness from
+    the cert-manager `Certificate`, never the TLS Secret, so the ServiceAccount
+    never needs secret access to answer whether TLS is ready; a controller
+    status behind the object's generation is not ready, because it describes the
+    previous generation. Access reads the Traefik middlewares in front of a
+    router, not merely its entrypoint, so an interface restricted to the Private
+    Network is not reported as internet-exposed — and a middleware that cannot
+    be read leaves the route counted as public, the conservative answer.
+  - **CRD-backed `consoleworkflow.Store`** — `ChangePlan`/`WorkflowRun` in
+    `admin.smallworlds.network/v1alpha1` with CRD schemas mirroring the size
+    budgets the console already enforced, so an oversized record is refused by
+    the API server too. Record ids map to object names through a stable,
+    collision-free digest suffix, which is what makes a retried write idempotent
+    instead of filling etcd with duplicates of one plan. A missing record and an
+    unreachable API server stay distinct answers.
+  - **In-cluster serving mode** (`internal/consoleserve`, `--serve-console`) —
+    the one place that reads a deployment's configuration and connects the
+    pieces. Configuration is read once at startup and a missing required value
+    fails the process, because a console that cannot complete a login is worse
+    than one that does not start: only the second is visible. It also translates
+    the catalog's exposure *policy* into the engine's expected *reachability* —
+    an operator interface is private, a backend service with no Ingress is
+    internal, a member application is public — three different access rules that
+    a single blanket mapping would have got wrong in both directions.
+  - **Tenant manifests + image** — Dockerfile, GHCR publish workflow,
+    Deployment/Service/Ingress, least-privilege RBAC (no Secret access anywhere;
+    writes confined to the console's own Activity Record), the Console Roles
+    job, `apps/operator-console.yaml` at wave 1, and the domain patches on both
+    the Go and shell overlay paths. The console is now an ordinary catalog
+    entry, so it assesses itself (criterion 8) rather than only being able to in
+    principle.
+  - The Private Gateway is deliberately **not** in this pass. Until it lands the
+    same property is held by an `ipAllowList` middleware admitting only the
+    Headscale tailnet and private ranges — which the access observer reads, so
+    the console reports itself correctly private instead of flagging itself
+    exposed.
+
 ## Definition of done
 
-All nine acceptance criteria are implemented and tested at the Go/OpenAPI/Svelte
-level (criteria 1–6 fully; 7's console-code half via `internal/deeplinks`; 8's
-self-assessment model via the assessment engine treating the console and Private
-Gateway as ordinary capabilities; 9 via `internal/consoleworkflow`). Deferred to
-the operator-console/private-gateway **tenant-deployment integration** (a live
-cluster is required, mirroring issue 09/10's outstanding qualification): the
-production JWKS `TokenExchanger`, the live raw-HTTP Kubernetes/Argo observers,
-the Grafana/Argo read-only Keycloak OIDC clients and their private-gateway-only
-NetworkPolicies (criterion 7's infrastructure half), the CRD-backed
-`consoleworkflow.Store`, and wiring the console into the binary's in-cluster
-serving mode. These are integration/qualification steps, not code dependencies
-of the observation console built here.
+All nine acceptance criteria are implemented and tested, and the console is now
+served: the production JWKS `TokenExchanger`, the live Kubernetes/Argo CD
+observers, the CRD-backed `consoleworkflow.Store`, the in-cluster serving mode,
+the container image and its publish workflow, and the `operator-console` tenant
+with least-privilege RBAC all landed in the serving tracer above. Criterion 8 is
+no longer met only in principle — the console is an entry in the capability
+catalog and assesses itself.
+
+Three things remain outstanding, and none is a code dependency of the console:
+
+1. **The Private Gateway** — a Headscale-joined proxy on its own Traefik
+   entrypoint, moving Grafana and Argo CD behind it with read-only Keycloak OIDC
+   clients (criterion 7's infrastructure half), and the pod NetworkPolicies that
+   belong with it. Until then the console holds the same property through an
+   address-restricting middleware, which its own access observer understands; an
+   untested NetworkPolicy that silently broke the OIDC login would be worse than
+   none.
+2. **Live protection evidence** — the inventory declares every dataset and the
+   assessment folds it in, but no live reader is wired, so the protection facet
+   honestly reads unknown. Belongs with issue 12.
+3. **Live-cluster qualification** — a real browser login against a real
+   Keycloak, mirroring issue 09/10's deferred qualification. Everything below it
+   is covered by unit, HTTP, and end-to-end tests against a fake API server and
+   a fake realm, including a complete OIDC roundtrip.
 
 ## What to build
 

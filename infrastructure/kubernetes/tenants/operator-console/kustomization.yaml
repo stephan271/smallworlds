@@ -1,0 +1,36 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: operator-console
+
+bases:
+  - ../../bases/setup-rbac
+  - ../../bases/keycloak-client-job
+
+resources:
+  - crds.yaml
+  - rbac.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - console-roles-job.yaml
+
+patches:
+  - target:
+      kind: ClusterRoleBinding
+      name: setup-binding
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: setup-binding-operator-console
+  # The Keycloak client is created with the console's exact callback. The client
+  # id is the namespace, which is what makes keycloak-secret's clientId key the
+  # value the console authenticates as.
+  - target:
+      kind: Job
+      name: keycloak-client-init
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env
+        value:
+          - name: REDIRECT_URIS
+            value: '["https://console.smallworlds.network/api/v1/auth/callback"]'

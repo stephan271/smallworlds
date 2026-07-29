@@ -54,7 +54,11 @@ func (catalog Catalog) RenderOverlay(input OverlayInput) (Overlay, error) {
 	// not anybody chose it. Headscale belongs here for the same reason the other
 	// three do: it is reached at an ordinary address before any device can join
 	// the network it coordinates.
-	apps := []string{"dashboard", "keycloak", "stalwart", "headscale"}
+	// The Operator Console belongs here for a second reason on top of the
+	// hostname: it is told its own address rather than merely routed to it, so
+	// an overlay that skipped it would deploy a console whose OIDC redirect
+	// still names the project's domain, and no Operator could log in.
+	apps := []string{"dashboard", "keycloak", "stalwart", "headscale", "operator-console"}
 	apps = append(apps, assessment.CommunityIDs...)
 	sort.Strings(apps)
 	files := map[string]string{}

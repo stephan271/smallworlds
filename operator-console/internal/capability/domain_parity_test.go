@@ -35,7 +35,7 @@ func TestDomainPatchesMatchTheShellPathExactly(t *testing.T) {
 		"forgejo": "forgejo", "jitsi": "jitsi", "collabora": "collabora",
 		"excalidraw": "excalidraw", "plane": "plane",
 		"argocd-ingress": "argocd", "kube-prometheus-stack": "monitoring",
-		"headscale": "headscale",
+		"headscale": "headscale", "operator-console": "operator-console",
 	}
 	for _, environment := range []struct{ domain, ext string }{
 		{"home.example", ""},

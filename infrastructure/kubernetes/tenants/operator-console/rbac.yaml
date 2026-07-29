@@ -1,0 +1,96 @@
+# The console's own identity and its least-privilege reads.
+#
+# Two properties are worth keeping when this is edited. There is no permission to
+# read Secrets anywhere: certificate readiness is observed from the cert-manager
+# Certificate's Ready condition rather than from the TLS Secret, precisely so the
+# console never needs to be trusted with secret material to answer "is TLS
+# ready?". And the only writes are to the console's own Change Plan and Workflow
+# Run resources — every cluster mutation goes through the GitOps Overlay as a
+# proposal (ADR 0008), so a console that could patch workloads would be a
+# capability the design does not want it to have.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: operator-console
+  namespace: operator-console
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: operator-console-observer
+rules:
+  # Delivery evidence: which capabilities the overlay declares, and what Argo CD
+  # made of each one.
+  - apiGroups: ["argoproj.io"]
+    resources: ["applications"]
+    verbs: ["get", "list"]
+  # Runtime evidence, read from Kubernetes directly rather than from Argo's own
+  # health roll-up — that independence is what makes "Argo says Healthy but the
+  # workload is not ready" detectable at all.
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets"]
+    verbs: ["get", "list"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims", "endpoints", "services"]
+    verbs: ["get", "list"]
+  # Access evidence: which hostnames exist and on which entrypoint they are
+  # actually served.
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list"]
+  - apiGroups: ["traefik.io"]
+    resources: ["middlewares"]
+    verbs: ["get", "list"]
+  # Certificate readiness without ever reading the certificate's Secret.
+  - apiGroups: ["cert-manager.io"]
+    resources: ["certificates"]
+    verbs: ["get", "list"]
+  # Protection evidence.
+  - apiGroups: ["postgresql.cnpg.io"]
+    resources: ["clusters", "backups", "scheduledbackups"]
+    verbs: ["get", "list"]
+  - apiGroups: ["velero.io"]
+    resources: ["backups", "schedules", "restores"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: operator-console-observer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: operator-console-observer
+subjects:
+  - kind: ServiceAccount
+    name: operator-console
+    namespace: operator-console
+---
+# The Activity Record. Namespaced deliberately: the console writes nothing
+# outside its own namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: operator-console-activity-record
+  namespace: operator-console
+rules:
+  - apiGroups: ["admin.smallworlds.network"]
+    resources: ["changeplans", "workflowruns"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: operator-console-activity-record
+  namespace: operator-console
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: operator-console-activity-record
+subjects:
+  - kind: ServiceAccount
+    name: operator-console
+    namespace: operator-console

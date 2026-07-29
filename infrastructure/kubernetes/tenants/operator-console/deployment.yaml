@@ -1,0 +1,122 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: operator-console
+  namespace: operator-console
+  labels:
+    app.kubernetes.io/name: operator-console
+spec:
+  # One replica on purpose. Sessions are stateless signed cookies and the
+  # Activity Record is in etcd, so a second replica would be safe — but the
+  # console is an administration surface on a single-node cluster, and a second
+  # pod would only compete for the same memory budget.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: operator-console
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: operator-console
+        # Loki indexes by app label; the console's run records point at
+        # {app="operator-console"} for their detailed events.
+        app: operator-console
+    spec:
+      serviceAccountName: operator-console
+      automountServiceAccountToken: true
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: operator-console
+          # Built from operator-console/ by .github/workflows/publish-operator-console.yml.
+          # The tag tracks the SmallWorlds release this manifest ships in, so an
+          # overlay bumping its pinned release is the only thing that changes
+          # which console runs. Add the digest once the image for a release has
+          # actually been published.
+          image: ghcr.io/stephan271/smallworlds-operator-console:v1.2.31
+          imagePullPolicy: IfNotPresent
+          args:
+            - --serve-console
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: SMALLWORLDS_CONSOLE_ADDRESS
+              value: ":8080"
+            # The realm URL. Everything else about Keycloak — authorize, token,
+            # and JWKS endpoints — is discovered from it, so a realm move cannot
+            # leave a stale endpoint behind.
+            - name: SMALLWORLDS_OIDC_ISSUER
+              value: https://identity.smallworlds.network/realms/smallworlds
+            # Project-wide contract: OIDC credentials come from keycloak-secret's
+            # clientId and client-secret keys, never from a per-tenant name.
+            - name: SMALLWORLDS_OIDC_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: clientId
+            - name: SMALLWORLDS_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: client-secret
+            # The console's own address as a browser sees it. It must match the
+            # redirect URI registered on the Keycloak client exactly.
+            - name: SMALLWORLDS_CONSOLE_URL
+              value: https://console.smallworlds.network
+            - name: SMALLWORLDS_BASE_DOMAIN
+              value: smallworlds.network
+            # Signs session cookies. Without it every restart signs every
+            # Operator out, which is safe but visibly annoying; the Bootstrap
+            # Launcher delivers this Secret with the other Cluster Secrets.
+            - name: SMALLWORLDS_SESSION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: operator-console-session
+                  key: session-key
+                  optional: true
+            - name: SMALLWORLDS_CONSOLE_NAMESPACE
+              value: operator-console
+            - name: SMALLWORLDS_ARGOCD_NAMESPACE
+              value: argocd
+            - name: SMALLWORLDS_ROOT_APPLICATION
+              value: smallworlds-root
+          resources:
+            requests:
+              cpu: 20m
+              memory: 96Mi
+            limits:
+              cpu: 500m
+              memory: 192Mi
+          # The probes sit outside the Console Role gate: the kubelet holds no
+          # session, and a probe that required one would restart a healthy pod.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+            failureThreshold: 24
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]

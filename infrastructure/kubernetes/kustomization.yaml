@@ -31,6 +31,10 @@ resources:
   - apps/dashboard.yaml
   - apps/keycloak.yaml
   - apps/stalwart.yaml
+
+  # 3. The Operator Console. Required, not optional: it is the administration
+  # surface, and it is itself a Cluster Capability the console assesses.
+  - apps/operator-console.yaml
   
   # Note: Optional apps (forgejo, immich, nextcloud, bulwark, excalidraw) 
   # are dynamically added to your private kustomization.yaml by prepare-community-repo.sh

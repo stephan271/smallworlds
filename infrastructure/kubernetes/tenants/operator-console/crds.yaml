@@ -1,0 +1,206 @@
+# The console's own records (ADR 0025). Compact Change Plans and Workflow Runs
+# live as custom resources so they survive a console restart without a second
+# application database, and inherit the cluster's existing Velero protection.
+#
+# Detailed events are deliberately absent: a run carries a Loki query instead, so
+# these objects stay small enough to belong in etcd. The size budgets the console
+# enforces before writing are mirrored here as maxLength, so an oversized record
+# is refused by the API server too rather than only by the writer.
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: changeplans.admin.smallworlds.network
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  group: admin.smallworlds.network
+  scope: Namespaced
+  names:
+    kind: ChangePlan
+    listKind: ChangePlanList
+    plural: changeplans
+    singular: changeplan
+    shortNames:
+      - swplan
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Intent
+          type: string
+          jsonPath: .spec.intent
+        - name: Actor
+          type: string
+          jsonPath: .spec.actor
+        - name: Approved
+          type: string
+          jsonPath: .metadata.labels.admin\.smallworlds\.network/approved
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - id
+                - digest
+                - intent
+                - actor
+                - summary
+              properties:
+                id:
+                  type: string
+                  maxLength: 253
+                # The digest binds an approval to exactly the plan that was
+                # reviewed; changing the plan invalidates the approval.
+                digest:
+                  type: string
+                  maxLength: 128
+                intent:
+                  type: string
+                  enum:
+                    - AddCapability
+                    - ConfigureBackup
+                    - UpdateRelease
+                    - EnrollDevice
+                    - RevokeDevice
+                    - RotateCredential
+                actor:
+                  type: string
+                  maxLength: 253
+                summary:
+                  type: string
+                  maxLength: 512
+                risks:
+                  type: array
+                  maxItems: 16
+                  items:
+                    type: string
+                createdAt:
+                  type: string
+                  format: date-time
+                expiresAt:
+                  type: string
+                  format: date-time
+                approval:
+                  type: object
+                  properties:
+                    actor:
+                      type: string
+                      maxLength: 253
+                    at:
+                      type: string
+                      format: date-time
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: workflowruns.admin.smallworlds.network
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  group: admin.smallworlds.network
+  scope: Namespaced
+  names:
+    kind: WorkflowRun
+    listKind: WorkflowRunList
+    plural: workflowruns
+    singular: workflowrun
+    shortNames:
+      - swrun
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Phase
+          type: string
+          jsonPath: .spec.phase
+        - name: Intent
+          type: string
+          jsonPath: .spec.intent
+        - name: Checkpoint
+          type: string
+          jsonPath: .spec.currentCheckpoint
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - id
+                - planId
+                - intent
+                - phase
+                - loki
+              properties:
+                id:
+                  type: string
+                  maxLength: 253
+                planId:
+                  type: string
+                  maxLength: 253
+                planDigest:
+                  type: string
+                  maxLength: 128
+                intent:
+                  type: string
+                actor:
+                  type: string
+                  maxLength: 253
+                phase:
+                  type: string
+                checkpoints:
+                  type: array
+                  maxItems: 64
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        maxLength: 128
+                      at:
+                        type: string
+                        format: date-time
+                currentCheckpoint:
+                  type: string
+                  maxLength: 128
+                # A short, already-redacted summary. Anything longer belongs in
+                # Loki, not in etcd.
+                evidenceSummary:
+                  type: string
+                  maxLength: 2048
+                # Where the detailed events are. Required: a run whose events
+                # cannot be found is not an Activity Record.
+                loki:
+                  type: object
+                  required:
+                    - query
+                  properties:
+                    query:
+                      type: string
+                      maxLength: 1024
+                startedAt:
+                  type: string
+                  format: date-time
+                updatedAt:
+                  type: string
+                  format: date-time
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true

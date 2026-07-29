@@ -1,0 +1,76 @@
+# The three Console Roles have to exist on the console's Keycloak client before
+# anyone can hold one. Without them the console authenticates a user correctly
+# and then denies them by default — which is the right behaviour, and also a
+# console nobody can enter.
+#
+# Creating the roles is all this does. Who holds one is not decided here: the
+# first Owner is claimed once through the Bootstrap Launcher (ADR 0043), and
+# further assignments are ordinary Keycloak role grants. A job that assigned an
+# Owner would be a job that could silently hand out cluster administration.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: console-roles-init
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+    # After keycloak-client-init at -1, which creates the client these roles
+    # belong to.
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  ttlSecondsAfterFinished: 60
+  template:
+    spec:
+      serviceAccountName: setup-sa
+      restartPolicy: OnFailure
+      containers:
+        - name: setup
+          image: docker.io/alpine/k8s:1.36.2
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+
+              TENANT_NAMESPACE=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+              POD=keycloak-keycloakx-0
+              CONFIG=/tmp/kcadm-console-roles.config
+
+              echo "Waiting for Keycloak to be ready..."
+              while ! kubectl get pods -n keycloak $POD -o jsonpath='{.status.containerStatuses[0].ready}' 2>/dev/null | grep -q 'true'; do
+                echo "Keycloak is not ready yet, waiting..."
+                sleep 5
+              done
+
+              PASSWORD=$(kubectl get secret keycloak-admin-creds -n keycloak -o jsonpath="{.data.admin-password}" | base64 -d)
+              kubectl exec -n keycloak $POD -- /opt/keycloak/bin/kcadm.sh config credentials \
+                --server http://localhost:8080 --realm master --user admin --password "$PASSWORD" --config $CONFIG
+
+              CLIENT_ID=$(kubectl exec -n keycloak $POD -- /opt/keycloak/bin/kcadm.sh get clients -r smallworlds \
+                -q clientId=$TENANT_NAMESPACE --fields id --config $CONFIG | grep '"id"' | cut -d'"' -f4)
+
+              if [[ -z "$CLIENT_ID" ]]; then
+                echo "Error: the $TENANT_NAMESPACE client does not exist yet."
+                exit 1
+              fi
+
+              # Idempotent: an existing role is left exactly as it is, so an
+              # Operator's own description edits are never overwritten.
+              create_role() {
+                local NAME="$1"
+                local DESCRIPTION="$2"
+                if kubectl exec -n keycloak $POD -- /opt/keycloak/bin/kcadm.sh get clients/$CLIENT_ID/roles/$NAME \
+                     -r smallworlds --config $CONFIG >/dev/null 2>&1; then
+                  echo "Console Role $NAME already exists."
+                  return 0
+                fi
+                echo "Creating Console Role $NAME..."
+                kubectl exec -n keycloak $POD -- /opt/keycloak/bin/kcadm.sh create clients/$CLIENT_ID/roles \
+                  -r smallworlds -s name="$NAME" -s description="$DESCRIPTION" --config $CONFIG
+              }
+
+              create_role observer "Read-only observation of cluster state."
+              create_role operator "Routine actions and GitOps proposals, in addition to observation."
+              create_role owner "Access management and sensitive in-cluster administration."
+
+              echo "Console Roles are in place. Assigning them to a person is a separate, deliberate act."

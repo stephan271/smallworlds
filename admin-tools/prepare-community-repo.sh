@@ -167,7 +167,11 @@ for app in "${OPTIONAL_APPS[@]}"; do
 done
 
 echo -e "${YELLOW}Creating application subdirectories...${NC}"
-APPS=("dashboard" "keycloak" "stalwart" "${SELECTED_APPS[@]}")
+# Always installed, and each carries hostnames that have to follow the
+# operator's domain. The Operator Console belongs here for a second reason: it
+# is told its own address, not merely routed to it, so an overlay that skipped
+# it would deploy a console whose OIDC redirect still names somebody else.
+APPS=("dashboard" "keycloak" "stalwart" "operator-console" "${SELECTED_APPS[@]}")
 
 for app in "${APPS[@]}"; do
     if [ ! -d "$app" ]; then

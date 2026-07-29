@@ -38,6 +38,59 @@ var domainPatchTemplates = map[string]string{
         path: /spec/template/spec/containers/0/env/0/value
         value: https://{{vpn}}
 `,
+	// The console has to be told its own address, not just routed to it: the
+	// OIDC redirect URI it sends to Keycloak, the redirect URI Keycloak is
+	// willing to accept, and the hostname on the Ingress are three separate
+	// places that must agree, and a login fails outright if any one of them
+	// still names somebody else's domain.
+	"operator-console": `  - target:
+      kind: Ingress
+      name: operator-console
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: {{console}}
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: {{console}}
+  - target:
+      kind: Deployment
+      name: operator-console
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: operator-console
+      spec:
+        template:
+          spec:
+            containers:
+              - name: operator-console
+                env:
+                  - name: SMALLWORLDS_CONSOLE_URL
+                    value: "https://{{console}}"
+                  - name: SMALLWORLDS_OIDC_ISSUER
+                    value: "https://{{identity}}/realms/smallworlds"
+                  - name: SMALLWORLDS_BASE_DOMAIN
+                    value: "{{domain}}"
+  - target:
+      kind: Job
+      name: keycloak-client-init
+      namespace: operator-console
+    patch: |-
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: keycloak-client-init
+      spec:
+        template:
+          spec:
+            containers:
+              - name: setup
+                env:
+                  - name: REDIRECT_URIS
+                    value: '["https://{{console}}/api/v1/auth/callback"]'
+`,
 	"dashboard": `  - target:
       kind: Ingress
       name: dashboard
@@ -479,7 +532,7 @@ var domainPatchTemplates = map[string]string{
 // subdomainNames maps each placeholder to the label placed in front of the
 // operator's domain. The extension sits between label and domain, so a .dev
 // cluster can never collide with production's hostnames.
-var subdomainNames = []string{"dashboard", "identity", "files", "photos", "git", "mail", "webmail", "monitoring", "whiteboard", "meet", "office", "plan", "deploy", "vpn"}
+var subdomainNames = []string{"dashboard", "identity", "files", "photos", "git", "mail", "webmail", "monitoring", "whiteboard", "meet", "office", "plan", "deploy", "vpn", "console"}
 
 // DomainPatches returns the Kustomize patch entries that move one application's
 // hostnames onto the operator's domain, or "" when the application needs none.
@@ -495,9 +548,13 @@ func DomainPatches(app, domain, ext string) string {
 	if !found {
 		return ""
 	}
-	replacements := make([]string, 0, len(subdomainNames)*2)
+	replacements := make([]string, 0, len(subdomainNames)*2+2)
 	for _, name := range subdomainNames {
 		replacements = append(replacements, "{{"+name+"}}", name+ext+"."+domain)
 	}
+	// The bare domain, without a subdomain or the environment extension. The
+	// console needs it to build Grafana and Argo CD deep links, which it derives
+	// from the base domain rather than being told each hostname separately.
+	replacements = append(replacements, "{{domain}}", domain)
 	return strings.NewReplacer(replacements...).Replace(template)
 }

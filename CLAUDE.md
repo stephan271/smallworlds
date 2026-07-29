@@ -40,7 +40,7 @@ plans-and-walkthroughs/  Design docs and implementation walkthroughs
 - **Wave -10**: `cert-manager`, `cloudnative-pg`, `persistent-storage`, `traefik` — foundational infra.
 - **Wave -5**: `garage` — S3 storage, needed early by CNPG/Velero backups.
 - **Wave 0**: everything that doesn't need Keycloak — `keycloak` itself, `dashboard`, monitoring/logging stacks, `velero`, `hermes`, `remediation`, `trivy-operator`.
-- **Wave 1**: end-user tenant apps (Nextcloud, Forgejo, Immich, Jitsi, Bulwark, Excalidraw, Stalwart) — depend on CNPG/Garage/Keycloak/Traefik being up.
+- **Wave 1**: end-user tenant apps (Nextcloud, Forgejo, Immich, Jitsi, Bulwark, Excalidraw, Stalwart) and `operator-console` — all depend on CNPG/Garage/Keycloak/Traefik being up.
 
 Intra-wave dependencies are handled by init jobs' poll-and-retry loops and ArgoCD sync retries, not by more waves. When adding a new ArgoCD Application, pick the wave based on what it actually depends on, not by copying an unrelated app's wave.
 
@@ -103,7 +103,7 @@ Cluster access for read-only inspection: kubeconfigs live in `~/.smallworlds/kub
 
 ## Documentation map (`doc/`)
 
-`argocd-apps.md` (sync waves) and `bases.md` (init job bases) are summarized above. `local-deployment.md` covers the LAN/local-server target (requirements, DNS/TLS differences, lifecycle). `storage-and-backup.md` maps where every app's data lives (PVs/PVCs, databases, Garage buckets), the backup chain and its known gaps, and per-layer scale-up procedures — consult it before touching CNPG `backup:` blocks, PV sizes, or anything under `tenants/backup-replicator`/`velero`. Also present: `bases.md`, `plane-architecture.md`, `tenant-dashboard.md`, `tenant-forgejo.md`, `tenant-hermes.md`, `tenant-immich.md`, `tenant-keycloak.md`, `tenant-nextcloud.md`, `tenant-other.md`, `tenant-stalwart.md` — check the relevant one before making non-trivial changes to that subsystem, as several encode hard-won fixes (version incompatibilities, ordering bugs) that aren't obvious from the manifests alone.
+`argocd-apps.md` (sync waves) and `bases.md` (init job bases) are summarized above. `local-deployment.md` covers the LAN/local-server target (requirements, DNS/TLS differences, lifecycle). `storage-and-backup.md` maps where every app's data lives (PVs/PVCs, databases, Garage buckets), the backup chain and its known gaps, and per-layer scale-up procedures — consult it before touching CNPG `backup:` blocks, PV sizes, or anything under `tenants/backup-replicator`/`velero`. Also present: `bases.md`, `plane-architecture.md`, `tenant-dashboard.md`, `tenant-forgejo.md`, `tenant-hermes.md`, `tenant-immich.md`, `tenant-keycloak.md`, `tenant-nextcloud.md`, `tenant-operator-console.md`, `tenant-other.md`, `tenant-stalwart.md` — check the relevant one before making non-trivial changes to that subsystem, as several encode hard-won fixes (version incompatibilities, ordering bugs) that aren't obvious from the manifests alone.
 
 ## Project-wide contracts
 

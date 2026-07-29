@@ -1,0 +1,56 @@
+# The console is an operator interface, so it must not be reachable from the
+# public internet (ADR 0012, ADR 0038). The Private Gateway that will eventually
+# carry it is a separate piece of work; until it exists, the same property is
+# enforced here by an address restriction in front of the router: the route sits
+# on the ordinary entrypoint but accepts only the Private Network and local
+# ranges, so a request from the internet never reaches the console.
+#
+# This is also what the console's own access facet observes. It reads this
+# middleware, not just the entrypoint, which is why it can report itself as
+# properly private rather than as publicly exposed.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: operator-console-private
+  namespace: operator-console
+spec:
+  ipAllowList:
+    sourceRange:
+      # Enrolled Operator Devices on the Headscale tailnet.
+      - 100.64.0.0/10
+      # The Cluster Node's own LAN, for a Local Deployment Mode.
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+      # In-cluster traffic, so the pod network can reach it.
+      - 127.0.0.0/8
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: operator-console
+  namespace: operator-console
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: operator-console-operator-console-private@kubernetescrd
+    # The console is deliberately absent from the Member Dashboard: it is an
+    # operator interface, not something a community member should discover.
+    gethomepage.dev/enabled: "false"
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - console.smallworlds.network
+      secretName: operator-console-tls
+  rules:
+    - host: console.smallworlds.network
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: operator-console
+                port:
+                  number: 80
