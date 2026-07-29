@@ -40,7 +40,7 @@ spec:
           # overlay bumping its pinned release is the only thing that changes
           # which console runs. Add the digest once the image for a release has
           # actually been published.
-          image: ghcr.io/stephan271/smallworlds-operator-console:v1.2.32
+          image: ghcr.io/stephan271/smallworlds-operator-console:v1.2.33
           imagePullPolicy: IfNotPresent
           args:
             - --serve-console
@@ -55,6 +55,16 @@ spec:
             # leave a stale endpoint behind.
             - name: SMALLWORLDS_OIDC_ISSUER
               value: https://identity.smallworlds.network/realms/smallworlds
+            # Where this process actually reads discovery, tokens and signing
+            # keys. The issuer above stays the identity a browser is sent to and
+            # a token's iss claim must equal; only the machine-to-machine calls
+            # come from here. In a Local LAN-only cluster the issuer's own
+            # hostname is served with a self-signed certificate this container
+            # cannot verify, and trusting it would mean holding a rotating
+            # secret the console has no other reason to hold. Reading from the
+            # Service also avoids leaving the cluster only to come back in.
+            - name: SMALLWORLDS_OIDC_INTERNAL_URL
+              value: http://keycloak-keycloakx-http.keycloak.svc
             # Project-wide contract: OIDC credentials come from keycloak-secret's
             # clientId and client-secret keys, never from a per-tenant name.
             - name: SMALLWORLDS_OIDC_CLIENT_ID

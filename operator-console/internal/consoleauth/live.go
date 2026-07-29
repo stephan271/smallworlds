@@ -56,20 +56,51 @@ type Endpoints struct {
 	EndSessionEndpoint    string `json:"end_session_endpoint"`
 }
 
-// Discover reads the OIDC discovery document for an issuer. The issuer is the
-// realm URL — the console is configured with that one value and derives the rest,
-// so a realm move cannot leave a stale endpoint behind.
-//
-// The returned issuer is checked against the requested one: a discovery document
-// that names a different issuer would silently move the console's trust anchor,
-// which is exactly the substitution the exact-issuer claim check exists to stop.
+// Discover reads the OIDC discovery document for an issuer over the issuer's own
+// address.
 func Discover(ctx context.Context, client *http.Client, issuer string) (Endpoints, error) {
+	return DiscoverVia(ctx, client, issuer, "")
+}
+
+// DiscoverVia reads the discovery document for an issuer, optionally fetching it
+// from a different address than the issuer's own.
+//
+// The issuer is the realm URL — the console is configured with that one value
+// and derives the rest, so a realm move cannot leave a stale endpoint behind.
+// The document's own issuer is checked against the configured one: a document
+// naming a different issuer would silently move the console's trust anchor,
+// which is exactly the substitution the exact-issuer claim check exists to stop.
+// That check is what makes fetching from elsewhere safe.
+//
+// internalBase exists because the issuer's address is not always one this
+// process can reach. In a Local LAN-only cluster the identity provider is served
+// on the community's own hostname with a self-signed certificate, which a
+// container trusting only public roots cannot verify — and trusting that
+// certificate instead would mean handing the console a rotating secret it has no
+// other reason to hold. Fetching from the in-cluster Service avoids both, and
+// avoids leaving the cluster only to come back in through the ingress.
+//
+// Only the machine-to-machine endpoints are moved. The authorization endpoint is
+// where a browser is sent and must stay the address an Operator can actually
+// reach.
+func DiscoverVia(ctx context.Context, client *http.Client, issuer, internalBase string) (Endpoints, error) {
 	issuer = strings.TrimRight(strings.TrimSpace(issuer), "/")
 	if issuer == "" {
 		return Endpoints{}, errors.New("consoleauth: issuer is required")
 	}
+	internalBase = strings.TrimRight(strings.TrimSpace(internalBase), "/")
+
+	origin, err := originOf(issuer)
+	if err != nil {
+		return Endpoints{}, err
+	}
+	documentURL := issuer + "/.well-known/openid-configuration"
+	if internalBase != "" {
+		documentURL = replaceOrigin(documentURL, origin, internalBase)
+	}
+
 	var endpoints Endpoints
-	if err := fetchJSON(ctx, client, issuer+"/.well-known/openid-configuration", &endpoints); err != nil {
+	if err := fetchJSON(ctx, client, documentURL, &endpoints); err != nil {
 		return Endpoints{}, fmt.Errorf("consoleauth: oidc discovery: %w", err)
 	}
 	if strings.TrimRight(endpoints.Issuer, "/") != issuer {
@@ -78,7 +109,31 @@ func Discover(ctx context.Context, client *http.Client, issuer string) (Endpoint
 	if endpoints.AuthorizationEndpoint == "" || endpoints.TokenEndpoint == "" || endpoints.JWKSURI == "" {
 		return Endpoints{}, errors.New("consoleauth: discovery document is incomplete")
 	}
+	if internalBase != "" {
+		endpoints.TokenEndpoint = replaceOrigin(endpoints.TokenEndpoint, origin, internalBase)
+		endpoints.JWKSURI = replaceOrigin(endpoints.JWKSURI, origin, internalBase)
+	}
 	return endpoints, nil
+}
+
+// originOf returns an absolute URL's scheme and host.
+func originOf(absolute string) (string, error) {
+	parsed, err := url.Parse(absolute)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return "", fmt.Errorf("consoleauth: %q is not an absolute URL", absolute)
+	}
+	return parsed.Scheme + "://" + parsed.Host, nil
+}
+
+// replaceOrigin swaps one URL's scheme and host for another base, keeping the
+// path. An endpoint served from somewhere else entirely is left alone: the
+// provider is entitled to publish an endpoint on another host, and rewriting one
+// blindly would send a token request to an address nobody chose.
+func replaceOrigin(endpoint, fromOrigin, toBase string) string {
+	if rest, found := strings.CutPrefix(endpoint, fromOrigin); found {
+		return toBase + rest
+	}
+	return endpoint
 }
 
 // LiveExchanger trades an authorization code for signature-verified ID-token
@@ -109,9 +164,10 @@ type LiveExchanger struct {
 }
 
 // NewLiveExchanger discovers the realm's endpoints and returns an exchanger
-// bound to them.
-func NewLiveExchanger(ctx context.Context, client *http.Client, issuer, clientID, clientSecret, redirectURI string) (*LiveExchanger, error) {
-	endpoints, err := Discover(ctx, client, issuer)
+// bound to them. internalBase, when non-empty, is the address the token and
+// JWKS requests are sent to instead of the issuer's own — see DiscoverVia.
+func NewLiveExchanger(ctx context.Context, client *http.Client, issuer, internalBase, clientID, clientSecret, redirectURI string) (*LiveExchanger, error) {
+	endpoints, err := DiscoverVia(ctx, client, issuer, internalBase)
 	if err != nil {
 		return nil, err
 	}

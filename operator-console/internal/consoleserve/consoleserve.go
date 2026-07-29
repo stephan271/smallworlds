@@ -38,8 +38,16 @@ import (
 type Settings struct {
 	// Address is the listen address inside the pod.
 	Address string
-	// Issuer is the Keycloak realm URL.
+	// Issuer is the Keycloak realm URL — the identity an Operator's browser is
+	// sent to and the value a token's iss claim must equal.
 	Issuer string
+	// InternalIssuerURL is where this process fetches discovery, tokens, and
+	// signing keys, when that is not the issuer's own address. In a Local
+	// LAN-only cluster the identity provider is served on the community's own
+	// hostname with a self-signed certificate that a container trusting only
+	// public roots cannot verify; reading from the in-cluster Service avoids
+	// both that and a needless trip out through the ingress and back.
+	InternalIssuerURL string
 	// ClientID and ClientSecret identify the console's Keycloak client. Per the
 	// project-wide contract they come from the keycloak-secret Secret's clientId
 	// and client-secret keys.
@@ -81,6 +89,7 @@ func SettingsFromEnvironment() (Settings, error) {
 	settings := Settings{
 		Address:             valueOr("SMALLWORLDS_CONSOLE_ADDRESS", ":8080"),
 		Issuer:              strings.TrimRight(os.Getenv("SMALLWORLDS_OIDC_ISSUER"), "/"),
+		InternalIssuerURL:   strings.TrimRight(os.Getenv("SMALLWORLDS_OIDC_INTERNAL_URL"), "/"),
 		ClientID:            os.Getenv("SMALLWORLDS_OIDC_CLIENT_ID"),
 		ClientSecret:        os.Getenv("SMALLWORLDS_OIDC_CLIENT_SECRET"),
 		ExternalURL:         strings.TrimRight(os.Getenv("SMALLWORLDS_CONSOLE_URL"), "/"),
@@ -160,13 +169,13 @@ type adapters struct {
 func newWithClient(ctx context.Context, settings Settings, client *kubeclient.Client, injected adapters) (*Server, error) {
 	exchanger := injected.exchanger
 	if exchanger == nil {
-		live, err := consoleauth.NewLiveExchanger(ctx, nil, settings.Issuer, settings.ClientID, settings.ClientSecret, settings.RedirectURI())
+		live, err := consoleauth.NewLiveExchanger(ctx, nil, settings.Issuer, settings.InternalIssuerURL, settings.ClientID, settings.ClientSecret, settings.RedirectURI())
 		if err != nil {
 			return nil, err
 		}
 		exchanger = live
 	}
-	endpoints, err := consoleauth.Discover(ctx, nil, settings.Issuer)
+	endpoints, err := consoleauth.DiscoverVia(ctx, nil, settings.Issuer, settings.InternalIssuerURL)
 	if err != nil {
 		return nil, err
 	}

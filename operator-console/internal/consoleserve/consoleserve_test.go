@@ -32,6 +32,10 @@ type fakeKeycloak struct {
 	key    *rsa.PrivateKey
 	roles  []string
 	nonce  string
+	// issuerOverride makes the stand-in realm publish an issuer other than its
+	// own address, as Keycloak does when KC_HOSTNAME names a hostname the
+	// cluster cannot reach from inside.
+	issuerOverride string
 }
 
 func newFakeKeycloak(t *testing.T, roles ...string) *fakeKeycloak {
@@ -44,6 +48,9 @@ func newFakeKeycloak(t *testing.T, roles ...string) *fakeKeycloak {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/.well-known/openid-configuration", func(response http.ResponseWriter, _ *http.Request) {
 		base := realm.server.URL
+		if realm.issuerOverride != "" {
+			base = realm.issuerOverride
+		}
 		_ = json.NewEncoder(response).Encode(map[string]string{
 			"issuer":                 base,
 			"authorization_endpoint": base + "/protocol/openid-connect/auth",
@@ -67,7 +74,10 @@ func newFakeKeycloak(t *testing.T, roles ...string) *fakeKeycloak {
 			"e": base64.RawURLEncoding.EncodeToString(big.NewInt(int64(key.E)).Bytes()),
 		}}})
 	})
-	realm.server = httptest.NewServer(mux)
+	realmMux := http.NewServeMux()
+	realmMux.Handle("/realms/smallworlds/", http.StripPrefix("/realms/smallworlds", mux))
+	realmMux.Handle("/", mux)
+	realm.server = httptest.NewServer(realmMux)
 	t.Cleanup(realm.server.Close)
 	return realm
 }
@@ -463,4 +473,51 @@ func statusOf(t *testing.T, client *http.Client, endpoint string) int {
 	}
 	defer response.Body.Close()
 	return response.StatusCode
+}
+
+// The deployed console has to work in a Local LAN-only cluster, where the
+// identity provider's own hostname is served with a certificate the pod cannot
+// verify. Configuring the internal address is what makes the whole surface come
+// up against an issuer this process never contacts directly.
+func TestServedConsoleUsesTheInternalIssuerAddress(t *testing.T) {
+	const externalIssuer = "https://identity.home.example/realms/smallworlds"
+	realm := newFakeKeycloak(t, "operator")
+	realm.issuerOverride = externalIssuer
+
+	client := newFakeAPIServer(t, convergedCluster())
+	settings := Settings{
+		Issuer: externalIssuer,
+		// Nothing in this test can reach identity.home.example, which is the
+		// point: the console must read the realm from here instead.
+		InternalIssuerURL: realm.server.URL,
+		ClientID:          "smallworlds-console",
+		ExternalURL:       "https://console.home.example",
+		BaseDomain:        "home.example",
+		SessionKey:        []byte("a-fixed-session-key-for-the-test"),
+		Namespace:         "operator-console",
+		ArgoNamespace:     "argocd",
+		DeploymentMode:    capability.LocalLAN,
+		EvidenceMaxAge:    time.Hour,
+	}
+	server, err := newWithClient(context.Background(), settings, client, adapters{
+		lookupHost: func(context.Context, string) ([]string, error) { return nil, errNoSuchHost },
+	})
+	if err != nil {
+		t.Fatalf("the console must start against an issuer it cannot reach directly: %v", err)
+	}
+	console := httptest.NewTLSServer(server.Handler)
+	defer console.Close()
+
+	// The browser is still sent to the external identity, which is the only
+	// address an Operator can actually open.
+	browser := console.Client()
+	browser.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	response, err := browser.Get(console.URL + "/api/v1/auth/login")
+	if err != nil {
+		t.Fatalf("login: %v", err)
+	}
+	_ = response.Body.Close()
+	if location := response.Header.Get("Location"); !strings.HasPrefix(location, "https://identity.home.example") {
+		t.Fatalf("login redirect = %q, want the external identity provider", location)
+	}
 }

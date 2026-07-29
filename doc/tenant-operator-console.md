@@ -110,7 +110,8 @@ producing a console that silently cannot complete a login.
 
 | Variable | Meaning |
 | --- | --- |
-| `SMALLWORLDS_OIDC_ISSUER` | The Keycloak realm URL. Authorize, token, and JWKS endpoints are discovered from it, so a realm move cannot leave a stale endpoint behind. **Required.** |
+| `SMALLWORLDS_OIDC_ISSUER` | The Keycloak realm URL — the identity a browser is sent to and the value a token's `iss` claim must equal. Authorize, token, and JWKS endpoints are discovered from it, so a realm move cannot leave a stale endpoint behind. **Required.** |
+| `SMALLWORLDS_OIDC_INTERNAL_URL` | Where this process reads discovery, tokens, and signing keys, when that is not the issuer's own address. See "Reaching Keycloak" below. |
 | `SMALLWORLDS_OIDC_CLIENT_ID` | From `keycloak-secret`'s `clientId` key (project-wide contract). **Required.** |
 | `SMALLWORLDS_OIDC_CLIENT_SECRET` | From `keycloak-secret`'s `client-secret` key. |
 | `SMALLWORLDS_CONSOLE_URL` | The console's own address as a browser sees it. Must match the redirect URI registered on the Keycloak client exactly. **Required.** |
@@ -128,6 +129,32 @@ domain patches (`admin-tools/generate_domain_patches.py` and its Go counterpart
 redirect URI the console sends, the redirect URI Keycloak accepts, and the
 Ingress hostname are three separate places that must agree; a login fails
 outright if any one of them still names another domain.
+
+## Reaching Keycloak
+
+The issuer is an identity, not necessarily an address this pod can reach. In a
+Local LAN-only cluster the identity provider is served on the community's own
+hostname with a self-signed certificate, and a container trusting only public
+roots cannot verify it — the first deployed console crashlooped on exactly that,
+with `x509: certificate signed by unknown authority` from OIDC discovery.
+
+Trusting that certificate instead would mean handing the console a rotating
+secret it has no other reason to hold, and would have required the Secret access
+the RBAC deliberately withholds. So the two concerns are separated:
+
+- `SMALLWORLDS_OIDC_ISSUER` stays the external identity. It is what a browser is
+  redirected to and what a token's `iss` claim is checked against.
+- `SMALLWORLDS_OIDC_INTERNAL_URL` is where discovery, the token exchange, and
+  the JWKS are actually fetched — the in-cluster Service.
+
+Only the machine-to-machine endpoints move. The authorization endpoint stays
+external, because an Operator's browser has to be able to open it. Fetching from
+elsewhere is safe because the discovery document must still name the configured
+issuer; without that check, pointing the console at any reachable address would
+move its trust anchor.
+
+This also spares every deployment a needless trip out through the ingress and
+back, so it is set in all modes rather than only in LAN-only ones.
 
 ## The Activity Record
 

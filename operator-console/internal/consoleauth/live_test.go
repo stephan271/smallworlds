@@ -120,9 +120,14 @@ type identityProvider struct {
 	idToken     string
 	tokenStatus int
 	tokenBody   string
-	jwksFetches atomic.Int64
-	lastForm    url.Values
-	lastAuth    string
+	// issuerOverride makes the stand-in realm publish an issuer other than its
+	// own address, the way Keycloak does when KC_HOSTNAME names a hostname the
+	// cluster cannot reach from inside.
+	issuerOverride string
+	jwksOverride   string
+	jwksFetches    atomic.Int64
+	lastForm       url.Values
+	lastAuth       string
 }
 
 func newIdentityProvider(t *testing.T, keys ...signingKey) *identityProvider {
@@ -131,11 +136,19 @@ func newIdentityProvider(t *testing.T, keys ...signingKey) *identityProvider {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/.well-known/openid-configuration", func(response http.ResponseWriter, _ *http.Request) {
 		base := provider.server.URL
+		published := base
+		if provider.issuerOverride != "" {
+			published = provider.issuerOverride
+		}
+		jwks := published + "/protocol/openid-connect/certs"
+		if provider.jwksOverride != "" {
+			jwks = provider.jwksOverride
+		}
 		_ = json.NewEncoder(response).Encode(map[string]string{
-			"issuer":                 base,
-			"authorization_endpoint": base + "/protocol/openid-connect/auth",
-			"token_endpoint":         base + "/protocol/openid-connect/token",
-			"jwks_uri":               base + "/protocol/openid-connect/certs",
+			"issuer":                 published,
+			"authorization_endpoint": published + "/protocol/openid-connect/auth",
+			"token_endpoint":         published + "/protocol/openid-connect/token",
+			"jwks_uri":               jwks,
 		})
 	})
 	mux.HandleFunc("/protocol/openid-connect/token", func(response http.ResponseWriter, request *http.Request) {
@@ -157,14 +170,21 @@ func newIdentityProvider(t *testing.T, keys ...signingKey) *identityProvider {
 		}
 		_ = json.NewEncoder(response).Encode(map[string]any{"keys": keys})
 	})
-	provider.server = httptest.NewServer(mux)
+	// A real Keycloak serves every realm endpoint under /realms/<realm>/. The
+	// stand-in answers both there and at the root so a test can address it
+	// either as the issuer itself or as an internal base the issuer's realm path
+	// is appended to.
+	realm := http.NewServeMux()
+	realm.Handle("/realms/smallworlds/", http.StripPrefix("/realms/smallworlds", mux))
+	realm.Handle("/", mux)
+	provider.server = httptest.NewServer(realm)
 	t.Cleanup(provider.server.Close)
 	return provider
 }
 
 func (provider *identityProvider) exchanger(t *testing.T, clientID, clientSecret string) *LiveExchanger {
 	t.Helper()
-	exchanger, err := NewLiveExchanger(context.Background(), provider.server.Client(), provider.server.URL, clientID, clientSecret, "https://console.example.test/api/v1/auth/callback")
+	exchanger, err := NewLiveExchanger(context.Background(), provider.server.Client(), provider.server.URL, "", clientID, clientSecret, "https://console.example.test/api/v1/auth/callback")
 	if err != nil {
 		t.Fatalf("build exchanger: %v", err)
 	}
@@ -419,5 +439,92 @@ func TestCompleteLoginThroughLiveExchanger(t *testing.T) {
 	}
 	if claims.PreferredUsername != "ada" {
 		t.Fatalf("username = %q", claims.PreferredUsername)
+	}
+}
+
+// In a Local LAN-only cluster the identity provider is served on the community's
+// own hostname with a self-signed certificate this process cannot verify. The
+// console must still be able to reach it — from inside the cluster — while the
+// issuer it validates against stays the external identity the browser uses.
+// This is the case that crashlooped the first deployed console.
+func TestDiscoverViaReadsAnUnreachableIssuerFromInside(t *testing.T) {
+	const externalIssuer = "https://identity.home.example/realms/smallworlds"
+	provider := newIdentityProvider(t, newRSASigningKey(t, "key-1"))
+	// The document names the external issuer, exactly as Keycloak does when
+	// KC_HOSTNAME is set, while being served from the in-cluster address.
+	provider.issuerOverride = externalIssuer
+
+	endpoints, err := DiscoverVia(context.Background(), provider.server.Client(), externalIssuer, provider.server.URL)
+	if err != nil {
+		t.Fatalf("discover via the internal address: %v", err)
+	}
+	// Machine-to-machine endpoints move to the reachable address.
+	if !strings.HasPrefix(endpoints.TokenEndpoint, provider.server.URL) {
+		t.Fatalf("token endpoint = %q, want it on the internal address", endpoints.TokenEndpoint)
+	}
+	if !strings.HasPrefix(endpoints.JWKSURI, provider.server.URL) {
+		t.Fatalf("jwks uri = %q, want it on the internal address", endpoints.JWKSURI)
+	}
+	// The browser-facing endpoint must not: an Operator has to be able to reach it.
+	if !strings.HasPrefix(endpoints.AuthorizationEndpoint, "https://identity.home.example") {
+		t.Fatalf("authorization endpoint = %q, want the external address", endpoints.AuthorizationEndpoint)
+	}
+	// The realm path survives the rewrite.
+	if !strings.Contains(endpoints.TokenEndpoint, "/realms/smallworlds/protocol/openid-connect/token") {
+		t.Fatalf("token endpoint lost its path: %q", endpoints.TokenEndpoint)
+	}
+}
+
+// Fetching from elsewhere is only safe because the document still has to name
+// the configured issuer. Without that check, pointing the console at any
+// reachable address would move its trust anchor.
+func TestDiscoverViaStillPinsTheConfiguredIssuer(t *testing.T) {
+	provider := newIdentityProvider(t, newRSASigningKey(t, "key-1"))
+	provider.issuerOverride = "https://attacker.example.test/realms/smallworlds"
+
+	_, err := DiscoverVia(context.Background(), provider.server.Client(), "https://identity.home.example/realms/smallworlds", provider.server.URL)
+	if err == nil {
+		t.Fatal("expected a document naming a different issuer to be refused")
+	}
+}
+
+// A provider entitled to publish an endpoint on a third host keeps it:
+// rewriting one blindly would send a token request to an address nobody chose.
+func TestDiscoverViaLeavesForeignEndpointsAlone(t *testing.T) {
+	provider := newIdentityProvider(t, newRSASigningKey(t, "key-1"))
+	provider.issuerOverride = "https://identity.home.example/realms/smallworlds"
+	provider.jwksOverride = "https://keys.elsewhere.test/jwks.json"
+
+	endpoints, err := DiscoverVia(context.Background(), provider.server.Client(), "https://identity.home.example/realms/smallworlds", provider.server.URL)
+	if err != nil {
+		t.Fatalf("discover: %v", err)
+	}
+	if endpoints.JWKSURI != "https://keys.elsewhere.test/jwks.json" {
+		t.Fatalf("jwks uri = %q, want it untouched", endpoints.JWKSURI)
+	}
+}
+
+// The whole login has to work through the internal address, not just discovery.
+func TestLiveExchangerCompletesLoginThroughTheInternalAddress(t *testing.T) {
+	const externalIssuer = "https://identity.home.example/realms/smallworlds"
+	key := newRSASigningKey(t, "key-1")
+	provider := newIdentityProvider(t, key)
+	provider.issuerOverride = externalIssuer
+
+	exchanger, err := NewLiveExchanger(context.Background(), provider.server.Client(), externalIssuer, provider.server.URL, "smallworlds-console", "", "https://console.home.example/api/v1/auth/callback")
+	if err != nil {
+		t.Fatalf("build exchanger: %v", err)
+	}
+	provider.idToken = key.sign(t, standardClaims(externalIssuer, "smallworlds-console", "nonce-abc"))
+
+	claims, err := exchanger.Exchange(context.Background(), "the-code", "the-verifier")
+	if err != nil {
+		t.Fatalf("exchange through the internal address: %v", err)
+	}
+	if claims.Issuer != externalIssuer {
+		t.Fatalf("issuer = %q, want the external identity", claims.Issuer)
+	}
+	if err := ValidateClaims(claims, Expectations{Issuer: externalIssuer, Audience: "smallworlds-console", Nonce: "nonce-abc", Now: time.Now().UTC()}); err != nil {
+		t.Fatalf("claims from an internally fetched token must still validate: %v", err)
 	}
 }
