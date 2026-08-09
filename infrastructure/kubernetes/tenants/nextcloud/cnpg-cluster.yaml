@@ -6,6 +6,15 @@ spec:
   instances: 2
   imageName: ghcr.io/cloudnative-pg/postgresql:16
   primaryUpdateStrategy: unsupervised
+  # Garage's [s3_api] s3_region is "garage". Without this, barman-cloud (and any S3
+  # client) signs SigV4 with the default us-east-1 scope, which Garage rejects with
+  # HTTP 400 (AuthorizationHeaderMalformed). That silently stalls WAL archiving and
+  # lets pg_wal grow until the node's disk fills — see doc/storage-and-backup.md.
+  env:
+    - name: AWS_REGION
+      value: garage
+    - name: AWS_DEFAULT_REGION
+      value: garage
   monitoring:
     enablePodMonitor: true
   storage:

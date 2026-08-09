@@ -24,7 +24,10 @@ helmCharts:
             provider: aws
             bucket: velero-backups
             config:
-              region: us-east-1
+              # Must match Garage's [s3_api] s3_region ("garage"); the AWS default
+              # us-east-1 makes Garage reject every request with HTTP 400
+              # (AuthorizationHeaderMalformed). Same root cause as the CNPG clusters.
+              region: garage
               s3ForcePathStyle: true
               s3Url: http://garage.garage-system.svc.cluster.local:3900
         volumeSnapshotLocation: []
