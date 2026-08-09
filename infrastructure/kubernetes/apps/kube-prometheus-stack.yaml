@@ -51,8 +51,16 @@ spec:
             existingSecret: "grafana-admin-creds"
             userKey: admin-user
             passwordKey: admin-password
+        # Keep the operator itself scheduling-priority high so it can recreate
+        # Prometheus/Alertmanager promptly after a disruption.
+        prometheusOperator:
+          priorityClassName: smallworlds-monitoring
         prometheus:
           prometheusSpec:
+            # Evicted last under node pressure (see apps/priorityclasses.yaml):
+            # on 2026-08-09 Prometheus and Alertmanager were evicted by the very
+            # DiskPressure they should have alerted on, so nothing was reported.
+            priorityClassName: smallworlds-monitoring
             # Select monitors/rules cluster-wide instead of only those carrying
             # the chart's release label (the *NilUsesHelmValues defaults).
             # Needed for the CNPG operator-generated PodMonitors, Velero's
@@ -70,6 +78,9 @@ spec:
                       storage: 20Gi
         alertmanager:
           alertmanagerSpec:
+            # Evicted last under node pressure (see apps/priorityclasses.yaml) so
+            # alert delivery survives a degrading cluster.
+            priorityClassName: smallworlds-monitoring
             # Load AlertmanagerConfig CRs labelled alertmanagerConfig=smallworlds.
             # matcherStrategy None so a single CR in the monitoring namespace routes
             # alerts from ALL namespaces (default OnNamespace would scope it to

@@ -1,0 +1,101 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: node-disk-alerts
+  namespace: monitoring
+  annotations:
+    # Apply after the kube-prometheus-stack CRDs exist (fresh-install ordering;
+    # ArgoCD retries anyway if the CRD isn't ready yet).
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  groups:
+    - name: node-disk.rules
+      # These are deliberate EARLY warnings. The kube-prometheus-stack default
+      # node-exporter rules (NodeFilesystemSpaceFillingUp / AlmostOutOfSpace)
+      # only fire near ~5-10% free — past the kubelet's imagefs<15% hard
+      # eviction threshold that took the whole node down on 2026-08-09. The
+      # root cause then was a slow WAL creep (CNPG archiving to Garage broken,
+      # pg_wal never recycled) that spent a week climbing from healthy to full.
+      # A 75%-used warning would have flagged it with weeks of lead time.
+      rules:
+        # The node's root filesystem crossed 75% used. Single-node cluster:
+        # every PV, container image and log lives on this one disk, so this is
+        # the master early-warning for capacity of any kind.
+        - alert: NodeDiskSpaceEarlyWarning
+          expr: |
+            100 * (
+              node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay|squashfs|ramfs"}
+              /
+              node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay|squashfs|ramfs"}
+            ) < 25
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node {{ $labels.instance }} root disk over 75% used"
+            description: >-
+              Only {{ printf "%.1f" $value }}% free on {{ $labels.instance }}:/.
+              On this single node that threatens every workload. Common cause is
+              CNPG pg_wal growth from failed archiving — check
+              `du -sh /var/lib/rancher/k3s/storage/*` and the
+              CNPGWALArchivingFailing alert.
+
+        # Sustained downward trajectory: at the current fill rate the root disk
+        # runs out within ~3 days. Catches a steady leak (like un-recycled WAL)
+        # regardless of the current absolute level, so it can fire while there
+        # is still plenty of runway to act.
+        - alert: NodeDiskWillFillIn3Days
+          expr: |
+            predict_linear(
+              node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay|squashfs|ramfs"}[12h],
+              3 * 24 * 3600
+            ) < 0
+          for: 2h
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node {{ $labels.instance }} root disk projected full within 3 days"
+            description: >-
+              At the last 12h fill rate, {{ $labels.instance }}:/ is on track to
+              run out of space within 3 days. Find the growing consumer before
+              the kubelet starts evicting pods (imagefs<15%).
+
+        # Critical: past the point where the kubelet's hard eviction thresholds
+        # (imagefs.available<15%, nodefs.available<10%) start evicting pods.
+        - alert: NodeDiskSpaceCritical
+          expr: |
+            100 * (
+              node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay|squashfs|ramfs"}
+              /
+              node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay|squashfs|ramfs"}
+            ) < 16
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Node {{ $labels.instance }} root disk critically low ({{ printf \"%.1f\" $value }}% free)"
+            description: >-
+              {{ $labels.instance }}:/ is at or below the kubelet eviction
+              threshold. Pod evictions and DiskPressure are imminent or active.
+              Reclaim space now (unused images, journal, oversized PVs).
+
+        # A single PersistentVolume crossed 80% used. This is the most specific
+        # early signal — it would have named stalwart's database-1 pg_wal
+        # volume directly, well before it filled the shared node disk.
+        - alert: PersistentVolumeSpaceHigh
+          expr: |
+            100 * (
+              kubelet_volume_stats_available_bytes
+              /
+              kubelet_volume_stats_capacity_bytes
+            ) < 20
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} over 80% used"
+            description: >-
+              PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} has
+              {{ printf "%.1f" $value }}% free. If this is a CNPG data volume, it
+              is likely pg_wal that is not being recycled — check the cluster's
+              ContinuousArchiving condition.

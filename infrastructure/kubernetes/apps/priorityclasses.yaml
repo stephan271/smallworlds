@@ -1,0 +1,22 @@
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: smallworlds-monitoring
+  annotations:
+    # Apply before the workloads that reference it (monitoring is sync-wave 0).
+    argocd.argoproj.io/sync-wave: "-20"
+# Well above the default priority of 0 that every tenant pod runs at, and below
+# the reserved system-*-critical band (>= 1e9). Under node DiskPressure/Memory
+# pressure the kubelet evicts lowest-priority pods first, so this makes the
+# observability stack the LAST ordinary workload to be evicted — the fix for the
+# 2026-08-09 outage, where Prometheus, Alertmanager and the remediation agent
+# were all evicted by the very disk pressure they should have reported.
+#
+# Deliberately NOT one of the system-*-critical classes: those make a pod
+# non-evictable entirely, which could wedge the node. We want "evicted last",
+# not "never evicted".
+value: 1000000
+globalDefault: false
+description: >-
+  Observability/alerting workloads that must outlive tenant apps under node
+  resource pressure so an operator is still told what is happening.
