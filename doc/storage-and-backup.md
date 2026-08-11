@@ -4,7 +4,10 @@ The single reference for the cluster's storage layout, backup chain, restore
 procedures and scaling paths. Derived from the manifests in this repo (baseline:
 commit `e1755fd`, 2026-07-18). This document absorbed and replaces the former
 `admin-tools/restore-procedures.md` and `admin-tools/scaling-guide.md`. Related:
-`doc/bases.md` (the init-job bases that provision buckets/keys).
+`doc/bases.md` (the init-job bases that provision buckets/keys), and
+`plans-and-walkthroughs/design-personal-data-pods.md` (design exploration: pushing
+the file-shaped, per-user slice into user-owned Solid pods as an append-only
+sovereignty layer on top of the backup chain described here — not implemented).
 
 ## 1. Physical storage foundation
 
