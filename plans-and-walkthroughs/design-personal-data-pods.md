@@ -243,7 +243,88 @@ backup remains.)
 
 ---
 
-## 9. Open questions & possible next steps
+## 9. Redundancy — how many copies of each data class
+
+Governing rule: **a live copy in daily use is not a backup** — a backup must sit in
+a *different failure domain* than the primary. Count independent failure domains,
+not files. Two consequences specific to this single-node cluster:
+
+- **CNPG `instances: 2`** is a primary + replica for *failover*, but both PVCs are
+  on the **same physical disk** — HA, not durability. Counts as **1** durable copy.
+- **In-cluster Garage** runs `replicationFactor: 1` on that **same disk**, so it
+  counts as **0** independent instances for either data class. **Only the offsite
+  copy is real redundancy.**
+
+This also sharpens the §2 dividing line into **three** backup classes, because
+"the DB is derived from the pod" is only 90% true:
+
+| Class | Example | Regenerable from source? | Lives in | Durable backup? |
+|---|---|---|---|---|
+| **(a) Source** | photos, files, `.eml` | — (it *is* the source) | pod / home device | Yes — irreplaceable |
+| **(b) Derived** | embeddings, thumbnails, transcodes, search vectors | Yes — recompute from (a) | central DB / caches | Optional (costs compute) |
+| **(c) User intent** | album membership, the *name* given to a face, tags, folder org, mail flags, shares | **No** | central DB | **Yes — irreplaceable** |
+
+Category **(c)** is the trap: it sits in the DB next to (b) but is *not* derived —
+human decisions that can never be recomputed from pixels. So the conventional
+central DB backup is **essential, not secondary**; the pod archive does not make it
+optional.
+
+### Source (append-only) data — aim for 3
+
+| # | Instance | Failure domain | Role |
+|---|---|---|---|
+| 1 | Live on server (Immich library / Nextcloud PVC / mail) | node disk | primary (daily ops) |
+| 2 | Central offsite backup (→ B2 / home box) | different provider/site | reliable, monitored backup |
+| 3 | User home device (pull-based SSD) | user's home | sovereign copy |
+
+Is **2** (server + device) enough? It is the bare minimum, and append-only helps
+more than a mirror would: because objects are immutable and the device pulls
+copy-not-sync, a *logical* disaster on the server (ransomware, mass-delete, admin
+error) **does not propagate** to the device. The remaining risk is **physical,
+correlated failure** — the home device is the least reliable component (single
+consumer SSD, user-managed, unmonitored, one location). For *irreplaceable* source,
+keep **3**; the device is then a bonus sovereign copy and losing it is never data
+loss. To honestly run at **2**, harden the device (mirrored disks + monitoring +
+heartbeat) and accept single-site risk.
+
+The home device is **pull-based**: it connects *outbound* to the cluster and fetches
+its owner's new pod objects (read-only, prefix-scoped credential; `rclone copy`, not
+`sync`). No inbound ports / dyndns at home; it can't write to or harm the cluster;
+it catches up automatically after any offline stretch. Encrypt at rest (LUKS) and
+report a heartbeat so a silently-dead box is noticed.
+
+### DB (derived + intent) data — central only; 2 workable, 3 better
+
+Stays **central** (commingled, not per-user-sliceable) — **never on user devices.**
+
+| # | Instance | Counts as | Notes |
+|---|---|---|---|
+| 1 | CNPG live (primary + replica, same disk) | 1 durable | 2 pods = HA, not redundancy |
+| 2 | Offsite barman archive (→ B2, versioned) | 1 independent | PITR: base + continuous WAL, 7-day depth |
+| — | in-cluster Garage staging | 0 | same disk |
+
+**Minimum 2** (live + one *offsite*), and that offsite is stronger than a flat
+snapshot — barman PITR + B2 versioning make it a time-layered history from one
+location. Because it holds the irreplaceable **(c)**, the right target is **3**: a
+*second* offsite domain (home box or a different provider) so a single
+provider/account failure isn't total loss. **(b)** alone could be regenerated from
+source, so the thing you protect to the "3" standard is really the small, precious
+**(c)**.
+
+### Summary
+
+| Data | Practical minimum | Recommended | On user devices? |
+|---|---|---|---|
+| **Source (append-only)** | 2 (live + device) — thin | **3** (live + central offsite + device) | **Yes** |
+| **DB (derived + intent)** | 2 (live + versioned offsite) | **3** (live + 2 offsite domains) | **No** |
+
+The offsite leg is the copy that actually matters — the in-cluster Garage on the
+shared disk counts toward none of these numbers, which is why provisioning a real
+offsite target remains the #1 open task (§10) before any of this redundancy is real.
+
+---
+
+## 10. Open questions & possible next steps
 
 Nothing below is scheduled; listed roughly easiest→hardest.
 
@@ -263,7 +344,7 @@ Nothing below is scheduled; listed roughly easiest→hardest.
 6. **Phase 2 identity** — Keycloak `webid` mapper + DPoP so pods join SSO; gate on
    Keycloak's DPoP maturity and/or ActivityPods 3.0's Solid-OIDC work.
 
-## 10. One-paragraph summary
+## 11. One-paragraph summary
 
 Files (Nextcloud), pixels (Immich), and mail (Stalwart) all reduce to the same
 shape: **immutable, per-user, append-only objects that can be pushed blindly into a
