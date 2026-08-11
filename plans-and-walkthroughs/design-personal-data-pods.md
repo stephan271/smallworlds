@@ -311,6 +311,14 @@ provider/account failure isn't total loss. **(b)** alone could be regenerated fr
 source, so the thing you protect to the "3" standard is really the small, precious
 **(c)**.
 
+> **Considered and deferred (2026-08-11):** moving **(c)** into the pods too — so
+> the pod holds everything irreplaceable and the DB becomes a pure disposable
+> cache — is feasible but not worth the effort now. Two reasons: intent is
+> *mutable* (it fits only as append-only versioned snapshots, per-app custom
+> export), and there is *no DB-reconstruction tooling*, so pod-stored intent would
+> be an owned copy, not a restore path — it wouldn't let us drop the central DB
+> backup anyway. Intent stays central; revisit if reconstruction tooling is built.
+
 ### Summary
 
 | Data | Practical minimum | Recommended | On user devices? |
