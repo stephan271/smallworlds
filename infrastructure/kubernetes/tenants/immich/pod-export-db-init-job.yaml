@@ -84,15 +84,27 @@ spec:
                 sleep 10
               done
 
-              echo "Granting read-only access on the Immich schema..."
+              echo "Waiting for Immich to create the asset table..."
+              for _ in $(seq 1 60); do
+                if $PSQL -At -c "SELECT to_regclass('public.asset') IS NOT NULL" \
+                     2>/dev/null | grep -q t; then
+                  break
+                fi
+                echo "  asset table not present yet, waiting..."
+                sleep 10
+              done
+
+              # Exactly the one table inventory.sql reads, and nothing else.
+              # GRANT ... ON ALL TABLES would fail anyway: the public schema
+              # also holds VectorChord's extension-owned tables, which `app`
+              # does not own and therefore cannot grant.
+              echo "Granting read-only access to public.asset..."
               $PSQL <<'SQL'
               GRANT CONNECT ON DATABASE app TO pod_exporter;
               GRANT USAGE ON SCHEMA public TO pod_exporter;
-              GRANT SELECT ON ALL TABLES IN SCHEMA public TO pod_exporter;
-              ALTER DEFAULT PRIVILEGES IN SCHEMA public
-                GRANT SELECT ON TABLES TO pod_exporter;
+              GRANT SELECT ON TABLE public.asset TO pod_exporter;
               SQL
-              echo "pod_exporter is ready (SELECT only)."
+              echo "pod_exporter is ready (SELECT on public.asset only)."
           env:
             - name: APP_PASSWORD
               valueFrom:
