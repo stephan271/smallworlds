@@ -71,6 +71,10 @@ test.describe('Pod archive', () => {
   test.describe.configure({ mode: 'serial' });
 
   test.beforeAll(async ({ request }) => {
+    // Enrolment writes a Secret, and the gateway only sees it once the kubelet
+    // re-projects the volume — measured at ~60s on staging. The default 90s
+    // hook timeout is a coin flip against that, so allow for several syncs.
+    test.setTimeout(300_000);
     test.skip(!process.env.KUBECONFIG, 'KUBECONFIG is required to mint pod tokens');
     test.skip(!kubectl(['get', 'ns', 'pod-gateway', '--ignore-not-found']),
               'pod-gateway is not deployed in this cluster');
@@ -194,6 +198,9 @@ test.describe('Pod archive', () => {
   });
 
   test('the real device agent pulls and verifies the archive', async () => {
+    // Spawns python twice (sync, then a full re-verify), so it needs more than
+    // the default per-test budget.
+    test.setTimeout(180_000);
     const workDir = mkdtempSync(join(tmpdir(), 'pod-device-'));
     const configPath = join(workDir, 'config.json');
     writeFileSync(configPath, JSON.stringify({
