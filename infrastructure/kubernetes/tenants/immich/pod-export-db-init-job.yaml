@@ -1,0 +1,75 @@
+# Provisions the read-only database identity the pod exporter uses.
+#
+# Split in two because neither half can do the other's job: the CNPG `managed`
+# role in cnpg-cluster needs its password Secret to exist first, and only the
+# `app` owner can grant SELECT on Immich's tables (CNPG's app user is not a
+# superuser and cannot CREATE ROLE).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pod-export-db-init
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+    # After setup-rbac (-3), alongside the other tenant init jobs.
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      serviceAccountName: setup-sa
+      restartPolicy: OnFailure
+      initContainers:
+        - name: password
+          image: docker.io/alpine/k8s:1.36.2
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+              if kubectl get secret immich-pod-exporter-db -n immich >/dev/null 2>&1; then
+                echo "immich-pod-exporter-db already exists, keeping it."
+                exit 0
+              fi
+              echo "Generating pod_exporter password..."
+              PASSWORD=$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')
+              kubectl create secret generic immich-pod-exporter-db -n immich \
+                --type=kubernetes.io/basic-auth \
+                --from-literal=username=pod_exporter \
+                --from-literal=password="$PASSWORD"
+      containers:
+        - name: grants
+          image: docker.io/postgres:16-alpine
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+              export PGPASSWORD="$APP_PASSWORD"
+              PSQL="psql -h database-rw -U app -d app -v ON_ERROR_STOP=1"
+
+              echo "Waiting for CNPG to create the pod_exporter role..."
+              for _ in $(seq 1 60); do
+                if $PSQL -At -c "SELECT 1 FROM pg_roles WHERE rolname='pod_exporter'" \
+                     2>/dev/null | grep -q 1; then
+                  break
+                fi
+                echo "  role not present yet, waiting..."
+                sleep 10
+              done
+
+              echo "Granting read-only access on the Immich schema..."
+              $PSQL <<'SQL'
+              GRANT CONNECT ON DATABASE app TO pod_exporter;
+              GRANT USAGE ON SCHEMA public TO pod_exporter;
+              GRANT SELECT ON ALL TABLES IN SCHEMA public TO pod_exporter;
+              ALTER DEFAULT PRIVILEGES IN SCHEMA public
+                GRANT SELECT ON TABLES TO pod_exporter;
+              SQL
+              echo "pod_exporter is ready (SELECT only)."
+          env:
+            - name: APP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-app
+                  key: password

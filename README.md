@@ -39,6 +39,7 @@ This project is built upon several foundational open-source technologies, core i
 | **Stalwart** | [stalw.art](https://stalw.art/) | Self-hosted mail server with OIDC directory integration. |
 | **Traefik** | [traefik.io](https://traefik.io/) | Ingress routing and reverse proxy for handling incoming requests. |
 | **Cert-Manager** | [cert-manager.io](https://cert-manager.io/) | Automated TLS certificate provisioning and management. |
+| **Pod Gateway** | [`tenants/pod-gateway/`](infrastructure/kubernetes/tenants/pod-gateway/) | Append-only personal data pods (`pod.<domain>`). Apps deposit each member's source data into a pod they cannot read; the member's home device pulls it and never deletes. Optional. See [`doc/pod-archive.md`](doc/pod-archive.md). |
 | **Operator Console** | [`operator-console/`](operator-console/) | The privileged administration interface (`console.<domain>`). Authenticates through Keycloak with Observer/Operator/Owner roles and explains every capability from configuration, delivery, runtime, access and protection evidence. Reachable only from the Private Network. See [`doc/tenant-operator-console.md`](doc/tenant-operator-console.md). |
 
 ### End User Applications

@@ -6,7 +6,6 @@ bases:
   - ../../bases/setup-rbac
   - ../../bases/garage-init-job
   - ../../bases/keycloak-client-job
-  - ../../bases/pv-backup-job
 
 resources:
   - redis.yaml
@@ -16,6 +15,8 @@ resources:
   - immich-secret-init-job.yaml
   - library-pvc.yaml
   - immich-catalog.yaml
+  - pod-export-db-init-job.yaml
+  - pod-export-cronjob.yaml
 
 patches:
   - target:
@@ -25,19 +26,9 @@ patches:
       - op: replace
         path: /metadata/name
         value: setup-binding-immich
-  # Nightly copy of the photo/video originals into the tenant bucket, where the
-  # backup-replicator picks them up for the offsite leg (the library PV is
-  # otherwise the only copy of the community's photos).
-  - target:
-      kind: CronJob
-      name: pv-backup
-    patch: |-
-      - op: replace
-        path: /spec/jobTemplate/spec/template/spec/volumes/0/persistentVolumeClaim/claimName
-        value: immich-library-pvc
-      - op: replace
-        path: /spec/jobTemplate/spec/template/spec/containers/0/env/0/value
-        value: "immich/pv-backup/library"
+  # The originals are no longer mirrored into the tenant bucket by pv-backup.
+  # immich-pod-export appends them to each enrolled user's pod instead, and that
+  # archive is deliberately the only server-side copy — docs/adr/0047.
   - target:
       kind: Job
       name: keycloak-client-init
@@ -73,6 +64,28 @@ patches:
         value:
           shared_preload_libraries:
             - "vchord.so"
+      # Login role for the pod exporter. CNPG owns the role's existence; the
+      # SELECT grants are applied by pod-export-db-init, which connects as the
+      # `app` owner.
+      - op: add
+        path: /spec/managed
+        value:
+          roles:
+            - name: pod_exporter
+              ensure: present
+              login: true
+              passwordSecret:
+                name: immich-pod-exporter-db
+
+configMapGenerator:
+  - name: immich-pod-export-sql
+    namespace: immich
+    files:
+      - pod-export/inventory.sql
+  - name: immich-pod-export-src
+    namespace: immich
+    files:
+      - pod-export/export.py
 
 helmCharts:
   - name: immich

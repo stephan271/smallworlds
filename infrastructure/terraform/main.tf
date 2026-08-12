@@ -157,7 +157,8 @@ resource "hcloud_zone_rrset" "app_records" {
       "office",
       "plan",
       "deploy",
-      "vpn"
+      "vpn",
+      "pod"
     ] : r if r != "@" || var.env_ext == ""
   ])
 

@@ -1,0 +1,26 @@
+[Unit]
+Description=Pull the personal pod archive
+Documentation=https://github.com/stephan271/smallworlds/blob/main/doc/pod-archive.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=podarchive
+Group=podarchive
+ExecStart=/usr/local/lib/pod-archive/pod-agent.py
+# The agent only ever adds files. Everything else on the device is read-only to
+# it, which is the same guarantee the archive itself is built on.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+ReadWritePaths=/var/lib/pod-archive
+# A large first sync over a home uplink can take many hours.
+TimeoutStartSec=86400
+
+[Install]
+WantedBy=multi-user.target

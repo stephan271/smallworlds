@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pod-gateway-config
+  namespace: pod-gateway
+data:
+  LISTEN_PORT: "8080"
+  S3_ENDPOINT: "http://garage.garage-system.svc.cluster.local:3900"
+  # Garage 400s on any other region — see doc/storage-and-backup.md.
+  S3_REGION: "garage"
+  # Created by bases/garage-init-job, which names the bucket after the namespace.
+  S3_BUCKET: "pod-gateway"
+  TOKENS_PATH: "/etc/pod-gateway/tokens.json"
+  SPOOL_MEMORY_BYTES: "33554432"
+  MAX_OBJECT_BYTES: "4294967296"
+  MANIFEST_PAGE_DEFAULT: "200"
+  MANIFEST_PAGE_MAX: "1000"

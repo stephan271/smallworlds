@@ -1,0 +1,34 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: pod-gateway
+
+bases:
+  - ../../bases/setup-rbac
+  - ../../bases/garage-init-job
+
+resources:
+  - pod-gateway-config.yaml
+  - pod-gateway-deployment.yaml
+  - pod-gateway-service.yaml
+  - pod-gateway-ingress.yaml
+
+patches:
+  - target:
+      kind: ClusterRoleBinding
+      name: setup-binding
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: setup-binding-pod-gateway
+
+configMapGenerator:
+  # The gateway source, mounted at /app. Flat package (no subdirs), so a single
+  # ConfigMap suffices — ConfigMap keys can't contain "/".
+  - name: pod-gateway-src
+    namespace: pod-gateway
+    files:
+      - src/config.py
+      - src/s3.py
+      - src/auth.py
+      - src/store.py
+      - src/main.py

@@ -1,0 +1,13 @@
+[Unit]
+Description=Pull the personal pod archive every 15 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+# Spread load when a community has several devices on the same schedule.
+RandomizedDelaySec=5min
+# Catch up after the device has been off or offline.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

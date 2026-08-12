@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pod-gateway
+  namespace: pod-gateway
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Deliberately no buffering middleware: objects are whole photos and videos,
+    # and Traefik streams them through by default. Buffering would spool every
+    # asset to the Traefik pod's disk on the way past.
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - pod.smallworlds.network
+      secretName: pod-gateway-tls
+  rules:
+    - host: pod.smallworlds.network
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pod-gateway
+                port:
+                  number: 80

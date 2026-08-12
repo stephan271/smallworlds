@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pod-gateway
+  namespace: pod-gateway
+  labels:
+    app: pod-gateway
+spec:
+  # Single replica on purpose: the manifest chain is serialised by an in-process
+  # per-user lock, so a second writer could fork the chain.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: pod-gateway
+  template:
+    metadata:
+      labels:
+        app: pod-gateway
+    spec:
+      containers:
+        - name: gateway
+          # Pure Python stdlib (SigV4 is signed by hand), run straight from a
+          # ConfigMap-mounted volume — same pattern as hermes/remediation, so
+          # there is no image to build and the pod starts deterministically.
+          image: python:3.14-slim@sha256:b877e50bd90de10af8d82c57a022fc2e0dc731c5320d762a27986facfc3355c1
+          command: ["python", "-u", "/app/main.py"]
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            # ConfigMap volumes symlink through a timestamped ..data dir; put
+            # /app on the path explicitly so imports resolve.
+            - name: PYTHONPATH
+              value: /app
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: garage-secret
+                  key: accessKey
+            - name: S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: garage-secret
+                  key: secretKey
+          envFrom:
+            - configMapRef:
+                name: pod-gateway-config
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 20
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 20m
+              memory: 128Mi
+              # Uploads above SPOOL_MEMORY_BYTES spill to the container
+              # filesystem; keep this above the largest expected single asset.
+              ephemeral-storage: 6Gi
+            limits:
+              memory: 384Mi
+              ephemeral-storage: 6Gi
+          volumeMounts:
+            - name: src
+              mountPath: /app
+            - name: tokens
+              mountPath: /etc/pod-gateway
+              readOnly: true
+      volumes:
+        - name: src
+          configMap:
+            name: pod-gateway-src
+        - name: tokens
+          secret:
+            # Written by admin-tools/pod-enroll-device.sh. Optional so the
+            # gateway starts before the first device is enrolled.
+            secretName: pod-gateway-tokens
+            optional: true

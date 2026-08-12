@@ -131,9 +131,22 @@ The design is a two-hop chain: **app data → in-cluster Garage S3 → offsite m
 | 1 | 5 tenant CNPG DBs (`database` in nextcloud/immich/plane/forgejo/stalwart) | Barman object store (base backup + continuous WAL, gzip) via `ScheduledBackup`, per-tenant `serverName: <tenant>-database` | `s3://postgres-backups/<tenant>-database/` on in-cluster Garage (shared bucket, credential `garage-secret-cnpg` per namespace) | daily 02:00 | 7 d |
 | 2 | Keycloak DB (`keycloak-db`) | Same, but dedicated bucket + key (custom `garage-init-job.yaml`, credential `garage-secret`) | `s3://postgres-backups-keycloak/` | daily 03:00 | 7 d |
 | 3 | Kubernetes resources (all namespaces except `kube-system`) | Velero 12.x, AWS S3 plugin, `deployNodeAgent: false`, no volume snapshots | Garage bucket `velero-backups` | daily 02:00 | 720 h (30 d) |
-| 4 | PVC file data: Immich library, Forgejo git repos, Nextcloud `/var/www/html` | `bases/pv-backup-job` rclone CronJob per tenant (PVC mounted read-only, RWO is fine on a single node) | Tenant's own Garage bucket under `pv-backup/` (`immich/pv-backup/library`, `forgejo/pv-backup/data`, `nextcloud/pv-backup/html`) | daily 00:30 / 00:45 / 01:00 | Mirror in Garage; history via offsite versioning |
-| 5 | **All** Garage buckets (1–4 above + per-tenant buckets) | `backup-replicator` CronJob: `rclone sync source: dest:` | Offsite S3 — operator-provisioned per `tenants/backup-replicator/README.md` (recommended: B2 versioned bucket, §8) | daily 04:00 | Mirror; point-in-time via destination versioning |
+| 4 | PVC file data: Forgejo git repos, Nextcloud `/var/www/html` | `bases/pv-backup-job` rclone CronJob per tenant (PVC mounted read-only, RWO is fine on a single node) | Tenant's own Garage bucket under `pv-backup/` (`forgejo/pv-backup/data`, `nextcloud/pv-backup/html`) | daily 00:45 / 01:00 | Mirror in Garage; history via offsite versioning |
+| 4b | **Immich originals** — no longer covered by row 4 | `immich-pod-export` CronJob appends each enrolled user's originals to their pod (`doc/pod-archive.md`) | `pod-gateway` bucket, `<user>/objects/`, then pulled by that user's home device | daily 01:15 | Append-only; never overwritten or deleted |
+| 5 | Garage buckets from rows 1–4 + per-tenant buckets. **Not the `pod-gateway` bucket** — see below | `backup-replicator` CronJob: `rclone sync source: dest:` | Offsite S3 — operator-provisioned per `tenants/backup-replicator/README.md` (recommended: B2 versioned bucket, §8) | daily 04:00 | Mirror; point-in-time via destination versioning |
 | 6 | Let's Encrypt certificates | `admin-tools/backup-certs-to-laptop.sh` / `restore-certs-from-laptop.sh` | Operator laptop `~/.smallworlds/cert-backups/<env>/` | manual (part of rebuild flow) | n/a |
+
+> **Immich originals are a deliberate exception to this chain.** They used to be
+> mirrored into Garage by `pv-backup` and carried offsite by the replicator. That
+> mirror is gone: the pod archive is now the only server-side copy, and it is not
+> replicated offsite (docs/adr/0047). The trade is honest but real — the archive
+> is tamper-resistant where `rclone sync` was not, because nothing can overwrite
+> or delete what a pod already holds, but the pixels now live in only two failure
+> domains: the node disk and user home devices. The Immich **database** is
+> unaffected and still backed up by row 1, which matters because album membership,
+> face names and tags are user intent that can never be recomputed from pixels.
+> Re-enabling the offsite leg for this data is a one-line addition of the
+> `pod-gateway` bucket to `backup-replicator`.
 
 Backup health is monitored: the CNPG clusters expose metrics via PodMonitors and
 `apps/backup-alerts.yaml` alerts on WAL-archiving failures (`CNPGWALArchivingFailing`),

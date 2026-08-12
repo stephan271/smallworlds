@@ -336,7 +336,7 @@ done
 echo -e "\n${CYAN}Setting up local DNS routing... (May prompt for sudo)${NC}"
 sudo sed -i '/smallworlds\.network/d' /etc/hosts
 # Keep this list in sync with the subdomains used in e2e-tests/tests/*.spec.ts
-echo "$SERVER_IP identity.smallworlds.network files.smallworlds.network webmail.smallworlds.network photos.smallworlds.network git.smallworlds.network meet.smallworlds.network whiteboard.smallworlds.network" | sudo tee -a /etc/hosts >/dev/null
+echo "$SERVER_IP identity.smallworlds.network files.smallworlds.network webmail.smallworlds.network photos.smallworlds.network git.smallworlds.network meet.smallworlds.network whiteboard.smallworlds.network pod.smallworlds.network" | sudo tee -a /etc/hosts >/dev/null
 
 # 7. Run E2E Tests
 echo -e "\n${CYAN}Starting E2E Smoke Tests...${NC}"

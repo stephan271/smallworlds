@@ -1,0 +1,108 @@
+# Nightly append of each enrolled user's Immich originals into their pod.
+#
+# This replaces the pv-backup mirror of the library PVC: the pod archive is the
+# only server-side copy of the pixels (docs/adr/0047). Unlike `rclone sync`,
+# which mirrored deletions, nothing here can remove or overwrite what a pod
+# already holds.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: immich-pod-export
+  namespace: immich
+spec:
+  # Well before the 04:00 replicator run, and off the hour other tenants use.
+  schedule: "15 1 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          initContainers:
+            # Builds the per-user inventory. Fails loudly on Immich schema
+            # drift rather than exporting nothing — see inventory.sql.
+            - name: inventory
+              image: docker.io/postgres:16-alpine
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -eu
+                  export PGPASSWORD="$EXPORTER_PASSWORD"
+                  # -q matters: without it psql prints the "DO" command tag from
+                  # the schema assertion into the inventory.
+                  psql -h database-rw -U pod_exporter -d app \
+                       -At -q -v ON_ERROR_STOP=1 -f /sql/inventory.sql \
+                       > /work/inventory.jsonl
+                  echo "Inventory rows: $(wc -l < /work/inventory.jsonl)"
+              env:
+                - name: EXPORTER_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: immich-pod-exporter-db
+                      key: password
+              volumeMounts:
+                - name: sql
+                  mountPath: /sql
+                - name: work
+                  mountPath: /work
+          containers:
+            - name: export
+              image: python:3.14-slim@sha256:b877e50bd90de10af8d82c57a022fc2e0dc731c5320d762a27986facfc3355c1
+              command: ["python", "-u", "/app/export.py"]
+              env:
+                - name: PYTHONPATH
+                  value: /app
+                - name: POD_GATEWAY_URL
+                  value: "https://pod.smallworlds.network"
+                - name: LIBRARY_MOUNT
+                  value: /library
+                # Where immich-server mounts the same PVC. The absolute paths in
+                # the database are rooted here and get rewritten to LIBRARY_MOUNT.
+                # Verify with:
+                #   kubectl get deploy immich-server -n immich \
+                #     -o jsonpath='{.spec.template.spec.containers[0].volumeMounts}'
+                - name: IMMICH_MEDIA_ROOT
+                  value: /data
+                - name: POD_AGENT_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: immich-pod-agent
+                      key: token
+              volumeMounts:
+                - name: library
+                  mountPath: /library
+                  readOnly: true
+                - name: work
+                  mountPath: /work
+                - name: src
+                  mountPath: /app
+                - name: enrolled
+                  mountPath: /etc/pod-export
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  memory: 256Mi
+          volumes:
+            - name: library
+              persistentVolumeClaim:
+                claimName: immich-library-pvc
+                readOnly: true
+            - name: work
+              emptyDir: {}
+            - name: sql
+              configMap:
+                name: immich-pod-export-sql
+            - name: src
+              configMap:
+                name: immich-pod-export-src
+            - name: enrolled
+              configMap:
+                # Maintained by admin-tools/pod-enroll-device.sh. Optional so the
+                # job is a no-op until the first device is enrolled.
+                name: immich-pod-users
+                optional: true
