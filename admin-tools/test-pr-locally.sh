@@ -292,11 +292,17 @@ set -e
 
 DEFERRED_APPLY=false
 if [ "$APPLY_RC" -ne 0 ]; then
-    # Tolerate ONLY the missing-CRD case; anything else is a real failure and
-    # must not be swallowed.
-    OTHER_ERRORS=$(grep -viE 'no matches for kind|ensure CRDs are installed first' "$APPLY_LOG" \
-        | grep -viE '^Warning:' \
-        | grep -iE 'error|unable to|forbidden|invalid|failed' || true)
+    # Tolerate only failures against the API group kube-prometheus-stack
+    # installs later; anything else is a real failure and must not be swallowed.
+    # Match on the API group rather than the error prose, because kubectl words
+    # this differently depending on what discovery already knows:
+    #   fresh cluster  -> no matches for kind "PrometheusRule" in version ...
+    #   golden image   -> Error from server (NotFound): ... (post prometheusrules...)
+    # Tolerance here is bounded by the strict re-apply further down, which still
+    # fails the run if these manifests turn out to be broken for another reason.
+    OTHER_ERRORS=$(grep -viE '^Warning:' "$APPLY_LOG" \
+        | grep -iE 'error|unable to|forbidden|invalid|failed|not found' \
+        | grep -viE 'monitoring\.coreos\.com' || true)
     if [ -n "$OTHER_ERRORS" ]; then
         echo -e "${RED}Apply failed for reasons beyond missing CRDs:${NC}"
         echo "$OTHER_ERRORS"
@@ -358,6 +364,12 @@ fi
 # would mean the alerting rules silently do not exist in the tested cluster.
 if [ "$DEFERRED_APPLY" = true ]; then
     echo -e "\n${CYAN}Applying the manifests that were waiting on CRDs...${NC}"
+    # Registered is not the same as served, and kubectl caches discovery — a
+    # stale cache keeps answering NotFound long after the CRD is available.
+    kubectl wait --for condition=established --timeout=180s \
+        crd/prometheusrules.monitoring.coreos.com \
+        crd/alertmanagerconfigs.monitoring.coreos.com 2>/dev/null || true
+    rm -rf "${HOME}/.kube/cache/discovery" 2>/dev/null || true
     for attempt in 1 2 3; do
         if kubectl apply -k infrastructure/kubernetes; then
             echo -e "${GREEN}Deferred manifests applied.${NC}"
