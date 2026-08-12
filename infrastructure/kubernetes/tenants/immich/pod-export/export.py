@@ -120,14 +120,17 @@ def append(user_id, key, path, mime, sha256_hex):
 
 
 def main():
-    if not GATEWAY or not TOKEN:
-        log("POD_GATEWAY_URL and POD_AGENT_TOKEN must be set")
-        return 2
-
+    # Order matters: a community with nobody enrolled is a clean no-op, not a
+    # misconfiguration, and it has no agent token yet either.
     users = enrolled_users()
     if not users:
         log("No users enrolled for pod export; nothing to do.")
         return 0
+
+    if not GATEWAY or not TOKEN:
+        log("Users are enrolled but POD_GATEWAY_URL/POD_AGENT_TOKEN are unset — "
+            "run: admin-tools/pod-enroll-device.sh --agent immich")
+        return 2
     log(f"Exporting for {len(users)} enrolled user(s).")
 
     counts = {"appended": 0, "exists": 0, "skipped": 0, "errors": 0}

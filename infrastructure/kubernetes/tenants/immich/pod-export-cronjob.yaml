@@ -71,6 +71,10 @@ spec:
                     secretKeyRef:
                       name: immich-pod-agent
                       key: token
+                      # Minted by pod-enroll-device.sh --agent immich. Optional
+                      # so a community that has not enrolled anyone gets a clean
+                      # no-op rather than a nightly CreateContainerConfigError.
+                      optional: true
               volumeMounts:
                 - name: library
                   mountPath: /library

@@ -1,25 +1,34 @@
 # Provisions the read-only database identity the pod exporter uses.
 #
-# Split in two because neither half can do the other's job: the CNPG `managed`
-# role in cnpg-cluster needs its password Secret to exist first, and only the
-# `app` owner can grant SELECT on Immich's tables (CNPG's app user is not a
-# superuser and cannot CREATE ROLE).
+# Deliberately two jobs at opposite ends of the sync, because the two halves
+# have opposite ordering requirements:
+#
+#   - The password Secret must exist EARLY. The CNPG `managed` role in
+#     cnpg-cluster.yaml references it, and CNPG retries role reconciliation
+#     until it appears.
+#   - The GRANTs can only run LATE. Only the `app` owner can grant SELECT on
+#     Immich's tables (CNPG's app user is not a superuser and cannot CREATE
+#     ROLE), and that means waiting for the cluster to have bootstrapped.
+#
+# Doing both in one Sync hook deadlocks: the hook blocks the sync that would
+# have created the CNPG Cluster it is waiting for, and the whole tenant never
+# deploys.
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: pod-export-db-init
+  name: pod-export-secret-init
   annotations:
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
-    # After setup-rbac (-3), alongside the other tenant init jobs.
-    argocd.argoproj.io/sync-wave: "-1"
+    # Alongside the other early init jobs, after setup-rbac (-3).
+    argocd.argoproj.io/sync-wave: "-2"
 spec:
-  backoffLimit: 10
+  backoffLimit: 5
   template:
     spec:
       serviceAccountName: setup-sa
       restartPolicy: OnFailure
-      initContainers:
+      containers:
         - name: password
           image: docker.io/alpine/k8s:1.36.2
           command:
@@ -37,6 +46,23 @@ spec:
                 --type=kubernetes.io/basic-auth \
                 --from-literal=username=pod_exporter \
                 --from-literal=password="$PASSWORD"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pod-export-grants
+  annotations:
+    # PostSync: runs only once the CNPG Cluster is applied and healthy, so
+    # `database-app` exists. Grants are idempotent, so re-running on every sync
+    # is harmless.
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      serviceAccountName: setup-sa
+      restartPolicy: OnFailure
       containers:
         - name: grants
           image: docker.io/postgres:16-alpine
