@@ -52,20 +52,29 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         print(f"{self.address_string()} {fmt % args}", flush=True)
 
-    def _send_json(self, status, document):
+    def _send_json(self, status, document, close=False):
         body = json.dumps(document).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
+        if close:
+            self.send_header("Connection", "close")
         self.end_headers()
         self.wfile.write(body)
+        if close:
+            self.close_connection = True
 
     def _error(self, status, message):
         global _denied
         if status in (401, 403):
             with _metrics_lock:
                 _denied += 1
-        self._send_json(status, {"error": message})
+        # Errors are answered without consuming the request body — a rejected
+        # append must not cost us the whole upload. That leaves unread bytes in
+        # the socket, so the connection cannot be reused: a keep-alive proxy
+        # would parse them as the next request line. Close instead of draining,
+        # because the body may be gigabytes.
+        self._send_json(status, {"error": message}, close=True)
 
     def _principal(self):
         return self.server.tokens.resolve(

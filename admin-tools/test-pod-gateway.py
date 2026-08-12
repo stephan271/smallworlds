@@ -9,6 +9,7 @@ worth asserting. Run with:
 """
 
 import hashlib
+import http.client
 import importlib.util
 import io
 import json
@@ -234,6 +235,33 @@ def main():
                        source="nextcloud")
     check("agent cannot append a source it is not scoped to",
           status == 403, f"got {status}")
+
+    print("\nconnection reuse after a rejected body")
+    # Traefik keeps connections to the backend alive. A rejection answered
+    # without consuming the request body leaves those bytes in the socket, and
+    # the next request on that connection gets parsed as "<leftover>GET ...".
+    # Found on staging, where it surfaced as 501 Unsupported method ('xGET').
+    conn = http.client.HTTPConnection("127.0.0.1", server.server_address[1], timeout=10)
+    payload = b"x" * 4096
+    conn.request("PUT", f"/pod/v1/alice/objects/{urllib.parse.quote('immich/2026/a.jpg')}",
+                 body=payload,
+                 headers={"Authorization": "Bearer agent-token",
+                          "X-Pod-Source": "immich",
+                          "Content-Length": str(len(payload))})
+    first = conn.getresponse()
+    first.read()
+    check("a duplicate append is still refused", first.status == 409, f"got {first.status}")
+    try:
+        conn.request("GET", "/healthz")
+        second = conn.getresponse()
+        second.read()
+        reused_ok = second.status == 200
+    except Exception:
+        # Connection closed by the server is the correct outcome; the client
+        # reconnects. What must NOT happen is a corrupted second response.
+        reused_ok = True
+    check("the next request on that connection is not corrupted", reused_ok)
+    conn.close()
 
     print("\nimmich exporter path handling")
     check("media root is rewritten to the exporter's mount",
