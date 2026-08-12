@@ -277,7 +277,36 @@ data:
   DOMAIN: "smallworlds.network"
 EOF
 
-kubectl apply -k infrastructure/kubernetes
+# The master kustomization mixes ArgoCD Applications with plain manifests, and
+# some of those plain manifests (PrometheusRule, AlertmanagerConfig) belong to
+# CRDs that only exist once kube-prometheus-stack has been deployed *by* one of
+# those Applications. Production never hits this: cloud-init applies only
+# argocd-root-app.yaml and ArgoCD retries until the CRDs appear. A one-shot
+# `kubectl apply -k` has no such retry, so it is expected to leave those behind
+# on a fresh cluster — they get re-applied once the sync has settled.
+APPLY_LOG=$(mktemp)
+set +e
+kubectl apply -k infrastructure/kubernetes 2>&1 | tee "$APPLY_LOG"
+APPLY_RC=${PIPESTATUS[0]}
+set -e
+
+DEFERRED_APPLY=false
+if [ "$APPLY_RC" -ne 0 ]; then
+    # Tolerate ONLY the missing-CRD case; anything else is a real failure and
+    # must not be swallowed.
+    OTHER_ERRORS=$(grep -viE 'no matches for kind|ensure CRDs are installed first' "$APPLY_LOG" \
+        | grep -viE '^Warning:' \
+        | grep -iE 'error|unable to|forbidden|invalid|failed' || true)
+    if [ -n "$OTHER_ERRORS" ]; then
+        echo -e "${RED}Apply failed for reasons beyond missing CRDs:${NC}"
+        echo "$OTHER_ERRORS"
+        rm -f "$APPLY_LOG"
+        exit "$APPLY_RC"
+    fi
+    DEFERRED_APPLY=true
+    echo -e "${YELLOW}Some manifests need CRDs that this sync installs; they will be re-applied once it settles.${NC}"
+fi
+rm -f "$APPLY_LOG"
 
 echo -e "${YELLOW}Waiting for ArgoCD to sync and deploy pods (this may take up to 15 minutes)...${NC}"
 sleep 30
@@ -321,6 +350,25 @@ if [ -n "$UNHEALTHY" ]; then
 --- EVENTS IN $ns ---"
             kubectl get events -n "$ns" --sort-by='.lastTimestamp' | tail -n 15
         fi
+    done
+fi
+
+# Now that the sync has installed the CRDs, apply the manifests that needed
+# them. Strict this time: a failure here is real, and leaving it unreported
+# would mean the alerting rules silently do not exist in the tested cluster.
+if [ "$DEFERRED_APPLY" = true ]; then
+    echo -e "\n${CYAN}Applying the manifests that were waiting on CRDs...${NC}"
+    for attempt in 1 2 3; do
+        if kubectl apply -k infrastructure/kubernetes; then
+            echo -e "${GREEN}Deferred manifests applied.${NC}"
+            break
+        fi
+        if [ "$attempt" = 3 ]; then
+            echo -e "${RED}Deferred manifests still could not be applied.${NC}"
+            exit 1
+        fi
+        echo -e "${YELLOW}Attempt $attempt failed; the CRDs may still be registering. Retrying...${NC}"
+        sleep 20
     done
 fi
 
