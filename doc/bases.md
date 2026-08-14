@@ -26,8 +26,18 @@ This job provisions S3 object storage buckets and access keys for a tenant withi
 **Key Configuration Highlights:**
 - **Argocd Hooks**: Runs as a `Sync` hook with `sync-wave: "-2"`. It must run before databases (CNPG) or the Keycloak init jobs.
 - **Tenant Bucket**: It generates an access key and creates a bucket named after the tenant namespace. It saves the credentials in a `garage-secret` secret.
-- **Dedicated CNPG Bucket**: It explicitly creates a `postgres-backups` bucket and a corresponding key specifically for CloudNativePG database backups. It saves these in `garage-secret-cnpg`. 
+- **Dedicated CNPG Bucket**: It explicitly creates a `postgres-backups` bucket and a corresponding key specifically for CloudNativePG database backups. It saves these in `garage-secret-cnpg`, together with an `endpointURL` key so restore tooling does not have to know which instance holds the backups.
 - **Why Two Secrets?** Splitting them ensures that the tenant application only gets access to its general-purpose bucket, while the postgres operator gets exclusive access to the backup bucket, maintaining separation of concerns and security.
+- **Which Garage instance** (`docs/adr/0048`): there are two, on separate volumes, and this job places buckets on both sides of that split. Three env vars control it, all stated outright in the base and all required — the script exits rather than falling back, because a silent default would put Recovery Points on the volume the split exists to get them off:
+
+  | Variable | Default in the base | What it places |
+  |---|---|---|
+  | `TENANT_BUCKET_NAMESPACE` | `garage-system` | the tenant's own bucket + `garage-secret` |
+  | `GARAGE_BACKUP_NAMESPACE` | `garage-backup-system` | `postgres-backups` + `garage-secret-cnpg` |
+  | `GARAGE_BACKUP_ENDPOINT` | the `garage-backup` Service | the `endpointURL` written into `garage-secret-cnpg` |
+
+  `tenants/pod-gateway` patches `TENANT_BUCKET_NAMESPACE` to `garage-backup-system`: its "tenant bucket" *is* the pod archive — the only server-side copy of the Immich originals — so it belongs with the Recovery Points rather than on operational storage. Any future tenant whose bucket is a backup rather than app storage needs the same patch.
+- **Layouts are per instance.** The job assigns and applies a Garage layout on each instance it touches; this cannot be hoisted out, because the two instances are independent clusters with independent layouts.
 
 **Notable changes (from git history):**
 - **DRY refactor** (`b9a864f`): This job (and the other init jobs) was extracted/normalized under "Apply DRY rules on yaml files" so the same job definition is reused across tenants via Kustomize rather than copy-pasted per namespace.
@@ -46,6 +56,7 @@ A specialized variant of the Garage init job dedicated to Velero.
 
 **Key Configuration Highlights:**
 - **Why a separate job?** (`cb82b4e`, "Automate velero s3 credentials using garage-init-job"): Velero's backup target lives in a `velero-backups` bucket that is *cluster-scoped* rather than tenant-scoped, so it needs its own provisioning step rather than reusing the per-tenant `garage-init-job`. This job creates that bucket + access key and writes the credentials Velero's `BackupStorageLocation` consumes, so no S3 keys are hand-managed.
+- **Targets `garage-backup`** (`docs/adr/0048`): everything Velero writes is a Recovery Point, so unlike the per-tenant job this one has no operational half — it provisions entirely on the backup instance.
 - **Runs as a `Sync` hook** ahead of Velero itself, and shares the same `alpine/k8s` image pinning history (`62aa15b`, `bf7535f`, `4bb426f`) as the other init jobs.
 - **`PreSync` → `Sync` hook** (`7755200`): as a `PreSync` hook the job ran before any of the sync's plain resources were applied — including the `setup-rbac` ServiceAccount it runs as — so it failed on fresh installs. A `Sync` hook at wave `-2` still precedes Velero itself but runs after the wave `-3` RBAC exists. This is the same PreSync-vs-ServiceAccount trap documented for `setup-rbac` below and for Plane's migrate Job (`doc/plane-architecture.md`).
 

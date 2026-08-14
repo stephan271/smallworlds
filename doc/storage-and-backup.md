@@ -11,18 +11,43 @@ sovereignty layer on top of the backup chain described here — not implemented)
 
 ## 1. Physical storage foundation
 
-Everything stateful lives on **one disk**: a 200 GB Hetzner Cloud volume
+Stateful data lives on **two separate volumes**, one operational and one holding
+every Recovery Point (`docs/adr/0048`). Hop one of a backup chain that shares a
+disk with the data it protects adds no redundancy at all, and since nothing on
+the cluster enforces a size, a runaway consumer could otherwise starve the very
+backups meant to recover from it.
+
+**Operational** — a 200 GB Hetzner Cloud volume
 (`hcloud_volume.smallworlds_data`, `prevent_destroy = true`) mounted at
 `/mnt/smallworlds-data`, or on the local target a directory (default
-`/var/lib/smallworlds-data`) symlinked to the same path. The volume survives VM
-re-creation. Bootstrap creates three subdirectories:
+`/var/lib/smallworlds-data`) symlinked to the same path. Survives VM re-creation.
 
 | Path | Used by |
 |---|---|
-| `/mnt/smallworlds-data/garage` | Garage S3 data (static PV `garage-data-pv`) |
+| `/mnt/smallworlds-data/garage` | Operational Garage S3 data (static PV `garage-data-pv`) — the `nextcloud`, `forgejo` and `plane` buckets, which are primary application storage |
 | `/mnt/smallworlds-data/immich-library` | Immich photo/video originals (static PV `immich-library-pv`) |
 | `/mnt/smallworlds-data/k3s` | Symlink target of `/var/lib/rancher/k3s` — **all `local-path` PVCs** (`.../k3s/storage/`) and the container image store |
-| `/var/lib/smallworlds-etcd` | The cluster datastore, deliberately **not** on this volume — see below |
+| `/var/lib/smallworlds-etcd` | The cluster datastore, deliberately **not** on either volume — see below |
+
+**Backup** — a 100 GB volume (`hcloud_volume.smallworlds_backup`) at
+`/mnt/smallworlds-backup`, or `BACKUP_DIR` (default
+`/var/lib/smallworlds-backup`) on the local target.
+
+| Path | Used by |
+|---|---|
+| `/mnt/smallworlds-backup/garage-backup/data` | `garage-backup` object blocks — barman, Velero, `pv-backup`, the pod archive, the Nextcloud copy |
+| `/mnt/smallworlds-backup/garage-backup/meta` | `garage-backup`'s LMDB index. **Must stay on this volume**: it is what resolves a bucket key to blocks, so putting it on faster operational storage would leave the surviving blocks unaddressable after exactly the failure this split exists to survive |
+
+Both bootstraps **refuse to continue** when the two paths resolve to the same
+block device, because a co-located backup volume is indistinguishable from a
+correctly separated one until the day it is needed. On Hetzner, `automount` is
+off for both volumes and cloud-init mounts each by the exact
+`/dev/disk/by-id/...` path Terraform passes — with two volumes attached, the
+older "first unmounted disk" heuristic could not tell them apart.
+
+Both volumes attach to one machine, so this addresses disk failure and capacity
+starvation, **not** node loss, compromise or provider failure. The offsite leg
+(§4 row 5) remains the disaster tier.
 
 ### Why etcd is not on the data volume
 
@@ -41,14 +66,17 @@ stays on the large volume. Bootstrap warns when the datastore's disk reports
 itself as rotational, but does not refuse: virtualized disks routinely
 misreport, and a false reading must not fail an installation.
 
-So both storage classes ultimately share the same 200 GB volume:
+Every `local-path` claim lands on the operational volume; `static-local` spans
+both, since which volume a static PV uses is decided by its `local.path`:
 
 - **`static-local`** (renamed from `hetzner-local`; it was never Hetzner-specific) —
   static/no-provisioner, `Retain`, `WaitForFirstConsumer`, node-pinned via
   `nodeAffinity` to hostnames `cc-pilot-node-01` / `smallworlds-local-node`. Its only
-  job is to matchmake the two static PVs (Garage, Immich library) with their claims;
-  the same manifest serves both provisioning targets because each bootstrap satisfies
-  the `/mnt/smallworlds-data` contract.
+  job is to matchmake the four static PVs — Garage and the Immich library on the
+  operational volume, `garage-backup`'s data and meta on the backup volume — with
+  their claims; the same manifest serves both provisioning targets because each
+  bootstrap satisfies the `/mnt/smallworlds-data` and `/mnt/smallworlds-backup`
+  contracts.
 - **`local-path`** (k3s default) — dynamic, used by everything else. Note: local-path
   **neither enforces nor can expand** the requested size; the numbers below are
   scheduling hints/documentation, not quotas.
@@ -57,7 +85,7 @@ So both storage classes ultimately share the same 200 GB volume:
 
 | App | File / object data | Database | Cache / other |
 |---|---|---|---|
-| **Nextcloud** | User files → Garage S3 bucket `nextcloud` (S3 is the *primary* object store). App code + `config.php` → chart PVC (8 Gi, local-path, `/var/www/html`) | CNPG `database` (nextcloud ns), 20 Gi ×2 | Redis Deployment, ephemeral |
+| **Nextcloud** | User files → Garage S3 bucket `nextcloud` (S3 is the *primary* object store; objects are named `urn:oid:<fileid>`, so the bucket carries no filenames, folders or owners and is **restorable only together with the Nextcloud database**). App code + `config.php` → chart PVC (8 Gi, local-path, `/var/www/html`) | CNPG `database` (nextcloud ns), 20 Gi ×2 | Redis Deployment, ephemeral |
 | **Immich** | Originals + thumbnails → `immich-library-pvc` → static 60 Gi PV on the data volume. **Not in Garage.** | CNPG `database` (immich ns, VectorChord image via ClusterImageCatalog), 20 Gi ×2 | Redis ephemeral; ML model cache emptyDir |
 | **Forgejo** | Git repositories → chart data PVC (50 Gi, local-path). LFS/attachments/avatars → Garage bucket `forgejo` | CNPG `database` (forgejo ns), 20 Gi ×2 | Redis ephemeral |
 | **Plane** | Uploads/attachments → Garage S3 bucket `plane` (chart MinIO disabled; `plane-doc-store` secret composed by `doc-store-init-job.yaml`; browser presigned-URL flows still need a public S3 endpoint, see §5) | CNPG `database` (plane ns), 20 Gi ×2 | RabbitMQ StatefulSet PVC (100 Mi, local-path); Redis ephemeral |
@@ -74,6 +102,8 @@ So both storage classes ultimately share the same 200 GB volume:
 | Claim | Namespace | Size | StorageClass | Enforced? |
 |---|---|---|---|---|
 | `garage-data-pv` | garage-system | 120 Gi | static-local | No (static PV, shared disk) |
+| `garage-backup-data-pv` | garage-backup-system | 90 Gi | static-local | No (static PV, **backup volume**) |
+| `garage-backup-meta-pv` | garage-backup-system | 5 Gi | static-local | No (static PV, **backup volume**) |
 | `immich-library-pvc` | immich | 60 Gi | static-local | No (static PV, shared disk) |
 | Forgejo data | forgejo | 50 Gi | local-path (explicit) | No |
 | Nextcloud (`/var/www/html`) | nextcloud | 8 Gi (chart default) | local-path | No |
@@ -124,16 +154,20 @@ Decisions that govern how the sections below should evolve:
 
 ## 4. Backup concept — what exists today
 
-The design is a two-hop chain: **app data → in-cluster Garage S3 → offsite mirror**.
+The design is a two-hop chain: **app data → `garage-backup` (separate volume) → offsite mirror**.
+Producers write to the backup instance; the operational Garage holds only the
+`nextcloud`, `forgejo` and `plane` buckets, which are primary application
+storage rather than Recovery Points (§1, `docs/adr/0048`).
 
 | # | Data source | Mechanism | Destination | Schedule | Retention |
 |---|---|---|---|---|---|
-| 1 | 5 tenant CNPG DBs (`database` in nextcloud/immich/plane/forgejo/stalwart) | Barman object store (base backup + continuous WAL, gzip) via `ScheduledBackup`, per-tenant `serverName: <tenant>-database` | `s3://postgres-backups/<tenant>-database/` on in-cluster Garage (shared bucket, credential `garage-secret-cnpg` per namespace) | daily 02:00 | 7 d |
-| 2 | Keycloak DB (`keycloak-db`) | Same, but dedicated bucket + key (custom `garage-init-job.yaml`, credential `garage-secret`) | `s3://postgres-backups-keycloak/` | daily 03:00 | 7 d |
-| 3 | Kubernetes resources (all namespaces except `kube-system`) | Velero 12.x, AWS S3 plugin, `deployNodeAgent: false`, no volume snapshots | Garage bucket `velero-backups` | daily 02:00 | 720 h (30 d) |
-| 4 | PVC file data: Forgejo git repos, Nextcloud `/var/www/html` | `bases/pv-backup-job` rclone CronJob per tenant (PVC mounted read-only, RWO is fine on a single node) | Tenant's own Garage bucket under `pv-backup/` (`forgejo/pv-backup/data`, `nextcloud/pv-backup/html`) | daily 00:45 / 01:00 | Mirror in Garage; history via offsite versioning |
-| 4b | **Immich originals** — no longer covered by row 4 | `immich-pod-export` CronJob appends each enrolled user's originals to their pod (`doc/pod-archive.md`) | `pod-gateway` bucket, `<user>/objects/`, then pulled by that user's home device | daily 01:15 | Append-only; never overwritten or deleted |
-| 5 | Garage buckets from rows 1–4 + per-tenant buckets. **Not the `pod-gateway` bucket** — see below | `backup-replicator` CronJob: `rclone sync source: dest:` | Offsite S3 — operator-provisioned per `tenants/backup-replicator/README.md` (recommended: B2 versioned bucket, §8) | daily 04:00 | Mirror; point-in-time via destination versioning |
+| 1 | 5 tenant CNPG DBs (`database` in nextcloud/immich/plane/forgejo/stalwart) | Barman object store (base backup + continuous WAL, gzip) via `ScheduledBackup`, per-tenant `serverName: <tenant>-database` | `s3://postgres-backups/<tenant>-database/` on **`garage-backup`** (shared bucket, credential `garage-secret-cnpg` per namespace, which also carries `endpointURL`) | daily 02:00 | 7 d |
+| 2 | Keycloak DB (`keycloak-db`) | Same, but dedicated bucket + key (custom `garage-init-job.yaml`, credential `garage-secret`) | `s3://postgres-backups-keycloak/` on **`garage-backup`** | daily 03:00 | 7 d |
+| 3 | Kubernetes resources (all namespaces except `kube-system`) | Velero 12.x, AWS S3 plugin, `deployNodeAgent: false`, no volume snapshots | **`garage-backup`** bucket `velero-backups` | daily 02:00 | 720 h (30 d) |
+| 4 | PVC file data: Forgejo git repos, Nextcloud `/var/www/html` | `bases/pv-backup-job` rclone CronJob per tenant (PVC mounted read-only, RWO is fine on a single node) | **`garage-backup`**, under `pv-backup/` (`forgejo/pv-backup/data`, `nextcloud/pv-backup/html`) | daily 00:45 / 01:00 | Mirror in Garage; history via offsite versioning |
+| 4b | **Immich originals** — no longer covered by row 4 | `immich-pod-export` CronJob appends each enrolled user's originals to their pod (`doc/pod-archive.md`) | `pod-gateway` bucket on **`garage-backup`**, `<user>/objects/`, then pulled by that user's home device | daily 01:15 | Append-only; never overwritten or deleted |
+| 4c | **Nextcloud user files** — the `nextcloud` bucket itself | `bases/backup-job` rclone CronJob, `sync src:nextcloud dst:nextcloud/current --backup-dir dst:nextcloud/versions/<date>` | `nextcloud` bucket on **`garage-backup`** | daily 03:15 | `current/` mirrors the live bucket; superseded and deleted objects retained under `versions/<date>/` |
+| 5 | An **explicit list** of `garage-backup` buckets: `postgres-backups`, `postgres-backups-keycloak`, `velero-backups`, `nextcloud`, `forgejo`, `plane`. **Never `pod-gateway`** — see below | `backup-replicator` CronJob, per-bucket `rclone sync source:<b> dest:<b>`; refuses to start if the key can even see `pod-gateway`, and fails loudly on a missing bucket | Offsite S3 — operator-provisioned per `tenants/backup-replicator/README.md` (**pre-created versioned** buckets, §8) | daily 04:00 | Point-in-time via destination versioning — buckets rclone auto-creates are un-versioned and give only a mirror |
 | 6 | Let's Encrypt certificates | `admin-tools/backup-certs-to-laptop.sh` / `restore-certs-from-laptop.sh` | Operator laptop `~/.smallworlds/cert-backups/<env>/` | manual (part of rebuild flow) | n/a |
 
 > **Immich originals are a deliberate exception to this chain.** They used to be
@@ -145,8 +179,18 @@ The design is a two-hop chain: **app data → in-cluster Garage S3 → offsite m
 > domains: the node disk and user home devices. The Immich **database** is
 > unaffected and still backed up by row 1, which matters because album membership,
 > face names and tags are user intent that can never be recomputed from pixels.
-> Re-enabling the offsite leg for this data is a one-line addition of the
-> `pod-gateway` bucket to `backup-replicator`.
+> Two independent controls keep it that way: `pod-gateway` is absent from
+> `REPLICATE_BUCKETS` in the replicator CronJob, and the replicator key is
+> granted read on the listed buckets only. Re-enabling it would mean changing
+> both — deliberately, since the archive is unencrypted at rest and includes
+> the `immich-locked/` prefix.
+>
+> Note this was **not** true before `docs/adr/0048`: the job ran a
+> whole-instance `rclone sync` and the setup guide granted read on every
+> bucket, so any community that configured the offsite leg under the old
+> instructions has pods at its provider today. Fixing the config stops further
+> copies; the objects already there must be deleted by hand, prior versions
+> included.
 
 Backup health is monitored: the CNPG clusters expose metrics via PodMonitors and
 `apps/backup-alerts.yaml` alerts on WAL-archiving failures (`CNPGWALArchivingFailing`),
