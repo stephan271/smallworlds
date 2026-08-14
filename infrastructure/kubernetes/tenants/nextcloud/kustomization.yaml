@@ -7,6 +7,7 @@ bases:
   - ../../bases/garage-init-job
   - ../../bases/keycloak-client-job
   - ../../bases/pv-backup-job
+  - ../../bases/backup-job
 
 resources:
   - redis.yaml
@@ -39,6 +40,26 @@ patches:
       - op: replace
         path: /spec/jobTemplate/spec/template/spec/containers/0/env/0/value
         value: "nextcloud/pv-backup/html"
+  # Users' files live in the `nextcloud` bucket — S3 is Nextcloud's PRIMARY
+  # object store, not a cache — and pv-backup above only covers /var/www/html.
+  # Until this job existed the files had no server-side Recovery Point at all;
+  # their only other copy was the offsite mirror. See docs/adr/0048.
+  #
+  # The objects are named urn:oid:<fileid>, so this bucket is restorable only
+  # together with the Nextcloud database (row 1 of doc/storage-and-backup.md §4).
+  - target:
+      kind: CronJob
+      name: rclone-backup
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: nextcloud-files-backup
+      - op: replace
+        path: /spec/schedule
+        value: "15 3 * * *"
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/containers/0/env/0/value
+        value: "nextcloud"
   - target:
       kind: Job
       name: keycloak-client-init

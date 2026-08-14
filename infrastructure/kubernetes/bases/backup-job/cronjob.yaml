@@ -1,3 +1,19 @@
+# Bucket-to-bucket copy: operational Garage -> garage-backup (docs/adr/0048).
+#
+# For data whose primary home is object storage rather than a PVC. Nextcloud is
+# the first consumer and the urgent one: users' files ARE the `nextcloud`
+# bucket, `pv-backup-job` only covers /var/www/html, and before this the only
+# other copy was the offsite mirror.
+#
+# Deletions are preserved, not mirrored. A plain `rclone sync` would remove a
+# file here as soon as a user deleted it there, which is a mirror rather than a
+# Recovery Point; --backup-dir moves superseded objects into a dated prefix
+# instead. Note this makes the backup grow monotonically — it is pruned by the
+# offsite lifecycle rule, not here.
+#
+# Consumers patch S3_BUCKET. Credentials come from the two secrets the
+# garage-init-job creates: garage-secret on the operational side (source) and
+# garage-secret-backup on the backup side (destination).
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -18,23 +34,63 @@ spec:
               command: ["/bin/sh", "-c"]
               args:
                 - |
-                  echo "Starting backup for bucket: ${S3_BUCKET}"
-                  # Assuming rclone.conf is mounted or env vars are set for source (Garage) and destination (Home Garage)
-                  rclone sync "source:${S3_BUCKET}" "dest:${S3_BUCKET}" -v
-                  if [ $? -ne 0 ]; then
-                    echo "Backup failed!"
-                    # Write failure to status.json could be added here
-                    exit 1
-                  fi
+                  set -eu
+                  STAMP=$(date -u +%Y-%m-%d)
+                  echo "Backing up src:${S3_BUCKET} -> dst:${S3_BUCKET}/current"
+                  # --backup-dir must sit outside the destination path, or the
+                  # next run would try to sync the retained versions too.
+                  rclone sync "src:${S3_BUCKET}" "dst:${S3_BUCKET}/current" \
+                    --backup-dir "dst:${S3_BUCKET}/versions/${STAMP}" \
+                    -v --stats-one-line
                   echo "Backup completed successfully."
               env:
                 - name: S3_BUCKET
                   value: "REPLACE_ME_IN_PATCH"
-              volumeMounts:
-                - name: rclone-config
-                  mountPath: /config/rclone
-                  readOnly: true
-          volumes:
-            - name: rclone-config
-              secret:
-                secretName: rclone-config-secret
+                # Source: the operational instance, where the app writes.
+                - name: RCLONE_CONFIG_SRC_TYPE
+                  value: "s3"
+                - name: RCLONE_CONFIG_SRC_PROVIDER
+                  value: "Other"
+                - name: RCLONE_CONFIG_SRC_ENDPOINT
+                  value: "http://garage.garage-system.svc.cluster.local:3900"
+                - name: RCLONE_CONFIG_SRC_REGION
+                  value: "garage"
+                - name: RCLONE_CONFIG_SRC_FORCE_PATH_STYLE
+                  value: "true"
+                - name: RCLONE_CONFIG_SRC_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: garage-secret
+                      key: accessKey
+                - name: RCLONE_CONFIG_SRC_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: garage-secret
+                      key: secretKey
+                # Destination: the backup instance, on the separate volume.
+                - name: RCLONE_CONFIG_DST_TYPE
+                  value: "s3"
+                - name: RCLONE_CONFIG_DST_PROVIDER
+                  value: "Other"
+                - name: RCLONE_CONFIG_DST_ENDPOINT
+                  value: "http://garage-backup.garage-backup-system.svc.cluster.local:3900"
+                - name: RCLONE_CONFIG_DST_REGION
+                  value: "garage"
+                - name: RCLONE_CONFIG_DST_FORCE_PATH_STYLE
+                  value: "true"
+                - name: RCLONE_CONFIG_DST_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: garage-secret-backup
+                      key: accessKey
+                - name: RCLONE_CONFIG_DST_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: garage-secret-backup
+                      key: secretKey
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  memory: 512Mi

@@ -25,6 +25,27 @@ Nextcloud is integrated with a standalone Collabora Online Development Edition (
 - **WOPI Protocol**: Nextcloud acts as a WOPI host. Users access documents via the Nextcloud frontend (`files.smallworlds.network`), which opens an iframe where the user's browser connects directly to the Collabora server (`office.smallworlds.network`) via WebSockets to stream the editing session.
 - **Configuration**: The `oidc-config-job.yaml` automates the installation of the `richdocuments` app and sets the `wopi_url` so the integration is seamless out of the box.
 
+## Backup, and why the database is part of it
+
+User files are stored in the `nextcloud` Garage bucket as Nextcloud's **primary**
+object store. They are copied nightly to the `nextcloud` bucket on
+`garage-backup` (the separate volume, `docs/adr/0048`) by `bases/backup-job`:
+`current/` mirrors the live bucket, while superseded and deleted objects are
+moved to `versions/<date>/` rather than being removed, so a user deleting a file
+does not delete its Recovery Point.
+
+Before that job existed these files had **no server-side backup at all** —
+`pv-backup-job` covers only `/var/www/html` (app code and `config.php`), and the
+sole other copy was the offsite mirror.
+
+**The bucket alone cannot restore anything a person recognises.** With S3 primary
+storage Nextcloud names objects `urn:oid:<fileid>`: no filenames, no folder
+structure, no owners, no sharing state — all of that lives in the Nextcloud
+database. So a file-level restore needs the bucket *and* a database restored to a
+consistent point (`doc/storage-and-backup.md` §7.1). This is the same coupling
+Immich has between its pod archive and its database, and the reason the CNPG
+backups are never optional.
+
 ## Notable changes per file (from git history)
 
 ### `values.yaml`
