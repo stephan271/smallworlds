@@ -1,0 +1,33 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: database-restore
+  namespace: immich
+spec:
+  instances: 1
+  imageCatalogRef:
+    apiGroup: postgresql.cnpg.io
+    kind: ClusterImageCatalog
+    name: immich-catalog
+    major: 16
+  postgresql:
+    shared_preload_libraries:
+      - "vchord.so"
+  storage:
+    size: 20Gi
+  bootstrap:
+    recovery:
+      source: database
+  externalClusters:
+    - name: database
+      barmanObjectStore:
+        destinationPath: s3://postgres-backups/
+        serverName: immich-database
+        endpointURL: http://garage.garage-system.svc.cluster.local:3900
+        s3Credentials:
+          accessKeyId:
+            name: garage-secret-cnpg
+            key: accessKeyId
+          secretAccessKey:
+            name: garage-secret-cnpg
+            key: secretAccessKey

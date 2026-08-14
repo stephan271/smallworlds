@@ -1,0 +1,515 @@
+<title>SmallWorlds Backup Drill</title>
+<style>
+  /* Light palette is the base; both dark states redefine only tokens. */
+  :root {
+    --ground: #F4F6F5;
+    --surface: #FFFFFF;
+    --surface-sunk: #EAEEEC;
+    --ink: #141E1B;
+    --ink-muted: #56635F;
+    --rule: #D3DBD8;
+    --accent: #0F6F66;
+    --accent-soft: #DCEBE8;
+    --critical: #A8291F;
+    --critical-soft: #F7E3E1;
+    --warning: #8A5D00;
+    --warning-soft: #F8EDD6;
+    --ok: #1B6B40;
+    --ok-soft: #DEEDE4;
+    --shadow: 0 1px 2px rgba(20, 30, 27, .06), 0 8px 24px rgba(20, 30, 27, .05);
+
+    --display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0D1412;
+      --surface: #151E1B;
+      --surface-sunk: #1D2825;
+      --ink: #E4EBE8;
+      --ink-muted: #93A29D;
+      --rule: #2A3733;
+      --accent: #58BFB1;
+      --accent-soft: #163330;
+      --critical: #EE8279;
+      --critical-soft: #341917;
+      --warning: #DFB047;
+      --warning-soft: #302614;
+      --ok: #5FC384;
+      --ok-soft: #162C20;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .28);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0D1412;
+    --surface: #151E1B;
+    --surface-sunk: #1D2825;
+    --ink: #E4EBE8;
+    --ink-muted: #93A29D;
+    --rule: #2A3733;
+    --accent: #58BFB1;
+    --accent-soft: #163330;
+    --critical: #EE8279;
+    --critical-soft: #341917;
+    --warning: #DFB047;
+    --warning-soft: #302614;
+    --ok: #5FC384;
+    --ok-soft: #162C20;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .28);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 0 24px 96px; }
+  .prose { max-width: 68ch; }
+
+  header.masthead {
+    border-bottom: 1px solid var(--rule);
+    padding: 56px 0 28px;
+    margin-bottom: 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  h1 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: clamp(34px, 5vw, 50px);
+    line-height: 1.08;
+    letter-spacing: -.015em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .standfirst {
+    font-family: var(--display);
+    font-size: 20px;
+    line-height: 1.45;
+    color: var(--ink-muted);
+    margin: 0;
+    max-width: 60ch;
+  }
+  .facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 28px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--ink-muted);
+    padding-top: 6px;
+  }
+  .facts b { color: var(--ink); font-weight: 600; }
+
+  section { margin-bottom: 56px; }
+  h2 {
+    font-family: var(--display);
+    font-size: 27px;
+    font-weight: 600;
+    letter-spacing: -.01em;
+    margin: 0 0 6px;
+    text-wrap: balance;
+  }
+  h2 + .lede { color: var(--ink-muted); margin: 0 0 24px; max-width: 66ch; }
+  h3 {
+    font-size: 16px;
+    font-weight: 650;
+    margin: 0 0 6px;
+    letter-spacing: -.005em;
+  }
+  p { margin: 0 0 16px; }
+  a { color: var(--accent); }
+  code {
+    font-family: var(--mono);
+    font-size: .87em;
+    background: var(--surface-sunk);
+    padding: .12em .38em;
+    border-radius: 3px;
+  }
+
+  .scroll { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14.5px;
+    min-width: 720px;
+  }
+  th, td {
+    text-align: left;
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  th {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    font-weight: 500;
+    border-bottom-color: var(--ink-muted);
+  }
+  td code { background: none; padding: 0; color: var(--accent); }
+  tbody tr:last-child td { border-bottom: none; }
+
+  figure { margin: 0 0 12px; }
+  figure svg { max-width: 100%; height: auto; display: block; }
+  figcaption {
+    font-size: 13.5px;
+    color: var(--ink-muted);
+    margin-top: 12px;
+    max-width: 66ch;
+  }
+
+  .findings { display: flex; flex-direction: column; gap: 18px; }
+  .finding {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 20px 22px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .finding-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .chip {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .chip.high { background: var(--critical-soft); color: var(--critical); }
+  .chip.med { background: var(--warning-soft); color: var(--warning); }
+  .chip.pass { background: var(--ok-soft); color: var(--ok); }
+  .finding p { margin: 0; }
+  .finding .why { color: var(--ink-muted); font-size: 14.5px; }
+  .evidence {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.55;
+    background: var(--surface-sunk);
+    border-left: 2px solid var(--accent);
+    padding: 10px 14px;
+    border-radius: 0 4px 4px 0;
+    overflow-x: auto;
+    white-space: pre;
+    color: var(--ink);
+  }
+  .fix { font-size: 14.5px; }
+  .fix b { font-weight: 650; }
+
+  ul.checks { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 9px; }
+  ul.checks li {
+    display: grid;
+    grid-template-columns: 20px 1fr;
+    gap: 12px;
+    align-items: start;
+    font-size: 15px;
+    padding-bottom: 9px;
+    border-bottom: 1px dotted var(--rule);
+  }
+  ul.checks li:last-child { border-bottom: none; }
+  ul.checks .mark { color: var(--ok); font-weight: 700; line-height: 1.5; }
+  ul.checks .detail { color: var(--ink-muted); font-family: var(--mono); font-size: 12.5px; display: block; }
+
+  pre.cmd {
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.65;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    margin: 0 0 16px;
+  }
+  pre.cmd .c { color: var(--ink-muted); }
+
+  .files { font-size: 14.5px; }
+  .files dt { font-family: var(--mono); font-size: 13px; color: var(--accent); margin-top: 12px; }
+  .files dd { margin: 2px 0 0; color: var(--ink-muted); }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 20px;
+    color: var(--ink-muted);
+    font-size: 14px;
+  }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <div class="eyebrow">Restore drill · 14 August 2026</div>
+    <h1>SmallWorlds Backup Drill</h1>
+    <p class="standfirst">The whole backup chain, exercised end to end on a throwaway cluster with Immich as the worked example — from photo upload to a member's home device and back again.</p>
+    <div class="facts">
+      <span><b>Cluster</b> k3s on LAN node, built from scratch</span>
+      <span><b>Assets</b> 20 photos</span>
+      <span><b>Findings</b> 5</span>
+      <span><b>Restores proven</b> 2</span>
+    </div>
+  </header>
+
+  <section class="prose">
+    <h2>Why this ran</h2>
+    <p><code>doc/storage-and-backup.md</code> §5 has carried the same item for months: <em>“Restore path is untested. The procedures in §7 have never been exercised end-to-end.”</em> Everything the document says about backups was derived from reading manifests, not from watching bytes move. That is exactly the kind of claim that stays true-looking until the day it matters.</p>
+    <p>So the chain was rebuilt on a disposable cluster and driven with real data: upload photos into Immich, let every backup mechanism act on them, pull them onto a simulated home device, then delete things and put them back. Five discrepancies between the documents and the behaviour turned up, two of which affect the production cluster today.</p>
+  </section>
+
+  <section>
+    <h2>Where Immich's data actually goes</h2>
+    <p class="lede">Four mechanisms touch one tenant's data, and they are deliberately not redundant with each other — each covers something the others structurally cannot.</p>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>Data</th><th>Mechanism</th><th>Lands at</th><th>Why it exists</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>Photo pixels</b><br>the originals</td>
+            <td><code>immich-pod-export</code><br>CronJob, 01:15</td>
+            <td><code>pod-gateway</code> bucket<br><code>&lt;user&gt;/objects/immich/2025/2025-10-18/0560c5ed-IMG_2000.jpg</code></td>
+            <td>Irreplaceable and nothing can recompute them. Append-only, so a mass delete on the server cannot propagate.</td>
+          </tr>
+          <tr>
+            <td><b>Album membership, face names, tags</b><br>user intent</td>
+            <td>CNPG barman<br>base + continuous WAL</td>
+            <td><code>postgres-backups</code> bucket<br><code>immich-database/base/…</code>, <code>…/wals/</code></td>
+            <td>Mutable, relational, no per-user cut. Cannot live in the pod, and cannot be reconstructed from pixels — which is why the pod archive never makes this backup optional.</td>
+          </tr>
+          <tr>
+            <td><b>Thumbnails, transcodes, embeddings</b></td>
+            <td>— nothing —</td>
+            <td>— nowhere —</td>
+            <td>Derived. Regenerating them costs only compute, so copying them would buy storage cost and nothing else.</td>
+          </tr>
+          <tr>
+            <td><b>Secrets and manifests</b><br>Keycloak client, Garage keys, DB passwords</td>
+            <td>Velero, manifest-only</td>
+            <td><code>velero-backups</code> bucket</td>
+            <td>The state GitOps does <em>not</em> own: runtime-generated values that a re-sync would recreate differently.</td>
+          </tr>
+          <tr>
+            <td><b>Everything in Garage</b></td>
+            <td><code>backup-replicator</code><br>CronJob, 04:00</td>
+            <td>Offsite S3</td>
+            <td>Garage runs <code>replicationFactor: 1</code> on the same disk as the primary data, so hop one adds no physical redundancy. Offsite is the only real backup.</td>
+          </tr>
+          <tr>
+            <td><b>A member's own copy</b></td>
+            <td><code>pod-agent.py</code><br>on their hardware, every 15 min</td>
+            <td>Their disk at home</td>
+            <td>Outbound-only, copy-never-sync, digest-verified. The one copy no cluster failure or operator error can reach.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>The chain as it actually behaves</h2>
+    <figure>
+      <svg viewBox="0 0 900 470" role="img" aria-label="Data flow from Immich to Garage buckets, a member's home device and the offsite mirror, marked with the pod bucket being replicated offsite contrary to the documentation and the restore path that had no written procedure.">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+          <marker id="ar-warn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#C4442F"/>
+          </marker>
+          <marker id="ar-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#0F6F66"/>
+          </marker>
+        </defs>
+
+        <g fill="none" stroke="currentColor" stroke-width="1.25">
+          <rect x="20" y="52" width="158" height="54" rx="5"/>
+          <rect x="258" y="52" width="158" height="54" rx="5"/>
+          <rect x="496" y="52" width="158" height="54" rx="5"/>
+          <rect x="734" y="52" width="146" height="54" rx="5"/>
+          <rect x="20" y="222" width="158" height="54" rx="5"/>
+          <rect x="258" y="222" width="158" height="54" rx="5"/>
+          <rect x="496" y="222" width="158" height="54" rx="5"/>
+          <rect x="496" y="360" width="158" height="54" rx="5"/>
+          <rect x="734" y="360" width="146" height="54" rx="5"/>
+        </g>
+
+        <g font-family="system-ui, sans-serif" font-size="12.5" fill="currentColor" text-anchor="middle">
+          <text x="99" y="75">Immich library PVC</text><text x="99" y="92" font-size="11" opacity=".7">the pixels</text>
+          <text x="337" y="75">immich-pod-export</text><text x="337" y="92" font-size="11" opacity=".7">nightly 01:15</text>
+          <text x="575" y="75">pod-gateway bucket</text><text x="575" y="92" font-size="11" opacity=".7">append-only + manifest</text>
+          <text x="807" y="75">home device</text><text x="807" y="92" font-size="11" opacity=".7">member's disk</text>
+          <text x="99" y="245">Immich database</text><text x="99" y="262" font-size="11" opacity=".7">albums, faces, tags</text>
+          <text x="337" y="245">barman</text><text x="337" y="262" font-size="11" opacity=".7">base + WAL</text>
+          <text x="575" y="245">postgres-backups</text><text x="575" y="262" font-size="11" opacity=".7">per-tenant serverName</text>
+          <text x="575" y="383">backup-replicator</text><text x="575" y="400" font-size="11" opacity=".7">04:00, whole instance</text>
+          <text x="807" y="383">offsite S3</text><text x="807" y="400" font-size="11" opacity=".7">un-versioned</text>
+        </g>
+
+        <g stroke="currentColor" stroke-width="1.25" marker-end="url(#ar)" fill="none">
+          <line x1="178" y1="79" x2="252" y2="79"/>
+          <line x1="416" y1="79" x2="490" y2="79"/>
+          <line x1="654" y1="79" x2="728" y2="79"/>
+          <line x1="178" y1="249" x2="252" y2="249"/>
+          <line x1="416" y1="249" x2="490" y2="249"/>
+          <line x1="575" y1="276" x2="575" y2="354"/>
+          <line x1="654" y1="387" x2="728" y2="387"/>
+        </g>
+
+        <g font-family="ui-monospace, monospace" font-size="10.5" fill="currentColor" opacity=".75" text-anchor="middle">
+          <text x="215" y="72">reads RO</text>
+          <text x="453" y="72">appends</text>
+          <text x="453" y="86" opacity=".8">409 = dup</text>
+          <text x="691" y="72">pulls</text>
+          <text x="691" y="86" opacity=".8">verifies chain</text>
+          <text x="215" y="242">archives</text>
+          <text x="453" y="242">WAL + base</text>
+          <text x="600" y="320" text-anchor="start">syncs</text>
+          <text x="691" y="380">rclone sync</text>
+        </g>
+
+        <path d="M 654 66 L 690 66 L 690 340 L 664 340 L 664 374 L 660 374"
+              fill="none" stroke="#C4442F" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#ar-warn)"/>
+        <text x="700" y="200" font-family="ui-monospace, monospace" font-size="10.5" fill="#C4442F" text-anchor="start">pods go</text>
+        <text x="700" y="214" font-family="ui-monospace, monospace" font-size="10.5" fill="#C4442F" text-anchor="start">offsite too —</text>
+        <text x="700" y="228" font-family="ui-monospace, monospace" font-size="10.5" fill="#C4442F" text-anchor="start">docs say not</text>
+
+        <path d="M 807 106 L 807 160 L 99 160 L 99 112"
+              fill="none" stroke="#0F6F66" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#ar-acc)"/>
+        <text x="453" y="152" font-family="ui-monospace, monospace" font-size="10.5" fill="#0F6F66" text-anchor="middle">restore — needs the database to map keys back (no procedure existed)</text>
+
+        <text x="20" y="440" font-family="ui-monospace, monospace" font-size="10.5" fill="currentColor" opacity=".65">solid = verified working  ·  dashed red = contradicts the docs  ·  dashed green = written during this drill</text>
+      </svg>
+      <figcaption>Both halves of Immich's data reach Garage by separate paths and are then swept offsite together. The two dashed edges are what the drill changed: the pod bucket does leave the cluster despite three documents saying it does not, and the return path from a member's device had never been written down.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>What the drill proved</h2>
+    <p class="lede">Two of these had never been done before. The rest re-confirm, on a cluster built from nothing, what the August staging run already established — worth having, but not news.</p>
+    <h3 style="margin-top:22px">New</h3>
+    <ul class="checks">
+      <li><span class="mark">✓</span><span><b>The database restores from barman.</b> <span class="detail">recovery cluster bootstrapped from s3://postgres-backups/immich-database/ with all 20 assets — §7.1 works as written, and had never been executed</span></span></li>
+      <li><span class="mark">✓</span><span><b>Deleted originals come back from the member's device.</b> <span class="detail">5 files deleted from the library, restored from the home copy, and Immich served one back byte-identical to its manifest digest — no procedure for this existed</span></span></li>
+    </ul>
+    <h3 style="margin-top:26px">Re-confirmed on a fresh cluster</h3>
+    <ul class="checks">
+      <li><span class="mark">✓</span><span><b>Immich's schema coupling holds on v3.0.0.</b> <span class="detail">table <code>asset</code>, all ten columns, originalPath rooted at /data/upload/&lt;user&gt;/xx/yy/&lt;uuid&gt;.jpg — previously verified against production in August; this re-checks it against the image the chart currently pins</span></span></li>
+      <li><span class="mark">✓</span><span><b>Export is idempotent without any read grant.</b> <span class="detail">first run: 20 appended · second run: 0 appended, 20 already present, 0 errors</span></span></li>
+      <li><span class="mark">✓</span><span><b>Every authorization boundary refuses correctly.</b> <span class="detail">device write 403 · device reading another pod 403 · agent read 403 · re-append 409 · bad token 401 · DELETE 501</span></span></li>
+      <li><span class="mark">✓</span><span><b>A rewritten history stops the device.</b> <span class="detail">forged entry with a recomputed self-hash still broke the chain at seq 6; agent exited 2, kept 5 valid objects, changed nothing local</span></span></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Findings</h2>
+    <p class="lede">Ranked by what they cost if left alone. The first two affect the production cluster now.</p>
+    <div class="findings">
+
+      <div class="finding">
+        <div class="finding-head"><span class="chip high">High</span><h3>Every database backup runs hourly, not daily</h3></div>
+        <p class="why">CloudNativePG's <code>schedule</code> takes a <b>six</b>-field cron with seconds first. All six tenants write a five-field one, so <code>"0 2 * * *"</code> parses as second 0, minute 2, <em>every hour</em>.</p>
+        <p class="evidence">lastScheduleTime:  2026-08-14T13:02:00Z
+nextScheduleTime:  2026-08-14T14:02:00Z   ← one hour, not one day
+two completed base backups within 10 minutes
+259 MB in postgres-backups from an *empty* database</p>
+        <p class="fix"><b>Fix:</b> <code>"0 0 2 * * *"</code> in all five tenant clusters, <code>"0 0 3 * * *"</code> for Keycloak. Until then each cluster takes ~24 base backups a day, ~144 across the community, all held for 7 days on a shared 200 GB volume.</p>
+      </div>
+
+      <div class="finding">
+        <div class="finding-head"><span class="chip high">High</span><h3>Members' personal pods are replicated offsite</h3></div>
+        <p class="why">Three documents state the <code>pod-gateway</code> bucket stays on-cluster. But the replicator runs <code>rclone sync source: dest:</code> across the whole instance, and the setup instructions grant the replicator key read on <em>every</em> bucket in a loop — so following the documented procedure ships the pods to a third-party provider, unencrypted.</p>
+        <p class="evidence">pod-gateway/&lt;user&gt;/objects/immich/2025/2025-10-18/…jpg: Copied (new)
+… all 40 pod objects and manifest entries copied offsite</p>
+        <p class="fix"><b>Fix:</b> decide which document is right. If pods must stay put, drop that bucket from the key's grants and say so in the README; if they should go offsite, correct <code>doc/storage-and-backup.md</code> §4/§7 and <code>doc/pod-archive.md</code>. Note the pod design's privacy intent and that objects are unencrypted at rest — this includes the <code>immich-locked/</code> prefix.</p>
+      </div>
+
+      <div class="finding">
+        <div class="finding-head"><span class="chip med">Medium</span><h3>Garage has never used its 120 GB volume</h3></div>
+        <p class="why"><code>apps/garage.yaml</code> sets <code>persistence.size</code> and <code>persistence.storageClass</code>, neither of which exists in chart 0.7.1 — the real keys are nested per volume (<code>persistence.data.*</code>, <code>persistence.meta.*</code>). Helm ignores unknown values silently.</p>
+        <p class="evidence">data-garage-0   Bound   pvc-8029f1bb…   1Gi     local-path
+garage-data-pv  120Gi   Available            ← never bound
+
+corroboration: an earlier real install left
+/mnt/smallworlds-data/garage at 0 bytes</p>
+        <p class="fix"><b>Fix:</b> move the keys under <code>persistence.data</code>; keep <code>meta</code> on fast local storage. Correct the storage table in §2, which claims Garage data lives on the static PV. Impact is limited on Hetzner — <code>local-path</code> sits on the same volume via the k3s symlink — but the declared budget is fiction and the PV is dead weight.</p>
+      </div>
+
+      <div class="finding">
+        <div class="finding-head"><span class="chip med">Medium</span><h3>Auto-created offsite buckets have no versioning</h3></div>
+        <p class="why">The setup guide offers letting rclone create the destination buckets on first sync. Buckets made that way are un-versioned, which removes the one property that makes the offsite leg a backup rather than a mirror.</p>
+        <p class="evidence">created precious.txt → synced → deleted cluster-side → re-synced
+offsite after the deletion: (empty)
+mc version info: off/immich is un-versioned</p>
+        <p class="fix"><b>Fix:</b> require pre-created versioned buckets and a verification step. §3 already warns that a plain mirror propagates mass deletion within 24 h; the setup instructions quietly permit exactly that.</p>
+      </div>
+
+      <div class="finding">
+        <div class="finding-head"><span class="chip med">Medium</span><h3>No written way to get the photos back</h3></div>
+        <p class="why">ADR 0047 removed Immich from <code>pv-backup</code>, making the pod archive the only server-side copy of the pixels — but §7 has no procedure for restoring them. The archive alone is not enough: its keys are human-shaped (<code>immich/&lt;year&gt;/&lt;date&gt;/&lt;id8&gt;-&lt;name&gt;</code>) while the library is UUID-shaped, and only the database holds the mapping.</p>
+        <p class="evidence">restored 5 originals · sha256 verified against the manifest
+Immich served the asset back: http=200, digest identical</p>
+        <p class="fix"><b>Fix:</b> adopt the procedure written and proven here as §7.5 — restore the database first, dump an inventory, map keys, copy back, verify. Worth stating plainly that pixel recovery <em>requires</em> a working database backup.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>Reproducing it</h2>
+    <p class="lede">The harness lives in <code>admin-tools/lab/</code> and rebuilds the whole thing from an empty machine.</p>
+    <pre class="cmd"><span class="c"># 1. k3s with the real storage contract (node name, /mnt/smallworlds-data, etcd off the bulk disk)</span>
+sudo bash admin-tools/lab/lab-node-bootstrap.sh
+
+<span class="c"># 2. cloudnative-pg + Garage + the static PVs, with the corrected chart values</span>
+admin-tools/lab/p1-infra.sh
+
+<span class="c"># 3. Immich, via a lab overlay over the real tenant manifests</span>
+kubectl kustomize --enable-helm admin-tools/lab/immich | kubectl apply -f -
+python3 admin-tools/lab/seed-immich-photos.py
+
+<span class="c"># 4. the pod archive, then a simulated home device</span>
+./admin-tools/pod-enroll-device.sh --agent immich --env lab
+./admin-tools/pod-enroll-device.sh --user &lt;id&gt; --name lab-pi --env lab --url http://127.0.0.1:8080
+admin-tools/lab/sim-device.sh sync &amp;&amp; admin-tools/lab/sim-device.sh verify</pre>
+    <dl class="files">
+      <dt>immich/kustomization.yaml</dt>
+      <dd>The overlay. Four patches, each a stated lab concession: no Keycloak, no ML models, in-cluster gateway URL, stub OIDC secret.</dd>
+      <dt>sim-device.sh</dt>
+      <dd>Runs the unmodified <code>pod-agent.py</code> as an ordinary user against its own data directory — the protocol is faithful, only the systemd packaging is skipped.</dd>
+      <dt>restore-immich-originals.py</dt>
+      <dd>The missing restore procedure. Mirrors <code>object_key()</code> from the exporter; refuses to guess when an asset is absent from the archive.</dd>
+      <dt>restore-cluster.yaml</dt>
+      <dd>The CNPG recovery cluster used for the database drill, per §7.1.</dd>
+    </dl>
+  </section>
+
+  <section class="prose">
+    <h2>What this drill did not cover</h2>
+    <p>Only Immich was exercised. <code>pv-backup</code> was not: its only consumers are Nextcloud and Forgejo, so a wider tenant set is needed to test it honestly. Velero was deployed but no namespace restore was attempted, which matters because its stated value is recovering runtime-generated secrets — including the trap noted in §7.1, where a restored database still holds the old password while the operator generates a new <code>database-app</code> secret.</p>
+    <p>The offsite target was a local MinIO standing in for Backblaze B2, so provider-specific behaviour — object lock, lifecycle rules, B2's own versioning semantics — remains untested. And nothing here was run against production; the two high findings were reproduced from the manifests the production cluster deploys, but the live cluster was down during this work and should be checked directly once it is back.</p>
+  </section>
+
+  <footer>
+    Drill run 14 August 2026 on a purpose-built k3s node · 20 assets, 40 pod objects, 2 restores · harness in <code>admin-tools/lab/</code>
+  </footer>
+</div>

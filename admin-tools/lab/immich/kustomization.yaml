@@ -1,0 +1,64 @@
+# Lab overlay over the real immich tenant.
+#
+# Same relationship to the base that my-community-config has in production:
+# the tenant manifests are used unmodified and only lab-specific facts are
+# patched on top. Every patch is a lab concession, listed with why.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: immich
+
+resources:
+  - ../../../infrastructure/kubernetes/tenants/immich
+  - keycloak-secret-stub.yaml
+
+patches:
+  # 1. No Keycloak in the lab — OIDC is not on the backup path. The job would
+  #    poll a Keycloak that never appears, and immich-server blocks on the
+  #    keycloak-secret it produces. The stub satisfies the project contract
+  #    (.agents/AGENTS.md): keys clientId / client-secret, secret keycloak-secret.
+  - target:
+      kind: Job
+      name: keycloak-client-init
+    patch: |-
+      $patch: delete
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: keycloak-client-init
+
+  # 2. Machine learning produces only derived data (embeddings, thumbnails),
+  #    which the pod archive deliberately excludes. ~2GB of models for nothing.
+  - target:
+      kind: Deployment
+      name: immich-machine-learning
+    patch: |-
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: immich-machine-learning
+
+  # 3. The exporter reaches the gateway over plain HTTP inside the cluster.
+  #    Upstream hard-codes https://pod.smallworlds.network, which would need
+  #    Traefik + cert-manager + DNS; none of that is on the backup path.
+  #    Strategic merge (env merges on the name key) rather than a JSON patch
+  #    by index, which would silently rewrite the wrong variable if the order
+  #    in pod-export-cronjob.yaml ever changes.
+  - target:
+      kind: CronJob
+      name: immich-pod-export
+    patch: |-
+      apiVersion: batch/v1
+      kind: CronJob
+      metadata:
+        name: immich-pod-export
+      spec:
+        jobTemplate:
+          spec:
+            template:
+              spec:
+                containers:
+                  - name: export
+                    env:
+                      - name: POD_GATEWAY_URL
+                        value: http://pod-gateway.pod-gateway.svc.cluster.local
