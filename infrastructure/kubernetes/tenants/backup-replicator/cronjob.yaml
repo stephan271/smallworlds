@@ -1,3 +1,18 @@
+# The offsite leg. Source is `garage-backup` only (docs/adr/0048): everything
+# worth carrying offsite has already been collected there by barman, Velero,
+# pv-backup and the bucket-to-bucket copies, so the operational instance does
+# not need to be read at all.
+#
+# The bucket list is EXPLICIT and `pod-gateway` is deliberately absent. Two
+# independent controls keep members' pods on the cluster: this list, and the
+# replicator key's grants (see README §2). Either alone would be enough; both
+# are used because the failure is silent and the data is members' private
+# photos — including the `immich-locked/` prefix — stored unencrypted at rest.
+# The previous `rclone sync source: dest:` swept the whole instance and did
+# exactly what this exists to prevent.
+#
+# Adding a tenant does NOT extend this list automatically. That is the point:
+# a new bucket leaving the cluster should be a decision, not a side effect.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -19,14 +34,49 @@ spec:
               command: ["/bin/sh", "-c"]
               args:
                 - |
-                  echo "Starting full Garage S3 replication..."
-                  # This will sync all buckets if we configure the rclone remotes properly
-                  rclone sync source: dest: -v
-                  if [ $? -ne 0 ]; then
-                    echo "Replication failed!"
+                  set -u
+                  echo "Replicating offsite: $REPLICATE_BUCKETS"
+
+                  if rclone lsd source: 2>/dev/null | grep -qw pod-gateway; then
+                    echo "FATAL: the replicator key can read the pod-gateway bucket." >&2
+                    echo "Members' personal pods must not leave the cluster — fix the" >&2
+                    echo "key grants per tenants/backup-replicator/README.md §2." >&2
+                    exit 1
+                  fi
+
+                  failed=""
+                  for bucket in $REPLICATE_BUCKETS; do
+                    if ! rclone lsd "source:$bucket" >/dev/null 2>&1; then
+                      # Loud, not silent: a bucket that has gone missing means a
+                      # dataset is no longer being carried offsite.
+                      echo "ERROR: source bucket '$bucket' does not exist" >&2
+                      failed="$failed $bucket"
+                      continue
+                    fi
+                    echo "--- $bucket"
+                    if ! rclone sync "source:$bucket" "dest:$bucket" -v --stats-one-line; then
+                      echo "ERROR: replication of '$bucket' failed" >&2
+                      failed="$failed $bucket"
+                    fi
+                  done
+
+                  if [ -n "$failed" ]; then
+                    echo "Replication FAILED for:$failed" >&2
                     exit 1
                   fi
                   echo "Replication completed successfully."
+              env:
+                # Space-separated. Everything on garage-backup except
+                # pod-gateway. Per-tenant entries are the backup-side copies
+                # written by pv-backup-job / backup-job, not the live buckets.
+                - name: REPLICATE_BUCKETS
+                  value: >-
+                    postgres-backups
+                    postgres-backups-keycloak
+                    velero-backups
+                    nextcloud
+                    forgejo
+                    plane
               volumeMounts:
                 - name: rclone-config
                   mountPath: /config/rclone

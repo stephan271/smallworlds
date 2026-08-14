@@ -17,11 +17,29 @@ Any S3-compatible target works, but the recommended one is a B2 bucket
 plain mirror into point-in-time recovery — deletions/corruption synced offsite
 remain recoverable as older versions.
 
-1. Create a bucket (e.g. `<community>-backups`) with **versioning enabled**
-   (B2 buckets keep all versions by default — do not switch to "keep only the
-   latest").
+1. Create **one bucket per replicated bucket name**, each with **versioning
+   enabled** (B2 buckets keep all versions by default — do not switch to "keep
+   only the latest"). The names must match the source exactly:
+   `postgres-backups`, `postgres-backups-keycloak`, `velero-backups`,
+   `nextcloud`, `forgejo`, `plane`.
 2. Add a lifecycle rule: hide/delete prior versions after ~30 days.
-3. Create an **application key** scoped to that bucket (read+write).
+3. Create an **application key** scoped to those buckets (read+write).
+
+> **Pre-create them; do not let rclone do it.** Buckets rclone creates on first
+> sync have versioning **off**, which silently turns the offsite copy from a
+> point-in-time backup into a plain mirror — a deletion or corruption on the
+> cluster then propagates within 24 h and is unrecoverable. This was measured:
+> a file was created, synced, deleted cluster-side and re-synced, and it was
+> gone offsite with no version to recover. Verify before trusting the leg:
+>
+> ```bash
+> # B2
+> b2 bucket get <bucket> | grep -i versioning
+> # any S3-compatible target
+> aws s3api get-bucket-versioning --bucket <bucket> --endpoint-url <url>
+> ```
+>
+> Expect `Enabled`. An empty response means versioning is off.
 
 ## 2. Source key: cluster Garage
 
@@ -29,15 +47,36 @@ The per-tenant init jobs create keys scoped to their own buckets; the replicator
 needs one key that can read *all* buckets. On the node (or via `kubectl exec`
 into the Garage pod):
 
+The key lives on **`garage-backup`**, not the operational instance — that is
+where every Recovery Point is collected (`docs/adr/0048`), so the replicator
+never needs to read operational storage at all.
+
 ```bash
+# in the garage-backup-system namespace, NOT garage-system
 garage key create replicator-key
-for b in $(garage bucket list | awk 'NR>1 {print $1}'); do
+for b in postgres-backups postgres-backups-keycloak velero-backups \
+         nextcloud forgejo plane; do
   garage bucket allow "$b" --read --key replicator-key
 done
 ```
 
-Re-run the loop after adding a new tenant (its bucket won't be granted
-automatically). Note the Key ID / secret from `garage key info replicator-key`.
+**Grant these buckets and no others.** In particular never grant
+`pod-gateway`: members' personal pods stay on the cluster, they are stored
+unencrypted at rest, and the archive includes the `immich-locked/` prefix
+holding their PIN-protected photos. The CronJob refuses to run if the key can
+see that bucket, so a mistake here fails loudly rather than quietly shipping
+private photos to a third party — but the grant list is the control that
+matters; the check is only a backstop.
+
+Do **not** substitute `$(garage bucket list)` for the explicit loop. That is
+what the earlier version of this file did, and combined with a whole-instance
+`rclone sync` it replicated every pod offsite in contradiction of
+`docs/adr/0047`.
+
+Adding a tenant does not extend the list automatically. Grant its backup-side
+bucket here *and* add it to `REPLICATE_BUCKETS` in `cronjob.yaml` — a dataset
+leaving the cluster should be a decision. Note the Key ID / secret from
+`garage key info replicator-key`.
 
 ## 3. The rclone config secret
 
@@ -47,7 +86,7 @@ automatically). Note the Key ID / secret from `garage key info replicator-key`.
 [source]
 type = s3
 provider = Other
-endpoint = http://garage.garage-system.svc.cluster.local:3900
+endpoint = http://garage-backup.garage-backup-system.svc.cluster.local:3900
 region = garage
 force_path_style = true
 access_key_id = <replicator-key id>
