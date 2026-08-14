@@ -202,6 +202,14 @@ else
         DATA_DIR="/var/lib/smallworlds-data"
     fi
     ask_with_default "10. Enter the data directory on the server (all user data lives here)" "DATA_DIR" "false"
+    if [[ -z "$BACKUP_DIR" ]]; then
+        BACKUP_DIR="/var/lib/smallworlds-backup"
+    fi
+    echo ""
+    echo -e "Backups must survive the loss of the operational disk, so they need a"
+    echo -e "${CYAN}second physical disk${NC} — the bootstrap refuses to continue if this ends up"
+    echo -e "on the same device as the data directory (see docs/adr/0048)."
+    ask_with_default "11. Enter the backup directory on the server (on a second disk)" "BACKUP_DIR" "false"
 
     echo ""
     echo -e "Optionally, the apps can be exposed on the internet: DNS records for your domain"
@@ -213,13 +221,13 @@ else
     if [[ -z "$LOCAL_PUBLIC" ]]; then
         LOCAL_PUBLIC="no"
     fi
-    ask_with_default "11. Expose the apps on the internet? (yes/no)" "LOCAL_PUBLIC" "false"
+    ask_with_default "12. Expose the apps on the internet? (yes/no)" "LOCAL_PUBLIC" "false"
     case "$LOCAL_PUBLIC" in
         y|Y|yes|Yes|YES) LOCAL_PUBLIC="yes";;
         *) LOCAL_PUBLIC="no";;
     esac
     if [[ "$LOCAL_PUBLIC" == "yes" ]]; then
-        ask_with_default "12. Paste your Hetzner API Token (used for DNS record management only)" "HCLOUD_TOKEN" "true"
+        ask_with_default "13. Paste your Hetzner API Token (used for DNS record management only)" "HCLOUD_TOKEN" "true"
     fi
 fi
 
@@ -239,6 +247,9 @@ if [[ -z "$KC_PASS" ]]; then KC_PASS=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom
 if [[ -z "$INVITE_SECRET" ]]; then INVITE_SECRET=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32); fi
 if [[ -z "$GARAGE_RPC_SECRET" ]]; then GARAGE_RPC_SECRET=$(openssl rand -hex 32); fi
 if [[ -z "$GARAGE_ADMIN_TOKEN" ]]; then GARAGE_ADMIN_TOKEN=$(openssl rand -hex 32); fi
+# Distinct credentials for the backup instance — see docs/adr/0048.
+if [[ -z "$GARAGE_BACKUP_RPC_SECRET" ]]; then GARAGE_BACKUP_RPC_SECRET=$(openssl rand -hex 32); fi
+if [[ -z "$GARAGE_BACKUP_ADMIN_TOKEN" ]]; then GARAGE_BACKUP_ADMIN_TOKEN=$(openssl rand -hex 32); fi
 # Signs the in-cluster Operator Console's session cookies. Absent, the console
 # invents one at startup, which is safe and logs every Operator out on each
 # restart. Nobody ever types it, so it is generated here with the other machine
@@ -251,6 +262,7 @@ cat <<EOF > "$CACHE_FILE"
 DEPLOY_TARGET="${DEPLOY_TARGET}"
 LOCAL_SSH_TARGET="${LOCAL_SSH_TARGET}"
 DATA_DIR="${DATA_DIR}"
+BACKUP_DIR="${BACKUP_DIR}"
 LOCAL_PUBLIC="${LOCAL_PUBLIC}"
 DOMAIN="${DOMAIN}"
 ENV_EXT="${ENV_EXT}"
@@ -265,6 +277,8 @@ INVITE_SECRET="${INVITE_SECRET}"
 GARAGE_RPC_SECRET="${GARAGE_RPC_SECRET}"
 CONSOLE_SESSION_KEY="${CONSOLE_SESSION_KEY}"
 GARAGE_ADMIN_TOKEN="${GARAGE_ADMIN_TOKEN}"
+GARAGE_BACKUP_RPC_SECRET="${GARAGE_BACKUP_RPC_SECRET}"
+GARAGE_BACKUP_ADMIN_TOKEN="${GARAGE_BACKUP_ADMIN_TOKEN}"
 GRAFANA_PASS="${GRAFANA_PASS}"
 EOF
 chmod 600 "$CACHE_FILE"
@@ -391,6 +405,25 @@ type: Opaque
 stringData:
   rpcSecret: "${GARAGE_RPC_SECRET}"
   adminToken: "${GARAGE_ADMIN_TOKEN}"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: garage-backup-system
+---
+# The backup-only Garage instance (docs/adr/0048). Its own RPC secret and admin
+# token: the two instances are separate clusters that must never join each
+# other's gossip, and a credential that reaches the operational instance should
+# not also reach the backups.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: garage-auth-secret
+  namespace: garage-backup-system
+type: Opaque
+stringData:
+  rpcSecret: "${GARAGE_BACKUP_RPC_SECRET}"
+  adminToken: "${GARAGE_BACKUP_ADMIN_TOKEN}"
 ---
 apiVersion: v1
 kind: Namespace
@@ -545,6 +578,7 @@ ROOT_APP_GIT_URL="${GITOPS_REPO_URL}"
 ACME_EMAIL="${LOCAL_ACME_EMAIL}"
 MANAGE_DNS="${MANAGE_DNS}"
 DATA_DIR="${DATA_DIR}"
+BACKUP_DIR="${BACKUP_DIR}"
 NODE_NAME="smallworlds-local-node"
 SECRETS_MANIFEST="/tmp/smallworlds-${DOMAIN}-secrets.yaml"
 EOF

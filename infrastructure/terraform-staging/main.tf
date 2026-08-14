@@ -82,6 +82,10 @@ resource "hcloud_server" "smallworlds_staging_node" {
     hcloud_token      = "" # unused: self-signed branch never reaches the DNS01 secret
     root_app_git_url  = "" # test-pr-locally.sh applies the Applications itself
     persistent_volume = false
+    # Unused when persistent_volume is false, but templatefile requires every
+    # variable the template names to be present.
+    data_volume_device   = ""
+    backup_volume_device = ""
   })
 }
 

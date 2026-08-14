@@ -35,6 +35,11 @@
 #   DATA_DIR          where all persistent data lives (default
 #                     /var/lib/smallworlds-data); symlinked to
 #                     /mnt/smallworlds-data, which the manifests expect
+#   BACKUP_DIR        where every Recovery Point lives (default
+#                     /var/lib/smallworlds-backup); symlinked to
+#                     /mnt/smallworlds-backup. MUST be on a different block
+#                     device than DATA_DIR — see docs/adr/0048. The bootstrap
+#                     refuses to continue when they share one.
 #   ETCD_DIR          where the cluster datastore lives (default
 #                     /var/lib/smallworlds-etcd, on the machine's own disk).
 #                     Must be fast storage — see the relocation below.
@@ -103,6 +108,7 @@ ROOT_APP_GIT_REVISION="${ROOT_APP_GIT_REVISION:-}"
 ACME_EMAIL="${ACME_EMAIL:-}"
 MANAGE_DNS="${MANAGE_DNS:-}"
 DATA_DIR="${DATA_DIR:-/var/lib/smallworlds-data}"
+BACKUP_DIR="${BACKUP_DIR:-/var/lib/smallworlds-backup}"
 ETCD_DIR="${ETCD_DIR:-/var/lib/smallworlds-etcd}"
 NODE_NAME="${NODE_NAME:-smallworlds-local-node}"
 PROFILE_ID="${PROFILE_ID:?PROFILE_ID must be set in $CONFIG_FILE}"
@@ -229,6 +235,28 @@ sysctl --system >/dev/null
 mkdir -p "$DATA_DIR/garage" "$DATA_DIR/immich-library" "$DATA_DIR/k3s"
 if [ "$DATA_DIR" != "/mnt/smallworlds-data" ]; then
     ln -sfn "$DATA_DIR" /mnt/smallworlds-data
+fi
+
+# Every Recovery Point lives here, and the whole point is that it survives the
+# loss of DATA_DIR (docs/adr/0048). Both the garage-backup data and metadata
+# directories go on it: the LMDB index is what resolves a bucket key to
+# content-addressed blocks, so leaving meta behind on the operational disk
+# would make the surviving blocks unreadable.
+mkdir -p "$BACKUP_DIR/garage-backup/data" "$BACKUP_DIR/garage-backup/meta"
+if [ "$BACKUP_DIR" != "/mnt/smallworlds-backup" ]; then
+    ln -sfn "$BACKUP_DIR" /mnt/smallworlds-backup
+fi
+
+# A co-located backup directory looks identical to a separated one right up
+# until the disk it shares dies. Refuse rather than pretend.
+DATA_DEVICE=$(df --output=source "$DATA_DIR" 2>/dev/null | tail -1)
+BACKUP_DEVICE=$(df --output=source "$BACKUP_DIR" 2>/dev/null | tail -1)
+if [ "$DATA_DEVICE" = "$BACKUP_DEVICE" ]; then
+    echo -e "${RED}DATA_DIR and BACKUP_DIR are both on $DATA_DEVICE.${NC}" >&2
+    echo "Backups must survive the loss of the operational disk, so they may not" >&2
+    echo "share one. Point BACKUP_DIR at a second disk and re-run:" >&2
+    echo "    BACKUP_DIR=/mnt/<second-disk>/smallworlds-backup" >&2
+    exit 1
 fi
 
 # Relocate k3s state onto the data dir so a k3s reinstall/upgrade never

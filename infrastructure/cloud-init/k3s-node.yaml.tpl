@@ -13,7 +13,11 @@
 #                             webhook (ACME challenges); "" when acme_email is also ""
 #   root_app_git_url  string  overlay repo for the ArgoCD root app; "" = no root app
 #                             (the staging pipeline applies Applications itself)
-#   persistent_volume bool    mount Hetzner volume + relocate k3s data onto it
+#   persistent_volume bool    mount Hetzner volumes + relocate k3s data onto them
+#   data_volume_device   string  /dev/disk/by-id path of the operational volume;
+#                                required when persistent_volume is true
+#   backup_volume_device string  /dev/disk/by-id path of the backup volume
+#                                (docs/adr/0048); required likewise
 %{ if golden_image ~}
 # Golden image: packages and updates are baked in
 package_update: false
@@ -74,23 +78,44 @@ write_files:
 %{ endif }
 runcmd:
 %{ if persistent_volume ~}
-  # 1. Mount persistent volume
+  # 1. Mount both persistent volumes, each by the exact device Terraform passed.
+  #    Two volumes are attached (operational + backup, docs/adr/0048) and the
+  #    previous "first unmounted disk" heuristic cannot tell them apart — it
+  #    would mount them in arbitrary order and could put every Recovery Point
+  #    on the volume they are meant to survive the loss of.
   - |
-    VOLUME_DEVICE=$(lsblk -rpo 'NAME,MOUNTPOINT' | awk '$2=="" && $1 !~ /^\/dev\/(sda|sr)/ {print $1}' | head -n1)
-    if [ -n "$VOLUME_DEVICE" ]; then
-      echo "Found unmounted volume at: $VOLUME_DEVICE"
-      MOUNT_DIR=$(lsblk -rpo 'NAME,MOUNTPOINT' | awk -v dev="$VOLUME_DEVICE" '$1==dev {print $2}' | head -n1)
-      if [ -z "$MOUNT_DIR" ]; then MOUNT_DIR="/mnt/smallworlds-data" ; mkdir -p $MOUNT_DIR ; mount $VOLUME_DEVICE $MOUNT_DIR ; fi
-      ln -sfn $MOUNT_DIR /mnt/smallworlds-data
-    else
-      # Volume already automounted by Hetzner; find it
-      MOUNT_DIR=$(lsblk -rpo 'NAME,MOUNTPOINT' | awk '$2 ~ /^.mnt/ && $2!="/mnt/smallworlds-data" {print $2}' | head -n1)
-      if [ -n "$MOUNT_DIR" ]; then ln -sfn $MOUNT_DIR /mnt/smallworlds-data ; fi
+    set -eu
+    mount_volume() {
+      device="$1"; target="$2"
+      if [ -z "$device" ]; then echo "FATAL: no device given for $target" >&2; exit 1; fi
+      # The attachment can lag the boot; wait for the by-id link to appear.
+      n=0
+      while [ ! -b "$device" ] && [ $n -lt 60 ]; do sleep 2; n=$((n+1)); done
+      if [ ! -b "$device" ]; then echo "FATAL: $device never appeared" >&2; exit 1; fi
+      mkdir -p "$target"
+      if ! mountpoint -q "$target"; then
+        mount "$device" "$target"
+      fi
+      grep -q " $target " /etc/fstab || \
+        echo "$device $target ext4 discard,nofail,defaults 0 0" >> /etc/fstab
+      echo "Mounted $device at $target"
+    }
+    mount_volume "${data_volume_device}" /mnt/smallworlds-data
+    mount_volume "${backup_volume_device}" /mnt/smallworlds-backup
+    # A co-located backup volume looks identical to a separated one until the
+    # day it is needed. Refuse rather than pretend.
+    if [ "$(stat -c %d /mnt/smallworlds-data)" = "$(stat -c %d /mnt/smallworlds-backup)" ]; then
+      echo "FATAL: data and backup are the same filesystem — separation is the point" >&2
+      exit 1
     fi
     mkdir -p /mnt/smallworlds-data/garage /mnt/smallworlds-data/immich-library /mnt/smallworlds-data/k3s
+    mkdir -p /mnt/smallworlds-backup/garage-backup/data /mnt/smallworlds-backup/garage-backup/meta
 %{ else ~}
-  # 1. No persistent volume (ephemeral node): plain local directories
+  # 1. No persistent volume (ephemeral node): plain local directories. The
+  #    backup path still exists so the manifests bind, but on one disk — a
+  #    staging node is not protecting anything.
   - mkdir -p /mnt/smallworlds-data/garage /mnt/smallworlds-data/immich-library /mnt/smallworlds-data/k3s
+  - mkdir -p /mnt/smallworlds-backup/garage-backup/data /mnt/smallworlds-backup/garage-backup/meta
 %{ endif ~}
 
   # Purge any cluster state a snapshot image may carry (datastore, TLS, node

@@ -209,6 +209,9 @@ resource "hcloud_server" "smallworlds_pilot_node" {
     hcloud_token      = var.hcloud_token
     root_app_git_url  = var.git_url
     persistent_volume = true
+    # Stable /dev/disk/by-id paths — see the automount comment on the attachments.
+    data_volume_device   = hcloud_volume.smallworlds_data.linux_device
+    backup_volume_device = hcloud_volume.smallworlds_backup.linux_device
   })
 
   public_net {
@@ -239,10 +242,42 @@ resource "hcloud_volume" "smallworlds_data" {
   }
 }
 
+# ------------------------------------------------------------------------------
+# Backup volume — physically separate storage for every Recovery Point.
+# See docs/adr/0048: hop one of every backup chain must not share a failure
+# domain with the data it protects, and nothing on the cluster enforces a size,
+# so a runaway consumer on the data volume must not be able to starve backups.
+# Holds the garage-backup instance (metadata AND data).
+# ------------------------------------------------------------------------------
+resource "hcloud_volume" "smallworlds_backup" {
+  name     = "smallworlds-backup${local.env_slug}"
+  size     = 100 # GB — barman + Velero + pv-backup + pods + the Nextcloud copy
+  location = var.location # Volumes are location-bound and must match the server
+  format   = "ext4"
+
+  lifecycle {
+    prevent_destroy = true # destroy-cluster.sh rewrites this when tearing down
+  }
+}
+
+# automount is deliberately false on both volumes. Hetzner's automount writes its
+# own fstab entry at /mnt/HC_Volume_<id>, and with two volumes attached there is
+# no way for cloud-init to tell which is which afterwards — the old
+# "first unmounted disk" heuristic would mount them in arbitrary order and could
+# put backups on the operational volume. cloud-init mounts both by the exact
+# device path Terraform passes it instead.
 resource "hcloud_volume_attachment" "smallworlds_data" {
   volume_id = hcloud_volume.smallworlds_data.id
   server_id = hcloud_server.smallworlds_pilot_node.id
-  automount = true
+  automount = false
+
+  depends_on = [hcloud_server.smallworlds_pilot_node]
+}
+
+resource "hcloud_volume_attachment" "smallworlds_backup" {
+  volume_id = hcloud_volume.smallworlds_backup.id
+  server_id = hcloud_server.smallworlds_pilot_node.id
+  automount = false
 
   depends_on = [hcloud_server.smallworlds_pilot_node]
 }
@@ -255,6 +290,11 @@ output "server_ipv4" {
 output "data_volume_linux_device" {
   value       = hcloud_volume.smallworlds_data.linux_device
   description = "The Linux device name for the persistent data volume (e.g., /dev/sdb). Used for mount configuration."
+}
+
+output "backup_volume_linux_device" {
+  value       = hcloud_volume.smallworlds_backup.linux_device
+  description = "The Linux device name for the backup volume holding garage-backup (docs/adr/0048)."
 }
 
 
