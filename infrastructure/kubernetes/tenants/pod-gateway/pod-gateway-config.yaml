@@ -5,7 +5,7 @@ metadata:
   namespace: pod-gateway
 data:
   LISTEN_PORT: "8080"
-  S3_ENDPOINT: "http://garage.garage-system.svc.cluster.local:3900"
+  S3_ENDPOINT: "http://garage-backup.garage-backup-system.svc.cluster.local:3900"
   # Garage 400s on any other region — see doc/storage-and-backup.md.
   S3_REGION: "garage"
   # Created by bases/garage-init-job, which names the bucket after the namespace.

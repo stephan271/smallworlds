@@ -53,13 +53,16 @@ spec:
               env:
                 - name: S3_DEST
                   value: "REPLACE_ME_IN_PATCH"
-                # rclone remote "garage:" defined entirely via env — no config file
+                # rclone remote "garage:" defined entirely via env — no config file.
+                # garage-secret-backup, NOT garage-secret: the destination is the
+                # backup instance (docs/adr/0048) and the tenant's own key only
+                # exists on the operational one.
                 - name: RCLONE_CONFIG_GARAGE_TYPE
                   value: "s3"
                 - name: RCLONE_CONFIG_GARAGE_PROVIDER
                   value: "Other"
                 - name: RCLONE_CONFIG_GARAGE_ENDPOINT
-                  value: "http://garage.garage-system.svc.cluster.local:3900"
+                  value: "http://garage-backup.garage-backup-system.svc.cluster.local:3900"
                 - name: RCLONE_CONFIG_GARAGE_REGION
                   value: "garage"
                 - name: RCLONE_CONFIG_GARAGE_FORCE_PATH_STYLE
@@ -67,12 +70,12 @@ spec:
                 - name: RCLONE_CONFIG_GARAGE_ACCESS_KEY_ID
                   valueFrom:
                     secretKeyRef:
-                      name: garage-secret
+                      name: garage-secret-backup
                       key: accessKey
                 - name: RCLONE_CONFIG_GARAGE_SECRET_ACCESS_KEY
                   valueFrom:
                     secretKeyRef:
-                      name: garage-secret
+                      name: garage-secret-backup
                       key: secretKey
               volumeMounts:
                 - name: data
