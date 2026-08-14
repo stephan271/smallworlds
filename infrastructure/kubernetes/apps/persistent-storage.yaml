@@ -44,6 +44,60 @@ spec:
                 - cc-pilot-node-01
                 - smallworlds-local-node
 ---
+# PersistentVolumes for the backup-only Garage instance, on the separate backup
+# volume (docs/adr/0048). Both the object blocks AND the LMDB index live here:
+# the index is what makes the blocks addressable, so splitting them across the
+# two volumes would defeat the separation entirely.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: garage-backup-data-pv
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  capacity:
+    storage: 90Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: static-local
+  local:
+    path: /mnt/smallworlds-backup/garage-backup/data
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - cc-pilot-node-01
+                - smallworlds-local-node
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: garage-backup-meta-pv
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: static-local
+  local:
+    path: /mnt/smallworlds-backup/garage-backup/meta
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - cc-pilot-node-01
+                - smallworlds-local-node
+---
 # PersistentVolume for Immich photo library
 # The immich-library-pvc will bind to this by name.
 apiVersion: v1

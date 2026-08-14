@@ -24,8 +24,15 @@ spec:
             name: "garage-auth-secret"
         persistence:
           enabled: true
-          size: 120Gi
-          storageClass: static-local
+          # These keys are per-volume. `persistence.size` and
+          # `persistence.storageClass` do NOT exist in this chart — Helm
+          # ignores unknown values silently, and setting them left Garage on a
+          # 1Gi local-path claim while garage-data-pv sat unbound.
+          meta:
+            size: 1Gi
+          data:
+            storageClass: static-local
+            size: 120Gi
         service:
           s3:
             type: ClusterIP

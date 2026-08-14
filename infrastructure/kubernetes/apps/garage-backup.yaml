@@ -1,0 +1,70 @@
+# The backup-only Garage instance. Serves every Recovery Point — barman base
+# backups and WAL, Velero, pv-backup, the pod archive, and the Nextcloud file
+# copy — from storage that is physically separate from the operational volume
+# (docs/adr/0048).
+#
+# It is a second instance rather than a second bucket because Garage has one
+# data_dir per instance and no per-bucket placement, and because the buckets on
+# the operational instance are not backups at all but the primary store for
+# users' Nextcloud files, Forgejo LFS and Plane uploads.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    # Same wave as the operational instance: both are foundational S3 that the
+    # CNPG/Velero/pod-gateway consumers in later waves depend on.
+    argocd.argoproj.io/sync-wave: "-5"
+  name: garage-backup
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: 'https://datahub-local.github.io/garage-helm'
+    targetRevision: 0.7.1
+    chart: garage
+    helm:
+      values: |
+        deployment:
+          replicaCount: 1
+        garage:
+          replicationFactor: "1"
+          secret:
+            create: false
+            name: "garage-auth-secret"
+        persistence:
+          enabled: true
+          # BOTH directories live on the backup volume. The chart's own comment
+          # invites putting meta on "preferably fast storage" — do not. The
+          # LMDB index is what resolves a bucket key to content-addressed
+          # blocks, so meta on the operational disk would leave this volume
+          # holding an unreadable pile of blocks after exactly the failure this
+          # instance exists to survive.
+          meta:
+            storageClass: static-local
+            size: 5Gi
+          data:
+            storageClass: static-local
+            size: 90Gi
+        service:
+          s3:
+            type: ClusterIP
+            port: 3900
+          api:
+            type: ClusterIP
+            port: 3901
+          web:
+            type: ClusterIP
+            port: 3902
+        ingress:
+          enabled: false
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: garage-backup-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

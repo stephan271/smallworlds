@@ -13,6 +13,7 @@ resources:
   - apps/cloudnative-pg.yaml
   - apps/argocd-ingress.yaml
   - apps/garage.yaml
+  - apps/garage-backup.yaml
   - apps/persistent-storage.yaml
   - apps/traefik.yaml
   - apps/kube-prometheus-stack.yaml
