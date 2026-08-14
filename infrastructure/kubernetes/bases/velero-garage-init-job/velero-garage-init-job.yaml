@@ -20,18 +20,19 @@ spec:
               set -e
 
               echo "Waiting for Garage pod to be ready..."
-              until kubectl get pods -n garage-system -l app.kubernetes.io/name=garage -o jsonpath='{.items[0].status.containerStatuses[0].ready}' 2>/dev/null | grep -q 'true'; do
+              until kubectl get pods -n garage-backup-system -l app.kubernetes.io/name=garage -o jsonpath='{.items[0].status.containerStatuses[0].ready}' 2>/dev/null | grep -q 'true'; do
                 echo "Garage is not ready yet, waiting..."
                 sleep 5
               done
 
               echo "Finding Garage pod..."
-              POD=$(kubectl get pods -n garage-system -l app.kubernetes.io/name=garage -o name | head -n 1)
+              # Velero's Recovery Points live on the backup instance (docs/adr/0048).
+              POD=$(kubectl get pods -n garage-backup-system -l app.kubernetes.io/name=garage -o name | head -n 1)
 
               echo "Setting up velero-key..."
-              kubectl exec -n garage-system $POD -- /garage key delete --yes velero-key || true
+              kubectl exec -n garage-backup-system $POD -- /garage key delete --yes velero-key || true
               
-              OUTPUT=$(kubectl exec -n garage-system $POD -- /garage key create velero-key)
+              OUTPUT=$(kubectl exec -n garage-backup-system $POD -- /garage key create velero-key)
               ACCESS_KEY=$(echo "$OUTPUT" | grep "Key ID:" | awk '{print $3}')
               SECRET_KEY=$(echo "$OUTPUT" | grep "Secret key:" | awk '{print $3}')
 
@@ -40,11 +41,11 @@ spec:
                 exit 1
               fi
 
-              kubectl exec -n garage-system $POD -- /garage key allow velero-key --create-bucket || true
+              kubectl exec -n garage-backup-system $POD -- /garage key allow velero-key --create-bucket || true
 
               echo "Creating velero-backups bucket..."
-              kubectl exec -n garage-system $POD -- /garage bucket create velero-backups || true
-              kubectl exec -n garage-system $POD -- /garage bucket allow velero-backups --read --write --owner --key velero-key || true
+              kubectl exec -n garage-backup-system $POD -- /garage bucket create velero-backups || true
+              kubectl exec -n garage-backup-system $POD -- /garage bucket allow velero-backups --read --write --owner --key velero-key || true
 
               echo "Creating velero-s3-creds secret..."
               cat <<CREDS > /tmp/cloud-credentials

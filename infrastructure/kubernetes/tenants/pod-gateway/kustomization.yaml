@@ -20,6 +20,27 @@ patches:
       - op: replace
         path: /metadata/name
         value: setup-binding-pod-gateway
+  # This tenant's "own" bucket is the pod archive itself — the only
+  # server-side copy of the Immich originals — so it belongs on the backup
+  # instance with the other Recovery Points, not on operational storage
+  # (docs/adr/0048). Without this the gateway would present a key minted on
+  # the operational instance to garage-backup, which its S3_ENDPOINT points at.
+  - target:
+      kind: Job
+      name: garage-init
+    patch: |-
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: garage-init
+      spec:
+        template:
+          spec:
+            containers:
+              - name: setup
+                env:
+                  - name: TENANT_BUCKET_NAMESPACE
+                    value: garage-backup-system
 
 configMapGenerator:
   # The gateway source, mounted at /app. Flat package (no subdirs), so a single

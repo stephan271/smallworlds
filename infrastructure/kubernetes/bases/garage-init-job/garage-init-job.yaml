@@ -13,43 +13,77 @@ spec:
       containers:
         - name: setup
           image: docker.io/alpine/k8s:1.36.2
+          env:
+            # Which Garage instance each half of this job talks to. Both are
+            # stated outright and the script refuses to run without them: a
+            # silent fallback would put Recovery Points on the volume the split
+            # exists to get them off (docs/adr/0048) — the exact failure this
+            # is meant to prevent, arriving quietly.
+            #
+            # The tenant's own bucket is operational storage for an app. For
+            # pod-gateway the "tenant bucket" IS the archive, so that tenant
+            # patches this to garage-backup-system.
+            - name: TENANT_BUCKET_NAMESPACE
+              value: garage-system
+            - name: GARAGE_BACKUP_NAMESPACE
+              value: garage-backup-system
+            - name: GARAGE_BACKUP_ENDPOINT
+              value: http://garage-backup.garage-backup-system.svc.cluster.local:3900
           command:
             - /bin/bash
             - -c
             - |
               set -e
-              
+
+              : "${GARAGE_BACKUP_NAMESPACE:?must name the backup Garage namespace}"
+              : "${GARAGE_BACKUP_ENDPOINT:?must give the backup Garage S3 endpoint}"
+              : "${TENANT_BUCKET_NAMESPACE:?must name the instance for the tenant bucket}"
+
               TENANT_NAMESPACE=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
 
-              echo "Waiting for Garage pod to be ready..."
-              until kubectl get pods -n garage-system -l app.kubernetes.io/name=garage -o jsonpath='{.items[0].status.containerStatuses[0].ready}' 2>/dev/null | grep -q 'true'; do
-                echo "Garage is not ready yet, waiting..."
-                sleep 5
-              done
+              # Wait for an instance to be ready and echo its pod name.
+              await_garage() {
+                local ns="$1"
+                echo "Waiting for Garage in $ns to be ready..." >&2
+                until kubectl get pods -n "$ns" -l app.kubernetes.io/name=garage \
+                      -o jsonpath='{.items[0].status.containerStatuses[0].ready}' 2>/dev/null \
+                      | grep -q 'true'; do
+                  echo "  $ns not ready yet, waiting..." >&2
+                  sleep 5
+                done
+                kubectl get pods -n "$ns" -l app.kubernetes.io/name=garage -o name | head -n 1
+              }
 
-              echo "Finding Garage pod..."
-              POD=$(kubectl get pods -n garage-system -l app.kubernetes.io/name=garage -o name | head -n 1)
+              # Assign a layout on first run. Each instance has its own layout;
+              # doing this per instance is why it cannot be hoisted out.
+              ensure_layout() {
+                local ns="$1" pod="$2"
+                local nodes
+                nodes=$(kubectl exec -n "$ns" "$pod" -- /garage status \
+                        | grep -E '^[0-9a-f]{16}' | awk '{print $1}')
+                for node in $nodes; do
+                  echo "Staging layout assignment for $node in $ns..."
+                  kubectl exec -n "$ns" "$pod" -- /garage layout assign -z dc1 -c 100G "$node" || true
+                done
+                kubectl exec -n "$ns" "$pod" -- /garage layout apply --version 1 || true
+              }
 
-              echo "Forming Garage Storage Layout..."
-              NODES=$(kubectl exec -n garage-system $POD -- /garage status | grep -E '^[0-9a-f]{16}' | awk '{print $1}')
-              for NODE in $NODES; do
-                echo "Staging layout assignment for $NODE..."
-                kubectl exec -n garage-system $POD -- /garage layout assign -z dc1 -c 100G $NODE || true
-              done
-              
-              echo "Applying layout revision..."
-              kubectl exec -n garage-system $POD -- /garage layout apply --version 1 || true
+              POD=$(await_garage "$TENANT_BUCKET_NAMESPACE")
+              ensure_layout "$TENANT_BUCKET_NAMESPACE" "$POD"
 
-              # --- Tenant key & bucket ---
+              BACKUP_POD=$(await_garage "$GARAGE_BACKUP_NAMESPACE")
+              ensure_layout "$GARAGE_BACKUP_NAMESPACE" "$BACKUP_POD"
+
+              # --- Tenant key & bucket: $TENANT_BUCKET_NAMESPACE ---
               if kubectl get secret garage-secret -n $TENANT_NAMESPACE > /dev/null 2>&1; then
                 echo "garage-secret already exists in $TENANT_NAMESPACE namespace, skipping key creation."
               else
                 echo "Deleting existing Garage key if any (for idempotent re-runs)..."
-                kubectl exec -n garage-system $POD -- /garage key delete --yes ${TENANT_NAMESPACE}-key || true
+                kubectl exec -n $TENANT_BUCKET_NAMESPACE $POD -- /garage key delete --yes ${TENANT_NAMESPACE}-key || true
 
                 echo "Generating access key for $TENANT_NAMESPACE..."
-                OUTPUT=$(kubectl exec -n garage-system $POD -- /garage key create ${TENANT_NAMESPACE}-key)
-                
+                OUTPUT=$(kubectl exec -n $TENANT_BUCKET_NAMESPACE $POD -- /garage key create ${TENANT_NAMESPACE}-key)
+
                 ACCESS_KEY=$(echo "$OUTPUT" | grep "Key ID:" | awk '{print $3}')
                 SECRET_KEY=$(echo "$OUTPUT" | grep "Secret key:" | awk '{print $3}')
 
@@ -59,11 +93,11 @@ spec:
                 fi
 
                 echo "Setting permissions for $TENANT_NAMESPACE key..."
-                kubectl exec -n garage-system $POD -- /garage key allow ${TENANT_NAMESPACE}-key --create-bucket || true
+                kubectl exec -n $TENANT_BUCKET_NAMESPACE $POD -- /garage key allow ${TENANT_NAMESPACE}-key --create-bucket || true
 
                 echo "Creating $TENANT_NAMESPACE bucket..."
-                kubectl exec -n garage-system $POD -- /garage bucket create $TENANT_NAMESPACE || true
-                kubectl exec -n garage-system $POD -- /garage bucket allow $TENANT_NAMESPACE --read --write --owner --key ${TENANT_NAMESPACE}-key || true
+                kubectl exec -n $TENANT_BUCKET_NAMESPACE $POD -- /garage bucket create $TENANT_NAMESPACE || true
+                kubectl exec -n $TENANT_BUCKET_NAMESPACE $POD -- /garage bucket allow $TENANT_NAMESPACE --read --write --owner --key ${TENANT_NAMESPACE}-key || true
 
                 echo "Creating garage-secret in $TENANT_NAMESPACE namespace..."
                 kubectl create secret generic garage-secret -n $TENANT_NAMESPACE \
@@ -73,24 +107,70 @@ spec:
                   --from-literal=secretAccessKey="$SECRET_KEY"
               fi
 
-              # --- Dedicated CNPG key ---
-              echo "Setting up dedicated postgres-backups key for CNPG..."
-              kubectl exec -n garage-system $POD -- /garage key delete --yes ${TENANT_NAMESPACE}-cnpg-key || true
-              CNPG_OUTPUT=$(kubectl exec -n garage-system $POD -- /garage key create ${TENANT_NAMESPACE}-cnpg-key)
+              # --- Dedicated CNPG key: BACKUP instance ---
+              # Separate key from the tenant's own, so a compromised app
+              # credential cannot reach the backups, and now on separate
+              # storage as well.
+              echo "Setting up dedicated postgres-backups key for CNPG on $GARAGE_BACKUP_NAMESPACE..."
+              kubectl exec -n $GARAGE_BACKUP_NAMESPACE $BACKUP_POD -- /garage key delete --yes ${TENANT_NAMESPACE}-cnpg-key || true
+              CNPG_OUTPUT=$(kubectl exec -n $GARAGE_BACKUP_NAMESPACE $BACKUP_POD -- /garage key create ${TENANT_NAMESPACE}-cnpg-key)
               CNPG_ACCESS=$(echo "$CNPG_OUTPUT" | grep "Key ID:" | awk '{print $3}')
               CNPG_SECRET=$(echo "$CNPG_OUTPUT" | grep "Secret key:" | awk '{print $3}')
 
-              kubectl exec -n garage-system $POD -- /garage key allow ${TENANT_NAMESPACE}-cnpg-key --create-bucket || true
+              if [[ -z "$CNPG_ACCESS" || -z "$CNPG_SECRET" ]]; then
+                echo "Error: Failed to parse the CNPG Key ID or Secret key."
+                exit 1
+              fi
 
-              echo "Creating global postgres-backups bucket..."
-              kubectl exec -n garage-system $POD -- /garage bucket create postgres-backups || true
-              kubectl exec -n garage-system $POD -- /garage bucket allow postgres-backups --read --write --owner --key ${TENANT_NAMESPACE}-cnpg-key || true
+              kubectl exec -n $GARAGE_BACKUP_NAMESPACE $BACKUP_POD -- /garage key allow ${TENANT_NAMESPACE}-cnpg-key --create-bucket || true
 
+              echo "Creating global postgres-backups bucket on the backup instance..."
+              kubectl exec -n $GARAGE_BACKUP_NAMESPACE $BACKUP_POD -- /garage bucket create postgres-backups || true
+              kubectl exec -n $GARAGE_BACKUP_NAMESPACE $BACKUP_POD -- /garage bucket allow postgres-backups --read --write --owner --key ${TENANT_NAMESPACE}-cnpg-key || true
+
+              # endpointURL travels with the credential so tenants never have to
+              # know which instance holds their backups.
               echo "Creating garage-secret-cnpg in $TENANT_NAMESPACE namespace..."
               kubectl create secret generic garage-secret-cnpg -n $TENANT_NAMESPACE \
                 --from-literal=accessKeyId="$CNPG_ACCESS" \
                 --from-literal=secretAccessKey="$CNPG_SECRET" \
+                --from-literal=endpointURL="$GARAGE_BACKUP_ENDPOINT" \
                 --dry-run=client -o yaml | kubectl apply -f -
+
+              # --- Per-tenant backup bucket & key: BACKUP instance ---
+              # Where this tenant's file-shaped backups land: pv-backup-job
+              # (PVC -> bucket) and backup-job (bucket -> bucket). A third key
+              # rather than reusing either existing one: the tenant's own key
+              # lives on the other instance entirely, and garage-secret-cnpg is
+              # the postgres operator's, which should not also unlock file
+              # backups.
+              if kubectl get secret garage-secret-backup -n $TENANT_NAMESPACE > /dev/null 2>&1; then
+                echo "garage-secret-backup already exists in $TENANT_NAMESPACE, skipping."
+              else
+                echo "Setting up the backup bucket and key for $TENANT_NAMESPACE..."
+                kubectl exec -n $GARAGE_BACKUP_NAMESPACE $BACKUP_POD -- /garage key delete --yes ${TENANT_NAMESPACE}-backup-key || true
+                BK_OUTPUT=$(kubectl exec -n $GARAGE_BACKUP_NAMESPACE $BACKUP_POD -- /garage key create ${TENANT_NAMESPACE}-backup-key)
+                BK_ACCESS=$(echo "$BK_OUTPUT" | grep "Key ID:" | awk '{print $3}')
+                BK_SECRET=$(echo "$BK_OUTPUT" | grep "Secret key:" | awk '{print $3}')
+
+                if [[ -z "$BK_ACCESS" || -z "$BK_SECRET" ]]; then
+                  echo "Error: Failed to parse the backup Key ID or Secret key."
+                  exit 1
+                fi
+
+                # Same name as the tenant's operational bucket, on the other
+                # instance — so a path like nextcloud/pv-backup/html means the
+                # same thing on both sides.
+                kubectl exec -n $GARAGE_BACKUP_NAMESPACE $BACKUP_POD -- /garage bucket create $TENANT_NAMESPACE || true
+                kubectl exec -n $GARAGE_BACKUP_NAMESPACE $BACKUP_POD -- /garage bucket allow $TENANT_NAMESPACE --read --write --owner --key ${TENANT_NAMESPACE}-backup-key || true
+
+                kubectl create secret generic garage-secret-backup -n $TENANT_NAMESPACE \
+                  --from-literal=accessKey="$BK_ACCESS" \
+                  --from-literal=secretKey="$BK_SECRET" \
+                  --from-literal=accessKeyId="$BK_ACCESS" \
+                  --from-literal=secretAccessKey="$BK_SECRET" \
+                  --from-literal=endpointURL="$GARAGE_BACKUP_ENDPOINT"
+              fi
 
               echo "Garage initialized successfully for $TENANT_NAMESPACE!"
       restartPolicy: OnFailure
