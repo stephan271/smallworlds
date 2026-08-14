@@ -31,7 +31,7 @@ spec:
       # server — without this, only the first tenant to sync gets working backups.
       serverName: stalwart-database
       destinationPath: s3://postgres-backups/
-      endpointURL: http://garage.garage-system.svc.cluster.local:3900
+      endpointURL: http://garage-backup.garage-backup-system.svc.cluster.local:3900
       s3Credentials:
         accessKeyId:
           name: garage-secret-cnpg
@@ -47,7 +47,9 @@ kind: ScheduledBackup
 metadata:
   name: database-backup
 spec:
-  schedule: "0 2 * * *"
+  # SIX fields, seconds first — CNPG is not Kubernetes CronJob syntax.
+  # A five-field "0 2 * * *" parses as second 0 of minute 2 of EVERY hour.
+  schedule: "0 0 2 * * *"
   cluster:
     name: database
   immediate: true

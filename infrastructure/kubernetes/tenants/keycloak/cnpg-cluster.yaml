@@ -29,7 +29,7 @@ spec:
     retentionPolicy: "7d"
     barmanObjectStore:
       destinationPath: s3://postgres-backups-keycloak/
-      endpointURL: http://garage.garage-system.svc.cluster.local:3900
+      endpointURL: http://garage-backup.garage-backup-system.svc.cluster.local:3900
       s3Credentials:
         accessKeyId:
           name: garage-secret
@@ -47,7 +47,9 @@ metadata:
   name: keycloak-db-backup
   namespace: keycloak
 spec:
-  schedule: "0 3 * * *"
+  # SIX fields, seconds first — CNPG is not Kubernetes CronJob syntax.
+  # A five-field "0 3 * * *" parses as second 0 of minute 3 of EVERY hour.
+  schedule: "0 0 3 * * *"
   cluster:
     name: keycloak-db
   immediate: true
