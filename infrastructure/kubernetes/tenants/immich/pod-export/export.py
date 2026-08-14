@@ -70,6 +70,11 @@ def local_path(original_path):
 def object_key(asset):
     """Stable, collision-free and still browsable on the device.
 
+    MUST stay behaviourally identical to object_key() in
+    admin-tools/restore-immich-originals.py — the two are the write and read
+    halves of the same naming scheme, and a restore that computes a different
+    key silently finds nothing. Change them together.
+
     On disk Immich names files by asset UUID, so the human-readable name only
     exists in the database — the pod is where the owner gets it back.
 

@@ -297,6 +297,14 @@ that the single-node assumption is baked into the storage layer:
 > would fail. The correct credential is `garage-secret-cnpg`
 > (`accessKeyId`/`secretAccessKey`).
 
+> **PostgreSQL is the index for nearly every file restore here.** Immich stores
+> pixels under asset UUIDs with the human name only in its database; Nextcloud
+> stores objects as `urn:oid:<fileid>` with filenames, folders and owners only in
+> its database. Neither bucket is restorable to anything a person recognises
+> without a database restored to a consistent point. The pod archive is the sole
+> exception — it is deliberately self-describing, which is what lets a member
+> read their own copy with no cluster at all.
+
 ### 7.1 PostgreSQL databases (CloudNativePG)
 
 CNPG restores by bootstrapping a *new* cluster from the object store of the old one.
@@ -371,7 +379,63 @@ After restoring buckets on a *rebuilt* Garage, the tenant init jobs will have
 generated fresh access keys; their `bucket allow … || true` grants re-attach the new
 keys to the restored buckets on the next sync retry.
 
-### 7.4 Disaster recovery (complete cluster rebuild)
+### 7.4 Immich originals (the pod archive)
+
+Since `docs/adr/0047` the pod archive is the only server-side copy of the
+pixels — `pv-backup` no longer mirrors the library PVC. Restores read the
+`pod-gateway` bucket on `garage-backup`; a member's device is the disaster tier
+(§7.6, planned), not the routine one.
+
+> **The database must be restored first.** The archive's keys are built for a
+> human — `immich/<year>/<date>/<id8>-<originalFileName>` — while the library is
+> keyed by asset UUID (`/data/upload/<user>/<xx>/<yy>/<uuid>.jpg`). Only the
+> Immich database holds the mapping between them, so §7.1 is a prerequisite,
+> not an alternative.
+
+1. Restore the Immich database (§7.1) and let it become ready.
+2. Dump the inventory the restore tool consumes:
+
+   ```bash
+   kubectl exec -n immich database-1 -c postgres -- psql -U postgres -d app -At -q -c \
+     "select json_build_object('id',id,'ownerId',\"ownerId\",
+        'originalPath',\"originalPath\",'originalFileName',\"originalFileName\",
+        'fileCreatedAt',to_char(\"fileCreatedAt\" at time zone 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'),
+        'visibility',visibility)
+      from asset where status='active'" > inventory.jsonl
+   ```
+
+3. Run the restore where the library PVC is mounted — a helper pod in the
+   `immich` namespace with `immich-library-pvc` at `/library`, and the
+   `pod-gateway` bucket credentials in the environment
+   (`POD_S3_ACCESS_KEY` / `POD_S3_SECRET_KEY` from the `garage-secret` in the
+   `pod-gateway` namespace):
+
+   ```bash
+   ./admin-tools/restore-immich-originals.py \
+       --inventory inventory.jsonl --user <immich-user-id> --library /library
+   #   ... review the dry run, then:
+   ./admin-tools/restore-immich-originals.py \
+       --inventory inventory.jsonl --user <immich-user-id> --library /library --apply
+   ```
+
+   Every object is checked against the digest its manifest entry recorded at
+   export time, and a mismatch is refused rather than written — so a corrupted
+   archive object cannot be laundered into the library by the restore. Assets
+   the archive does not hold are listed individually and make the run exit
+   non-zero; the usual cause is a user who was never enrolled, or an asset added
+   after the last nightly export.
+
+4. Restore from a device copy instead with `--from-device <dir>` pointing at the
+   device's `objects/` directory. Note there is no manifest there to verify
+   against — `pod-agent.py` checks each object's digest at pull time and keeps
+   only its sequence — so the tool says so rather than implying a check it did
+   not make.
+
+> Direct S3 access to the bucket bypasses the append-only guarantee: the
+> gateway holds owner rights because S3 requires it, and anything else holding
+> that credential can overwrite history. Restores only ever read.
+
+### 7.5 Disaster recovery (complete cluster rebuild)
 
 1. Re-run `smallworlds-init.sh` (restore TLS certs first via
    `admin-tools/restore-certs-from-laptop.sh` to avoid Let's Encrypt rate limits —
