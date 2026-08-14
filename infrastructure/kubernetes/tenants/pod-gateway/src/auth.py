@@ -84,6 +84,24 @@ class TokenStore:
         return None
 
 
+    def devices(self):
+        """(name, user_id) for every enrolled device.
+
+        Enrolment is mandatory, so monitoring has to be able to name a device
+        that has NEVER reported — including one whose last heartbeat predates a
+        gateway restart, since the heartbeat table is in-process. Without this
+        a silently dead device simply vanishes from the metrics instead of
+        alerting.
+        """
+        self.reload()
+        with self._lock:
+            return sorted(
+                (entry.get("name", "device"), entry["user_id"])
+                for entry in self._devices.values()
+                if entry.get("user_id")
+            )
+
+
 def bearer_token(header_value):
     if not header_value:
         return None

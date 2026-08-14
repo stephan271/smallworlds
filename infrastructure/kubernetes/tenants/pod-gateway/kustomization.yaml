@@ -11,6 +11,7 @@ resources:
   - pod-gateway-deployment.yaml
   - pod-gateway-service.yaml
   - pod-gateway-ingress.yaml
+  - pod-gateway-servicemonitor.yaml
 
 patches:
   - target:

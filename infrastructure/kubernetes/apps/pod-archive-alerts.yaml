@@ -1,0 +1,69 @@
+# Alerts for the personal data pods.
+#
+# These exist because enrolment is mandatory: members' home devices are the
+# disaster tier for Immich pixels (doc/storage-and-backup.md §7.6), so a device
+# that has stopped pulling is a copy that has silently stopped existing, and
+# nobody finds out until the day it is needed.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: pod-archive-alerts
+  namespace: monitoring
+  annotations:
+    # Apply after the kube-prometheus-stack CRDs exist (fresh-install ordering;
+    # ArgoCD retries anyway if the CRD isn't ready yet).
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  groups:
+    - name: pod-archive.rules
+      rules:
+        # The device is enrolled but has not checked in. The agent runs on a
+        # 15-minute timer, so 48h means roughly 190 missed runs — long enough
+        # that a laptop closed over a weekend does not page anyone.
+        - alert: PodArchiveDeviceStale
+          expr: |
+            pod_gateway_device_heartbeat_age_seconds > 172800
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod archive device {{ $labels.device }} has not reported in 48h"
+            description: >-
+              The home device for user {{ $labels.user_id }} has stopped pulling.
+              Its copy is one of only two holding these photos, and it is the
+              only one outside the cluster. Check the member's device:
+              journalctl -u pod-archive.service
+
+        # Enrolled but no heartbeat series at all — never reported, or not since
+        # the gateway last restarted (the heartbeat table is in-process). The
+        # age alert above cannot see this case, which is why the gateway also
+        # exports a gauge for every enrolled device.
+        - alert: PodArchiveDeviceNeverReported
+          expr: |
+            pod_gateway_device_enrolled
+              unless on (device, user_id) pod_gateway_device_heartbeat_age_seconds
+          for: 6h
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod archive device {{ $labels.device }} has never checked in"
+            description: >-
+              Enrolled for user {{ $labels.user_id }} but no heartbeat has been
+              seen. Either the member never completed install.sh, or the device
+              has been off since the gateway last restarted. Until it reports,
+              assume that member has no copy of their own photos.
+
+        # The gateway stored an object but failed to write its manifest entry,
+        # so no device will ever see it and a retry of the same key hits the
+        # 409. It has no delete path by design, so this needs a human.
+        - alert: PodArchiveOrphanObjects
+          expr: |
+            pod_gateway_orphan_objects > 0
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $value }} orphaned object(s) in the pod archive"
+            description: >-
+              Stored without a manifest entry, so invisible to devices. See the
+              gateway log for the keys — doc/pod-archive.md, "Known limitations".

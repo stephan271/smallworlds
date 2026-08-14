@@ -119,6 +119,23 @@ The member runs, on their own hardware:
 sudo ./install.sh '<enrolment-string>'    # from admin-tools/pod-device/
 ```
 
+## Enrolment is mandatory
+
+A member without a device has no copy of their own photos anywhere but the node
+disk, and in a total loss (`doc/storage-and-backup.md` §7.6) their originals are
+simply gone — the pod bucket is not replicated offsite, so nothing else holds
+them. Two things make that visible instead of silent:
+
+- the nightly export **fails** while any member with assets has no enrolled
+  device, naming them and their asset count (`REQUIRE_ENROLMENT`, on by default);
+- `PodArchiveDeviceNeverReported` fires for a device that has never checked in,
+  and `PodArchiveDeviceStale` for one that has stopped.
+
+The gateway exports `pod_gateway_device_enrolled` for every enrolled device, not
+only those that have reported, because the heartbeat table is in-process: after a
+restart a long-dead device would otherwise vanish from the metrics rather than
+alert.
+
 ## The home device
 
 A **Raspberry Pi 5 (8 GB) with an NVMe HAT and a 2 TB NVMe** is the reference

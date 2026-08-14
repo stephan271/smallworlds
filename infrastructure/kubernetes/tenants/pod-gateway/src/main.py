@@ -272,6 +272,20 @@ class Handler(BaseHTTPRequestHandler):
                 "# HELP pod_gateway_device_heartbeat_age_seconds Age of the last device heartbeat.",
                 "# TYPE pod_gateway_device_heartbeat_age_seconds gauge",
             ]
+            # Every enrolled device, reporting or not. A device that has never
+            # checked in (or has not since the gateway restarted) has no
+            # heartbeat series at all, so `absent()` cannot name it and an
+            # age-based alert would stay silent about exactly the case that
+            # matters: a member whose copy has quietly stopped existing.
+            lines += [
+                "# HELP pod_gateway_device_enrolled Enrolled devices, 1 per device.",
+                "# TYPE pod_gateway_device_enrolled gauge",
+            ]
+            for name, user_id in self.server.tokens.devices():
+                lines.append(
+                    f'pod_gateway_device_enrolled{{device="{name}",user_id="{user_id}"}} 1'
+                )
+
             now = time.time()
             for (device, user_id), state in sorted(_heartbeats.items()):
                 labels = f'device="{device}",user_id="{user_id}"'

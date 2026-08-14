@@ -22,6 +22,7 @@ resources:
   - apps/remediation.yaml
   - apps/velero.yaml
   - apps/backup-replicator.yaml
+  - apps/pod-archive-alerts.yaml
   - apps/alertmanager-config.yaml
   - apps/priorityclasses.yaml
   - apps/backup-alerts.yaml

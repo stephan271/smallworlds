@@ -32,6 +32,11 @@ GATEWAY = os.environ.get("POD_GATEWAY_URL", "").rstrip("/")
 TOKEN = os.environ.get("POD_AGENT_TOKEN", "")
 DRY_RUN = os.environ.get("DRY_RUN", "false").lower() == "true"
 MAX_ERRORS = int(os.environ.get("MAX_ERRORS", "25"))
+# Enrolment is mandatory by default: members' home devices are the disaster tier
+# for these pixels (doc/storage-and-backup.md §7.6), so a member without one is a
+# policy violation rather than a preference. Set "false" for a community that has
+# accepted the risk.
+REQUIRE_ENROLMENT = os.environ.get("REQUIRE_ENROLMENT", "true").lower() != "false"
 
 _CONTENT_TYPES = {
     ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
@@ -139,6 +144,7 @@ def main():
     log(f"Exporting for {len(users)} enrolled user(s).")
 
     counts = {"appended": 0, "exists": 0, "skipped": 0, "errors": 0}
+    unenrolled = {}   # owner_id -> assets that no device will ever receive
     with open(INVENTORY, "r", encoding="utf-8") as handle:
         for line in handle:
             line = line.strip()
@@ -150,6 +156,13 @@ def main():
                 continue
             asset = json.loads(line)
             if asset["owner_id"] not in users:
+                # Enrolment is mandatory: a member with no device has no copy
+                # of their own photos anywhere but the node disk, and in the
+                # disaster case (doc/storage-and-backup.md §7.6) their pixels
+                # are simply gone. Skipping silently is what let that go
+                # unnoticed, so it is counted and reported.
+                unenrolled.setdefault(asset["owner_id"], 0)
+                unenrolled[asset["owner_id"]] += 1
                 continue
 
             try:
@@ -187,6 +200,22 @@ def main():
         "Done: {appended} appended, {exists} already present, "
         "{skipped} skipped, {errors} errors.".format(**counts)
     )
+
+    if unenrolled:
+        total = sum(unenrolled.values())
+        log(f"UNPROTECTED: {total} asset(s) belong to {len(unenrolled)} user(s) "
+            f"with no enrolled device — they have NO copy outside this node.")
+        for owner_id, count in sorted(unenrolled.items(), key=lambda kv: -kv[1]):
+            log(f"  {owner_id}: {count} asset(s)")
+        log("Enrol them: ./admin-tools/pod-enroll-device.sh --user <id> --name <device>")
+        if REQUIRE_ENROLMENT:
+            # A CronJob has no metrics endpoint, so failing is the only signal
+            # that reaches Alertmanager (via KubeJobFailed). The summary above
+            # distinguishes this from an export error, and the export itself
+            # already completed for everyone who IS enrolled.
+            log("Failing the run because REQUIRE_ENROLMENT is set.")
+            return 4
+
     return 1 if counts["errors"] else 0
 
 

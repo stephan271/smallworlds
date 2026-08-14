@@ -448,6 +448,69 @@ pixels — `pv-backup` no longer mirrors the library PVC. Restores read the
 **This sequence has never been drilled end-to-end** (§5 item 2). Treat it as a plan,
 not a proven runbook, until a staging drill has validated it.
 
+
+### 7.6 Total loss — rebuilding from offsite and members' devices
+
+The case the architecture is shaped around: **both volumes are gone.** Operational
+data and every local Recovery Point went together — a destroyed node, a
+compromised cluster, a terminated account.
+
+What survives is asymmetric, by design:
+
+| Survives | Holds | Why it survived |
+|---|---|---|
+| Offsite S3 | all databases, Velero, the Nextcloud/Forgejo/Plane buckets | replicated nightly (§4 row 5) |
+| Members' home devices | Immich originals | pulled by hardware the cluster cannot reach |
+| — | **the pod bucket** | deliberately not replicated offsite |
+
+So the pixels come back from members and everything else comes back from the
+offsite copy. Note the dependency this creates: the database is what maps an
+archive key to a library path (§7.4), so the offsite database copy is what makes
+members' devices useful at all.
+
+1. Rebuild the cluster (§7.5 steps 1–2).
+2. Restore every database from offsite (§7.1) — this is the load-bearing step.
+3. Restore the application buckets from offsite (§7.3).
+4. Collect the Immich originals from members (below).
+5. Reconcile, then let ArgoCD finish syncing.
+
+**Collecting from devices.** The agent is pull-only and outbound-only, and the
+gateway gives devices no write verb at all — that is the property that stops a
+compromised cluster reaching into members' homes, and it is not weakened for a
+restore. Today that means the copy travels physically: the member brings or ships
+the disk, or mounts it somewhere the operator can read, and then
+
+```bash
+./admin-tools/restore-immich-originals.py \
+    --inventory inventory.jsonl --from-device /mnt/member-disk/objects \
+    --library /library --apply
+```
+
+per member. A remote push path would need a credential that can write into
+exactly one pod, which does not exist — agent tokens may append to *any* pod —
+and so needs its own decision record before it is built.
+
+**Expect drift, and reconcile.** Export runs nightly and the database backup
+daily, so after a total loss the two will disagree. The restore tool reports both
+directions:
+
+- an asset in the database that no device holds is listed as `MISSING FROM
+  ARCHIVE` and makes the run exit non-zero — usually added after the last export;
+- objects on a device that the restored database does not know about are simply
+  not requested. They are not lost: they remain on the member's disk, and are the
+  evidence for a manual reconciliation if someone is missing photos they
+  remember.
+
+**Members without a device have no copy.** Enrolment is mandatory precisely
+because of this step: an unenrolled member's originals existed only on the node
+disk, and in this scenario they are gone. The nightly export fails while any
+member is unenrolled (`REQUIRE_ENROLMENT`, on by default) and names them, and
+`PodArchiveDeviceNeverReported` fires for a device that never checks in — both
+exist so this is discovered in advance rather than here.
+
+**This sequence has not been drilled end-to-end.** The individual restores have
+been (§7.1 and §7.4 on a lab cluster), but the full rebuild-from-nothing has not.
+
 ## 8. The offsite leg — target architecture
 
 Nothing exists offsite today (§5 item 1). Requirements from §3: S3-compatible (so

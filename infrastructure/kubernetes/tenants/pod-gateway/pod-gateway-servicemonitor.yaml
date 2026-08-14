@@ -1,0 +1,27 @@
+# Without this nothing scrapes the gateway. doc/pod-archive.md has always said
+# to alert on pod_gateway_device_heartbeat_age_seconds, but the metrics were
+# only ever reachable by hand with curl — a device that stopped reporting was
+# invisible to Prometheus. Enrolment is mandatory (docs/adr/0048 follow-up), so
+# "this member's copy has silently stopped existing" has to be an alert.
+#
+# kube-prometheus-stack sets serviceMonitorSelectorNilUsesHelmValues: false, so
+# a ServiceMonitor anywhere in the cluster is picked up.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: pod-gateway
+  namespace: pod-gateway
+  labels:
+    app: pod-gateway
+  annotations:
+    # The CRD arrives with kube-prometheus-stack, which syncs in a later wave
+    # on a fresh install; ArgoCD retries until it exists.
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  selector:
+    matchLabels:
+      app: pod-gateway
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 60s
