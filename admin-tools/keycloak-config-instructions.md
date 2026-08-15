@@ -54,11 +54,19 @@ We need to remove passwords from the login flow and strictly require WebAuthn (P
 
 ## 4. Invite members
 
-1. Create a `users.csv`:
+1. Create a `users.csv`. Assign each member a **username**; `phone` and `email` are
+   both optional:
    ```csv
-   email,phone
-   testuser1@example.com,+1234567890
+   username,phone,email
+   ana,+41790000001,ana@example.test
+   bo,+41790000002,
    ```
+   A legacy `email,phone` file still works — the username is then the local part of
+   the address. Prefer explicit usernames: `ana@gmail.test` and `ana@bluewin.test`
+   both derive `ana`, and the script refuses the second rather than guessing (see
+   step 5). Forgejo rejects `@` in usernames, which is why the address itself cannot
+   be one.
+
 2. Run the invite script. It authenticates as the `bulk-invite` service-account
    client, so it needs that client's secret — the `bulk-invite-secret` key of the
    `keycloak-admin-creds` Secret, set by `smallworlds-init.sh`:
@@ -67,21 +75,45 @@ We need to remove passwords from the login flow and strictly require WebAuthn (P
    export KEYCLOAK_REALM="smallworlds"
    export KEYCLOAK_CLIENT_SECRET="<bulk-invite-secret>"
 
-   ./bulk-invite.py users.csv
+   ./bulk-invite.py users.csv            # links only
+   ./bulk-invite.py users.csv --qr       # links + printable QR codes
    ```
-3. By default no mail is sent. The links are written to `invite-links.csv`
-   (mode `0600`, override with `-o`) as `email,phone,link`.
 
-   **Each link is a bearer credential** that grants access to that account until it
-   expires — the validity window is printed at the end of the run. Distribute the
-   links over a channel you trust (Signal, a QR code, in person). Not SMS, and not
-   e-mail, which is the channel this flow exists to avoid depending on. Delete the
-   file once the invitations are out.
-4. To have Keycloak mail the links instead, pass `--email`. This requires a working
-   SMTP relay; without one, Keycloak accepts the request and the mail is silently
-   lost.
-5. The member opens the link, is prompted to update their profile (including
-   choosing a username), then to register a passkey.
-6. After completion they log in with the passkey — the realm has no password form.
+3. By default no mail is sent. Links are written to `invite-links.csv` (mode `0600`,
+   override with `-o`) as `username,phone,email,link`. With `--qr`, one SVG per
+   member also lands in `invite-qr/` (override by passing a directory). SVG is
+   vector — print at **4 cm or larger**, since an onboarding link is a dense symbol.
+   `--qr` needs either the `qrcode` Python package or the `qrencode` binary.
+
+4. **Each link logs its holder into that account** until it expires; the validity
+   window is printed at the end of the run. Deliver it:
+   - **In person** — hand over the printed QR. No network involved at all.
+   - **Remotely** — open a Jitsi room (`meet.<domain>/<room>`), have the member join
+     as a guest in the browser with no account, admit them from the lobby, and send
+     the link as a **private** chat message. The room URL is short enough to dictate
+     over the phone, which the onboarding link is not; and you see the person's face,
+     which is the identity check an invitation is supposed to make.
+
+   Never post a link or QR to a group — everyone present can use it. Not by e-mail or
+   SMS. Delete `invite-links.csv` and `invite-qr/` once the invitations are out.
+
+5. Two refusals are deliberate, and both exit non-zero: a username repeated **within
+   the CSV**, and a username that already exists in Keycloak **under a different
+   email**. In the second case the account may belong to somebody else, and issuing a
+   link would log the wrong person into it. Re-running for the *same* member (matching
+   email, or no email on either side) is a normal re-issue and mints a fresh link —
+   that is the recovery path for an expired link or a lost passkey.
+
+6. The member opens the link on the device they intend to use, updates their profile
+   (including choosing their final username), and registers a passkey. The passkey is
+   created on **that** device, so a phone-only member should open it on their phone.
+
+7. From then on they log in with the passkey — the realm has no password form.
+   Encourage a second passkey via the account console; without one, a lost device
+   means coming back to you for a new link.
+
+To have Keycloak mail the links instead of writing them out, pass `--email`. That
+requires a working SMTP relay (`doc/mail.md`); without one Keycloak accepts the
+request and the message is silently lost.
 
 If step 3 reports that the SPI is not deployed, see section 2.

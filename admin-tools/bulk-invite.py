@@ -4,6 +4,8 @@ import argparse
 import csv
 import os
 import requests
+import shutil
+import subprocess
 import sys
 
 # Default Keycloak settings
@@ -36,40 +38,67 @@ def get_admin_token():
         sys.exit(1)
     return response.json()["access_token"]
 
-def create_user(token, email, phone):
+def find_user_by_username(token, username):
+    """Exact-match lookup. Keycloak's `username` filter is a partial match by
+    default, so `exact=true` is required and the result is re-checked here: a
+    prefix match would otherwise hand back somebody else's account."""
+    url = f"{KEYCLOAK_URL}/admin/realms/{REALM}/users"
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.get(url, headers=headers,
+                            params={"username": username, "exact": "true"})
+    if response.status_code != 200:
+        return None
+    for user in response.json():
+        if user.get("username", "").lower() == username.lower():
+            return user
+    return None
+
+def create_user(token, username, email, phone):
+    """Create the member, or return the existing account when it is provably the
+    same person. Returns (user_id, None) or (None, reason)."""
     url = f"{KEYCLOAK_URL}/admin/realms/{REALM}/users"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-    
-    # We use the part of the email before @ as temporary username, because Forgejo strictly prohibits @ in usernames
-    username = email.split('@')[0]
+
     payload = {
         "username": username,
-        "email": email,
         "enabled": True,
-        "emailVerified": True, # Assume verified if we invite them
         "attributes": {}
     }
-    
+    if email:
+        payload["email"] = email
+        # Nothing verifies this address — onboarding is out of band and the
+        # realm never mails the member. It is contact metadata, not a proof.
+        payload["emailVerified"] = True
     if phone:
         payload["attributes"]["phoneNumber"] = phone
 
     response = requests.post(url, json=payload, headers=headers)
     if response.status_code == 201:
-        # User created, we need to get their ID. We can't get it from location header easily if it's not returned, so we search.
-        search_url = f"{KEYCLOAK_URL}/admin/realms/{REALM}/users?username={email}"
-        search_response = requests.get(search_url, headers=headers)
-        if search_response.status_code == 200 and len(search_response.json()) > 0:
-            return search_response.json()[0]["id"]
-    elif response.status_code == 409:
-        print(f"User {email} already exists.", file=sys.stderr)
-        username = email.split('@')[0]
-        search_url = f"{KEYCLOAK_URL}/admin/realms/{REALM}/users?username={username}"
-        search_response = requests.get(search_url, headers=headers)
-        if search_response.status_code == 200 and len(search_response.json()) > 0:
-            return search_response.json()[0]["id"]
-    else:
-        print(f"Failed to create user {email}: {response.text}", file=sys.stderr)
-    return None
+        # Keycloak returns the new id in Location. Searching for it instead is
+        # what made the previous version fail on every genuinely new user.
+        location = response.headers.get("Location", "")
+        if location:
+            return location.rstrip("/").rsplit("/", 1)[-1], None
+        existing = find_user_by_username(token, username)
+        return (existing["id"], None) if existing else (None, "created but could not be looked up")
+
+    if response.status_code == 409:
+        existing = find_user_by_username(token, username)
+        if not existing:
+            return None, "username is taken but the account could not be read back"
+        # A 409 means the username is taken, not that this is the same person.
+        # Minting a link without checking would log the wrong member into it.
+        existing_email = (existing.get("email") or "").lower()
+        if email and existing_email and existing_email != email.lower():
+            return None, (f"username '{username}' already belongs to {existing_email} — "
+                          f"refusing to issue a link for {email}. Choose a distinct username.")
+        if email and not existing_email:
+            return None, (f"username '{username}' already exists with no email on record — "
+                          f"refusing to guess whether this is {email}.")
+        print(f"User {username} already exists — re-issuing.", file=sys.stderr)
+        return existing["id"], None
+
+    return None, response.text
 
 def generate_link(token, user_id):
     """Mint the onboarding action token and return its URL instead of mailing it.
@@ -136,38 +165,98 @@ def open_private(path):
     return os.fdopen(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600),
                      "w", encoding="utf-8", newline="")
 
+def resolve_username(row):
+    """Username from the CSV, or derived from the address for legacy files.
+
+    Explicit usernames are preferred because deriving them collides: ana@a.test
+    and ana@b.test both want 'ana', and the loser of that race would otherwise
+    be handed a link into the winner's account.
+    """
+    username = (row.get("username") or "").strip()
+    if username:
+        return username
+    email = (row.get("email") or "").strip()
+    if not email:
+        return None
+    # Forgejo rejects '@' in usernames, so the local part is all that can be used.
+    return email.split("@")[0]
+
+def write_qr(link, username, directory):
+    """One printable SVG per member. Vector, so it scales to whatever the sheet
+    needs; an onboarding link is ~600 characters, which is a dense symbol —
+    print it at 4 cm or more or phone cameras will struggle."""
+    path = os.path.join(directory, f"{username}.svg")
+    try:
+        import qrcode
+        import qrcode.image.svg
+        img = qrcode.make(link, image_factory=qrcode.image.svg.SvgPathImage)
+        img.save(path)
+    except ImportError:
+        if not shutil.which("qrencode"):
+            print("  --qr needs either the 'qrcode' Python package "
+                  "(pip install qrcode) or the 'qrencode' binary.", file=sys.stderr)
+            return None
+        subprocess.run(["qrencode", "-t", "SVG", "-l", "M", "-o", path, link],
+                       check=True)
+    os.chmod(path, 0o600)
+    return path
+
 def main():
     parser = argparse.ArgumentParser(
         description="Bulk invite users to Keycloak with passkey onboarding. By "
                     "default the onboarding links are written to a file for the "
                     "operator to distribute out of band, so no mail capability "
                     "is required.")
-    parser.add_argument("csv_file", help="Path to CSV file with headers: email,phone")
+    parser.add_argument("csv_file",
+                        help="CSV with headers: username,phone[,email]. 'email' "
+                             "alone is accepted for older files, in which case the "
+                             "username is its local part.")
     parser.add_argument("--email", action="store_true",
                         help="Have Keycloak mail each link instead of writing them "
                              "out. Requires a working SMTP relay (see doc/mail.md).")
     parser.add_argument("-o", "--output", default="invite-links.csv",
-                        help="Where to write email,phone,link rows (default: "
-                             "invite-links.csv, mode 0600). Ignored with --email.")
+                        help="Where to write username,phone,email,link rows "
+                             "(default: invite-links.csv, mode 0600). Ignored "
+                             "with --email.")
+    parser.add_argument("--qr", metavar="DIR", nargs="?", const="invite-qr",
+                        help="Also write one printable SVG QR code per member into "
+                             "DIR (default: invite-qr). For handing out on paper or "
+                             "showing 1:1; never to a group.")
     args = parser.parse_args()
 
     token = get_admin_token()
     results = []
     failures = 0
+    seen = {}
+
+    if args.qr:
+        os.makedirs(args.qr, mode=0o700, exist_ok=True)
 
     with open(args.csv_file, mode='r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            email = row.get("email")
-            phone = row.get("phone", "")
+            email = (row.get("email") or "").strip()
+            phone = (row.get("phone") or "").strip()
+            username = resolve_username(row)
 
-            if not email:
+            if not username:
                 continue
 
-            print(f"Processing {email}...")
-            user_id = create_user(token, email, phone)
+            print(f"Processing {username}...")
 
+            # Catch collisions inside the file itself, which Keycloak cannot:
+            # the second row would look like an ordinary re-invite.
+            if username.lower() in seen:
+                print(f"  Duplicate username '{username}' in {args.csv_file} "
+                      f"(already used by {seen[username.lower()]}) — skipped.",
+                      file=sys.stderr)
+                failures += 1
+                continue
+            seen[username.lower()] = email or username
+
+            user_id, reason = create_user(token, username, email, phone)
             if not user_id:
+                print(f"  {reason}", file=sys.stderr)
                 failures += 1
                 continue
 
@@ -177,21 +266,27 @@ def main():
                 continue
 
             link = generate_link(token, user_id)
-            if link:
-                results.append((email, phone, link))
-            else:
+            if not link:
+                failures += 1
+                continue
+
+            results.append((username, phone, email, link))
+            if args.qr and not write_qr(link, username, args.qr):
                 failures += 1
 
     if not args.email:
         if results:
             with open_private(args.output) as f:
                 writer = csv.writer(f)
-                writer.writerow(["email", "phone", "link"])
+                writer.writerow(["username", "phone", "email", "link"])
                 writer.writerows(results)
             print(f"\nWrote {len(results)} onboarding link(s) to {args.output} (mode 0600).")
+            if args.qr:
+                print(f"Wrote {len(results)} QR code(s) to {args.qr}/ — print at 4 cm "
+                      f"or larger.")
             print(f"Each link is valid for {format_lifespan(get_link_lifespan(token))} "
-                  f"and grants access to that account — distribute it over a channel "
-                  f"you trust (Signal, a QR code, in person), not e-mail or SMS.")
+                  f"and logs the holder into that account. Hand it over in person, or "
+                  f"1:1 in a Jitsi guest room; never to a group, and not by e-mail or SMS.")
         else:
             print("\nNo onboarding links were generated.", file=sys.stderr)
 
