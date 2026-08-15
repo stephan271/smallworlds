@@ -96,6 +96,11 @@ resources:
   - apps/cert-manager.yaml
   - apps/cloudnative-pg.yaml
   - apps/garage.yaml
+  # Always deployed because apps/keycloak.yaml is: keycloak's garage-init waits
+  # for a Garage pod in garage-backup-system (the two-instance split of ADR
+  # 0048) and blocks the realm import forever without it. Omitting it deadlocks
+  # the whole run in a way that surfaces as every app returning 404.
+  - apps/garage-backup.yaml
   - apps/persistent-storage.yaml
   - apps/traefik.yaml
   - apps/keycloak.yaml
@@ -244,6 +249,23 @@ kind: Secret
 metadata:
   name: garage-auth-secret
   namespace: garage-system
+stringData:
+  rpcSecret: "$(openssl rand -hex 32)"
+  adminToken: "$(openssl rand -hex 32)"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: garage-backup-system
+---
+# Distinct credentials for the backup instance, as smallworlds-init.sh does for
+# a real cluster (docs/adr/0048). Without this the pod sits in
+# CreateContainerConfigError and keycloak's garage-init waits on it forever.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: garage-auth-secret
+  namespace: garage-backup-system
 stringData:
   rpcSecret: "$(openssl rand -hex 32)"
   adminToken: "$(openssl rand -hex 32)"
