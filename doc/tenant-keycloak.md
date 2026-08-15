@@ -35,7 +35,29 @@ Keycloak's default root URL (`/`) goes to an admin welcome page.
 
 Members are nonetheless passwordless **in practice**, for two reasons that are worth keeping true deliberately rather than by accident: `admin-tools/bulk-invite.py` sets no password credential when it creates a member, so the password form has nothing to match against; and `resetPasswordAllowed` is `false`, so there is no "Forgot password?" link and Keycloak never sends a reset mail. That — not the absence of a password form — is why account recovery needs no mail (`doc/mail.md`, `docs/adr/0049`). The password path is latent, not removed: give a user a password and it will work.
 
-**Recovery codes are enabled but unusable.** `recovery-auth-code-register` is an enabled required action (`defaultAction=false`, so not automatic), and `recovery-auth-code-form` appears only in the **unbound** `browser-with-passkey` flow. A member who registered recovery codes today could not present them at login. Wiring this up properly — binding a flow that offers the recovery-code form, and adding `recovery-auth-code-register` to the required actions in `bulk-invite.py` — would give members mail-free, Operator-free self-recovery and remove the availability dependency `docs/adr/0049` currently accepts. It is the single highest-value gap in this tenant.
+**Recovery codes**, the mail-free and Operator-free way back into an account. The `forms` subflow now offers the passkey first and `passkey-or-password` as its second alternative, which Keycloak surfaces as *Try Another Way*:
+
+```
+forms                                  ALTERNATIVE
+  webauthn-authenticator-passwordless    ALTERNATIVE   usernameless, resident key
+  passkey-or-password                    ALTERNATIVE
+    auth-username-form                     REQUIRED    identify the user first
+    must-authenticate                      REQUIRED
+      webauthn-authenticator-passwordless    ALTERNATIVE
+      auth-password-form                     ALTERNATIVE
+      recovery-auth-code-form                ALTERNATIVE
+```
+
+The default login is unchanged — members still get the usernameless passkey prompt. `must-authenticate` and `passkey-or-password` already existed in the realm and were simply never reachable; the only edit was replacing `auth-username-password-form` in `forms` with the `passkey-or-password` subflow. `admin-tools/bulk-invite.py` adds `recovery-auth-code-register` to the invitation's required actions, so members take their codes down during onboarding, after the passkey (Keycloak orders required actions by realm priority — passkey 60, recovery codes 110 — not by the order the script sends them).
+
+Alternatives that a member has not configured are not offered, so this degrades correctly: an invited member with no password sees passkey and recovery-code options only.
+
+Three things to know:
+- **It is untested against a running Keycloak.** The flow structure is validated and both invitation paths send the required action, but no login has been performed. `recovery-auth-code-form` is documented by Keycloak as a second-factor authenticator, and here it acts as a sole factor after `auth-username-form`. Verify on staging (`admin-tools/test-pr-locally.sh`) before relying on it.
+- **Only fresh realms get it.** `realm-config-job.yaml` runs `kcadm create realms` and tolerates "Realm may already exist", so it never updates an imported realm. An existing cluster keeps its old flow until the realm is recreated or the binding is applied by hand.
+- **Existing members have no codes.** `defaultAction` stays `false`, so the action applies only where it is requested. Members enrolled before this change need `recovery-auth-code-register` added to their account, or a re-invitation.
+
+After logging in with a recovery code, a member should register a fresh passkey; nothing enforces that automatically.
 
 The passwordless WebAuthn policy — the `webAuthnPolicyPasswordless*` keys, *not* the `webAuthnPolicy*` ones, which govern the two-factor `webauthn-authenticator` that no flow here uses:
 

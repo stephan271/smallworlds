@@ -14,10 +14,14 @@ REALM = os.getenv("KEYCLOAK_REALM", "smallworlds")
 CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID", "bulk-invite")
 CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET")
 
-# Update the profile to choose a real username, then register a passkey. No
-# password credential is ever set for an invited member and resetPasswordAllowed
-# is false, so this link is their only way in until they hold a passkey.
-REQUIRED_ACTIONS = ["UPDATE_PROFILE", "webauthn-register-passwordless"]
+# Update the profile to choose a real username, register a passkey, then take
+# down recovery codes. No password credential is ever set for an invited member
+# and resetPasswordAllowed is false, so this link is their only way in until
+# they hold a passkey — and the recovery codes are their only way back without
+# the operator once they do. Keycloak runs these in the realm's priority order
+# (passkey 60, recovery codes 110), not the order given here.
+REQUIRED_ACTIONS = ["UPDATE_PROFILE", "webauthn-register-passwordless",
+                    "recovery-auth-code-register"]
 ACCOUNT_CLIENT_ID = "account"
 ACCOUNT_REDIRECT_URI = f"{KEYCLOAK_URL}/realms/{REALM}/account/"
 

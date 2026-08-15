@@ -1995,7 +1995,7 @@
     {
       "id": "3546df90-dad2-441f-8e8b-c62363ca259e",
       "alias": "forms",
-      "description": "Username, password, otp and other auth forms.",
+      "description": "Passkey first (usernameless, resident key). 'Try Another Way' reaches passkey-or-password, which identifies the user and then accepts a passkey, a password or a recovery code.",
       "providerId": "basic-flow",
       "topLevel": false,
       "builtIn": true,
@@ -2009,11 +2009,11 @@
           "userSetupAllowed": false
         },
         {
-          "authenticator": "auth-username-password-form",
-          "authenticatorFlow": false,
+          "authenticatorFlow": true,
           "requirement": "ALTERNATIVE",
           "priority": 20,
-          "autheticatorFlow": false,
+          "autheticatorFlow": true,
+          "flowAlias": "passkey-or-password",
           "userSetupAllowed": false
         }
       ]

@@ -105,15 +105,23 @@ We need to remove passwords from the login flow and strictly require WebAuthn (P
    that is the recovery path for an expired link or a lost passkey.
 
 6. The member opens the link on the device they intend to use, updates their profile
-   (including choosing their final username), and registers a passkey. The passkey is
-   created on **that** device, so a phone-only member should open it on their phone.
+   (including choosing their final username), registers a passkey, and is then shown
+   a set of **recovery codes**. The passkey is created on **that** device, so a
+   phone-only member should open it on their phone. Tell members to keep the recovery
+   codes somewhere off that device — they are the only way back into the account
+   without coming to you, and they are shown once.
 
 7. From then on they log in with the passkey. Invited members never get a password
-   credential and `resetPasswordAllowed` is `false`, so the passkey is their only
-   way in — see `doc/tenant-keycloak.md` §5, and note that section 3 above is a
-   manual step the realm JSON does not perform. Encourage a second passkey via the
-   account console; without one, a lost device means coming back to you for a new
-   link.
+   credential and `resetPasswordAllowed` is `false`, so the passkey — or a recovery
+   code via *Try Another Way* — is their only way in. See `doc/tenant-keycloak.md`
+   §5, and note that section 3 above is a manual step the realm JSON does not
+   perform. Encourage a second passkey via the account console as well; recovery
+   codes get a member back in, but a second passkey means never needing them.
+
+   The recovery-code login path has **not** been tested against a running Keycloak,
+   and the realm JSON only takes effect on a fresh realm import — an existing
+   cluster keeps its previous login flow. Both caveats are detailed in
+   `doc/tenant-keycloak.md` §5.
 
 To have Keycloak mail the links instead of writing them out, pass `--email`. That
 requires a working SMTP relay (`doc/mail.md`); without one Keycloak accepts the
