@@ -27,6 +27,15 @@ spec:
                 secretKeyRef:
                   name: keycloak-admin-creds
                   key: bulk-invite-secret
+            # Password for the human master-realm administrator (see below).
+            # Optional so a cluster provisioned before this key existed still
+            # syncs; the operator account is then simply not created.
+            - name: KEYCLOAK_OPERATOR_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-admin-creds
+                  key: operator-password
+                  optional: true
             - name: STALWART_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -62,6 +71,41 @@ spec:
                 /opt/keycloak/bin/kcadm.sh update realms/smallworlds -s registrationAllowed=true -s verifyEmail=true
               else
                 /opt/keycloak/bin/kcadm.sh update realms/smallworlds -s registrationAllowed=false
+              fi
+
+              # A human administrator with a second factor, kept separate from
+              # `admin`. TOTP cannot be required of `admin` itself: that account
+              # authenticates by password grant for bases/keycloak-client-job
+              # (every tenant's OIDC registration), console-roles-job and this
+              # job, and a pending required action makes direct grant fail with
+              # "Account is not fully set up" — which would break the OIDC wiring
+              # of the whole cluster on the next sync. So `admin` stays the
+              # automation and break-glass credential, reachable only from the
+              # Private Network now that /admin is address-restricted, and people
+              # log in as `operator`.
+              #
+              # Master's stock browser flow already carries a conditional OTP
+              # subflow, so no flow surgery is needed: once CONFIGURE_TOTP is
+              # satisfied, OTP is demanded at every login. The create is guarded
+              # rather than idempotent-by-update, because re-adding the required
+              # action on each sync would force the operator to re-enrol their
+              # authenticator every time ArgoCD reconciles.
+              if [ -n "$KEYCLOAK_OPERATOR_PASSWORD" ]; then
+                if /opt/keycloak/bin/kcadm.sh get users -r master -q username=operator --fields username 2>/dev/null | grep -q '"operator"'; then
+                  echo "Master operator account already exists — leaving its credentials alone."
+                else
+                  echo "Creating master-realm operator account (password + TOTP)..."
+                  /opt/keycloak/bin/kcadm.sh create users -r master \
+                    -s username=operator -s enabled=true \
+                    -s 'requiredActions=["CONFIGURE_TOTP"]' \
+                    && /opt/keycloak/bin/kcadm.sh set-password -r master --username operator \
+                         --new-password "$KEYCLOAK_OPERATOR_PASSWORD" \
+                    && /opt/keycloak/bin/kcadm.sh add-roles -r master --uusername operator --rolename admin \
+                    && echo "Operator account created; TOTP is enrolled at first login." \
+                    || echo "WARNING: operator account setup incomplete — check the log above."
+                fi
+              else
+                echo "No operator-password in keycloak-admin-creds — skipping the human admin account."
               fi
 
               echo "Creating bulk-invite service account client..."

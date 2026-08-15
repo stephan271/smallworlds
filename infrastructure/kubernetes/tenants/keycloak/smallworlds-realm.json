@@ -2047,7 +2047,7 @@
     {
       "id": "e6179199-1a9e-43ff-a0d3-79539a046f0b",
       "alias": "must-authenticate",
-      "description": "At least one credential must succeed",
+      "description": "At least one credential must succeed. Passwords are deliberately absent: a password alongside a passkey is a phishable single factor and strictly a downgrade, so the only credentials are the passkey and its break-glass recovery codes.",
       "providerId": "basic-flow",
       "topLevel": false,
       "builtIn": false,
@@ -2057,13 +2057,6 @@
           "authenticatorFlow": false,
           "requirement": "ALTERNATIVE",
           "priority": 10,
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "auth-password-form",
-          "authenticatorFlow": false,
-          "requirement": "ALTERNATIVE",
-          "priority": 20,
           "userSetupAllowed": false
         },
         {
@@ -2078,7 +2071,7 @@
     {
       "id": "ee72a9ae-ef59-44db-859c-70296244b485",
       "alias": "passkey-or-password",
-      "description": "Choose between passkey or password",
+      "description": "Identify the user, then require one credential from must-authenticate. Named before passwords were removed; it now offers passkey or recovery code. The alias is kept because browser-with-passkey still references it.",
       "providerId": "basic-flow",
       "topLevel": false,
       "builtIn": false,
@@ -2087,22 +2080,6 @@
           "authenticator": "auth-username-form",
           "authenticatorFlow": false,
           "requirement": "REQUIRED",
-          "priority": 0,
-          "autheticatorFlow": false,
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "webauthn-authenticator-passwordless",
-          "authenticatorFlow": false,
-          "requirement": "DISABLED",
-          "priority": 0,
-          "autheticatorFlow": false,
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "auth-password-form",
-          "authenticatorFlow": false,
-          "requirement": "DISABLED",
           "priority": 0,
           "autheticatorFlow": false,
           "userSetupAllowed": false

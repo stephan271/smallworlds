@@ -244,6 +244,10 @@ fi
 
 # Generate passwords if not cached
 if [[ -z "$KC_PASS" ]]; then KC_PASS=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32); fi
+# Human administrator of the Keycloak master realm. Separate from `admin`,
+# which is the automation credential every OIDC client-registration job
+# authenticates with and therefore cannot carry a second factor.
+if [[ -z "$KC_OPERATOR_PASS" ]]; then KC_OPERATOR_PASS=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32); fi
 if [[ -z "$INVITE_SECRET" ]]; then INVITE_SECRET=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32); fi
 if [[ -z "$GARAGE_RPC_SECRET" ]]; then GARAGE_RPC_SECRET=$(openssl rand -hex 32); fi
 if [[ -z "$GARAGE_ADMIN_TOKEN" ]]; then GARAGE_ADMIN_TOKEN=$(openssl rand -hex 32); fi
@@ -273,6 +277,7 @@ GITOPS_REPO_URL="${GITOPS_REPO_URL}"
 GITOPS_REPO_USER="${GITOPS_REPO_USER}"
 GITOPS_REPO_TOKEN="${GITOPS_REPO_TOKEN}"
 KC_PASS="${KC_PASS}"
+KC_OPERATOR_PASS="${KC_OPERATOR_PASS}"
 INVITE_SECRET="${INVITE_SECRET}"
 GARAGE_RPC_SECRET="${GARAGE_RPC_SECRET}"
 CONSOLE_SESSION_KEY="${CONSOLE_SESSION_KEY}"
@@ -327,6 +332,7 @@ metadata:
 type: Opaque
 stringData:
   admin-password: "${KC_PASS}"
+  operator-password: "${KC_OPERATOR_PASS}"
   bulk-invite-secret: "${INVITE_SECRET}"
 ---
 apiVersion: v1
@@ -695,6 +701,9 @@ echo -e "                             (or link it: ln -sf ${KUBECONFIG_LOCAL} ~/
 echo ""
 echo -e "Here are your auto-generated admin credentials. Save them somewhere safe!"
 echo -e "Keycloak Admin (admin):      ${CYAN}${KC_PASS}${NC}"
+echo -e "  ^ automation + break-glass; reachable only from the Private Network"
+echo -e "Keycloak Operator (operator):${CYAN}${KC_OPERATOR_PASS}${NC}"
+echo -e "  ^ your login; sets up a TOTP authenticator at first sign-in"
 echo -e "ArgoCD Admin (admin):        ${CYAN}${ARGOCD_PASS}${NC}"
 echo -e "Grafana Admin (admin):       ${CYAN}${GRAFANA_PASS}${NC}"
 echo -e "Bulk Invite Secret:          ${CYAN}${INVITE_SECRET}${NC}"

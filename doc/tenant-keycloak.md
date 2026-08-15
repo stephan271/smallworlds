@@ -33,7 +33,7 @@ Keycloak's default root URL (`/`) goes to an admin welcome page.
 - **Defined but unbound**: a `browser-with-passkey` top-level flow whose `passkey-or-password` subflow does username-first, then passkey / password / **recovery code**. Its `browser-with-passkey forms` child is `DISABLED`. Nothing binds it.
 - **Documented but nonexistent**: `admin-tools/keycloak-config-instructions.md` §3 tells the Operator to hand-build a `passkey-only-browser` flow by duplicating `browser` and deleting the password form. That flow is not in the realm JSON and matches neither of the above.
 
-Members are nonetheless passwordless **in practice**, for two reasons that are worth keeping true deliberately rather than by accident: `admin-tools/bulk-invite.py` sets no password credential when it creates a member, so the password form has nothing to match against; and `resetPasswordAllowed` is `false`, so there is no "Forgot password?" link and Keycloak never sends a reset mail. That — not the absence of a password form — is why account recovery needs no mail (`doc/mail.md`, `docs/adr/0049`). The password path is latent, not removed: give a user a password and it will work.
+**Passwords are now removed, not merely unused.** `auth-password-form` is gone from `must-authenticate`, so no password is reachable from the bound flow; a password alongside a passkey is a phishable single factor and strictly a downgrade. Combined with `resetPasswordAllowed: false`, that is why account recovery needs no mail (`doc/mail.md`, `docs/adr/0049`). Two residues are deliberate and harmless: `browser-with-passkey` and the orphaned `password-fallback` flow still contain password executions but are bound to nothing, and the `direct grant` flow still validates passwords — which matters only for a user who has one, and members never do.
 
 **Recovery codes**, the mail-free and Operator-free way back into an account. The `forms` subflow now offers the passkey first and `passkey-or-password` as its second alternative, which Keycloak surfaces as *Try Another Way*:
 
@@ -50,7 +50,7 @@ forms                                  ALTERNATIVE
 
 The default login is unchanged — members still get the usernameless passkey prompt. `must-authenticate` and `passkey-or-password` already existed in the realm and were simply never reachable; the only edit was replacing `auth-username-password-form` in `forms` with the `passkey-or-password` subflow. `admin-tools/bulk-invite.py` adds `recovery-auth-code-register` to the invitation's required actions, so members take their codes down during onboarding, after the passkey (Keycloak orders required actions by realm priority — passkey 60, recovery codes 110 — not by the order the script sends them).
 
-Alternatives that a member has not configured are not offered, so this degrades correctly: an invited member with no password sees passkey and recovery-code options only.
+Alternatives a member has not configured are not offered, so this degrades correctly. With passwords removed, **recovery codes are the only fallback there is** — which raises the stakes on the untested login path below rather than lowering them.
 
 Three things to know:
 - **It is untested against a running Keycloak.** The flow structure is validated and both invitation paths send the required action, but no login has been performed. `recovery-auth-code-form` is documented by Keycloak as a second-factor authenticator, and here it acts as a sole factor after `auth-username-form`. Verify on staging (`admin-tools/test-pr-locally.sh`) before relying on it.
@@ -88,7 +88,11 @@ Three things worth knowing:
 - **The new Ingress must be patched per environment.** `admin-tools/generate_domain_patches.py` targets ingresses by name, so `keycloak-admin` has its own entry there. Without it the route would keep the base domain, never match, and the restriction would silently not apply — the same failure shape as the positional-env-patch bug recorded below.
 - **`tls` here names `keycloak-tls` but carries no `cluster-issuer` annotation**, because cert-manager already manages that certificate from the chart's Ingress. Annotating both would have two Ingresses racing for one secret.
 
-Still open: the master realm has no second factor. Password plus WebAuthn or TOTP would be appropriate for an account of this power, and there is exactly one of them, so the "members would need an authenticator app" objection does not apply. That is a bound-flow change in `master` and has not been made.
+**The second factor goes on a separate human account, not on `admin`.** `realm-config-job.yaml` creates an `operator` user in `master` with the `admin` realm role, a generated password (`operator-password` in `keycloak-admin-creds`, from `smallworlds-init.sh`) and the `CONFIGURE_TOTP` required action. Master's stock browser flow already carries a conditional OTP subflow, so once TOTP is enrolled it is demanded at every login — no flow surgery.
+
+`admin` itself cannot carry TOTP, and this is the constraint that shapes the whole design: that account authenticates by **password grant** for `bases/keycloak-client-job` (every tenant's OIDC client registration), `console-roles-job` and `realm-config-job` itself. A pending required action makes Keycloak reject direct grant with *"Account is not fully set up"*, so requiring TOTP there would break the OIDC wiring of every tenant on the next sync. `admin` therefore stays the automation and break-glass credential; people log in as `operator`.
+
+The creation is guarded by an existence check rather than made idempotent by update, because re-adding `CONFIGURE_TOTP` on each sync would force the operator to re-enrol their authenticator every time ArgoCD reconciles. The env var is `optional: true`, so a cluster whose Secret predates this key still syncs and simply gets no operator account — which is also why staging, whose Secret is written by `test-pr-locally.sh`, is unaffected.
 
 ## Notable changes per file (from git history)
 

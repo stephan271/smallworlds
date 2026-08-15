@@ -148,9 +148,38 @@ fi
 echo ""
 
 # --- Step 3: Provision test users ---
+# The admin REST API is under /admin, which the ingress restricts to the Private
+# Network and the node's LAN (doc/tenant-keycloak.md §6), so a test runner on the
+# public internet cannot reach it. Tunnel to the Service instead when a
+# kubeconfig is available; KC_ADMIN_URL can also be set by hand.
+KC_PF_PID=""
+cleanup_port_forward() {
+  if [[ -n "$KC_PF_PID" ]]; then kill "$KC_PF_PID" 2>/dev/null || true; fi
+}
+trap cleanup_port_forward EXIT
+
 if [[ "${SKIP_PROVISION:-}" != "1" ]]; then
   echo -e "${CYAN}[3/4] Provisioning test users...${NC}"
+  if [[ -z "${KC_ADMIN_URL:-}" ]] && command -v kubectl >/dev/null 2>&1; then
+    KC_PF_PORT="${KC_PF_PORT:-18080}"
+    kubectl -n keycloak port-forward svc/keycloak-keycloakx-http "${KC_PF_PORT}:80" \
+      >/dev/null 2>&1 &
+    KC_PF_PID=$!
+    for _ in $(seq 1 20); do
+      curl -sf "http://127.0.0.1:${KC_PF_PORT}/realms/master" >/dev/null 2>&1 && break
+      sleep 0.5
+    done
+    if curl -sf "http://127.0.0.1:${KC_PF_PORT}/realms/master" >/dev/null 2>&1; then
+      export KC_ADMIN_URL="http://127.0.0.1:${KC_PF_PORT}"
+      echo -e "  ${GREEN}✅ Admin API tunnelled via port-forward on ${KC_PF_PORT}${NC}"
+    else
+      echo -e "  ${YELLOW}⚠ Port-forward did not come up; falling back to the public host.${NC}"
+      echo -e "  ${YELLOW}  This only works from the Private Network or the node's LAN.${NC}"
+      cleanup_port_forward; KC_PF_PID=""
+    fi
+  fi
   npx tsx setup/provision-test-users.ts
+  cleanup_port_forward; KC_PF_PID=""
 else
   echo -e "${CYAN}[3/4] Skipping user provisioning (SKIP_PROVISION=1)${NC}"
 fi
