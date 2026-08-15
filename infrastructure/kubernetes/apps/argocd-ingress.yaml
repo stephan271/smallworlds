@@ -1,3 +1,25 @@
+# ArgoCD is the GitOps control plane: anyone who reaches it can change what the
+# cluster runs. It is an operator interface (ADR 0038) and was neither
+# address-restricted nor hidden — it was advertised on the Member Dashboard.
+# Same restriction the Operator Console and the Keycloak admin console carry.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: argocd-private
+  namespace: argocd
+spec:
+  ipAllowList:
+    sourceRange:
+      # Enrolled Operator Devices on the Headscale tailnet.
+      - 100.64.0.0/10
+      # The Cluster Node's own LAN, for a Local Deployment Mode. 10.0.0.0/8 also
+      # covers the pod and service networks (10.42/10.43).
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+      # In-cluster traffic.
+      - 127.0.0.0/8
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -5,11 +27,9 @@ metadata:
   namespace: argocd
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    gethomepage.dev/enabled: "true"
-    gethomepage.dev/name: "ArgoCD"
-    gethomepage.dev/description: "GitOps Continuous Delivery"
-    gethomepage.dev/group: "Infrastructure"
-    gethomepage.dev/icon: "argocd.png"
+    traefik.ingress.kubernetes.io/router.middlewares: argocd-argocd-private@kubernetescrd
+    # Operator interface: deliberately absent from the Member Dashboard.
+    gethomepage.dev/enabled: "false"
 spec:
   rules:
     - host: deploy.smallworlds.network

@@ -51,26 +51,28 @@ resource "hcloud_firewall" "k8s_firewall" {
     ]
   }
 
-  # Allow SSH
-  rule {
-    direction = "in"
-    protocol  = "tcp"
-    port      = "22"
-    source_ips = [
-      "0.0.0.0/0",
-      "::/0"
-    ]
-  }
-
-  # Allow Kubernetes API (für externen kubectl Zugriff)
-  rule {
-    direction = "in"
-    protocol  = "tcp"
-    port      = "6443"
-    source_ips = [
-      "0.0.0.0/0",
-      "::/0"
-    ]
+  # SSH and the Kubernetes API. Both are administrative and neither is needed
+  # from the public internet once the node is on the tailnet: tailnet traffic
+  # arrives inside the WireGuard tunnel and is never seen by this firewall, so
+  # closing these ports does not affect `ssh root@admin.<domain>` or kubectl
+  # against the tailnet address. See admin-tools/setup-vpn.sh.
+  #
+  # Left OPEN by default, because closing them before the tailnet works locks
+  # the operator out of their own server, and a fresh install has no tailnet at
+  # all — setup-vpn.sh needs SSH to join the node to it. Flip
+  # `public_admin_ports = false` as a deliberate, separate apply once
+  # `ssh root@admin.<domain>` has been verified from an enrolled device.
+  dynamic "rule" {
+    for_each = var.public_admin_ports ? ["22", "6443"] : []
+    content {
+      direction = "in"
+      protocol  = "tcp"
+      port      = rule.value
+      source_ips = [
+        "0.0.0.0/0",
+        "::/0"
+      ]
+    }
   }
 
 
@@ -132,7 +134,7 @@ data "hcloud_primary_ip" "main_ip" {
 
 # The DNS zone is created by the smallworlds-init.sh script to avoid Terraform state conflicts
 data "hcloud_zone" "existing_zone" {
-  name  = var.domain_name
+  name = var.domain_name
 }
 
 locals {
@@ -196,9 +198,9 @@ resource "hcloud_server" "smallworlds_pilot_node" {
   server_type = "cx43" # 8 shared vCPU (AMD), 16 GB RAM. Recommended x86 architecture for K3s and ML.
   location    = var.location
 
-  ssh_keys = [local.ssh_key_id]
+  ssh_keys     = [local.ssh_key_id]
   firewall_ids = [hcloud_firewall.k8s_firewall.id]
-  
+
   user_data = templatefile("${path.module}/../cloud-init/k3s-node.yaml.tpl", {
     golden_image      = var.use_golden_image
     node_name         = "cc-pilot-node-01"
@@ -221,7 +223,7 @@ resource "hcloud_server" "smallworlds_pilot_node" {
 
 
   lifecycle {
-    ignore_changes = [user_data]
+    ignore_changes  = [user_data]
     prevent_destroy = false # Protects the node from accidental terraform destroy in the future
   }
 }
@@ -233,7 +235,7 @@ resource "hcloud_server" "smallworlds_pilot_node" {
 # ------------------------------------------------------------------------------
 resource "hcloud_volume" "smallworlds_data" {
   name     = "smallworlds-data${local.env_slug}"
-  size     = 200 # GB — covers Garage (100 GB) + Immich library (50 GB) + room to grow
+  size     = 200          # GB — covers Garage (100 GB) + Immich library (50 GB) + room to grow
   location = var.location # Volumes are location-bound and must match the server
   format   = "ext4"
 
@@ -251,7 +253,7 @@ resource "hcloud_volume" "smallworlds_data" {
 # ------------------------------------------------------------------------------
 resource "hcloud_volume" "smallworlds_backup" {
   name     = "smallworlds-backup${local.env_slug}"
-  size     = 100 # GB — barman + Velero + pv-backup + pods + the Nextcloud copy
+  size     = 100          # GB — barman + Velero + pv-backup + pods + the Nextcloud copy
   location = var.location # Volumes are location-bound and must match the server
   format   = "ext4"
 

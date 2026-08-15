@@ -41,6 +41,12 @@ spec:
             ingressClassName: traefik
             annotations:
               cert-manager.io/cluster-issuer: letsencrypt-prod
+              # Operator interface (ADR 0038): dashboards expose the shape of
+              # the whole cluster and Grafana holds its own admin credential.
+              # Middleware lives in apps/monitoring-private-middleware.yaml —
+              # it cannot be declared here, since these are Helm values for a
+              # chart that renders no Middleware of its own.
+              traefik.ingress.kubernetes.io/router.middlewares: monitoring-monitoring-private@kubernetescrd
             hosts:
               - monitoring.smallworlds.network
             tls:

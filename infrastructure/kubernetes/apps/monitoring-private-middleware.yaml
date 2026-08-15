@@ -1,0 +1,28 @@
+# Address restriction for Grafana, whose Ingress is rendered by the
+# kube-prometheus-stack chart and therefore cannot carry its own Middleware.
+# The annotation that references this lives in apps/kube-prometheus-stack.yaml.
+#
+# Applied directly rather than through an ArgoCD Application because it is a
+# single CR belonging to a namespace another Application owns — the same
+# arrangement as apps/alertmanager-config.yaml.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: monitoring-private
+  namespace: monitoring
+  annotations:
+    # The monitoring namespace and the Traefik CRDs must both exist first;
+    # ArgoCD retries until they do.
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  ipAllowList:
+    sourceRange:
+      # Enrolled Operator Devices on the Headscale tailnet.
+      - 100.64.0.0/10
+      # The Cluster Node's own LAN, for a Local Deployment Mode. 10.0.0.0/8 also
+      # covers the pod and service networks (10.42/10.43).
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+      # In-cluster traffic.
+      - 127.0.0.0/8

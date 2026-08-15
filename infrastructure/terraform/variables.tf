@@ -80,3 +80,19 @@ variable "ssh_key_id" {
   description = "Hetzner id of the shared 'SmallWorlds Admin Key', uploaded/looked-up by smallworlds-init.sh's ensure_ssh_key() before terraform apply (see main.tf locals for why this isn't a Terraform-managed resource)."
   type        = number
 }
+
+variable "public_admin_ports" {
+  description = <<-DESC
+    Keep SSH (22) and the Kubernetes API (6443) reachable from the public
+    internet. Both are administrative; neither is needed publicly once the node
+    has joined the tailnet, because tailnet traffic arrives inside the WireGuard
+    tunnel and never passes this firewall.
+
+    Defaults to true because a fresh install has no tailnet yet and
+    admin-tools/setup-vpn.sh needs SSH to create one. Set to false only after
+    verifying `ssh root@admin.<domain>` and kubectl from an enrolled device —
+    closing these blind locks you out of the server.
+  DESC
+  type        = bool
+  default     = true
+}
