@@ -76,6 +76,20 @@ The passwordless WebAuthn policy — the `webAuthnPolicyPasswordless*` keys, *no
 
 **Recommend two passkeys per member.** WebAuthn is multi-credential by design and Keycloak allows several per account. One on the phone plus one on a laptop or a security key survives a lost device, a locked platform account, a vault outage and an ecosystem migration — none of which a single synced credential survives. It is also the only thing that keeps the Operator from being an availability dependency for account recovery, a cost `docs/adr/0049` accepts explicitly. Where a member is locked out anyway, the recovery path is the Operator re-running `bulk-invite.py` for them, which mints a fresh onboarding link (the script treats a matching-email re-invite as a normal re-issue).
 
+### 6. How administrators log in (`keycloak-admin-ingress.yaml`)
+Everything in §5 applies to the `smallworlds` realm. The Keycloak superadmin lives in the **`master` realm**, which keeps Keycloak's stock browser flow — username and password, no passkey — using `KEYCLOAK_ADMIN_PASSWORD` from the `keycloak-admin-creds` Secret. There is deliberately **no interactive admin account in `smallworlds`**; the only privileged identity there is the `bulk-invite` service account, which uses client credentials and cannot log in through a browser.
+
+That separation is the point. A break-glass door must not depend on the mechanism it exists to rescue: if passkey login broke — a botched flow change, an RP ID rename, a WebAuthn regression — an admin who could only authenticate by passkey would have locked out the whole community with no way back. Note also that the password is readable with `kubectl get secret keycloak-admin-creds`, so **the true root credential for the cluster is the kubeconfig**, not any password.
+
+The consequence is that the master admin is a single-factor credential that can mint tokens for any member, set a password on any account, or unbind the passkey flow — the one identity the passkey design does not protect. The chart's Ingress publishes `/` for the whole host, which put that login box on the public internet. `keycloak-admin-ingress.yaml` adds a second, more specific route for the `/admin` prefix carrying the same `ipAllowList` the Operator Console uses (tailnet, private LAN ranges, loopback), with an explicit `router.priority` so it outranks the chart's `/` route by declaration rather than by Traefik's rule-length heuristic. Members still reach `/realms/...` from anywhere, so the restriction cannot live on the chart's Ingress.
+
+Three things worth knowing:
+- **`admin-tools/bulk-invite.py` now needs the Private Network or the Cluster Node's LAN**, because it calls `/admin/realms/...` through this host. In-cluster callers are unaffected — `realm-config-job` and the init jobs address the Service directly and never traverse Traefik. The action-token SPI sits under `/realms/`, not `/admin`, so link generation itself is not address-restricted (it still requires an admin bearer token).
+- **The new Ingress must be patched per environment.** `admin-tools/generate_domain_patches.py` targets ingresses by name, so `keycloak-admin` has its own entry there. Without it the route would keep the base domain, never match, and the restriction would silently not apply — the same failure shape as the positional-env-patch bug recorded below.
+- **`tls` here names `keycloak-tls` but carries no `cluster-issuer` annotation**, because cert-manager already manages that certificate from the chart's Ingress. Annotating both would have two Ingresses racing for one secret.
+
+Still open: the master realm has no second factor. Password plus WebAuthn or TOTP would be appropriate for an account of this power, and there is exactly one of them, so the "members would need an authenticator app" objection does not apply. That is a bound-flow change in `master` and has not been made.
+
 ## Notable changes per file (from git history)
 
 ### `garage-init-job.yaml` — Keycloak's own S3 provisioning

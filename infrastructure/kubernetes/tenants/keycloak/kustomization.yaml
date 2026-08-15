@@ -4,6 +4,7 @@ namespace: keycloak
 
 resources:
   - cnpg-cluster.yaml
+  - keycloak-admin-ingress.yaml
   - keycloak-redirect.yaml
   - realm-config-job.yaml
   - setup-rbac.yaml

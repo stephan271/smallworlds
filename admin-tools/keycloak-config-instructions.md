@@ -67,9 +67,11 @@ We need to remove passwords from the login flow and strictly require WebAuthn (P
    step 5). Forgejo rejects `@` in usernames, which is why the address itself cannot
    be one.
 
-2. Run the invite script. It authenticates as the `bulk-invite` service-account
-   client, so it needs that client's secret — the `bulk-invite-secret` key of the
-   `keycloak-admin-creds` Secret, set by `smallworlds-init.sh`:
+2. Run the invite script **from the Private Network or the Cluster Node's LAN** —
+   it calls `/admin/realms/...`, which is address-restricted (`doc/tenant-keycloak.md`
+   §6). It authenticates as the `bulk-invite` service-account client, so it needs
+   that client's secret — the `bulk-invite-secret` key of the `keycloak-admin-creds`
+   Secret, set by `smallworlds-init.sh`:
    ```bash
    export KEYCLOAK_URL="https://identity.yourdomain.com"
    export KEYCLOAK_REALM="smallworlds"

@@ -1,0 +1,67 @@
+# The Keycloak admin console and admin REST API are operator interfaces and must
+# not be reachable from the public internet (ADR 0038), which the chart-rendered
+# Ingress does not achieve: it publishes `/` for the whole host, so
+# identity.<domain>/admin/ sits on the internet behind a single password. That is
+# the one identity the passkey design does not protect, and it can mint tokens
+# for any member, add a password to any account, or unbind the passkey flow.
+#
+# Members must still reach /realms/... from anywhere, so the restriction cannot
+# go on the chart's Ingress. This is a second, more specific route for the /admin
+# prefix only, carrying the same address restriction the Operator Console uses.
+# Traefik prefers the longer rule, and the explicit priority makes that ordering
+# a declared property rather than a side effect of rule length.
+#
+# Consequence for operators: admin-tools/bulk-invite.py talks to /admin/realms/...
+# through this host, so it must now be run from the Private Network or the
+# Cluster Node's LAN. In-cluster callers are unaffected — realm-config-job and
+# the other init jobs address the Service directly and never traverse Traefik.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: keycloak-admin-private
+  namespace: keycloak
+spec:
+  ipAllowList:
+    sourceRange:
+      # Enrolled Operator Devices on the Headscale tailnet.
+      - 100.64.0.0/10
+      # The Cluster Node's own LAN, for a Local Deployment Mode. 10.0.0.0/8 also
+      # covers the pod and service networks (10.42/10.43).
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+      # In-cluster traffic.
+      - 127.0.0.0/8
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: keycloak-admin
+  namespace: keycloak
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: keycloak-keycloak-admin-private@kubernetescrd
+    # Must outrank the chart's `/` route for this host.
+    traefik.ingress.kubernetes.io/router.priority: "1000"
+    # Deliberately absent from the Member Dashboard.
+    gethomepage.dev/enabled: "false"
+spec:
+  ingressClassName: traefik
+  tls:
+    # Same secret as the chart's Ingress, and deliberately no cluster-issuer
+    # annotation here: cert-manager already manages this certificate from that
+    # Ingress, and a second annotated Ingress for the same host would race it.
+    - hosts:
+        - identity.smallworlds.network
+      secretName: keycloak-tls
+  rules:
+    - host: identity.smallworlds.network
+      http:
+        paths:
+          - path: /admin
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak-keycloakx-http
+                port:
+                  name: http

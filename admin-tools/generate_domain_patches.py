@@ -74,6 +74,16 @@ def generate_patches(app_name, domain, ext):
                 path: /spec/tls/0/hosts/0
                 value: {subdomains['identity']}
           - target:
+              kind: Ingress
+              name: keycloak-admin
+            patch: |-
+              - op: replace
+                path: /spec/rules/0/host
+                value: {subdomains['identity']}
+              - op: replace
+                path: /spec/tls/0/hosts/0
+                value: {subdomains['identity']}
+          - target:
               kind: StatefulSet
               name: keycloak-keycloakx
             patch: |-
