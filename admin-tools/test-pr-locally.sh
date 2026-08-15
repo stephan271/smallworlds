@@ -50,9 +50,17 @@ source "$SCRIPT_DIR/lib/cluster-env.sh"
 STAGING_KUBECONFIG="$(kubeconfig_path staging)"
 cd "$REPO_ROOT"
 
+# What the branch is compared against to decide which apps to deploy. Defaults
+# to origin/main, which is right for a PR branch. Override it to validate a
+# release candidate that is already ON main — diffing main against itself is
+# empty, so the run would silently deploy the minimal core and no tenants:
+#   BASE_REF=v1.2.39 ./admin-tools/test-pr-locally.sh main
+BASE_REF="${BASE_REF:-origin/main}"
+
 # Ensure target branch is available locally
 git fetch origin "$TARGET_BRANCH" || true
 git fetch origin main || true
+git fetch origin --tags || true
 
 # Save current branch so we can restore it later
 ORIGINAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)
@@ -61,8 +69,15 @@ echo -e "${CYAN}Checking out origin/$TARGET_BRANCH...${NC}"
 git checkout -B "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
 
 # 1. Analyze Diff
-echo -e "${CYAN}Analyzing differences from main...${NC}"
-CHANGED_FILES=$(git diff --name-only origin/main...HEAD)
+echo -e "${CYAN}Analyzing differences from $BASE_REF...${NC}"
+CHANGED_FILES=$(git diff --name-only "$BASE_REF"...HEAD)
+if [ -z "$CHANGED_FILES" ]; then
+    echo -e "${RED}No differences between $BASE_REF and $TARGET_BRANCH.${NC}"
+    echo -e "${YELLOW}The run would deploy the minimal core and no tenants, and test nothing."
+    echo -e "If $TARGET_BRANCH is already merged, compare against the last release:"
+    echo -e "  BASE_REF=\$(git describe --tags --abbrev=0) $0 $TARGET_BRANCH${NC}"
+    exit 1
+fi
 
 CORE_CHANGED=false
 if echo "$CHANGED_FILES" | grep -qE '^infrastructure/kubernetes/(apps|bases)/' || echo "$CHANGED_FILES" | grep -qE '^infrastructure/terraform/'; then
