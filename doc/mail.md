@@ -16,16 +16,33 @@ server itself), `doc/tenant-hermes.md` (one of the senders).
 
 | Capability | Depends on it | Optional? |
 |---|---|---|
-| **Outbound transactional** — password resets, invitations, alerts | Keycloak, Alertmanager, Hermes | **No.** Present in every cluster |
+| **Outbound transactional** — alerts, optional app notifications | Alertmanager, Hermes | Only if alerts go by mail rather than webhook |
 | **Member mailboxes** — `user@domain`, IMAP/JMAP, webmail | Bulwark, `mail-provisioner` | Yes — a Community Application |
 | **Inbound role addresses** — `postmaster@`, `abuse@`, DMARC reports | The domain itself | Effectively no, but needs almost nothing |
 
-A cluster with no mail server is normal. A cluster that cannot send mail cannot
-onboard a member (`admin-tools/bulk-invite.py` triggers one Keycloak
-`execute-actions-email` per row of its CSV), cannot verify an address under the
-`self-registration` onboarding mode (`verifyEmail=true`, set in
-`tenants/keycloak/realm-config-job.yaml`), and cannot tell an Operator that it
-is broken. Sending is a Platform Service; the server is not.
+A cluster with no mail server is normal.
+
+**Onboarding does not require mail.** `admin-tools/bulk-invite.py` defaults to
+minting each member's action token through the `action-token-link` SPI and
+writing the URLs to a file for the Operator to distribute out of band; `--email`
+selects the old `execute-actions-email` path for clusters that do have a relay.
+Nor is there a password-reset dependency: the realm is passkey-only, with the
+`Username Password Form` execution deleted from the browser flow
+(`admin-tools/keycloak-config-instructions.md`), so there is no secret to reset.
+Invitation mode also sets `emailVerified` directly rather than mailing a
+verification.
+
+What still needs an egress channel is **alerting** — Alertmanager and Hermes —
+and the `self-registration` onboarding mode, which sets `verifyEmail=true`
+(`tenants/keycloak/realm-config-job.yaml`) and is meaningless without a way to
+verify. Alerting need not be SMTP: Alertmanager's `webhookConfigs` already carry
+the Tier 1 remediation route, and pointing alerts at ntfy, Gotify or Matrix
+removes the mail dependency entirely.
+
+A fully mail-free cluster is therefore coherent, and is the expected shape of a
+LAN deployment: invitation onboarding, passkey login, push alerting, no
+mailboxes. Sending is needed only for `self-registration`, member-facing
+application notifications, or alerts routed by mail. See `docs/adr/0049`.
 
 ## 2. Who sends mail today
 
@@ -240,6 +257,19 @@ Therefore:
 
 ## 9. Remaining work
 
+- The notifier tenant: a ~40-line stdlib translator from Alertmanager's webhook
+  envelope to ntfy, in the pattern of `remediation`/`hermes`, plus replacing
+  Hermes' `mailer.py` with the equivalent `urllib` POST. Alertmanager has native
+  receivers for Telegram, Pushover and Discord if an adapter is not wanted;
+  ntfy, Gotify and Matrix all need one. **The notification endpoint must run off
+  the cluster it watches.**
+- Route `Watchdog` to an external heartbeat that alerts on silence. It is
+  currently sent to `blackhole` in `apps/alertmanager-config.yaml`, which means
+  **nothing detects total cluster loss today** — Alertmanager cannot report its
+  own death. This is independent of the mail decision.
+- No test covers the onboarding link path. `bulk-invite.py`'s SPI call is
+  exercised only against a stub; a live cluster has never run it, and neither
+  path has an `e2e-tests/` assertion.
 - `tenants/mail-relay/` — the null-client MTA and the `smtp-relay` Service,
   plus the `ExternalName` variant shipped from the Stalwart tenant. Sync wave
   `-5` or `0`; nothing needs it at sync time, only at runtime.
