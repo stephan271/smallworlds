@@ -5,6 +5,8 @@ metadata:
   namespace: bulwark
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Rate limit + baseline security headers (bases/edge-protection).
+    traefik.ingress.kubernetes.io/router.middlewares: bulwark-edge-ratelimit@kubernetescrd,bulwark-edge-headers@kubernetescrd
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     gethomepage.dev/enabled: "true"
     gethomepage.dev/name: "Webmail"

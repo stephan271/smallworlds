@@ -14,6 +14,7 @@ resources:
   - cnpg-cluster.yaml
   - admin-nginx-configmap.yaml
   - doc-store-init-job.yaml
+  - ../../bases/edge-protection
 
 helmCharts:
   - name: plane-ce

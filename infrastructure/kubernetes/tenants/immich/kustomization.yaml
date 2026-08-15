@@ -17,6 +17,7 @@ resources:
   - immich-catalog.yaml
   - pod-export-db-init-job.yaml
   - pod-export-cronjob.yaml
+  - ../../bases/edge-protection
 
 patches:
   - target:

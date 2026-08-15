@@ -60,6 +60,22 @@ spec:
                 sleep 3
               done
               
+              # Keycloak creates master with its own defaults, where brute-force
+              # detection is OFF — unlike the smallworlds realm, whose import
+              # sets it. Master holds the two most powerful passwords in the
+              # cluster, so it gets the same treatment. Temporary lockout only:
+              # permanentLockout on the account that every OIDC client-
+              # registration job authenticates with would be a self-inflicted
+              # outage. Safe to re-run.
+              echo "Enabling brute-force protection on the master realm..."
+              /opt/keycloak/bin/kcadm.sh update realms/master \
+                -s bruteForceProtected=true \
+                -s permanentLockout=false \
+                -s failureFactor=30 \
+                -s waitIncrementSeconds=60 \
+                -s maxFailureWaitSeconds=900 \
+                || echo "WARNING: could not set brute-force protection on master."
+
               echo "Importing smallworlds realm..."
               sed -e "s/\${env.STALWART_PASSWORD}/$STALWART_PASSWORD/g" \
                   -e "s/\${env.IDENTITY_HOST}/$IDENTITY_HOST/g" \

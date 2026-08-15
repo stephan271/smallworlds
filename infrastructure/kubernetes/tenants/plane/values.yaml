@@ -17,7 +17,9 @@ ingress:
   enabled: true
   appHost: "plan.smallworlds.network"
   ingressClass: "nginx"
-  ingress_annotations: {}
+  ingress_annotations:
+    # Rate limit + baseline security headers (bases/edge-protection).
+    traefik.ingress.kubernetes.io/router.middlewares: plane-edge-ratelimit@kubernetescrd,plane-edge-headers@kubernetescrd
 
 ssl:
   tls_secret_name: "plane-tls"

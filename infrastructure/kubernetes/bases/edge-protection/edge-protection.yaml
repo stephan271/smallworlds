@@ -1,0 +1,42 @@
+# Edge protections for publicly reachable tenants.
+#
+# Member applications cannot be put behind the tailnet — share links have to
+# reach non-members, and members open them from phones and work laptops — so
+# these apps stay on the public internet and need protection at the edge, which
+# they had none of. Consumed per tenant so a missing Middleware breaks one app
+# visibly rather than every route at once; Traefik Middlewares are namespaced,
+# and the tenant's own `namespace:` transformer places these.
+#
+# Deliberately NOT here: frameDeny and a restrictive Content-Security-Policy.
+# Nextcloud embeds Collabora in an iframe, so frame-denying headers would break
+# document editing, and a CSP that suits one application breaks the next. Those
+# belong per app, if at all.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: edge-ratelimit
+spec:
+  rateLimit:
+    # Per source IP (Traefik's default sourceCriterion). Generous, because a
+    # photo grid or a Nextcloud file list issues a burst of asset requests, and
+    # a whole household or office can share one address. This stops scanners
+    # and crude floods; it is not the control for credential stuffing — realm
+    # brute-force detection is, and both realms now enable it.
+    average: 100
+    burst: 200
+    period: 1s
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: edge-headers
+spec:
+  headers:
+    contentTypeNosniff: true
+    referrerPolicy: strict-origin-when-cross-origin
+    # 180 days. Without includeSubDomains or preload: those commit every
+    # current and future subdomain of the operator's zone to HTTPS, which is
+    # not this project's decision to make on their behalf, and preload is
+    # effectively irreversible.
+    stsSeconds: 15552000
+    forceSTSHeader: true

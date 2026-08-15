@@ -9,6 +9,7 @@ resources:
   - realm-config-job.yaml
   - setup-rbac.yaml
   - garage-init-job.yaml
+  - ../../bases/edge-protection
 
 configMapGenerator:
   - name: keycloak-realm-config

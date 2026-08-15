@@ -114,6 +114,8 @@ ingress:
   enabled: true
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Rate limit + baseline security headers (bases/edge-protection).
+    traefik.ingress.kubernetes.io/router.middlewares: forgejo-edge-ratelimit@kubernetescrd,forgejo-edge-headers@kubernetescrd
     gethomepage.dev/enabled: "true"
     gethomepage.dev/name: "Git"
     gethomepage.dev/description: "Forgejo"

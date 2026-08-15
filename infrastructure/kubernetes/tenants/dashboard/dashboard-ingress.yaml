@@ -5,6 +5,8 @@ metadata:
   namespace: dashboard
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Rate limit + baseline security headers (bases/edge-protection).
+    traefik.ingress.kubernetes.io/router.middlewares: dashboard-edge-ratelimit@kubernetescrd,dashboard-edge-headers@kubernetescrd
 spec:
   ingressClassName: traefik
   tls:

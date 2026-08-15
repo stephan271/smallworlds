@@ -11,6 +11,7 @@ resources:
   - bulwark-deployment.yaml
   - bulwark-ingress.yaml
   - session-secret-job.yaml
+  - ../../bases/edge-protection
 
 patches:
   - target:

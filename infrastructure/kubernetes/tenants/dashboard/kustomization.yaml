@@ -1,5 +1,6 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+namespace: dashboard
 
 resources:
   - dashboard-config.yaml
@@ -8,3 +9,4 @@ resources:
   - dashboard-service.yaml
   - dashboard-ingress.yaml
   - dashboard-rbac.yaml
+  - ../../bases/edge-protection

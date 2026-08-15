@@ -78,7 +78,10 @@ ingress:
   enabled: true
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    traefik.ingress.kubernetes.io/router.middlewares: keycloak-keycloak-redirect@kubernetescrd
+    # Rate limit first so floods are rejected before anything else runs. The
+    # login endpoints are the most attacked surface in the cluster and must stay
+    # public: members authenticate from arbitrary networks.
+    traefik.ingress.kubernetes.io/router.middlewares: keycloak-edge-ratelimit@kubernetescrd,keycloak-edge-headers@kubernetescrd,keycloak-keycloak-redirect@kubernetescrd
     gethomepage.dev/enabled: "true"
     gethomepage.dev/name: "Auth"
     gethomepage.dev/description: "Keycloak"

@@ -65,3 +65,17 @@ spec:
                 name: keycloak-keycloakx-http
                 port:
                   name: http
+          # Restricting /admin alone left the master realm's own endpoints
+          # public, so `admin` and `operator` passwords could still be attacked
+          # through /realms/master/protocol/openid-connect/token from anywhere —
+          # and master is created by Keycloak with its own defaults, where
+          # bruteForceProtected is false (the smallworlds realm sets it true).
+          # Members only ever touch /realms/smallworlds; in-cluster callers use
+          # the Service, and the e2e provisioner uses a port-forward.
+          - path: /realms/master
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak-keycloakx-http
+                port:
+                  name: http

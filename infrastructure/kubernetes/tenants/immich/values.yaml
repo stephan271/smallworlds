@@ -42,6 +42,9 @@ server:
       enabled: true
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-prod
+        # Rate limit + baseline security headers (bases/edge-protection). Immich
+        # is publicly reachable because shared albums must reach non-members.
+        traefik.ingress.kubernetes.io/router.middlewares: immich-edge-ratelimit@kubernetescrd,immich-edge-headers@kubernetescrd
         gethomepage.dev/enabled: "true"
         gethomepage.dev/name: "Photos"
         gethomepage.dev/description: "Immich"

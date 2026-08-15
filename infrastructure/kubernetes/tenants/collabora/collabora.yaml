@@ -61,6 +61,13 @@ metadata:
   namespace: nextcloud
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Collabora inherits Nextcloud's exposure: a non-member opening a shared
+    # document loads the editor from here. It reuses the nextcloud namespace's
+    # edge-protection middlewares rather than declaring its own, since both
+    # live in that namespace and duplicate names would collide between the two
+    # Applications. Collabora is useless without Nextcloud anyway; if it syncs
+    # first the route 404s until Nextcloud creates them.
+    traefik.ingress.kubernetes.io/router.middlewares: nextcloud-edge-ratelimit@kubernetescrd,nextcloud-edge-headers@kubernetescrd
     gethomepage.dev/enabled: "true"
     gethomepage.dev/name: "Nextcloud Office"
     gethomepage.dev/description: "Collabora Online Document Server"
