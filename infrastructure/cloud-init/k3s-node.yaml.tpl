@@ -34,6 +34,35 @@ swap:
 
 write_files:
 
+  # Automatic OS security patching. Every publicly reachable application in this
+  # cluster runs on this one host, so an unpatched kernel or libc undoes the
+  # edge hardening above it. Written unconditionally: the golden image path
+  # skips package_update, but the policy still has to be installed.
+  - path: /etc/apt/apt.conf.d/20auto-upgrades
+    permissions: '0644'
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+
+  - path: /etc/apt/apt.conf.d/51smallworlds-unattended
+    permissions: '0644'
+    content: |
+      // Security updates only. Feature updates on a single-node cluster are a
+      // change nobody reviewed, applied while members are using it.
+      Unattended-Upgrade::Allowed-Origins {
+          "$${distro_id}:$${distro_codename}-security";
+          "$${distro_id}ESMApps:$${distro_codename}-apps-security";
+          "$${distro_id}ESM:$${distro_codename}-infra-security";
+      };
+      // k3s and its containerd are not apt packages and must not be restarted
+      // by the upgrade; leave service restarts to the operator.
+      Unattended-Upgrade::Automatic-Reboot "false";
+      Unattended-Upgrade::MinimalSteps "true";
+      // This is a single-node cluster: an unattended reboot takes every service
+      // down without warning. Kernel and libc updates therefore need a manual
+      // reboot — `ls /var/run/reboot-required` on the node says when one is
+      // pending. See doc/hardening.md.
+
   - path: /etc/sysctl.d/99-kubernetes-cri.conf
     permissions: '0644'
     content: |
@@ -77,6 +106,10 @@ write_files:
             - SkipDryRunOnMissingResource=true
 %{ endif }
 runcmd:
+  # Ensure the unattended-upgrades package exists for the policy written above.
+  # Idempotent, and needed on the golden-image path too, where package_update
+  # is skipped.
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y unattended-upgrades || true
 %{ if persistent_volume ~}
   # 1. Mount both persistent volumes, each by the exact device Terraform passed.
   #    Two volumes are attached (operational + backup, docs/adr/0048) and the

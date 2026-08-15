@@ -14,8 +14,16 @@ resources:
   - oidc-config-job.yaml
   - forgejo-secret-init-job.yaml
   - ../../bases/edge-protection
+  - ../../bases/db-network-policy
 
 patches:
+  - target:
+      kind: NetworkPolicy
+      name: database-ingress
+    patch: |-
+      - op: replace
+        path: /spec/podSelector/matchLabels/cnpg.io~1cluster
+        value: database
   - target:
       kind: ClusterRoleBinding
       name: setup-binding

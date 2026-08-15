@@ -1,0 +1,47 @@
+# Contain lateral movement to the databases.
+#
+# The cluster has no NetworkPolicies at all, so the pod network is flat: any
+# compromised workload can open a socket to every PostgreSQL instance in every
+# other tenant. That is the whole prize behind a public application — Keycloak's
+# user table, Immich's asset index, Nextcloud's file metadata — reachable from
+# whichever app happened to have the vulnerability.
+#
+# This restricts *ingress to the database pods only*. It does not attempt a
+# namespace-wide default-deny: that needs per-app egress knowledge this repo
+# does not have yet, and a wrong rule there breaks an application in ways that
+# are tedious to diagnose. Here the blast radius is one database, the symptom is
+# unambiguous ("app cannot reach its database"), and deleting the policy
+# restores the previous behaviour immediately.
+#
+# k3s runs its kube-router policy controller (the install line passes only
+# `--disable traefik`), so these are enforced rather than decorative.
+#
+# Consumers add their cluster name via a patch; see tenants/*/kustomization.yaml.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: database-ingress
+spec:
+  podSelector:
+    matchLabels:
+      # Set per tenant — CNPG labels every instance pod with its cluster name.
+      cnpg.io/cluster: PLACEHOLDER
+  policyTypes:
+    - Ingress
+  ingress:
+    # 1. The tenant's own namespace: the application, its init jobs, and the
+    #    other CNPG instances for replication.
+    - from:
+        - podSelector: {}
+    # 2. The CNPG operator, which reaches each instance's manager API to read
+    #    status and drive switchovers. Without this the cluster looks unhealthy.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cnpg-system
+    # 3. Prometheus. Every cnpg-cluster.yaml sets enablePodMonitor: true, so a
+    #    blanket deny would take the database metrics down with it.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring

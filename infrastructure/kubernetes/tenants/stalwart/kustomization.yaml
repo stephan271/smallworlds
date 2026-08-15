@@ -15,8 +15,16 @@ resources:
   - stalwart-ingress.yaml
   - stalwart-cors-middleware.yaml
   - stalwart-secret-init-job.yaml
+  - ../../bases/db-network-policy
 
 patches:
+  - target:
+      kind: NetworkPolicy
+      name: database-ingress
+    patch: |-
+      - op: replace
+        path: /spec/podSelector/matchLabels/cnpg.io~1cluster
+        value: database
   - target:
       kind: ClusterRoleBinding
       name: setup-binding

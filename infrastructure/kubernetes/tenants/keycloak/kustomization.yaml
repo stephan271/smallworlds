@@ -10,6 +10,7 @@ resources:
   - setup-rbac.yaml
   - garage-init-job.yaml
   - ../../bases/edge-protection
+  - ../../bases/db-network-policy
 
 configMapGenerator:
   - name: keycloak-realm-config
@@ -23,6 +24,24 @@ generatorOptions:
   disableNameSuffixHash: true
 
 patches:
+  - target:
+      kind: NetworkPolicy
+      name: database-ingress
+    patch: |-
+      - op: replace
+        path: /spec/podSelector/matchLabels/cnpg.io~1cluster
+        value: keycloak-db
+      # The one legitimate cross-namespace database dependency in the cluster:
+      # stalwart's mail-provisioner reads the Keycloak database directly to
+      # discover new users (doc/tenant-stalwart.md). Without this the mailbox
+      # sync stops, and it stops quietly.
+      - op: add
+        path: /spec/ingress/-
+        value:
+          from:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: stalwart
   - target:
       kind: ClusterRoleBinding
       name: setup-binding

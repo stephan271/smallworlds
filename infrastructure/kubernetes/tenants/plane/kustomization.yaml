@@ -15,6 +15,7 @@ resources:
   - admin-nginx-configmap.yaml
   - doc-store-init-job.yaml
   - ../../bases/edge-protection
+  - ../../bases/db-network-policy
 
 helmCharts:
   - name: plane-ce
@@ -24,6 +25,13 @@ helmCharts:
     valuesFile: values.yaml
 
 patches:
+  - target:
+      kind: NetworkPolicy
+      name: database-ingress
+    patch: |-
+      - op: replace
+        path: /spec/podSelector/matchLabels/cnpg.io~1cluster
+        value: database
   # Fresh-install deadlock fix: the migrate Job below is a wave-1 Sync hook,
   # but ArgoCD only starts wave 1 once wave 0 is fully healthy — and the api
   # Deployment (wave 0 by default) never becomes ready before migrations have
