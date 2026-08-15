@@ -102,7 +102,31 @@ resources:
 EOF
 
 TEST_FILTER=""
-if [ "$CORE_CHANGED" = true ]; then
+if [ -n "${APPS:-}" ]; then
+    # Explicit selection, overriding the diff. A core change deploys all ~36
+    # manifests in apps/ onto one node, which is the documented worst case for
+    # a 16 GB staging VM — useful when validating everything, wasteful when
+    # validating one thing. Names are apps/ basenames without .yaml:
+    #   APPS="nextcloud immich" ./admin-tools/test-pr-locally.sh <branch>
+    echo -e "${YELLOW}APPS override set. Deploying only: $APPS${NC}"
+    # PriorityClasses are referenced by name at admission time, so a Pod whose
+    # class is absent is rejected rather than merely descheduled. Cheap to keep.
+    if ! grep -q "apps/priorityclasses.yaml" infrastructure/kubernetes/kustomization.yaml; then
+        echo "  - apps/priorityclasses.yaml" >> infrastructure/kubernetes/kustomization.yaml
+    fi
+    for app in $APPS; do
+        if [ ! -f "infrastructure/kubernetes/apps/${app}.yaml" ]; then
+            echo -e "${RED}Unknown app '${app}' — no infrastructure/kubernetes/apps/${app}.yaml.${NC}"
+            echo -e "${YELLOW}Available: $(ls infrastructure/kubernetes/apps/*.yaml | xargs -n1 basename | sed 's/\.yaml$//' | tr '\n' ' ')${NC}"
+            exit 1
+        fi
+        if ! grep -q "apps/${app}.yaml" infrastructure/kubernetes/kustomization.yaml; then
+            echo -e "  Adding: ${YELLOW}$app${NC}"
+            echo "  - apps/${app}.yaml" >> infrastructure/kubernetes/kustomization.yaml
+        fi
+        TEST_FILTER="$TEST_FILTER $app"
+    done
+elif [ "$CORE_CHANGED" = true ]; then
     echo -e "${YELLOW}Core infrastructure changed. Deploying ALL applications.${NC}"
     for app in infrastructure/kubernetes/apps/*.yaml; do
         basename=$(basename "$app")
