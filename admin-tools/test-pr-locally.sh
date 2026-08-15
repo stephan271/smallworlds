@@ -317,9 +317,10 @@ data:
 EOF
 
 # The master kustomization mixes ArgoCD Applications with plain manifests, and
-# some of those plain manifests (PrometheusRule, AlertmanagerConfig) belong to
-# CRDs that only exist once kube-prometheus-stack has been deployed *by* one of
-# those Applications. Production never hits this: cloud-init applies only
+# some of those plain manifests belong to CRDs that only exist once an
+# Application in this very kustomization has installed them: PrometheusRule and
+# AlertmanagerConfig come with kube-prometheus-stack, and the Middleware CRs
+# that keep ArgoCD and Grafana off the public internet come with Traefik. Production never hits this: cloud-init applies only
 # argocd-root-app.yaml and ArgoCD retries until the CRDs appear. A one-shot
 # `kubectl apply -k` has no such retry, so it is expected to leave those behind
 # on a fresh cluster — they get re-applied once the sync has settled.
@@ -341,7 +342,7 @@ if [ "$APPLY_RC" -ne 0 ]; then
     # fails the run if these manifests turn out to be broken for another reason.
     OTHER_ERRORS=$(grep -viE '^Warning:' "$APPLY_LOG" \
         | grep -iE 'error|unable to|forbidden|invalid|failed|not found' \
-        | grep -viE 'monitoring\.coreos\.com' || true)
+        | grep -viE 'monitoring\.coreos\.com|traefik\.io' || true)
     if [ -n "$OTHER_ERRORS" ]; then
         echo -e "${RED}Apply failed for reasons beyond missing CRDs:${NC}"
         echo "$OTHER_ERRORS"
@@ -407,7 +408,8 @@ if [ "$DEFERRED_APPLY" = true ]; then
     # stale cache keeps answering NotFound long after the CRD is available.
     kubectl wait --for condition=established --timeout=180s \
         crd/prometheusrules.monitoring.coreos.com \
-        crd/alertmanagerconfigs.monitoring.coreos.com 2>/dev/null || true
+        crd/alertmanagerconfigs.monitoring.coreos.com \
+        crd/middlewares.traefik.io 2>/dev/null || true
     rm -rf "${HOME}/.kube/cache/discovery" 2>/dev/null || true
     for attempt in 1 2 3; do
         if kubectl apply -k infrastructure/kubernetes; then
