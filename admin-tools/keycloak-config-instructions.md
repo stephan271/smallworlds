@@ -108,9 +108,12 @@ We need to remove passwords from the login flow and strictly require WebAuthn (P
    (including choosing their final username), and registers a passkey. The passkey is
    created on **that** device, so a phone-only member should open it on their phone.
 
-7. From then on they log in with the passkey — the realm has no password form.
-   Encourage a second passkey via the account console; without one, a lost device
-   means coming back to you for a new link.
+7. From then on they log in with the passkey. Invited members never get a password
+   credential and `resetPasswordAllowed` is `false`, so the passkey is their only
+   way in — see `doc/tenant-keycloak.md` §5, and note that section 3 above is a
+   manual step the realm JSON does not perform. Encourage a second passkey via the
+   account console; without one, a lost device means coming back to you for a new
+   link.
 
 To have Keycloak mail the links instead of writing them out, pass `--email`. That
 requires a working SMTP relay (`doc/mail.md`); without one Keycloak accepts the

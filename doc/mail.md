@@ -26,9 +26,11 @@ A cluster with no mail server is normal.
 minting each member's action token through the `action-token-link` SPI and
 writing the URLs to a file for the Operator to distribute out of band; `--email`
 selects the old `execute-actions-email` path for clusters that do have a relay.
-Nor is there a password-reset dependency: the realm is passkey-only, with the
-`Username Password Form` execution deleted from the browser flow
-(`admin-tools/keycloak-config-instructions.md`), so there is no secret to reset.
+Nor is there a password-reset dependency: `bulk-invite.py` sets no password
+credential, and the realm has `resetPasswordAllowed: false`, so no "Forgot
+password?" link exists and Keycloak never sends a reset mail. (The bound browser
+flow does still offer a password form as an alternative to the passkey — it
+simply has nothing to match against. See `doc/tenant-keycloak.md` §5.)
 Invitation mode also sets `emailVerified` directly rather than mailing a
 verification.
 

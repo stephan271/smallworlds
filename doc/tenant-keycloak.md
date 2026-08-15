@@ -10,7 +10,7 @@ Like other stateful tenants, Keycloak uses a dedicated CloudNativePG cluster.
 - **Connection**: In `values.yaml`, Keycloak is configured to connect to this database via `KC_DB_URL_HOST=keycloak-db-rw`.
 
 ### 2. Stalwart SMTP Integration (`values.yaml` & `realm-config-job.yaml`)
-Keycloak sends emails (for password resets, email verification, etc.) using the cluster's Stalwart mail server.
+Keycloak can send email through the cluster's Stalwart mail server. Note that in the default configuration it has very little to send: the realm is passwordless, so there are no password-reset mails (§5), invitations are delivered out of band by `admin-tools/bulk-invite.py`, and `verifyEmail` is only set in the `self-registration` onboarding mode. See `doc/mail.md` — mail is an opt-in capability (`docs/adr/0049`), and this SMTP block is inert in a cluster without a mail server.
 - **Environment Variables**: In `values.yaml`, SMTP settings are passed (e.g. `KC_SMTP_HOST="stalwart-mail.stalwart.svc.cluster.local"`). 
 - **Realm Injection**: Interestingly, the actual SMTP password is dynamically injected into the realm JSON during the `realm-config-job`. The job uses `sed` to replace `${env.STALWART_PASSWORD}` with the real password fetched from the `keycloak-stalwart-secret` before using `kcadm.sh` to create the realm. This avoids committing the plaintext mail password in the realm JSON file.
 
@@ -24,6 +24,35 @@ Instead of manual configuration, Keycloak's state is declarative.
 Keycloak's default root URL (`/`) goes to an admin welcome page.
 - **Traefik Middleware**: This file defines a Traefik `RedirectRegex` middleware that catches root hits to `identity.smallworlds.network` and redirects users immediately to the `smallworlds` account console (`/realms/smallworlds/account/`). This creates a much better user experience since users don't see the Keycloak admin landing page.
 - **Host rename** (`7bfb924`): The public host was renamed from `auth.` to `identity.smallworlds.network`; the redirect regex tracks that hostname.
+
+### 5. Passkey authentication (`smallworlds-realm.json`)
+
+**The realm is passkey-*capable*, not passkey-only.** This is worth stating plainly because three descriptions of it disagree, and only the first is what a fresh cluster runs:
+
+- **Bound and active** (`"browserFlow": "browser"`): the `forms` subflow holds `webauthn-authenticator-passwordless` and `auth-username-password-form`, both **ALTERNATIVE**. Either credential is accepted.
+- **Defined but unbound**: a `browser-with-passkey` top-level flow whose `passkey-or-password` subflow does username-first, then passkey / password / **recovery code**. Its `browser-with-passkey forms` child is `DISABLED`. Nothing binds it.
+- **Documented but nonexistent**: `admin-tools/keycloak-config-instructions.md` §3 tells the Operator to hand-build a `passkey-only-browser` flow by duplicating `browser` and deleting the password form. That flow is not in the realm JSON and matches neither of the above.
+
+Members are nonetheless passwordless **in practice**, for two reasons that are worth keeping true deliberately rather than by accident: `admin-tools/bulk-invite.py` sets no password credential when it creates a member, so the password form has nothing to match against; and `resetPasswordAllowed` is `false`, so there is no "Forgot password?" link and Keycloak never sends a reset mail. That — not the absence of a password form — is why account recovery needs no mail (`doc/mail.md`, `docs/adr/0049`). The password path is latent, not removed: give a user a password and it will work.
+
+**Recovery codes are enabled but unusable.** `recovery-auth-code-register` is an enabled required action (`defaultAction=false`, so not automatic), and `recovery-auth-code-form` appears only in the **unbound** `browser-with-passkey` flow. A member who registered recovery codes today could not present them at login. Wiring this up properly — binding a flow that offers the recovery-code form, and adding `recovery-auth-code-register` to the required actions in `bulk-invite.py` — would give members mail-free, Operator-free self-recovery and remove the availability dependency `docs/adr/0049` currently accepts. It is the single highest-value gap in this tenant.
+
+The passwordless WebAuthn policy — the `webAuthnPolicyPasswordless*` keys, *not* the `webAuthnPolicy*` ones, which govern the two-factor `webauthn-authenticator` that no flow here uses:
+
+| Setting | Value | Consequence |
+|---|---|---|
+| `RequireResidentKey` | `Yes` | Discoverable credentials, so login needs no username first. Hardware keys have a finite number of resident slots (a YubiKey 5 holds ~25); platform authenticators are effectively unlimited. |
+| `UserVerificationRequirement` | `required` | Biometric or PIN at every login; a tapped-but-unverified key is rejected. |
+| `AuthenticatorAttachment` | `not specified` | Both platform authenticators (phone, laptop) and roaming ones (security keys) are accepted. |
+| `AttestationConveyancePreference` | `none`, `AcceptableAaguids` empty | **Any** authenticator is accepted, including third-party password managers. This is deliberate: an AAGUID allowlist would silently lock out members using Bitwarden, Proton Pass or 1Password. |
+
+**Where members' credentials actually live.** Registering on a phone produces a *synced* passkey by default — iCloud Keychain on iOS, Google Password Manager on Android — so the private key is escrowed end-to-end-encrypted with Apple or Google and follows the member to their other devices in that ecosystem. That sync is free and automatic, and it is also a dependency on a US provider that this project otherwise avoids. The alternatives are device-bound credentials (hardware keys, which never sync by design) or a third-party manager; the latter requires **Android 14+ or iOS 17+** to act as a credential provider, so a community with older phones cannot rely on it uniformly. Vaultwarden is the self-hostable option that fits this stack, but it stores passkeys rather than fully replacing the platform provider, and compatibility with Bitwarden clients has had recent gaps — verify before recommending it to non-technical members.
+
+**Passkeys are bound to the RP ID, which is the identity hostname.** `webAuthnPolicyPasswordlessRpId` is templated as `${env.IDENTITY_HOST}` and substituted per environment at realm-import time (`568c554`, below). Two consequences that are easy to discover the hard way:
+- **Renaming or moving the identity host invalidates every passkey in the community.** They are cryptographically scoped to the RP ID; a credential registered against `identity.<domain>` is unusable at any other host. Recovery is re-inviting every member. Treat the identity hostname as permanent once the first member has enrolled.
+- Dev and production passkeys are separate by construction, since `identity.dev.<domain>` is a different RP ID. This is intended, not a bug.
+
+**Recommend two passkeys per member.** WebAuthn is multi-credential by design and Keycloak allows several per account. One on the phone plus one on a laptop or a security key survives a lost device, a locked platform account, a vault outage and an ecosystem migration — none of which a single synced credential survives. It is also the only thing that keeps the Operator from being an availability dependency for account recovery, a cost `docs/adr/0049` accepts explicitly. Where a member is locked out anyway, the recovery path is the Operator re-running `bulk-invite.py` for them, which mints a fresh onboarding link (the script treats a matching-email re-invite as a normal re-issue).
 
 ## Notable changes per file (from git history)
 

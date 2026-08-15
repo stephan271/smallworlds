@@ -12,10 +12,11 @@ already ships an `action-token-link` SPI (`infrastructure/keycloak-spi/`) that m
 same `ExecuteActionsActionToken` as `execute-actions-email` and returns the URL instead of
 mailing it, `admin-tools/bulk-invite.py` now defaults to that path and writes the links to
 a `0600` file for the Operator to hand over in person or over a channel they trust,
-invitation mode sets `emailVerified` directly rather than mailing a challenge, and the
-realm has no password form at all — the browser flow deletes `Username Password Form` and
-requires a passkey — so there is no secret to reset and therefore no recovery channel to
-provide. Sending is consequently required only when the Operator picks the
+invitation mode sets `emailVerified` directly rather than mailing a challenge, and no
+password credential is ever set for an invited member while `resetPasswordAllowed` is
+`false`, so there is no secret to reset and therefore no recovery channel to provide —
+noting that the bound browser flow does still offer a password form as an alternative to
+the passkey, a latent path rather than an active one (`doc/tenant-keycloak.md` §5). Sending is consequently required only when the Operator picks the
 `self-registration` onboarding mode, wants member-facing application notifications, or
 chooses to route alerts by mail; a cluster that does none of these needs no SMTP in either
 direction, and that is expected to be the common case for a LAN deployment. What remains

@@ -14,9 +14,9 @@ REALM = os.getenv("KEYCLOAK_REALM", "smallworlds")
 CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID", "bulk-invite")
 CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET")
 
-# Update the profile to choose a real username, then register a passkey. The
-# realm has no password form at all (see keycloak-config-instructions.md), so
-# this link is the member's only way in until they hold a passkey.
+# Update the profile to choose a real username, then register a passkey. No
+# password credential is ever set for an invited member and resetPasswordAllowed
+# is false, so this link is their only way in until they hold a passkey.
 REQUIRED_ACTIONS = ["UPDATE_PROFILE", "webauthn-register-passwordless"]
 ACCOUNT_CLIENT_ID = "account"
 ACCOUNT_REDIRECT_URI = f"{KEYCLOAK_URL}/realms/{REALM}/account/"
