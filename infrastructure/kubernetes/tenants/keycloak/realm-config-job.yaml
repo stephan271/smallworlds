@@ -80,7 +80,18 @@ spec:
               sed -e "s/\${env.STALWART_PASSWORD}/$STALWART_PASSWORD/g" \
                   -e "s/\${env.IDENTITY_HOST}/$IDENTITY_HOST/g" \
                   /opt/keycloak/data/realm-config/smallworlds-realm.json > /tmp/realm-configured.json
-              /opt/keycloak/bin/kcadm.sh create realms -f /tmp/realm-configured.json || echo "Realm may already exist."
+              # Distinguish "already imported" from "import rejected". A blanket
+              # `|| echo` used to swallow both, and a rejected import surfaced
+              # far from its cause: every tenant's keycloak-client-job failing
+              # against a realm that does not exist, so no tenant Application
+              # ever synced and every app answered 404 — while Keycloak itself
+              # looked healthy.
+              if /opt/keycloak/bin/kcadm.sh get realms/smallworlds > /dev/null 2>&1; then
+                echo "Realm smallworlds already exists — leaving it alone."
+              elif ! /opt/keycloak/bin/kcadm.sh create realms -f /tmp/realm-configured.json; then
+                echo "FATAL: realm import was rejected — see the error above." >&2
+                exit 1
+              fi
 
               echo "Setting onboarding mode to $ONBOARDING_MODE..."
               if [ "$ONBOARDING_MODE" = "self-registration" ]; then

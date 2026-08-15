@@ -48,7 +48,17 @@ forms                                  ALTERNATIVE
       recovery-auth-code-form                ALTERNATIVE
 ```
 
-The default login is unchanged — members still get the usernameless passkey prompt. `must-authenticate` and `passkey-or-password` already existed in the realm and were simply never reachable; the only edit was replacing `auth-username-password-form` in `forms` with the `passkey-or-password` subflow. `admin-tools/bulk-invite.py` adds `recovery-auth-code-register` to the invitation's required actions, so members take their codes down during onboarding, after the passkey (Keycloak orders required actions by realm priority — passkey 60, recovery codes 110 — not by the order the script sends them).
+The default login is unchanged — members still get the usernameless passkey prompt. `must-authenticate` and `passkey-or-password` already existed in the realm and were simply never reachable; the only edit was replacing `auth-username-password-form` in `forms` with the `passkey-or-password` subflow.
+
+> **Flows are a tree: every subflow has exactly one parent.** Pointing `forms` at
+> `passkey-or-password` while the unbound `browser-with-passkey` still referenced
+> it gave that subflow two parents, and Keycloak **rejected the whole realm
+> import**. The symptom appeared nowhere near the cause: Keycloak itself came up
+> healthy, but there was no `smallworlds` realm, so every tenant's
+> `keycloak-client-job` failed, no tenant Application synced, and every
+> application answered `404`. `browser-with-passkey` and its children were
+> deleted for this reason. Before re-pointing any `flowAlias`, check that nothing
+> else already references the target. `admin-tools/bulk-invite.py` adds `recovery-auth-code-register` to the invitation's required actions, so members take their codes down during onboarding, after the passkey (Keycloak orders required actions by realm priority — passkey 60, recovery codes 110 — not by the order the script sends them).
 
 Alternatives a member has not configured are not offered, so this degrades correctly. With passwords removed, **recovery codes are the only fallback there is** — which raises the stakes on the untested login path below rather than lowering them.
 
