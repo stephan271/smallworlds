@@ -62,8 +62,8 @@ resource "hcloud_server" "smallworlds_staging_node" {
   image       = var.use_golden_image ? tostring(data.hcloud_image.golden[0].id) : "ubuntu-24.04"
   # 16 GB minimum: 8GB nodes saturate when the full app suite deploys — probe
   # timeouts cascade into CNPG failovers and OOM crashloops
-  server_type = "cx43"
-  location    = "nbg1"
+  server_type = var.server_type
+  location    = var.location
   firewall_ids = [hcloud_firewall.k8s_firewall_staging.id]
   ssh_keys    = [hcloud_ssh_key.staging_key.id]
   

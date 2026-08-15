@@ -58,3 +58,24 @@ variable "use_golden_image" {
   type        = bool
   default     = false
 }
+
+variable "location" {
+  description = <<-DESC
+    Hetzner location for the ephemeral staging VM. Override per run, e.g.
+    TF_VAR_location=hel1 (Helsinki). Nothing here is location-bound — staging
+    uses an ephemeral IP and no volumes — but var.server_type must be offered
+    in whichever location is chosen, or the apply fails before the VM is made.
+  DESC
+  type        = string
+  default     = "nbg1"
+}
+
+variable "server_type" {
+  description = <<-DESC
+    16 GB minimum: 8 GB nodes saturate when the full app suite deploys, and the
+    probe timeouts cascade into CNPG failovers and OOM crashloops. Exposed
+    alongside var.location because type availability differs per location.
+  DESC
+  type        = string
+  default     = "cx43"
+}
