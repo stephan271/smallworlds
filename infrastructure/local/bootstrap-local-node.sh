@@ -614,7 +614,24 @@ ROOTAPP
             sleep 5
         done
         kubectl wait --for=condition=Established --timeout=2m crd/clusterissuers.cert-manager.io
-        kubectl apply -f "$MARKER_DIR/letsencrypt-prod.yaml"
+        # An Established CRD says nothing about cert-manager being able to
+        # *admit* one. Its validating webhook is a separate Deployment installed
+        # by the same Argo CD Application, and until that has endpoints every
+        # create is refused with "no endpoints available for service
+        # cert-manager-webhook". The CRD appearing and the webhook serving are
+        # tens of seconds apart, so on a first install a single apply lands in
+        # that gap almost every time — and then nothing ever issues a
+        # certificate, because every Ingress annotates this issuer by name.
+        # Retry until the deadline instead of assuming.
+        until kubectl apply -f "$MARKER_DIR/letsencrypt-prod.yaml" >/dev/null 2>&1; do
+            if [ "$(date +%s)" -ge "$ISSUER_DEADLINE" ]; then
+                echo -e "${RED}The certificate issuer could not be created before the deadline.${NC}" >&2
+                # Run it once more unsilenced so the real reason is in the log.
+                kubectl apply -f "$MARKER_DIR/letsencrypt-prod.yaml" >&2 || true
+                exit 1
+            fi
+            sleep 5
+        done
         touch "$MARKER_DIR/issuer-ready"
     fi
 fi

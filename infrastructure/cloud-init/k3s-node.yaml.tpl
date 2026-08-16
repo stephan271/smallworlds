@@ -339,7 +339,21 @@ runcmd:
       sleep 5
     done
     kubectl wait --for=condition=Established --timeout=2m crd/clusterissuers.cert-manager.io
-    kubectl apply -f /etc/smallworlds-letsencrypt-prod.yaml
+    # An Established CRD says nothing about cert-manager being able to *admit*
+    # one. Its validating webhook is a separate Deployment installed by the same
+    # Argo CD Application, and until that has endpoints every create is refused
+    # with "no endpoints available for service cert-manager-webhook". The CRD
+    # appearing and the webhook serving are tens of seconds apart, so a single
+    # apply lands in that gap on a first install — and then nothing ever issues a
+    # certificate, because every Ingress annotates this issuer by name.
+    until kubectl apply -f /etc/smallworlds-letsencrypt-prod.yaml >/dev/null 2>&1; do
+      if [ "$(date +%s)" -ge "$deadline" ]; then
+        echo "the certificate issuer could not be created before the deadline" >&2
+        kubectl apply -f /etc/smallworlds-letsencrypt-prod.yaml >&2 || true
+        exit 1
+      fi
+      sleep 5
+    done
 %{ endif ~}
 
   # 5. Install tailscaled (Phase 1: private overlay network). Install only —
