@@ -73,6 +73,13 @@ if [[ "$DATA_DIR" != "/var/lib/pod-archive" ]]; then
     cat > /etc/systemd/system/pod-archive.service.d/data-dir.conf <<EOF
 [Service]
 Environment=POD_DATA=${DATA_DIR}
+# The empty assignment is load-bearing. ReadWritePaths is a list, and a drop-in
+# appends to it rather than replacing it, so without the reset the unit keeps
+# ReadWritePaths=/var/lib/pod-archive — a directory this installation never
+# creates. ProtectSystem=strict then refuses to set up the mount namespace and
+# the service dies with 226/NAMESPACE before the agent runs at all, which is
+# how every POD_DATA_DIR install has failed until now.
+ReadWritePaths=
 ReadWritePaths=${DATA_DIR}
 EOF
 fi
