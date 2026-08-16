@@ -151,18 +151,27 @@ echo -e "${YELLOW}Selecting Optional Applications...${NC}"
 OPTIONAL_APPS=("forgejo" "immich" "nextcloud" "bulwark" "excalidraw" "jitsi" "collabora" "plane" "pod-gateway")
 SELECTED_APPS=()
 
+# An app name is not automatically a shell identifier: pod-gateway has a hyphen,
+# and STORED_APP_pod-gateway is not a name bash will expand. Under set -e that
+# aborted the whole script at the indirect expansion below, so the one app that
+# needed it could never be selected at all — and the saved preferences file
+# would have been written with a line that broke the next run's `source`.
+app_pref_var() {
+    printf 'STORED_APP_%s' "${1//[^A-Za-z0-9_]/_}"
+}
+
 for app in "${OPTIONAL_APPS[@]}"; do
     # Check stored preference
-    var_name="STORED_APP_${app}"
+    var_name="$(app_pref_var "$app")"
     stored_val="${!var_name}"
     default_choice="${stored_val:-y}"
-    
+
     read -e -i "$default_choice" -p "Do you want to install $app? (y/n): " choice
     if [[ "$choice" =~ ^[Yy]$ ]]; then
         SELECTED_APPS+=("$app")
-        eval "STORED_APP_${app}='y'"
+        printf -v "$var_name" 'y'
     else
-        eval "STORED_APP_${app}='n'"
+        printf -v "$var_name" 'n'
     fi
 done
 
@@ -360,7 +369,7 @@ STORED_TARGET_DOMAIN="${TARGET_DOMAIN}"
 STORED_ENV_EXT="${ENV_EXT}"
 EOF
 for app in "${OPTIONAL_APPS[@]}"; do
-    var_name="STORED_APP_${app}"
+    var_name="$(app_pref_var "$app")"
     echo "${var_name}=${!var_name}" >> "$CONFIG_FILE"
 done
 
