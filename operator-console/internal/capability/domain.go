@@ -113,6 +113,16 @@ var domainPatchTemplates = map[string]string{
         path: /spec/tls/0/hosts/0
         value: {{identity}}
   - target:
+      kind: Ingress
+      name: keycloak-admin
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: {{identity}}
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: {{identity}}
+  - target:
       kind: StatefulSet
       name: keycloak-keycloakx
     patch: |-
