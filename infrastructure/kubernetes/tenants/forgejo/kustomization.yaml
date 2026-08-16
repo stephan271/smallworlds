@@ -10,6 +10,7 @@ bases:
 
 resources:
   - redis.yaml
+  - objectstore.yaml
   - cnpg-cluster.yaml
   - oidc-config-job.yaml
   - forgejo-secret-init-job.yaml

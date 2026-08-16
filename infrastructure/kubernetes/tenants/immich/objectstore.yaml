@@ -1,0 +1,40 @@
+# The Barman Cloud plugin's object store (docs/adr/0050). CloudNativePG's in-tree
+# barmanObjectStore is deprecated in 1.30 and removed entirely in 1.31.0, so the
+# same destination is declared here and referenced from the Cluster instead.
+#
+# destinationPath and serverName are deliberately unchanged from the in-tree
+# configuration: the archives already written have to stay readable by the plugin.
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: postgres-backups
+spec:
+  retentionPolicy: "7d"
+  # Garage's [s3_api] s3_region is "garage". Without this, barman-cloud signs
+  # SigV4 with the default us-east-1 scope, which Garage rejects with HTTP 400
+  # (AuthorizationHeaderMalformed); WAL archiving then stalls silently and pg_wal
+  # grows until the node's disk fills. The plugin runs barman in a sidecar rather
+  # than in the instance, so the Cluster's own env no longer reaches it and the
+  # region has to be declared here — see doc/storage-and-backup.md.
+  instanceSidecarConfiguration:
+    env:
+      - name: AWS_REGION
+        value: garage
+      - name: AWS_DEFAULT_REGION
+        value: garage
+  configuration:
+    # Distinct per-tenant serverName: all these clusters are named "database",
+    # and barman refuses (or corrupts) a destination already claimed by another
+    # server — without this, only the first tenant to sync gets working backups.
+    serverName: immich-database
+    destinationPath: s3://postgres-backups/
+    endpointURL: http://garage-backup.garage-backup-system.svc.cluster.local:3900
+    s3Credentials:
+      accessKeyId:
+        name: garage-secret-cnpg
+        key: accessKeyId
+      secretAccessKey:
+        name: garage-secret-cnpg
+        key: secretAccessKey
+    wal:
+      compression: gzip

@@ -7,6 +7,7 @@ bases:
   - ../../bases/garage-init-job
 
 resources:
+  - objectstore.yaml
   - cnpg-cluster.yaml
   - stalwart-deployment.yaml
   - stalwart-init-job.yaml

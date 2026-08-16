@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: keycloak
 
 resources:
+  - objectstore.yaml
   - cnpg-cluster.yaml
   - keycloak-admin-ingress.yaml
   - keycloak-redirect.yaml

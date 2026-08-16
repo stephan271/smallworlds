@@ -8,15 +8,8 @@ spec:
   instances: 2
   imageName: ghcr.io/tensorchord/cloudnative-pgvecto.rs:16.4-v0.3.0
   primaryUpdateStrategy: unsupervised
-  # Garage's [s3_api] s3_region is "garage". Without this, barman-cloud (and any S3
-  # client) signs SigV4 with the default us-east-1 scope, which Garage rejects with
-  # HTTP 400 (AuthorizationHeaderMalformed). That silently stalls WAL archiving and
-  # lets pg_wal grow until the node's disk fills — see doc/storage-and-backup.md.
-  env:
-    - name: AWS_REGION
-      value: garage
-    - name: AWS_DEFAULT_REGION
-      value: garage
+  # The signing region now lives on the ObjectStore, not here: the plugin runs
+  # barman in a sidecar, which does not inherit the Cluster's env.
   monitoring:
     enablePodMonitor: true
   storage:
@@ -25,20 +18,13 @@ spec:
     initdb:
       database: keycloak
       owner: keycloak
-  backup:
-    retentionPolicy: "7d"
-    barmanObjectStore:
-      destinationPath: s3://postgres-backups-keycloak/
-      endpointURL: http://garage-backup.garage-backup-system.svc.cluster.local:3900
-      s3Credentials:
-        accessKeyId:
-          name: garage-secret
-          key: accessKeyId
-        secretAccessKey:
-          name: garage-secret
-          key: secretAccessKey
-      wal:
-        compression: gzip
+  # Destination, retention and region all live on the ObjectStore in
+  # objectstore.yaml (docs/adr/0050).
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: postgres-backups-keycloak
 ---
 # Daily scheduled backup at 03:00 UTC (staggered from Nextcloud/Immich)
 apiVersion: postgresql.cnpg.io/v1
@@ -50,6 +36,11 @@ spec:
   # SIX fields, seconds first — CNPG is not Kubernetes CronJob syntax.
   # A five-field "0 3 * * *" parses as second 0 of minute 3 of EVERY hour.
   schedule: "0 0 3 * * *"
+  # Without these the schedule fires but takes nothing: the default method is the
+  # in-tree object store, which this cluster no longer configures.
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
   cluster:
     name: keycloak-db
   immediate: true

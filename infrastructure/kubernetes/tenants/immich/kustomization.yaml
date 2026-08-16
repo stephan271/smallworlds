@@ -9,6 +9,7 @@ bases:
 
 resources:
   - redis.yaml
+  - objectstore.yaml
   - cnpg-cluster.yaml
   - admin-config.yaml
   - admin-init-job.yaml

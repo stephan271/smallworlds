@@ -11,6 +11,7 @@ resources:
   - apps/cert-manager.yaml
   - apps/cert-manager-webhook-hetzner.yaml
   - apps/cloudnative-pg.yaml
+  - apps/cnpg-barman-plugin.yaml
   - apps/argocd-ingress.yaml
   - apps/garage.yaml
   - apps/garage-backup.yaml

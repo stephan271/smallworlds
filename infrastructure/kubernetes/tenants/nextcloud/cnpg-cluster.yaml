@@ -6,15 +6,8 @@ spec:
   instances: 2
   imageName: ghcr.io/cloudnative-pg/postgresql:16
   primaryUpdateStrategy: unsupervised
-  # Garage's [s3_api] s3_region is "garage". Without this, barman-cloud (and any S3
-  # client) signs SigV4 with the default us-east-1 scope, which Garage rejects with
-  # HTTP 400 (AuthorizationHeaderMalformed). That silently stalls WAL archiving and
-  # lets pg_wal grow until the node's disk fills — see doc/storage-and-backup.md.
-  env:
-    - name: AWS_REGION
-      value: garage
-    - name: AWS_DEFAULT_REGION
-      value: garage
+  # The signing region now lives on the ObjectStore, not here: the plugin runs
+  # barman in a sidecar, which does not inherit the Cluster's env.
   monitoring:
     enablePodMonitor: true
   storage:
@@ -23,24 +16,13 @@ spec:
     initdb:
       database: app
       owner: app
-  backup:
-    retentionPolicy: "7d"
-    barmanObjectStore:
-      # Distinct per-tenant serverName: all these clusters are named "database",
-      # and barman refuses (or corrupts) a destination already claimed by another
-      # server — without this, only the first tenant to sync gets working backups.
-      serverName: nextcloud-database
-      destinationPath: s3://postgres-backups/
-      endpointURL: http://garage-backup.garage-backup-system.svc.cluster.local:3900
-      s3Credentials:
-        accessKeyId:
-          name: garage-secret-cnpg
-          key: accessKeyId
-        secretAccessKey:
-          name: garage-secret-cnpg
-          key: secretAccessKey
-      wal:
-        compression: gzip
+  # Destination, retention and region all live on the ObjectStore in
+  # objectstore.yaml (docs/adr/0050).
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: postgres-backups
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup
@@ -50,6 +32,11 @@ spec:
   # SIX fields, seconds first — CNPG is not Kubernetes CronJob syntax.
   # A five-field "0 2 * * *" parses as second 0 of minute 2 of EVERY hour.
   schedule: "0 0 2 * * *"
+  # Without these the schedule fires but takes nothing: the default method is the
+  # in-tree object store, which this cluster no longer configures.
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
   cluster:
     name: database
   immediate: true
