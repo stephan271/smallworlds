@@ -56,6 +56,15 @@ and the member's device. It is a deliberate trade: see the callout in
 Base URL is `https://pod.<domain>`. All requests carry `Authorization: Bearer
 <token>`. There are exactly two kinds of principal and they share no verbs.
 
+That public address exists for **devices**, which are outside the cluster. The
+one in-cluster client, `immich-pod-export`, reaches the same gateway through
+`http://pod-gateway.pod-gateway.svc.cluster.local` instead: routing a nightly
+job that never leaves the node out through Traefik and back would make it depend
+on public DNS resolving inside the cluster and on a certificate the pod's trust
+store accepts, and on a LAN deployment neither holds — names come from a CoreDNS
+override and certificates are self-signed. `export.py` is stdlib `urllib` with
+default verification and no override, so it would simply fail.
+
 | Principal | May | May not |
 |---|---|---|
 | **Agent** (an app's exporter) | `PUT` new objects into any pod | Read anything, overwrite, delete |
@@ -158,6 +167,29 @@ Three properties matter more than the hardware:
 Encrypt the disk. The archive is stored as plain files, so whoever holds the
 device can read every photo on it — the gateway's guarantees end at the member's
 front door.
+
+Mount that disk somewhere other than `/home`: the unit sets `ProtectHome=true`,
+so the agent cannot write there. `POD_DATA_DIR=/mnt/<disk>/pod-archive
+./install.sh …` writes a drop-in with the matching `ReadWritePaths`.
+
+On a LAN deployment the gateway's certificate is self-signed, and `pod-agent.py`
+validates against the system trust store with no CA option and no insecure
+switch. Export the leaf and point the agent at it:
+
+```bash
+kubectl -n pod-gateway get secret pod-gateway-tls \
+    -o jsonpath='{.data.tls\.crt}' | base64 -d > gateway.pem
+# on the device, after install.sh has created /etc/pod-archive:
+sudo install -m 0644 gateway.pem /etc/pod-archive/gateway.pem
+sudo mkdir -p /etc/systemd/system/pod-archive.service.d
+printf '[Service]\nEnvironment=SSL_CERT_FILE=/etc/pod-archive/gateway.pem\n' \
+    | sudo tee /etc/systemd/system/pod-archive.service.d/trust.conf
+sudo systemctl daemon-reload
+```
+
+cert-manager renews that leaf, so the copy goes stale roughly every 60 days —
+the device then stops pulling and `PodArchiveDeviceStale` fires, which is the
+intended way to find out rather than silence.
 
 ## Operating it
 

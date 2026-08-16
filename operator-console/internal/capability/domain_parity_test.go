@@ -36,6 +36,10 @@ func TestDomainPatchesMatchTheShellPathExactly(t *testing.T) {
 		"excalidraw": "excalidraw", "plane": "plane",
 		"argocd-ingress": "argocd", "kube-prometheus-stack": "monitoring",
 		"headscale": "headscale", "operator-console": "operator-console",
+		// Not a selectable capability yet — only the console's catalog is
+		// missing it — but its hostname knowledge already exists on both sides
+		// and is exactly the kind that drifts unwatched.
+		"pod-gateway": "pod-gateway",
 	}
 	for _, environment := range []struct{ domain, ext string }{
 		{"home.example", ""},

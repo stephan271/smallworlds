@@ -266,7 +266,7 @@ runcmd:
       smallworlds.server: |
         ${domain_name}:53 {
           hosts {
-            $NODE_IP identity${env_ext}.${domain_name} files${env_ext}.${domain_name} photos${env_ext}.${domain_name} git${env_ext}.${domain_name} mail${env_ext}.${domain_name} meet${env_ext}.${domain_name} webmail${env_ext}.${domain_name} whiteboard${env_ext}.${domain_name} office${env_ext}.${domain_name} dashboard${env_ext}.${domain_name} monitoring${env_ext}.${domain_name}
+            $NODE_IP identity${env_ext}.${domain_name} files${env_ext}.${domain_name} photos${env_ext}.${domain_name} git${env_ext}.${domain_name} mail${env_ext}.${domain_name} meet${env_ext}.${domain_name} webmail${env_ext}.${domain_name} whiteboard${env_ext}.${domain_name} office${env_ext}.${domain_name} dashboard${env_ext}.${domain_name} monitoring${env_ext}.${domain_name} pod${env_ext}.${domain_name}
             fallthrough
           }
           forward . /etc/resolv.conf

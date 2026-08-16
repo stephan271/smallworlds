@@ -148,6 +148,89 @@ if key:
     fi
 }
 
+# Resolve the overlay repository's current HEAD commit. The bootstrap requires
+# the exact reviewed commit rather than a branch name: HEAD must never decide
+# what a node deploys between the moment you approve an install and the moment
+# Argo CD first syncs. Credentials travel through GIT_ASKPASS instead of the
+# URL, so they never reach the process list or git's own error output.
+resolve_overlay_head() {
+    local url="$1" askpass revision
+    askpass="$(mktemp)"
+    cat > "$askpass" <<'ASKPASS'
+#!/bin/sh
+case "$1" in
+  *[Uu]sername*) printf '%s' "$GIT_USERNAME" ;;
+  *) printf '%s' "$GIT_PASSWORD" ;;
+esac
+ASKPASS
+    chmod 700 "$askpass"
+    revision=$(GIT_ASKPASS="$askpass" GIT_TERMINAL_PROMPT=0 \
+        GIT_USERNAME="$GITOPS_REPO_USER" GIT_PASSWORD="$GITOPS_REPO_TOKEN" \
+        git ls-remote "$url" HEAD 2>/dev/null | awk 'NR==1 {print $1}')
+    rm -f "$askpass"
+    printf '%s' "$revision"
+}
+
+# Build (or reuse) the release-pinned bootstrap payload the local bootstrap
+# refuses to run without. It is deliberately not an installer that fetches
+# "latest" from the network: every k3s installer and Argo CD manifest is
+# downloaded once, verified against the SHA-256 declared in
+# docs/releases/bootstrap-inputs/, and shipped to the node together with the
+# bootstrap script that consumes it. Sets $ASSET_ARCHIVE.
+build_bootstrap_assets() {
+    local inputs_dir="$REPO_ROOT/docs/releases/bootstrap-inputs"
+    local bootstrap_script="$REPO_ROOT/infrastructure/local/bootstrap-local-node.sh"
+
+    if [[ -z "$BOOTSTRAP_RELEASE" ]]; then
+        BOOTSTRAP_RELEASE=$(find "$inputs_dir" -maxdepth 1 -name 'v[0-9]*.json' -printf '%f\n' 2>/dev/null \
+            | sed 's/\.json$//' | sort -V | tail -1)
+    fi
+    local inputs="$inputs_dir/${BOOTSTRAP_RELEASE}.json"
+    if [[ -z "$BOOTSTRAP_RELEASE" || ! -f "$inputs" ]]; then
+        echo -e "${RED}No bootstrap inputs found for release '${BOOTSTRAP_RELEASE:-<none>}' in $inputs_dir.${NC}" >&2
+        exit 1
+    fi
+
+    local cache="$HOME/.smallworlds/bootstrap-assets"
+    ASSET_ARCHIVE="$cache/smallworlds-bootstrap-${BOOTSTRAP_RELEASE}-linux-amd64.tar.gz"
+
+    # Rebuild when the bootstrap script has moved on: the archive carries a copy
+    # of it, so a cached payload would otherwise ship a stale script alongside
+    # current manifests.
+    if [[ -f "$ASSET_ARCHIVE" && ! "$bootstrap_script" -nt "$ASSET_ARCHIVE" ]]; then
+        echo -e "${GREEN}Using cached bootstrap assets for ${BOOTSTRAP_RELEASE}.${NC}"
+        return
+    fi
+
+    echo -e "${CYAN}Building bootstrap assets for ${BOOTSTRAP_RELEASE} (verified downloads)...${NC}"
+    mkdir -p "$cache"
+    local k3s_version k3s_url k3s_sha argocd_version argocd_url argocd_sha
+    eval "$(python3 - "$inputs" <<'PY'
+import json, shlex, sys
+document = json.load(open(sys.argv[1]))
+values = {
+    "k3s_version": document["k3s"]["version"],
+    "k3s_url": document["k3s"]["installerUrl"],
+    "k3s_sha": document["k3s"]["installerSHA256"],
+    "argocd_version": document["argocd"]["version"],
+    "argocd_url": document["argocd"]["manifestUrl"],
+    "argocd_sha": document["argocd"]["manifestSHA256"],
+}
+for key, value in values.items():
+    print(f"{key}={shlex.quote(value)}")
+PY
+)"
+    "$REPO_ROOT/admin-tools/build-bootstrap-assets.sh" \
+        --release "$BOOTSTRAP_RELEASE" \
+        --k3s-version "$k3s_version" \
+        --k3s-installer-url "$k3s_url" \
+        --k3s-installer-sha256 "$k3s_sha" \
+        --argocd-version "$argocd_version" \
+        --argocd-manifest-url "$argocd_url" \
+        --argocd-manifest-sha256 "$argocd_sha" \
+        --output-directory "$cache" >/dev/null
+}
+
 echo -e "${YELLOW}Gathering Configuration...${NC}"
 echo -e "Deployment targets:"
 echo -e "  ${CYAN}hetzner${NC} — provision a Hetzner Cloud VM + DNS via Terraform (public, internet-facing)"
@@ -242,6 +325,14 @@ if [[ -n "$GITOPS_REPO_TOKEN" ]]; then
     fi
 fi
 
+# The profile that owns this installation. The bootstrap records it on the node
+# and refuses to adopt a node claimed by a different one, so it has to stay
+# stable across re-runs — hence derived from the cluster's identity and cached,
+# never regenerated.
+if [[ -z "$PROFILE_ID" ]]; then
+    PROFILE_ID="smallworlds-$(cluster_label "$ENV_EXT")-${DOMAIN}"
+fi
+
 # Generate passwords if not cached
 if [[ -z "$KC_PASS" ]]; then KC_PASS=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32); fi
 # Human administrator of the Keycloak master realm. Separate from `admin`,
@@ -267,6 +358,8 @@ DEPLOY_TARGET="${DEPLOY_TARGET}"
 LOCAL_SSH_TARGET="${LOCAL_SSH_TARGET}"
 DATA_DIR="${DATA_DIR}"
 BACKUP_DIR="${BACKUP_DIR}"
+PROFILE_ID="${PROFILE_ID}"
+BOOTSTRAP_RELEASE="${BOOTSTRAP_RELEASE}"
 LOCAL_PUBLIC="${LOCAL_PUBLIC}"
 DOMAIN="${DOMAIN}"
 ENV_EXT="${ENV_EXT}"
@@ -537,7 +630,27 @@ else
     # no public DNS, self-signed certificates.
     # ==================================================================
     REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
-    BOOTSTRAP_SRC="$REPO_ROOT/infrastructure/local/bootstrap-local-node.sh"
+
+    command -v git >/dev/null 2>&1 || { echo -e "${RED}git is required to resolve the overlay commit.${NC}"; exit 1; }
+
+    # The node is pointed at one exact overlay commit, not at a branch.
+    ROOT_APP_GIT_REVISION="$(resolve_overlay_head "$GITOPS_REPO_URL")"
+    if [[ -z "$ROOT_APP_GIT_REVISION" ]]; then
+        echo -e "${RED}Could not resolve HEAD of ${GITOPS_REPO_URL}.${NC}"
+        echo -e "${YELLOW}The overlay repository must exist and already carry its first commit before a${NC}"
+        echo -e "${YELLOW}node can be pointed at it. Run ./admin-tools/prepare-community-repo.sh first,${NC}"
+        echo -e "${YELLOW}and check the URL, username and access token you entered above.${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}Overlay pinned to commit ${ROOT_APP_GIT_REVISION}.${NC}"
+
+    build_bootstrap_assets
+
+    # Identifies this attempt in the durable checkpoints the bootstrap leaves on
+    # the node, so an install interrupted by a dropped SSH session resumes at a
+    # safe boundary instead of repeating creation steps.
+    BOOTSTRAP_RUN_ID="run-$(date -u +%Y%m%dT%H%M%SZ)-$(openssl rand -hex 4)"
+    RUN_DIR="/tmp/smallworlds-bootstrap-${BOOTSTRAP_RUN_ID}"
 
     # Internet exposure: public DNS in Hetzner (maintained by an in-cluster
     # DDNS CronJob, since home IPs change) and Let's Encrypt certificates.
@@ -581,36 +694,51 @@ EOF
 DOMAIN="${DOMAIN}"
 ENV_EXT="${ENV_EXT}"
 ROOT_APP_GIT_URL="${GITOPS_REPO_URL}"
+ROOT_APP_GIT_REVISION="${ROOT_APP_GIT_REVISION}"
 ACME_EMAIL="${LOCAL_ACME_EMAIL}"
 MANAGE_DNS="${MANAGE_DNS}"
 DATA_DIR="${DATA_DIR}"
 BACKUP_DIR="${BACKUP_DIR}"
 NODE_NAME="smallworlds-local-node"
+PROFILE_ID="${PROFILE_ID}"
+BOOTSTRAP_RUN_ID="${BOOTSTRAP_RUN_ID}"
 SECRETS_MANIFEST="/tmp/smallworlds-${DOMAIN}-secrets.yaml"
 EOF
     chmod 600 "$LOCAL_ENV_FILE"
 
+    # The bootstrap script travels inside the asset payload, never on its own:
+    # the runner in the archive is what points it at the pinned k3s installer
+    # and Argo CD manifest sitting next to it, and a script separated from its
+    # assets simply refuses to run.
     REMOTE_KUBECONFIG="/tmp/smallworlds-kubeconfig.yaml"
     if [[ "$LOCAL_SSH_TARGET" == "localhost" ]]; then
         echo -e "${CYAN}Bootstrapping THIS machine (sudo password may be requested)...${NC}"
-        sudo bash "$BOOTSTRAP_SRC" "$LOCAL_ENV_FILE"
+        rm -rf "$RUN_DIR" && mkdir -p "$RUN_DIR"
+        tar xzf "$ASSET_ARCHIVE" -C "$RUN_DIR"
+        sudo bash "$RUN_DIR/run-local-node-bootstrap.sh" "$LOCAL_ENV_FILE"
+        rm -rf "$RUN_DIR"
         KUBECONFIG_FETCH() { cp "$REMOTE_KUBECONFIG" "$1" && rm -f "$REMOTE_KUBECONFIG"; }
     else
         # root logs in directly; any other user gets a sudo prefix
         SUDO_PREFIX="sudo "
         if [[ "$LOCAL_SSH_TARGET" == root@* ]]; then SUDO_PREFIX=""; fi
 
-        echo -e "${CYAN}Copying bootstrap files to ${LOCAL_SSH_TARGET}...${NC}"
-        scp $SSH_OPTS "$BOOTSTRAP_SRC" "$LOCAL_SSH_TARGET:/tmp/smallworlds-bootstrap-node.sh" >/dev/null
+        echo -e "${CYAN}Copying the bootstrap payload to ${LOCAL_SSH_TARGET}...${NC}"
+        scp $SSH_OPTS "$ASSET_ARCHIVE" "$LOCAL_SSH_TARGET:${RUN_DIR}.tar.gz" >/dev/null
         scp $SSH_OPTS "$LOCAL_ENV_FILE" "$LOCAL_SSH_TARGET:$LOCAL_ENV_FILE" >/dev/null
         scp $SSH_OPTS "$SECRETS_FILE" "$LOCAL_SSH_TARGET:$SECRETS_FILE" >/dev/null
 
         echo -e "${CYAN}Bootstrapping ${LOCAL_SSH_TARGET} (sudo password may be requested)...${NC}"
-        # -t: allocate a TTY so sudo can prompt for a password if needed
-        ssh -t $SSH_OPTS "$LOCAL_SSH_TARGET" "${SUDO_PREFIX}bash /tmp/smallworlds-bootstrap-node.sh $LOCAL_ENV_FILE"
+        # -t: allocate a TTY so sudo can prompt for a password if needed.
+        # The payload is removed whether the bootstrap succeeded or not, and its
+        # exit status is what this script sees.
+        ssh -t $SSH_OPTS "$LOCAL_SSH_TARGET" \
+            "rm -rf $RUN_DIR && mkdir -p $RUN_DIR && tar xzf ${RUN_DIR}.tar.gz -C $RUN_DIR || exit 1; \
+             ${SUDO_PREFIX}bash $RUN_DIR/run-local-node-bootstrap.sh $LOCAL_ENV_FILE; \
+             status=\$?; rm -rf $RUN_DIR ${RUN_DIR}.tar.gz; exit \$status"
         KUBECONFIG_FETCH() {
             scp $SSH_OPTS "$LOCAL_SSH_TARGET:$REMOTE_KUBECONFIG" "$1" >/dev/null
-            ssh $SSH_OPTS "$LOCAL_SSH_TARGET" "rm -f $REMOTE_KUBECONFIG /tmp/smallworlds-bootstrap-node.sh" 2>/dev/null || true
+            ssh $SSH_OPTS "$LOCAL_SSH_TARGET" "rm -f $REMOTE_KUBECONFIG" 2>/dev/null || true
         }
     fi
     rm -f "$SECRETS_FILE" "$LOCAL_ENV_FILE"
@@ -645,7 +773,7 @@ EOF
     HOSTS_SNIPPET="$HOME/.smallworlds/hosts-${KUBECONFIG_LABEL}.txt"
     {
         printf '%s' "$SERVER_IP"
-        for sub in identity dashboard files photos git mail webmail monitoring whiteboard meet office plan; do
+        for sub in identity dashboard files photos git mail webmail monitoring whiteboard meet office plan pod; do
             printf ' %s%s.%s' "$sub" "$ENV_EXT" "$DOMAIN"
         done
         printf '\n'

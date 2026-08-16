@@ -30,9 +30,18 @@ const (
 type Producer string
 
 const (
-	ProducerCNPGBarman     Producer = "cnpg-barman"
-	ProducerVelero         Producer = "velero"
+	ProducerCNPGBarman Producer = "cnpg-barman"
+	ProducerVelero     Producer = "velero"
+	// A filesystem copied into a bucket: the tenant's PVC, mounted read-only.
 	ProducerPVBackupRclone Producer = "pv-backup-rclone"
+	// A bucket copied into another bucket, keeping superseded objects under a
+	// dated prefix rather than overwriting them.
+	ProducerBucketRclone Producer = "bucket-rclone"
+	// The append-only pod archive. Distinct from the rclone producers in a way
+	// that matters to anyone reading a protection report: nothing here can
+	// overwrite or delete what a pod already holds, and nothing carries it
+	// offsite either.
+	ProducerPodArchiveExport Producer = "pod-archive-export"
 )
 
 // Dataset is a declared protected dataset with its owning capability and the

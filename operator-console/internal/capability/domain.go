@@ -443,6 +443,21 @@ var domainPatchTemplates = map[string]string{
         path: /data/WEB_URL
         value: "https://{{plan}}"
 `,
+	// Only the Ingress: the one in-cluster client, immich-pod-export, reaches the
+	// gateway through its Service and never through this hostname. What this
+	// address serves is members' devices, which are outside the cluster and pull
+	// with a token scoped to a single pod.
+	"pod-gateway": `  - target:
+      kind: Ingress
+      name: pod-gateway
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: {{pod}}
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: {{pod}}
+`,
 	"argocd-ingress": `  - target:
       kind: Ingress
       name: argocd-server
@@ -532,7 +547,7 @@ var domainPatchTemplates = map[string]string{
 // subdomainNames maps each placeholder to the label placed in front of the
 // operator's domain. The extension sits between label and domain, so a .dev
 // cluster can never collide with production's hostnames.
-var subdomainNames = []string{"dashboard", "identity", "files", "photos", "git", "mail", "webmail", "monitoring", "whiteboard", "meet", "office", "plan", "deploy", "vpn", "console"}
+var subdomainNames = []string{"dashboard", "identity", "files", "photos", "git", "mail", "webmail", "monitoring", "whiteboard", "meet", "office", "plan", "deploy", "vpn", "console", "pod"}
 
 // DomainPatches returns the Kustomize patch entries that move one application's
 // hostnames onto the operator's domain, or "" when the application needs none.

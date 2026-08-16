@@ -55,8 +55,19 @@ spec:
               env:
                 - name: PYTHONPATH
                   value: /app
+                # The Service, not the public hostname. Both endpoints reach the
+                # same single gateway pod, but the exporter is a neighbour of it:
+                # routing out through Traefik and back would make a nightly job
+                # that never leaves the node depend on public DNS resolving
+                # inside the cluster and on a certificate the pod's trust store
+                # accepts — neither of which holds on a LAN deployment, where
+                # names are served by a CoreDNS override and certificates are
+                # self-signed. export.py uses plain urllib with default
+                # verification and has no override, so it would simply fail.
+                # https://pod.<domain> remains the address for devices, which
+                # are outside and need exactly what this avoids.
                 - name: POD_GATEWAY_URL
-                  value: "https://pod.smallworlds.network"
+                  value: "http://pod-gateway.pod-gateway.svc.cluster.local"
                 - name: LIBRARY_MOUNT
                   value: /library
                 # Where immich-server mounts the same PVC. The absolute paths in

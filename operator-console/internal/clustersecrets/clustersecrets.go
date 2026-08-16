@@ -96,6 +96,7 @@ func References() []Reference {
 		{Namespace: "argocd", Name: repositorySecretName},
 		{Namespace: "monitoring", Name: grafanaSecretName},
 		{Namespace: "garage-system", Name: garageSecretName},
+		{Namespace: "garage-backup-system", Name: garageSecretName},
 		{Namespace: "stalwart", Name: stalwartSecretName},
 		{Namespace: "cert-manager", Name: dnsProviderSecret},
 	}
@@ -128,6 +129,18 @@ func Generate(repository Repository, cluster Cluster) (Generated, error) {
 	if err != nil {
 		return Generated{}, err
 	}
+	// The backup instance is a separate Garage cluster, not a second bucket, and
+	// it gets credentials of its own: the two must never join each other's
+	// gossip, and a credential that reaches operational storage should not also
+	// reach every Recovery Point (docs/adr/0048).
+	backupRPCSecret, err := hexadecimal(32)
+	if err != nil {
+		return Generated{}, err
+	}
+	backupAdminToken, err := hexadecimal(32)
+	if err != nil {
+		return Generated{}, err
+	}
 	consoleSessionKey, err := hexadecimal(32)
 	if err != nil {
 		return Generated{}, err
@@ -144,6 +157,7 @@ func Generate(repository Repository, cluster Cluster) (Generated, error) {
 		{APIVersion: "v1", Kind: "Namespace", Metadata: metadata{Name: "keycloak"}},
 		{APIVersion: "v1", Kind: "Namespace", Metadata: metadata{Name: "monitoring"}},
 		{APIVersion: "v1", Kind: "Namespace", Metadata: metadata{Name: "garage-system"}},
+		{APIVersion: "v1", Kind: "Namespace", Metadata: metadata{Name: "garage-backup-system"}},
 		{APIVersion: "v1", Kind: "Namespace", Metadata: metadata{Name: "stalwart"}},
 		{APIVersion: "v1", Kind: "Namespace", Metadata: metadata{Name: "cert-manager"}},
 		{APIVersion: "v1", Kind: "Namespace", Metadata: metadata{Name: "operator-console"}},
@@ -174,6 +188,17 @@ func Generate(repository Repository, cluster Cluster) (Generated, error) {
 			APIVersion: "v1", Kind: "Secret", Type: "Opaque",
 			Metadata:   metadata{Name: garageSecretName, Namespace: "garage-system"},
 			StringData: map[string]string{"rpcSecret": rpcSecret, "adminToken": adminToken},
+		},
+		// apps/garage-backup.yaml runs the chart with secret.create=false, so
+		// without this the backup instance never starts — and with it down, every
+		// producer in the chain (barman, Velero, pv-backup, the Nextcloud file
+		// copy, the pod archive) has nowhere to write and Keycloak's own sync
+		// waits behind it. An installation missing this looks healthy right up to
+		// the point where somebody needs a Recovery Point.
+		{
+			APIVersion: "v1", Kind: "Secret", Type: "Opaque",
+			Metadata:   metadata{Name: garageSecretName, Namespace: "garage-backup-system"},
+			StringData: map[string]string{"rpcSecret": backupRPCSecret, "adminToken": backupAdminToken},
 		},
 		// Stalwart's provisioner and cert-manager's DNS01 solver mount these
 		// whether or not a provider is in play. With names that stay inside the

@@ -19,6 +19,16 @@ on Hetzner works locally and vice versa.
 - 16 GB RAM minimum for the full app suite; 32 GB recommended.
 - 100 GB+ free disk space for the data directory (Garage S3, Immich library,
   databases).
+- **A second physical disk for `BACKUP_DIR`.** Every Recovery Point lives there
+  (`docs/adr/0048`), and the bootstrap refuses to continue when `DATA_DIR` and
+  `BACKUP_DIR` resolve to the same block device — a co-located backup disk is
+  indistinguishable from a correctly separated one until the day it is needed.
+  Either mount the second disk at `/var/lib/smallworlds-backup`, or point
+  `BACKUP_DIR` at a directory on it (the installer asks for both paths).
+- Git on the machine running the installer, and an overlay repository that
+  already has its first commit: the node is pinned to one exact overlay
+  revision, which the installer resolves with `git ls-remote` before touching
+  anything.
 - SSH access from the machine running the installer, with root login or a
   sudo-capable user (`ssh -t` is used, so an interactive sudo password prompt
   works). Use the literal target `localhost` to install on the machine you are

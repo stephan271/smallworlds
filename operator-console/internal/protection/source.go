@@ -21,9 +21,21 @@ func DefaultInventory() []Dataset {
 		{ID: "stalwart-db", Capability: "stalwart", DataType: DataDatabase, Producer: ProducerCNPGBarman, Schedule: "daily 02:00", Retention: "7 days"},
 		{ID: "keycloak-db", Capability: "keycloak", DataType: DataDatabase, Producer: ProducerCNPGBarman, Schedule: "daily 03:00", Retention: "7 days"},
 		{ID: "cluster-resources", Capability: "velero", DataType: DataClusterResources, Producer: ProducerVelero, Schedule: "daily 02:00", Retention: "30 days"},
-		{ID: "immich-library", Capability: "immich", DataType: DataFilesystem, Producer: ProducerPVBackupRclone, Schedule: "daily 00:30", Retention: "offsite versioning"},
+		// The originals are no longer mirrored by pv-backup: since
+		// docs/adr/0047 the pod archive is their only server-side copy, it is
+		// append-only, and it is deliberately not replicated offsite. Reporting
+		// the old rclone job here claimed a protection that does not exist —
+		// exactly the "evidence, not exit codes" failure this package is for.
+		{ID: "immich-library", Capability: "immich", DataType: DataObjectStore, Producer: ProducerPodArchiveExport, Schedule: "daily 01:15", Retention: "append-only, no offsite copy"},
 		{ID: "forgejo-data", Capability: "forgejo", DataType: DataFilesystem, Producer: ProducerPVBackupRclone, Schedule: "daily 00:45", Retention: "offsite versioning"},
-		{ID: "nextcloud-files", Capability: "nextcloud", DataType: DataFilesystem, Producer: ProducerPVBackupRclone, Schedule: "daily 01:00", Retention: "offsite versioning"},
+		// Two different datasets, two different producers. pv-backup covers the
+		// chart PVC — which matters only for config.php, and without its
+		// instanceid/secret/passwordsalt a restored database decrypts nothing.
+		// Users' actual files live in the `nextcloud` bucket, which is
+		// Nextcloud's primary object store rather than a cache, and they are
+		// copied by a separate rclone job an hour and a half later.
+		{ID: "nextcloud-html", Capability: "nextcloud", DataType: DataFilesystem, Producer: ProducerPVBackupRclone, Schedule: "daily 01:00", Retention: "offsite versioning"},
+		{ID: "nextcloud-files", Capability: "nextcloud", DataType: DataObjectStore, Producer: ProducerBucketRclone, Schedule: "daily 03:15", Retention: "superseded versions kept per day"},
 	}
 }
 
