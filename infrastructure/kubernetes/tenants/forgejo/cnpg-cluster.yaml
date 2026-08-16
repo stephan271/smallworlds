@@ -23,6 +23,11 @@ spec:
       isWALArchiver: true
       parameters:
         barmanObjectName: postgres-backups
+        # Distinct per-tenant serverName: all these clusters are named
+        # "database", and barman refuses (or corrupts) a destination already
+        # claimed by another server. Unchanged from the in-tree configuration so
+        # the existing archives stay readable.
+        serverName: forgejo-database
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup

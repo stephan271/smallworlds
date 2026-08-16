@@ -23,10 +23,11 @@ spec:
       - name: AWS_DEFAULT_REGION
         value: garage
   configuration:
-    # Distinct per-tenant serverName: all these clusters are named "database",
-    # and barman refuses (or corrupts) a destination already claimed by another
-    # server — without this, only the first tenant to sync gets working backups.
-    serverName: stalwart-database
+    # serverName is deliberately absent: the plugin's webhook forbids it here
+    # ("use the 'serverName' plugin parameter in the Cluster resource"), so the
+    # per-tenant name lives on the Cluster in cnpg-cluster.yaml. It still matters
+    # just as much — all these clusters are named "database", and barman refuses
+    # or corrupts a destination already claimed by another server.
     destinationPath: s3://postgres-backups/
     endpointURL: http://garage-backup.garage-backup-system.svc.cluster.local:3900
     s3Credentials:
