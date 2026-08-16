@@ -245,13 +245,17 @@ What still remains, ranked:
    the production of database Recovery Points and the ability to read the existing
    ones, and a cluster whose backups have stopped is indistinguishable from one
    whose backups work — so it would surface during a restore. Migration to the
-   Barman Cloud plugin is `docs/adr/0050`. **The manifests are migrated** — one
-   `ObjectStore` per tenant namespace, the plugin installed at wave −9, and each
-   `Cluster`/`ScheduledBackup` switched over — but it has not yet run against a
-   cluster, so until it is drilled the CNPG chart stays pinned and no release
-   should carry the change unvalidated. The drill to reproduce is §7.1's: a
-   recovery cluster that recovers with zero data loss, which additionally proves
-   the archives written by the in-tree implementation are still readable.
+   Barman Cloud plugin is `docs/adr/0050`, and it is **done and drilled**: one
+   `ObjectStore` per tenant namespace, the plugin at wave −9, each
+   `Cluster`/`ScheduledBackup` switched over, and — the part that mattered — a
+   recovery cluster bootstrapped *through the plugin* from archives the in-tree
+   implementation had written, recovering the same rows as before the migration.
+   Expect a handful of `pg_stat_archiver` failures in the cutover window itself
+   (four here, on one WAL segment) before the next segment archives cleanly; that
+   is the gap between removing one archiver and the other taking over, not a
+   fault. What remains is to carry the change into a release: the CNPG chart stays
+   pinned until the version that removes the in-tree code is one the cluster is
+   ready to take.
 4. **Garage `replicationFactor: 1`.** In-cluster S3 holds a single copy; disk
    corruption on the data volume takes out both the primary data *and* hop 1 of
    every backup chain simultaneously. The offsite copy is the only real

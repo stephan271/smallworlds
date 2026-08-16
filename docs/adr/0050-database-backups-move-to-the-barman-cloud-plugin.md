@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Database backups move to the Barman Cloud plugin before CloudNativePG removes the in-tree implementation
