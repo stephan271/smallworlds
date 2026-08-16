@@ -228,13 +228,14 @@ What still remains, ranked:
    Garage `replicator-key` grants, `replicator-config-secret`), but until an
    operator performs it, nothing leaves the node. Until then the nightly Job
    fails and `KubeJobFailed` emails about it — by design.
-2. **Restore path is only partly drilled.** §7.1 (CloudNativePG) *has* now been
-   exercised end to end — see the note there — and doing so found three faults in
-   the recipe, one of which made it unable to work at all. That is the argument
-   for drilling the rest: §7.2 (Velero, whose CLI is still not installed by
-   bootstrap), §7.3 (buckets from offsite), §7.4 (Immich originals from the pod
-   archive) and §7.5/§7.6 (whole-cluster and total-loss rebuilds) remain
-   undrilled, and a procedure nobody has run is a hypothesis. The serverName
+2. **Restore path is only partly drilled.** §7.1 (CloudNativePG), §7.2 (Velero)
+   and §7.4 (Immich originals from the pod archive) *have* now been exercised end
+   to end — see the notes in each — and doing so found faults in two of the three
+   recipes, one of which made §7.1 unable to work at all. That is the argument for
+   drilling the rest rather than a reason to trust them: §7.3 (buckets from
+   offsite, which cannot be drilled until the offsite leg exists), §7.4's
+   `--from-device` path, and §7.5/§7.6 (whole-cluster and total-loss rebuilds)
+   remain untried, and a procedure nobody has run is a hypothesis. The serverName
    change also means pre-change barman archives (if any) live under the old
    `database/` path — irrelevant once the first post-change backup lands.
 
@@ -400,6 +401,32 @@ velero restore get && velero restore describe <restore-name>
 Most valuable for recovering runtime-generated Secrets that GitOps cannot recreate
 with the same values (see §3).
 
+The CLI is convenient, not required: a `Restore` object does the same thing, which
+is worth knowing because the CLI is exactly what a rebuilt operator laptop will
+not have. Restoring into a *different* namespace is also how to rehearse without
+touching live state:
+
+```yaml
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: drill-secrets
+  namespace: velero
+spec:
+  backupName: <backup-name>
+  includedNamespaces: [nextcloud]
+  includedResources: [secrets]
+  namespaceMapping:
+    nextcloud: velero-drill      # restore beside the live namespace, not over it
+  restorePVs: false
+```
+
+> Drilled on 2026-08-16: 11 of 11 items restored, and every runtime-generated
+> credential — the CNPG `database-app` password, both Garage keys, the Nextcloud
+> admin password — came back byte-identical to the live value. That is the claim
+> in §3 tested rather than asserted. One warning is expected and benign on this
+> cluster (`VolumeGroupSnapshotContent` has no CRD without CSI snapshots).
+
 ### 7.3 Application data (Garage S3 buckets)
 
 If data is lost from the in-cluster Garage, sync it back from the offsite copy:
@@ -446,7 +473,19 @@ pixels — `pv-backup` no longer mirrors the library PVC. Restores read the
    `immich` namespace with `immich-library-pvc` at `/library`, and the
    `pod-gateway` bucket credentials in the environment
    (`POD_S3_ACCESS_KEY` / `POD_S3_SECRET_KEY` from the `garage-secret` in the
-   `pod-gateway` namespace):
+   `pod-gateway` namespace; that Secret lives in another namespace, so it has to
+   be copied into `immich` for the duration and deleted afterwards).
+
+   The tool is not a single file. It imports the gateway's own SigV4 client
+   rather than carrying a second implementation that could drift from it, and it
+   resolves that import *relative to its own location in the repository*. A
+   helper pod therefore needs both files in their repo layout, or it fails with
+   `ModuleNotFoundError: No module named 's3'`:
+
+   ```
+   <root>/admin-tools/restore-immich-originals.py
+   <root>/infrastructure/kubernetes/tenants/pod-gateway/src/s3.py
+   ```
 
    ```bash
    ./admin-tools/restore-immich-originals.py \
@@ -468,6 +507,13 @@ pixels — `pv-backup` no longer mirrors the library PVC. Restores read the
    against — `pod-agent.py` checks each object's digest at pull time and keeps
    only its sequence — so the tool says so rather than implying a check it did
    not make.
+
+> Drilled on 2026-08-16 by deleting a real original from the library and
+> restoring it: the dry run reported `{'present': 23, 'would_restore': 1,
+> 'missing': 0, 'corrupt': 0}` — identifying exactly the deleted asset — and
+> `--apply` returned the file with a SHA-256 identical to the one recorded before
+> deletion, verified against the manifest entry before anything was written. The
+> `--from-device` path (step 4) is still undrilled.
 
 > Direct S3 access to the bucket bypasses the append-only guarantee: the
 > gateway holds owner rights because S3 requires it, and anything else holding
