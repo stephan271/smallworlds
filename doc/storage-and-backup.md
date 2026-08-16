@@ -228,22 +228,35 @@ What still remains, ranked:
    Garage `replicator-key` grants, `replicator-config-secret`), but until an
    operator performs it, nothing leaves the node. Until then the nightly Job
    fails and `KubeJobFailed` emails about it — by design.
-2. **Restore path is untested.** The procedures in §7 have never been exercised
-   end-to-end; the `velero` CLI is not installed by bootstrap. A periodic restore
-   drill (e.g. against a staging cluster) is the only way to know the chain works.
-   The serverName change also means pre-change barman archives (if any) live under
-   the old `database/` path — irrelevant once the first post-change backup lands.
-3. **Garage `replicationFactor: 1`.** In-cluster S3 holds a single copy; disk
+2. **Restore path is only partly drilled.** §7.1 (CloudNativePG) *has* now been
+   exercised end to end — see the note there — and doing so found three faults in
+   the recipe, one of which made it unable to work at all. That is the argument
+   for drilling the rest: §7.2 (Velero, whose CLI is still not installed by
+   bootstrap), §7.3 (buckets from offsite), §7.4 (Immich originals from the pod
+   archive) and §7.5/§7.6 (whole-cluster and total-loss rebuilds) remain
+   undrilled, and a procedure nobody has run is a hypothesis. The serverName
+   change also means pre-change barman archives (if any) live under the old
+   `database/` path — irrelevant once the first post-change backup lands.
+
+3. **The database chain runs on a deprecated API.** Every CNPG cluster archives
+   through the in-tree `barmanObjectStore`, which CloudNativePG 1.30 deprecates
+   and **1.31.0 removes entirely**. A routine operator bump therefore deletes both
+   the production of database Recovery Points and the ability to read the existing
+   ones, and a cluster whose backups have stopped is indistinguishable from one
+   whose backups work — so it would surface during a restore. Migration to the
+   Barman Cloud plugin is `docs/adr/0050`; until it is done and drilled, the CNPG
+   chart stays pinned.
+4. **Garage `replicationFactor: 1`.** In-cluster S3 holds a single copy; disk
    corruption on the data volume takes out both the primary data *and* hop 1 of
    every backup chain simultaneously. The offsite copy is the only real
    redundancy, which makes item 1 the highest-stakes open task.
-4. **Plane presigned-URL flows need a public S3 endpoint.** Server-side upload
+5. **Plane presigned-URL flows need a public S3 endpoint.** Server-side upload
    storage now lands in the `plane` Garage bucket (internal endpoint), but
    Plane hands browsers presigned URLs pointing at that endpoint — full
    upload/download UX needs Garage exposed on a public hostname
    (`s3.<domain>` ingress + DNS + cert) and the endpoint URL in
    `tenants/plane/doc-store-init-job.yaml` switched to it.
-5. **Verify against a live cluster** (§9): confirm each CNPG cluster reports a
+6. **Verify against a live cluster** (§9): confirm each CNPG cluster reports a
    first recoverability point after the serverName change, that the pv-backup
    jobs succeed, and that the alerts stay green.
 
@@ -319,6 +332,18 @@ CNPG restores by bootstrapping a *new* cluster from the object store of the old 
      namespace: <namespace>
    spec:
      instances: 2
+     imageName: ghcr.io/cloudnative-pg/postgresql:16
+     storage:
+       size: 20Gi
+     # NOT optional, and the reason a recovery cluster without them fails to
+     # bootstrap at all: Garage answers a request signed for any other region
+     # with HTTP 400. The tenant clusters carry the same two variables, and a
+     # region mismatch is how the 2026-08-09 outage began.
+     env:
+       - name: AWS_REGION
+         value: garage
+       - name: AWS_DEFAULT_REGION
+         value: garage
      bootstrap:
        recovery:
          source: database
@@ -329,7 +354,9 @@ CNPG restores by bootstrapping a *new* cluster from the object store of the old 
            # Must match what the original cluster archived under — every tenant
            # cluster sets serverName: <tenant>-database in its cnpg-cluster.yaml
            serverName: <tenant>-database
-           endpointURL: http://garage.garage-system.svc.cluster.local:3900
+           # garage-backup, not garage: every Recovery Point lives on the backup
+           # instance (docs/adr/0048), and the operational endpoint holds none.
+           endpointURL: http://garage-backup.garage-backup-system.svc.cluster.local:3900
            s3Credentials:
              accessKeyId:
                name: garage-secret-cnpg
@@ -340,11 +367,22 @@ CNPG restores by bootstrapping a *new* cluster from the object store of the old 
    ```
    For Keycloak use `s3://postgres-backups-keycloak/`, source `keycloak-db`, and the
    `garage-secret` credential (its custom init job's key layout).
-3. Apply, wait for the cluster to become ready, then point the app at the new
-   cluster (or rename/swap). Note: the operator generates a *new* `…-app` Secret for
-   the recovery cluster while the restored database still contains the old
-   passwords — restore the original Secret (e.g. from Velero) or reset the DB role
-   password to match.
+3. Apply and wait for the cluster to reach `Cluster in healthy state`. Recovery
+   replays WAL as well as restoring the base backup, so the result is current to
+   the last archived segment rather than to the last base backup.
+4. Reconcile the credential before pointing the app at the new cluster. The
+   operator generates a *new* `<cluster>-app` Secret **and reconciles the restored
+   role to it**, so the restored database accepts the new password and rejects the
+   one the application is still configured with. Either update the application's
+   credential to the recovery cluster's Secret, or restore the original Secret
+   (e.g. from Velero) and let the operator set the role back.
+
+> Drilled end to end on 2026-08-16 against `nextcloud-database`: a two-instance
+> recovery cluster reached a healthy state in about 100 seconds and recovered the
+> database with **zero data loss**, replaying an hour of WAL written after the base
+> backup. The three corrections above — the `env` block, the `garage-backup`
+> endpoint, and the inverted credential note — are what that drill found; the
+> recipe could not have worked as previously written.
 
 ### 7.2 Cluster state and workloads (Velero)
 
