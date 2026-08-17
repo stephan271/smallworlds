@@ -40,7 +40,7 @@ spec:
           # overlay bumping its pinned release is the only thing that changes
           # which console runs. Add the digest once the image for a release has
           # actually been published.
-          image: ghcr.io/stephan271/smallworlds-operator-console:v1.2.42
+          image: ghcr.io/stephan271/smallworlds-operator-console:v1.2.43
           imagePullPolicy: IfNotPresent
           args:
             - --serve-console
