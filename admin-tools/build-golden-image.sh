@@ -20,10 +20,16 @@ set -euo pipefail
 #   --refresh-list  regenerate images.txt from the live cluster
 #                   (requires KUBECONFIG pointing at it) before building
 #
-# Rebuilt automatically every Monday 05:00 UTC (after the Renovate weekly
-# automerge window) by .github/workflows/golden-image.yml, which also prunes
-# old snapshots. A stale image is harmless (missing images are simply
-# pulled), it just wins back less time.
+# Run this by hand when staging boots feel slow. There was a workflow that ran
+# it every Monday, but it needed a Hetzner Cloud token as a repository secret —
+# full account control, including deleting the production node, for nothing but
+# boot speed — so it was removed rather than armed. A stale image is harmless
+# (missing images are simply pulled), it just wins back less time.
+#
+# Prune old snapshots afterwards; the workflow used to do it:
+#   hcloud image list --selector smallworlds-golden=true -o json \
+#     | jq -r 'sort_by(.created) | reverse | .[2:][].id' \
+#     | xargs -r -n1 hcloud image delete
 # ============================================================================
 
 K3S_VERSION="v1.36.2+k3s1"
