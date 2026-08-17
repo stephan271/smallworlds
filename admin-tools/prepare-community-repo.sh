@@ -178,6 +178,23 @@ for app in "${OPTIONAL_APPS[@]}"; do
     fi
 done
 
+# Bulwark is webmail, not a mail server: it needs a JMAP server that accepts
+# bearer tokens from this cluster's Keycloak. Warn rather than refuse — pointing
+# it at a Stalwart running elsewhere is a legitimate deployment, and often the
+# better one, since mail from a home connection is unreliable. Refusing the
+# selection would forbid it; saying nothing would ship a webmail client that
+# cannot log in.
+if [[ " ${SELECTED_APPS[*]} " == *" bulwark "* && " ${SELECTED_APPS[*]} " != *" stalwart "* ]]; then
+    echo ""
+    echo -e "${YELLOW}Note: bulwark selected without stalwart.${NC}"
+    echo -e "Bulwark is a JMAP client and hosts no mail itself, so it needs a mail server."
+    echo -e "Point it at one outside the cluster by patching JMAP_SERVER_URL,"
+    echo -e "OIDC_AUDIENCE_MAPPER and STALWART_FEATURES in your overlay — see the section"
+    echo -e "\"Bulwark against a mail server outside the cluster\" in doc/tenant-other.md."
+    echo -e "Left unconfigured, webmail will deploy and no member will be able to log in."
+    echo ""
+fi
+
 echo -e "${YELLOW}Creating application subdirectories...${NC}"
 # Always installed, and each carries hostnames that have to follow the
 # operator's domain. The Operator Console belongs here for a second reason: it

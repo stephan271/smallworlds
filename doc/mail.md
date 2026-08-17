@@ -135,9 +135,16 @@ and sending domain; these land in a Cluster Secret (`smtp-relay-credentials`)
 applied the same way as the Keycloak and Garage credentials in
 `smallworlds-init.sh`.
 
-Not installed in this mode: Stalwart, `mail-provisioner`, Bulwark (a JMAP client
-with no server), the `mail`/`webmail` DNS records, the PTR, and the SMTP/IMAP
-firewall rules. Member identities in Keycloak become the members' own external
+Not installed in this mode: Stalwart, `mail-provisioner`, Bulwark, the
+`mail`/`webmail` DNS records, the PTR, and the SMTP/IMAP firewall rules.
+
+Bulwark is the one of those that need not be given up. It is a JMAP client, not
+a server, and it already reaches Stalwart at its public hostname rather than a
+cluster-internal address — so it can be pointed at a mail server elsewhere,
+typically another Stalwart on a host with a real IP and PTR, federated to this
+Keycloak. The requirements are narrow (JMAP rather than IMAP, and an auth scheme
+shared with the cluster's identity), and the three values to patch are in
+`doc/tenant-other.md`, "Bulwark against a mail server outside the cluster". Member identities in Keycloak become the members' own external
 addresses, which is a simplification rather than a limitation — Stalwart already
 authenticates on `preferred_username` rather than e-mail precisely to avoid
 coupling identity to the mail domain.
@@ -289,8 +296,12 @@ Therefore:
   host/port/username/password and sending domain; emit
   `smtp-relay-credentials`; add the `ADMIN_EMAIL` guard and the `ADMIN_LOGIN`
   split; print the required DNS records and provider aliases.
-- `admin-tools/prepare-community-repo.sh` — move `stalwart` out of the
-  always-installed `APPS` list into `OPTIONAL_APPS`, and gate `bulwark` on it.
+- ~~`admin-tools/prepare-community-repo.sh` — move `stalwart` out of the
+  always-installed `APPS` list into `OPTIONAL_APPS`~~ **done**; it also left the
+  base's master kustomization, and the Operator Console's catalog reclassified it
+  from a platform service to a community application. Bulwark is *warned* about
+  rather than gated: it can run against an external JMAP server, so refusing the
+  selection would forbid a legitimate deployment (`doc/tenant-other.md`).
 - `infrastructure/terraform/main.tf` — make the `mail`/`webmail` A records, the
   PTR and the 25/587/993 firewall rules conditional on Mode A.
 - `e2e-tests/tests/03-bulwark.spec.ts` must skip cleanly in Mode B. Add a relay

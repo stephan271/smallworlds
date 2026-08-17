@@ -9,6 +9,56 @@ Bulwark (`ghcr.io/bulwarkmail/webmail`) provides webmail access at `webmail.<dom
 - **Session secret**: `session-secret-job.yaml` is an init Job that generates the random `session-secret` Secret consumed via `SESSION_SECRET`.
 - **State**: a small PVC (`bulwark-data`) persists admin data.
 
+### Bulwark against a mail server outside the cluster
+
+Since Stalwart became optional (`docs/adr/0049`), Bulwark can be selected on a
+cluster that runs no mail server. Nothing in Bulwark binds it to the in-cluster
+one: `JMAP_SERVER_URL` is already the public ingress hostname, not a
+`svc.cluster.local` address, so it speaks to Stalwart as any external client
+would and repointing it is an overlay patch.
+
+What the replacement has to satisfy is narrower than "a mail server":
+
+- **JMAP, not IMAP.** This rules out most hosted providers (Gmail, Migadu,
+  Mailbox.org, Posteo are IMAP/SMTP only). Working JMAP servers are roughly
+  Stalwart, Apache James, partial Cyrus, and Fastmail.
+- **An authentication scheme Bulwark shares with it.** As configured here that
+  is OIDC: `OAUTH_ONLY=true`, and `bulwark/kustomization.yaml` asks the
+  client-registration job for an audience mapper so the access token carries
+  `aud: stalwart` (`bases/keycloak-client-job/keycloak-client-job.yaml:80-90`).
+  The external server must therefore accept bearer tokens from *this* Keycloak
+  and expect that audience — which a provider with its own identity system
+  cannot do. Upstream also documents a **basic-auth fallback** when OAuth is not
+  configured, so username/password against an arbitrary JMAP server is possible;
+  that path is not exercised here.
+- **CORS.** Upstream requires an external JMAP server to allow the webmail
+  origin. The in-cluster Stalwart needs no such setting because the CoreDNS
+  override keeps that traffic inside the cluster.
+
+So the realistic target is **another Stalwart you run elsewhere**, federated to
+the same Keycloak — which is the deployment people usually want anyway: mail
+from a home connection is unreliable (`doc/local-deployment.md`) and Stalwart
+behind NAT has sharp edges (`doc/tenant-stalwart.md`, the fail2ban incident).
+
+To repoint it, patch three values in the overlay:
+
+| Value | Where | Change to |
+|---|---|---|
+| `JMAP_SERVER_URL` | `bulwark-deployment.yaml` env | the external JMAP endpoint |
+| `OIDC_AUDIENCE_MAPPER` | `bulwark/kustomization.yaml`, the `keycloak-client-init` patch | the audience that server expects, or drop it and use basic auth |
+| `STALWART_FEATURES` | `bulwark-deployment.yaml` env | `"false"` unless the target is Stalwart (it gates password change, Sieve filters) |
+
+Upstream also has `JMAP_SERVERS` (a JSON array of `{id,label,url,domains,oauth}`
+for several servers with independent OAuth blocks) and
+`ALLOW_CUSTOM_JMAP_ENDPOINT` (a server field on the login form). Neither is used
+here; they are the route to a multi-provider setup if one is ever wanted.
+
+The Operator Console's catalog still declares `bulwark → stalwart`, deliberately:
+selecting Bulwark and configuring nothing else yields a webmail client that
+cannot log in, and that is the honest default. The dependency is on *a* JMAP
+server that trusts this Keycloak, of which the in-cluster Stalwart is simply the
+one that arrives already configured.
+
 ### Bulwark — notable changes (from git history)
 - **v1.4.8 pinned, then found broken, bumped to v1.5.0** (`808b1d9`, `27dee50`): the digest-pinned v1.4.8 image shipped a defective build — its pages identify as v1.4.7 and their Next.js server-action IDs don't exist in the running server ("Failed to find Server Action"), so the login page's automatic SSO launch 404'd and every user was stuck on "Sign in with SSO". v1.5.0 fixed it (digest-pinned as usual).
 - **`AUTO_SSO_ENABLED=true`** (`8bbe1a3`): `OAUTH_ONLY=true` only hides the password form; the automatic redirect into Keycloak is a *separate* switch that defaults to false. Without it, users (and the e2e suite) landed on a "Sign in with SSO" interstitial instead of going straight to Keycloak.
