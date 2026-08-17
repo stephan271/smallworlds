@@ -36,7 +36,11 @@ resources:
   # 2. Core Frontend Services
   - apps/dashboard.yaml
   - apps/keycloak.yaml
-  - apps/stalwart.yaml
+  # Stalwart is NOT here: mail is an opt-in capability (docs/adr/0049). Nothing
+  # in the cluster requires it — onboarding hands out action-token links out of
+  # band and alerting pushes over HTTP — so a community that does not want to
+  # run a mail server does not get one. Overlays that do select it add
+  # apps/stalwart.yaml themselves, like any other optional app.
 
   # 3. The Operator Console. Required, not optional: it is the administration
   # surface, and it is itself a Cluster Capability the console assesses.

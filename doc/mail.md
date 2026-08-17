@@ -5,10 +5,18 @@ mail server, and which addresses have to exist where. Related: `docs/adr/0049`
 (the decision this document implements), `doc/tenant-stalwart.md` (the mail
 server itself), `doc/tenant-hermes.md` (one of the senders).
 
-> **Implementation status.** Section 2 describes the cluster as it is today —
-> every sender is hardwired to Stalwart and Stalwart is always installed.
-> Sections 3 onwards describe the target design accepted in `docs/adr/0049`
-> and **not yet present in the manifests**. Section 9 is the remaining work.
+> **Implementation status.** Stalwart is **no longer installed by default**: it
+> left the master kustomization and became an entry in `OPTIONAL_APPS`, so a
+> community that does not want a mail server does not get one. That is the first
+> piece of `docs/adr/0049` to reach the manifests. Section 2's other half still
+> holds — the senders that exist are hardwired to Stalwart, so a cluster that
+> deselects it has no outbound path at all rather than a fixed `smtp-relay`
+> endpoint. Sections 3 onwards remain the target design and are **not yet in the
+> manifests**; Section 9 is the remaining work.
+>
+> Upgrade note: an existing overlay that relied on the base for Stalwart loses it
+> on the next release bump. Add `apps/stalwart.yaml` to the overlay's root
+> kustomization to keep it.
 
 ## 1. Three capabilities, one of them optional
 

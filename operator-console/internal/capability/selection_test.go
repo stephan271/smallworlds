@@ -29,8 +29,10 @@ func TestSelectionModesAreExplainableAndKeepRequiredPlatformServices(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(full.CommunityIDs) != 8 {
-		t.Fatalf("full community apps = %v, want 8", full.CommunityIDs)
+	// Nine since stalwart became opt-in (docs/adr/0049): mail is a community
+	// application an Operator chooses, not a platform service every cluster runs.
+	if len(full.CommunityIDs) != 9 {
+		t.Fatalf("full community apps = %v, want 9", full.CommunityIDs)
 	}
 	custom, err := catalog.Assess(capability.Selection{Mode: capability.Custom, DeploymentMode: capability.LocalLAN, CommunityIDs: []string{"collabora"}})
 	if err != nil {

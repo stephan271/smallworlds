@@ -148,7 +148,10 @@ fi
 
 # 3. Ask which apps to install
 echo -e "${YELLOW}Selecting Optional Applications...${NC}"
-OPTIONAL_APPS=("forgejo" "immich" "nextcloud" "bulwark" "excalidraw" "jitsi" "collabora" "plane" "pod-gateway")
+# stalwart is here rather than in APPS below because mail is opt-in
+# (docs/adr/0049): nothing in the cluster depends on it. Note that bulwark does
+# — selecting bulwark without stalwart leaves it with no mail server to protect.
+OPTIONAL_APPS=("forgejo" "immich" "nextcloud" "stalwart" "bulwark" "excalidraw" "jitsi" "collabora" "plane" "pod-gateway")
 SELECTED_APPS=()
 
 # An app name is not automatically a shell identifier: pod-gateway has a hyphen,
@@ -180,7 +183,7 @@ echo -e "${YELLOW}Creating application subdirectories...${NC}"
 # operator's domain. The Operator Console belongs here for a second reason: it
 # is told its own address, not merely routed to it, so an overlay that skipped
 # it would deploy a console whose OIDC redirect still names somebody else.
-APPS=("dashboard" "keycloak" "stalwart" "operator-console" "${SELECTED_APPS[@]}")
+APPS=("dashboard" "keycloak" "operator-console" "${SELECTED_APPS[@]}")
 
 for app in "${APPS[@]}"; do
     if [ ! -d "$app" ]; then

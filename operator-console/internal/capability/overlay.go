@@ -58,7 +58,7 @@ func (catalog Catalog) RenderOverlay(input OverlayInput) (Overlay, error) {
 	// hostname: it is told its own address rather than merely routed to it, so
 	// an overlay that skipped it would deploy a console whose OIDC redirect
 	// still names the project's domain, and no Operator could log in.
-	apps := []string{"dashboard", "keycloak", "stalwart", "headscale", "operator-console"}
+	apps := []string{"dashboard", "keycloak", "headscale", "operator-console"}
 	apps = append(apps, assessment.CommunityIDs...)
 	sort.Strings(apps)
 	files := map[string]string{}
