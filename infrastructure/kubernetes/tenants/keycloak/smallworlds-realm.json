@@ -1958,7 +1958,7 @@
           "userSetupAllowed": false
         },
         {
-          "authenticator": "recovery-auth-code-form",
+          "authenticator": "auth-recovery-authn-code-form",
           "authenticatorFlow": false,
           "requirement": "ALTERNATIVE",
           "priority": 30,
@@ -2203,6 +2203,15 @@
   ],
   "requiredActions": [
     {
+      "alias": "UPDATE_PROFILE",
+      "name": "Update Profile",
+      "providerId": "UPDATE_PROFILE",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 40,
+      "config": {}
+    },
+    {
       "alias": "delete_account",
       "name": "Delete Account",
       "providerId": "delete_account",
@@ -2225,14 +2234,14 @@
       "name": "Verify Email",
       "providerId": "VERIFY_EMAIL",
       "enabled": true,
-      "defaultAction": true,
+      "defaultAction": false,
       "priority": 100,
       "config": {}
     },
     {
-      "alias": "recovery-auth-code-register",
-      "name": "Generate Recovery Codes",
-      "providerId": "recovery-auth-code-register",
+      "alias": "CONFIGURE_RECOVERY_AUTHN_CODES",
+      "name": "Recovery Authentication Codes",
+      "providerId": "CONFIGURE_RECOVERY_AUTHN_CODES",
       "enabled": true,
       "defaultAction": false,
       "priority": 110,

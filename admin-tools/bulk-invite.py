@@ -20,8 +20,12 @@ CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET")
 # they hold a passkey — and the recovery codes are their only way back without
 # the operator once they do. Keycloak runs these in the realm's priority order
 # (passkey 60, recovery codes 110), not the order given here.
+# These are Keycloak *provider ids*, not display names: a value with no
+# matching RequiredActionFactory is accepted by the admin API, stored as a realm
+# row that reads as enabled, and then rejected at click time with
+# "Required actions included in the link are not valid" — see doc/tenant-keycloak.md.
 REQUIRED_ACTIONS = ["UPDATE_PROFILE", "webauthn-register-passwordless",
-                    "recovery-auth-code-register"]
+                    "CONFIGURE_RECOVERY_AUTHN_CODES"]
 ACCOUNT_CLIENT_ID = "account"
 ACCOUNT_REDIRECT_URI = f"{KEYCLOAK_URL}/realms/{REALM}/account/"
 

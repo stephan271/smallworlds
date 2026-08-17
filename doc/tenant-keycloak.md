@@ -58,14 +58,14 @@ The default login is unchanged — members still get the usernameless passkey pr
 > `keycloak-client-job` failed, no tenant Application synced, and every
 > application answered `404`. `browser-with-passkey` and its children were
 > deleted for this reason. Before re-pointing any `flowAlias`, check that nothing
-> else already references the target. `admin-tools/bulk-invite.py` adds `recovery-auth-code-register` to the invitation's required actions, so members take their codes down during onboarding, after the passkey (Keycloak orders required actions by realm priority — passkey 60, recovery codes 110 — not by the order the script sends them).
+> else already references the target. `admin-tools/bulk-invite.py` adds `CONFIGURE_RECOVERY_AUTHN_CODES` to the invitation's required actions, so members take their codes down during onboarding, after the passkey (Keycloak orders required actions by realm priority — passkey 60, recovery codes 110 — not by the order the script sends them).
 
 Alternatives a member has not configured are not offered, so this degrades correctly. With passwords removed, **recovery codes are the only fallback there is** — which raises the stakes on the untested login path below rather than lowering them.
 
 Three things to know:
 - **It is untested against a running Keycloak.** The flow structure is validated and both invitation paths send the required action, but no login has been performed. `recovery-auth-code-form` is documented by Keycloak as a second-factor authenticator, and here it acts as a sole factor after `auth-username-form`. Verify on staging (`admin-tools/test-pr-locally.sh`) before relying on it.
 - **Only fresh realms get it.** `realm-config-job.yaml` runs `kcadm create realms` and tolerates "Realm may already exist", so it never updates an imported realm. An existing cluster keeps its old flow until the realm is recreated or the binding is applied by hand.
-- **Existing members have no codes.** `defaultAction` stays `false`, so the action applies only where it is requested. Members enrolled before this change need `recovery-auth-code-register` added to their account, or a re-invitation.
+- **Existing members have no codes.** `defaultAction` stays `false`, so the action applies only where it is requested. Members enrolled before this change need `CONFIGURE_RECOVERY_AUTHN_CODES` added to their account, or a re-invitation.
 
 After logging in with a recovery code, a member should register a fresh passkey; nothing enforces that automatically.
 

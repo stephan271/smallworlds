@@ -77,3 +77,9 @@ temp.json
 # Python
 __pycache__/
 *.pyc
+
+# Onboarding links produced by admin-tools/bulk-invite.py. Every row is a bearer
+# credential that logs its holder into that member's account, so these must never
+# be committed — the script writes them 0600 for the same reason.
+invite-links.csv
+invite-qr/
