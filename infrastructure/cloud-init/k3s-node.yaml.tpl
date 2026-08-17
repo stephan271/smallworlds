@@ -8,7 +8,12 @@
 #   server_ip         string  static primary IP; "" = discover dynamic IP at runtime
 #   domain_name       string  root domain for the CoreDNS override
 #   env_ext           string  subdomain-syntax env extension (".dev"); "" for prod/staging
-#   acme_email        string  Let's Encrypt account email; "" = self-signed issuer
+#   acme_email        string  Let's Encrypt account email; "" = self-signed issuer.
+#                             Set it wherever the cluster is meant to be used:
+#                             DNS-01 resolves the challenge through a TXT record,
+#                             so it needs neither inbound connectivity nor a
+#                             public A record, and self-signed certificates break
+#                             single sign-on outright (see the else-branch below).
 #   hcloud_token      string  Hetzner Cloud API token, for the cert-manager DNS01
 #                             webhook (ACME challenges); "" when acme_email is also ""
 #   root_app_git_url  string  overlay repo for the ArgoCD root app; "" = no root app
@@ -239,7 +244,14 @@ runcmd:
     HETZNERSECRET
 %{ else ~}
   # Self-signed issuer published under the production name so the
-  # cluster-issuer annotations on the Ingresses work unchanged
+  # cluster-issuer annotations on the Ingresses work unchanged.
+  #
+  # This is a throwaway-cluster fallback, not a LAN default: every app validates
+  # Keycloak's certificate against its own trust store with no override, so OIDC
+  # discovery fails and single sign-on does not work at all — Immich reports only
+  # "fetch failed". Devices that pin a certificate (the pod archive) must also be
+  # re-pinned at each renewal. Prefer acme_email + DNS-01, which works without
+  # exposing anything; smallworlds-init.sh defaults local installs to it.
   - |
     cat > /etc/smallworlds-letsencrypt-prod.yaml <<'ISSUER'
     apiVersion: cert-manager.io/v1

@@ -44,15 +44,24 @@ on Hetzner works locally and vice versa.
 
 ## What differs from a Hetzner deployment
 
-A local deployment runs in one of two modes, chosen in the wizard: **LAN-only**
-(the default) or **internet-exposed** (public DNS + Let's Encrypt, see the
-"Internet exposure" section below).
+A local deployment makes **two independent choices** in the wizard, which used
+to be one:
+
+- **Certificates** — Let's Encrypt (the default) or self-signed. Issuance uses a
+  DNS-01 challenge, a TXT record written into Hetzner DNS, so it needs no
+  inbound connectivity and no public A record: a LAN-only cluster gets publicly
+  trusted certificates. It needs a domain on Hetzner DNS and an API token.
+- **Exposure** — LAN-only (the default) or internet-exposed, which adds public A
+  records maintained by an in-cluster DDNS job. See "Internet exposure" below.
+
+Self-signed is a throwaway-cluster option, not a LAN default, because it does
+not merely warn: see "TLS" below.
 
 | Concern | Hetzner | Local (LAN-only) | Local (internet-exposed) |
 |---|---|---|---|
 | Provisioning | Terraform (VM, firewall, volume, DNS) | `bootstrap-local-node.sh` over SSH | same |
 | Public DNS | Hetzner DNS zone + A records (Terraform) | none — you provide LAN name resolution | Hetzner DNS zone + A records, maintained by an in-cluster DDNS CronJob |
-| TLS | Let's Encrypt (HTTP-01) | self-signed `ClusterIssuer` (same as staging) | Let's Encrypt (HTTP-01) |
+| TLS | Let's Encrypt (DNS-01, Hetzner webhook) | Let's Encrypt (DNS-01) by default; self-signed `ClusterIssuer` if chosen | Let's Encrypt (DNS-01) |
 | Persistent data | Hetzner network volume at `/mnt/smallworlds-data` | local directory (default `/var/lib/smallworlds-data`), symlinked to `/mnt/smallworlds-data` | same |
 | Kubeconfig label | `production` / `dev` | `local` / `local-<ext>` (`~/.smallworlds/kubeconfigs/local.yaml`) | same |
 | Mail (Stalwart) | fully functional (public IP, PTR, port 25) | deploys, but external delivery does not work behind NAT; no DNS automation | mail DNS records automated, but delivery from home connections is unreliable (see below) |
@@ -90,42 +99,87 @@ your router.
 
 ## TLS (LAN-only mode)
 
-Certificates are self-signed; browsers warn on first visit — expected.
-`FULL_OIDC=1` e2e runs are impossible against self-signed certs (same
-limitation as ephemeral staging). Choose internet exposure (below) to get
-real Let's Encrypt certificates.
+The wizard defaults to Let's Encrypt even here, and that default matters:
+**self-signed certificates break single sign-on outright.** Every app validates
+Keycloak's certificate against its own trust store with no override and no
+insecure switch, so OIDC discovery fails and no app can complete a login —
+Immich reports only `Error in OAuth discovery: TypeError: fetch failed`, which
+names neither TLS nor Keycloak. Nextcloud and Jitsi hit the same wall, and
+`bulk-invite.py` cannot reach the admin API either. Devices that pin a
+certificate (the pod archive, `doc/pod-archive.md`) must additionally be
+re-pinned at every renewal, on every member's hardware.
 
-Converting an already-installed LAN-only cluster to Let's Encrypt later is
-possible but needs several manual steps (cert-manager's webhook forbids
-changing an issuer's type in place — "may not specify more than one issuer
-type"):
+DNS-01 removes the reason to accept any of that: the challenge is a TXT record
+in Hetzner DNS, so a cluster with no public address and no port forwards still
+gets publicly trusted certificates. Choose self-signed only for a cluster you
+intend to throw away, and expect to exercise nothing that depends on SSO.
 
-1. Overwrite `/var/lib/rancher/k3s/server/manifests/letsencrypt-prod.yaml`
-   on the server with the ACME variant (see the cloud-init template), then
-   `kubectl delete clusterissuer letsencrypt-prod` and re-create it from
-   that file.
-2. Deploy the DDNS pieces: the `ddns` namespace + `hetzner-dns-token`
-   secret, and the `ddns.yaml` manifest the bootstrap generates when
-   `MANAGE_DNS=true`.
-3. Delete every certificate's TLS secret (`kubectl get certificate -A`
-   lists them) **after** the issuer swap — the issuer keeps its name, so
-   cert-manager will not re-issue existing self-signed certificates on its
-   own.
+With real certificates, `FULL_OIDC=1` e2e runs work against a LAN cluster too —
+the limitation is ephemeral staging's, not the LAN target's.
+
+Converting an already-installed self-signed cluster to Let's Encrypt later is
+straightforward, and does **not** require internet exposure — the two are
+independent. Verified on a LAN cluster on 2026-08-17:
+
+1. **Give cert-manager the DNS credential.** A self-signed install writes the
+   `hetzner` secret in `cert-manager` with an *empty* token, so this is the step
+   that is easy to miss — the issuer then goes Ready and every certificate sits
+   pending with nothing saying why:
+
+   ```bash
+   kubectl create secret generic hetzner -n cert-manager \
+     --from-literal=token='<hetzner-api-token>' --dry-run=client -o yaml \
+     | kubectl apply -f -
+   ```
+
+2. **Patch the ClusterIssuer in place.** A merge patch that nulls `selfSigned`
+   while adding `acme` is accepted — the "may not specify more than one issuer
+   type" rejection only happens if both are present at once, so a single patch
+   doing both is fine and no delete/re-create is needed:
+
+   ```bash
+   kubectl patch clusterissuer letsencrypt-prod --type merge -p '{"spec":{
+     "selfSigned": null,
+     "acme": {"server": "https://acme-v02.api.letsencrypt.org/directory",
+              "email": "<admin-email>",
+              "privateKeySecretRef": {"name": "letsencrypt-prod"},
+              "solvers": [{"dns01": {"webhook": {
+                 "groupName": "acme.hetzner.com", "solverName": "hetzner",
+                 "config": {"tokenSecretKeyRef": {"name": "hetzner", "key": "token"}}}}}]}}}'
+   ```
+
+   Only if you also want the apps reachable from outside: deploy the DDNS pieces
+   (the `ddns` namespace + `hetzner-dns-token` secret, and the `ddns.yaml`
+   manifest the bootstrap generates when `MANAGE_DNS=true`).
+3. Delete the TLS secrets **after** the issuer swap — the issuer keeps its name,
+   so cert-manager will not re-issue existing self-signed certificates on its
+   own. Filter on the issuer: a blanket sweep of `kubectl get certificate -A`
+   also deletes `cert-manager-webhook-hetzner-ca` — the CA of the very webhook
+   solving the challenges — and the `cnpg-system` barman mTLS pair.
+
+   ```bash
+   kubectl get certificate -A -o \
+     jsonpath='{range .items[?(@.spec.issuerRef.name=="letsencrypt-prod")]}{.metadata.namespace}{" "}{.spec.secretName}{"\n"}{end}' \
+     | while read -r ns sec; do kubectl delete secret -n "$ns" "$sec"; done
+   ```
+
+   Do one first as a canary and confirm `issuer=C=US, O=Let's Encrypt` before
+   deleting the rest; each certificate is its own DNS-01 round trip.
 4. `kubectl -n stalwart rollout restart deploy/stalwart-mail` **after** the
    new certificates are issued: Stalwart caches its OIDC discovery against
    Keycloak, and a cache poisoned by the self-signed era makes it 401 every
    bearer token (webmail login fails) until restarted.
-5. Populate the mail-DNS token and re-push the mail records: a LAN-only
-   install deliberately blanks `HCLOUD_TOKEN` in the `stalwart-dns-secrets`
-   secret (no DNS automation), so the Stalwart init job silently skipped
+5. If Stalwart is deployed: populate the mail-DNS token and re-push the mail
+   records. An install that does no DNS at all blanks `HCLOUD_TOKEN` in the
+   `stalwart-dns-secrets` secret, so the Stalwart init job silently skipped
    pushing the mail domain's MX/SPF/DKIM/DMARC records. Copy the token from
-   the DDNS secret created in step 2 and re-sync the stalwart app so the
+   the `hetzner` secret created in step 1 and re-sync the stalwart app so the
    init job (a sync hook) runs again:
 
    ```bash
    kubectl -n stalwart patch secret stalwart-dns-secrets --type=json -p="[
      {\"op\":\"replace\",\"path\":\"/data/HCLOUD_TOKEN\",
-      \"value\":\"$(kubectl -n ddns get secret hetzner-dns-token -o jsonpath='{.data.HCLOUD_TOKEN}')\"}]"
+      \"value\":\"$(kubectl -n cert-manager get secret hetzner -o jsonpath='{.data.token}')\"}]"
    kubectl -n argocd patch application stalwart --type merge \
      -p '{"operation":{"sync":{"prune":false}}}'
    ```
@@ -154,8 +208,9 @@ What the installer then does differently:
 
 1. Ensures the DNS zone exists in Hetzner DNS (same code path as the Hetzner
    target).
-2. Passes `ACME_EMAIL` to the bootstrap, so the `letsencrypt-prod`
-   ClusterIssuer is a real ACME HTTP-01 issuer instead of self-signed.
+2. (Certificates are not part of this choice — `ACME_EMAIL` is set by the
+   certificate question instead, and DNS-01 issues them whether or not the
+   cluster is exposed.)
 3. Deploys a **DDNS CronJob** (namespace `ddns`, written by the bootstrap as a
    k3s auto-apply manifest, token via the `hetzner-dns-token` secret): every
    5 minutes it compares the zone's A records (`@`, `identity`, `dashboard`,

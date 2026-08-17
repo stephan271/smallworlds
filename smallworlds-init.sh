@@ -295,22 +295,43 @@ else
     ask_with_default "11. Enter the backup directory on the server (on a second disk)" "BACKUP_DIR" "false"
 
     echo ""
-    echo -e "Optionally, the apps can be exposed on the internet: DNS records for your domain"
-    echo -e "are then managed in Hetzner DNS (free, token required) and kept pointed at your"
-    echo -e "connection's public IP by an in-cluster DDNS job, and certificates come from"
-    echo -e "Let's Encrypt instead of being self-signed. Requires: a registered domain with"
-    echo -e "nameservers at Hetzner DNS, a public IPv4 (no CGNAT), and these forwards on your"
-    echo -e "router to the server: ${CYAN}80/tcp, 443/tcp, 10000/udp${NC}."
+    echo -e "Certificates are issued by Let's Encrypt over a ${CYAN}DNS-01${NC} challenge: cert-manager"
+    echo -e "writes a TXT record into Hetzner DNS, so this needs ${CYAN}no port forwarding and no${NC}"
+    echo -e "${CYAN}public IP${NC} — a LAN-only cluster gets publicly trusted certificates too."
+    echo -e "Requires: a domain whose nameservers are Hetzner DNS, and an API token."
+    echo -e ""
+    echo -e "${YELLOW}Self-signed is the fallback, and it costs more than a browser warning:${NC} every"
+    echo -e "app validates Keycloak's certificate against its own trust store with no override,"
+    echo -e "so ${YELLOW}single sign-on does not work at all${NC} — Immich, Nextcloud and Jitsi cannot"
+    echo -e "complete OIDC discovery. Devices pinning a certificate (the pod archive) also have"
+    echo -e "to be re-pinned at every renewal. Choose it only for a throwaway cluster."
+    if [[ -z "$LOCAL_TLS" ]]; then
+        LOCAL_TLS="letsencrypt"
+    fi
+    ask_with_default "12. Certificates: letsencrypt or self-signed" "LOCAL_TLS" "false"
+    case "$LOCAL_TLS" in
+        self-signed|selfsigned|self|s) LOCAL_TLS="self-signed";;
+        *) LOCAL_TLS="letsencrypt";;
+    esac
+
+    echo ""
+    echo -e "Separately, the apps can be reachable ${CYAN}from the internet${NC}: A records for your"
+    echo -e "domain are then kept pointed at your connection's public IP by an in-cluster DDNS"
+    echo -e "job. Answering no keeps the cluster LAN-only, resolved through /etc/hosts."
+    echo -e "Requires: a public IPv4 (no CGNAT) and these forwards on your router to the"
+    echo -e "server: ${CYAN}80/tcp, 443/tcp, 10000/udp${NC}."
     if [[ -z "$LOCAL_PUBLIC" ]]; then
         LOCAL_PUBLIC="no"
     fi
-    ask_with_default "12. Expose the apps on the internet? (yes/no)" "LOCAL_PUBLIC" "false"
+    ask_with_default "13. Expose the apps on the internet? (yes/no)" "LOCAL_PUBLIC" "false"
     case "$LOCAL_PUBLIC" in
         y|Y|yes|Yes|YES) LOCAL_PUBLIC="yes";;
         *) LOCAL_PUBLIC="no";;
     esac
-    if [[ "$LOCAL_PUBLIC" == "yes" ]]; then
-        ask_with_default "13. Paste your Hetzner API Token (used for DNS record management only)" "HCLOUD_TOKEN" "true"
+    # Both paths talk to the same Hetzner DNS API: DNS-01 to solve challenges,
+    # DDNS to maintain the A records.
+    if [[ "$LOCAL_TLS" == "letsencrypt" || "$LOCAL_PUBLIC" == "yes" ]]; then
+        ask_with_default "14. Paste your Hetzner API Token (used for DNS records only)" "HCLOUD_TOKEN" "true"
     fi
 fi
 
@@ -361,6 +382,7 @@ BACKUP_DIR="${BACKUP_DIR}"
 PROFILE_ID="${PROFILE_ID}"
 BOOTSTRAP_RELEASE="${BOOTSTRAP_RELEASE}"
 LOCAL_PUBLIC="${LOCAL_PUBLIC}"
+LOCAL_TLS="${LOCAL_TLS}"
 DOMAIN="${DOMAIN}"
 ENV_EXT="${ENV_EXT}"
 ADMIN_EMAIL="${ADMIN_EMAIL}"
@@ -388,12 +410,15 @@ echo -e "${CYAN}Generating configuration...${NC}"
 # Update ONBOARDING_MODE in the job manifest
 sed -i -E "s/value: \"(invitation|self-registration)\"/value: \"$ONBOARDING_MODE\"/g" infrastructure/kubernetes/tenants/keycloak/realm-config-job.yaml
 
-# Token that lands in cluster secrets (stalwart-dns-secrets): a LAN-only
-# local deployment must not carry it into the cluster (no DNS automation
-# there) — but never blank HCLOUD_TOKEN itself, it stays cached for future
-# hetzner or internet-exposed runs.
+# Token that lands in cluster secrets (stalwart-dns-secrets and cert-manager's
+# `hetzner`): withheld only from a local deployment that does no DNS at all —
+# self-signed certificates AND no public exposure. Withholding it whenever the
+# cluster was merely LAN-only used to leave cert-manager with an empty token
+# while the ACME issuer was live, so every certificate stayed pending with
+# nothing saying why. Never blank HCLOUD_TOKEN itself: it stays cached for
+# future hetzner or internet-exposed runs.
 SECRETS_HCLOUD_TOKEN="$HCLOUD_TOKEN"
-if [[ "$DEPLOY_TARGET" == "local" && "$LOCAL_PUBLIC" != "yes" ]]; then
+if [[ "$DEPLOY_TARGET" == "local" && "$LOCAL_TLS" != "letsencrypt" && "$LOCAL_PUBLIC" != "yes" ]]; then
     SECRETS_HCLOUD_TOKEN=""
 fi
 
@@ -652,21 +677,35 @@ else
     BOOTSTRAP_RUN_ID="run-$(date -u +%Y%m%dT%H%M%SZ)-$(openssl rand -hex 4)"
     RUN_DIR="/tmp/smallworlds-bootstrap-${BOOTSTRAP_RUN_ID}"
 
-    # Internet exposure: public DNS in Hetzner (maintained by an in-cluster
-    # DDNS CronJob, since home IPs change) and Let's Encrypt certificates.
-    # LAN-only deployments keep ACME_EMAIL empty -> self-signed issuer.
+    # Two independent decisions that both need the Hetzner DNS API:
+    #
+    #   ACME_EMAIL non-empty -> the bootstrap creates the ACME ClusterIssuer and
+    #     certificates come from Let's Encrypt over DNS-01. This works on a
+    #     LAN-only cluster: the challenge is a TXT record, never an inbound
+    #     connection. Empty -> self-signed issuer, which breaks OIDC between the
+    #     apps, so it is opt-in rather than the LAN default.
+    #   MANAGE_DNS -> the in-cluster DDNS CronJob maintains the A records, which
+    #     only matters when the apps should be reachable from outside.
     LOCAL_ACME_EMAIL=""
     MANAGE_DNS=""
-    if [[ "$LOCAL_PUBLIC" == "yes" ]]; then
+    if [[ "$LOCAL_TLS" == "letsencrypt" ]]; then
         LOCAL_ACME_EMAIL="$ADMIN_EMAIL"
+    fi
+    if [[ "$LOCAL_PUBLIC" == "yes" ]]; then
         MANAGE_DNS="true"
+    fi
 
+    # Either path writes records into the zone, so it has to exist first.
+    if [[ -n "$LOCAL_ACME_EMAIL" || -n "$MANAGE_DNS" ]]; then
         ensure_dns_zone
+    fi
 
+    if [[ "$LOCAL_PUBLIC" == "yes" ]]; then
         PUBLIC_IP=$(curl -4 -sf --max-time 10 https://api.ipify.org || true)
         echo -e "${CYAN}Detected public IP: ${PUBLIC_IP:-unknown}${NC}"
         echo -e "${YELLOW}Reminder: forward 80/tcp, 443/tcp and 10000/udp on your router to the server,${NC}"
-        echo -e "${YELLOW}or certificate issuance and app access from the internet will fail.${NC}"
+        echo -e "${YELLOW}or the apps will not be reachable from the internet.${NC}"
+        echo -e "${YELLOW}(Certificates do not depend on this — DNS-01 needs no inbound connection.)${NC}"
 
         # The DDNS CronJob (created by the bootstrap) reads the token from
         # this secret; the A records appear within its first run (~5 min).
