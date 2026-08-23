@@ -2,6 +2,13 @@
 
 The language used to describe installation and operation of a SmallWorlds cluster.
 
+> **Much of this vocabulary describes the Operator Console, which is deactivated**
+> (`docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md`). The terms below are kept because the console's code, manifests and ADRs are
+> kept, and because a term that stops being used does not stop appearing in them. Terms
+> that describe the console rather than the cluster are marked *(console; deactivated)*.
+> Installation is now described by **Setup Wizard**, and "Wizard" is no longer a word to
+> avoid.
+
 ## Language
 
 **Operator**:
@@ -12,20 +19,24 @@ _Avoid_: Admin user, administrator
 An Operator's in-cluster authority level: Observer for read-only access, Operator for routine actions and proposals, or Owner for access management and sensitive in-cluster actions.
 _Avoid_: Keycloak group, admin level
 
-**Operator Console**:
+**Operator Console** *(console; deactivated)*:
 The privileged interface through which an Operator sets up, observes, and eventually operates a SmallWorlds cluster.
 _Avoid_: Admin dashboard, Homepage
 
-**Bootstrap Launcher**:
-The locally executed product that makes the Operator Console available before the SmallWorlds cluster exists.
+**Setup Wizard**:
+The single-use local web wizard that collects a cluster's settings and runs the setup scripts, then stops. It replaces the Bootstrap Launcher's role and has none after the cluster exists.
+_Avoid_: Console, installer UI, launcher
+
+**Bootstrap Launcher** *(console; deactivated)*:
+The locally executed product that made the Operator Console available before the SmallWorlds cluster existed. Superseded by the Setup Wizard.
 _Avoid_: Desktop app, installer script
 
 **Deployment Mode**:
-One of the supported ways to establish a cluster: Hetzner-hosted, Local LAN-only, or Local internet-exposed. All three are first-class modes of the Operator Console.
+One of the supported ways to establish a cluster: Hetzner-hosted, Local LAN-only, or Local internet-exposed. All three are first-class, and the Setup Wizard offers all three.
 _Avoid_: Environment, target
 
 **Launcher Host**:
-The Operator's computer on which the Bootstrap Launcher runs. It need not become part of the cluster.
+The Operator's computer on which the Setup Wizard — formerly the Bootstrap Launcher — runs. It need not become part of the cluster.
 _Avoid_: Local server, admin machine
 
 **Cluster Node**:
@@ -88,13 +99,11 @@ _Avoid_: Configuration value, GitOps secret
 The private trust authority used to issue certificates for a Local LAN-only cluster.
 _Avoid_: Self-signed certificate, local cert
 
-**Setup Journey**:
-The resumable, dependency-driven progression from an empty Cluster Profile to an operational and protected cluster.
-_Avoid_: Wizard, installation steps
+**Setup Journey** *(console; deactivated)*:
+The resumable, dependency-driven progression from an empty Cluster Profile to an operational and protected cluster. The Setup Wizard has panels rather than a Journey: it holds no durable state, so there is nothing to resume beyond what the setup scripts already cache.
 
-**Journey Task**:
+**Journey Task** *(console; deactivated)*:
 A revalidatable unit of progress in the Setup Journey with explicit prerequisites and completion evidence.
-_Avoid_: Wizard page, script step
 
 **Change Plan**:
 An immutable, reviewable proposal for one mutation, including expected effects, risks, costs, downtime, and rollback information.

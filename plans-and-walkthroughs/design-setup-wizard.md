@@ -1,6 +1,6 @@
 # SmallWorlds Setup Wizard — Design
 
-**Status:** accepted; Phases 0–3 complete, Phase 4 next
+**Status:** accepted and implemented; all four phases complete
 **Date:** 2026-08-23
 **Supersedes, in the install half only:** `implementation_plan-operator-console.md`
 
@@ -300,11 +300,13 @@ one is running — shutting down mid-apply would orphan terraform. The wizard is
 single-use, and a loopback server left running still holds the credentials in
 memory.
 
-### Phase 4 — Documentation
+### Phase 4 — Documentation *(done, 2026-08-23)*
 
-README "Deployment Instructions" collapses Steps 1–3 into one: run
-`./smallworlds-setup`. The script route stays documented beneath it as the
-advanced path. An ADR records this direction change and the console's status.
+README "Deployment Instructions" now opens with the wizard and keeps the
+scripted route documented beneath it as a fully supported path — it is what you
+want for automation, and it is what the wizard runs.
+`docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md`
+records the decision, what it supersedes, and what is lost by it.
 
 ## 8. The Operator Console's status
 
@@ -351,6 +353,8 @@ Reversing it is un-commenting those four places.
    Python file plus a `curl | sh` bootstrap — explicitly *not* a return to
    cross-platform signed launcher archives.
 3. **Local certificate authority.** ADR 0034's managed local CA was a console
-   capability. LAN installs currently choose between real Let's Encrypt over
-   DNS-01 (which works, and is the default) and self-signed (which breaks OIDC
-   outright). The wizard should probably not offer self-signed at all.
+   capability. LAN installs choose between real Let's Encrypt over DNS-01
+   (which works, and is what the wizard defaults to) and self-signed (which
+   breaks OIDC outright). Self-signed is still offered, behind *Advanced
+   settings* and with the consequence spelled out on the panel and again in the
+   plan. Removing it entirely is still arguably right.

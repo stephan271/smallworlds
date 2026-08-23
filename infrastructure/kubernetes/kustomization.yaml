@@ -46,7 +46,7 @@ resources:
   # ADRs and docs are all still here and untouched, but nothing deploys it:
   # the setup wizard in admin-tools/setup-wizard/ takes over the install half
   # of what it did, and the observe half is on hold until that lands. See
-  # plans-and-walkthroughs/design-setup-wizard.md.
+  # docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md.
   #
   # Re-activating is this line plus the operator-console Namespace in
   # namespaces.yaml, the APPS list in admin-tools/prepare-community-repo.sh,

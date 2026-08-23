@@ -9,8 +9,8 @@
 > `admin-tools/prepare-community-repo.sh`, and the session Secret in
 > `smallworlds-init.sh`). The browser setup wizard in `admin-tools/setup-wizard/`
 > replaces the console's install half; its observe half is on hold. Read
-> [`../plans-and-walkthroughs/design-setup-wizard.md`](../plans-and-walkthroughs/design-setup-wizard.md)
-> before acting on anything in this document.
+> [`../docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md`](../docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md) — which records what the decision supersedes and what is
+> lost by it — before acting on anything in this document.
 
 The Operator Console is the privileged interface through which an Operator
 observes and maintains a running SmallWorlds cluster. Its source lives in

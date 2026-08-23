@@ -7,8 +7,10 @@ work. It is not a console: it has no post-install role, no database and no
 authentication story beyond loopback plus a session token, because it is never
 exposed.
 
-Phase 1 stops at a dry run: it validates, explains and renders the exact
-commands, and executes nothing. See plans-and-walkthroughs/design-setup-wizard.md.
+It asks, validates, shows exactly what it will do, runs the two setup scripts,
+hands over the credentials and stops. See
+docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md for
+the decision and plans-and-walkthroughs/design-setup-wizard.md for the design.
 
 Standard library only — no dependencies, no build step.
 """

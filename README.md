@@ -39,7 +39,7 @@ This project is built upon several foundational open-source technologies, core i
 | **Traefik** | [traefik.io](https://traefik.io/) | Ingress routing and reverse proxy for handling incoming requests. |
 | **Cert-Manager** | [cert-manager.io](https://cert-manager.io/) | Automated TLS certificate provisioning and management. |
 | **Pod Gateway** | [`tenants/pod-gateway/`](infrastructure/kubernetes/tenants/pod-gateway/) | Append-only personal data pods (`pod.<domain>`). Apps deposit each member's source data into a pod they cannot read; the member's home device pulls it and never deletes. Optional. See [`doc/pod-archive.md`](doc/pod-archive.md). |
-| **Operator Console** *(deactivated)* | [`operator-console/`](operator-console/) | **Not deployed since 2026-08-23.** The code, manifests and ADRs are all still here and unchanged, but no cluster runs it — the browser setup wizard (`admin-tools/setup-wizard/`) takes over the install half of what it did, and the observe half is on hold until that lands. See [`plans-and-walkthroughs/design-setup-wizard.md`](plans-and-walkthroughs/design-setup-wizard.md) and [`doc/tenant-operator-console.md`](doc/tenant-operator-console.md). |
+| **Operator Console** *(deactivated)* | [`operator-console/`](operator-console/) | **Not deployed since 2026-08-23.** The code, manifests and ADRs are all still here and unchanged, but no cluster runs it — the browser setup wizard (`admin-tools/setup-wizard/`) takes over the install half of what it did, and the observe half is on hold until that lands. See [`docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md`](docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md) and [`doc/tenant-operator-console.md`](doc/tenant-operator-console.md). |
 
 ### End User Applications
 
@@ -59,28 +59,39 @@ This project is built upon several foundational open-source technologies, core i
 
 ## Deployment Instructions
 
-> [!NOTE]
-> **A browser setup wizard is being built** (`./smallworlds-setup`). It asks
-> about five questions with live validation, then drives the very same two
-> scripts documented below — there is one install code path, not two. It is at
-> **Phase 1**: it collects, validates and shows you exactly what would happen,
-> then stops. Installing from it arrives in Phase 2. Until then the steps below
-> are the way to install, and they keep working afterwards as the scripted
-> route. See [`plans-and-walkthroughs/design-setup-wizard.md`](plans-and-walkthroughs/design-setup-wizard.md).
-
-SmallWorlds supports two deployment targets — the installer asks which one you want as its first question:
+SmallWorlds supports two deployment targets — you are asked which one you want as the first question:
 
 - **`hetzner`** — a Hetzner Cloud VM provisioned by Terraform, with public DNS and Let's Encrypt certificates. The internet-facing default.
-- **`local`** — an existing Linux machine in your LAN (laptop, mini-PC, home server; 32 GB RAM recommended), bootstrapped in place over SSH without Terraform. By default LAN-only: no public DNS (you add router-DNS or `/etc/hosts` entries) and self-signed certificates. Optionally **internet-exposed**: with a registered domain, a Hetzner DNS token and router port forwards (80/tcp, 443/tcp, 10000/udp), the wizard sets up Let's Encrypt certificates and an in-cluster DDNS job that keeps the DNS records pointed at your home IP. See `doc/local-deployment.md` for requirements and limitations before you start.
+- **`local`** — an existing Linux machine in your LAN (laptop, mini-PC, home server; 32 GB RAM recommended), bootstrapped in place over SSH without Terraform. By default LAN-only: no public DNS (you add router-DNS or `/etc/hosts` entries). Optionally **internet-exposed**: with a registered domain, a Hetzner DNS token and router port forwards (80/tcp, 443/tcp, 10000/udp), an in-cluster DDNS job keeps the DNS records pointed at your home IP. See [`doc/local-deployment.md`](doc/local-deployment.md) for requirements and limitations before you start.
+
+There are two ways to install, and they do the same thing — **the wizard runs the scripts**, so there is one install code path, not two.
+
+### The setup wizard (recommended)
+
+```bash
+git clone https://github.com/stephan271/smallworlds.git
+cd smallworlds
+./smallworlds-setup
+```
+
+A browser opens on `127.0.0.1`. Five panels ask for your domain, your email address, where the cluster should run, a Git access token, and which applications your community gets; everything else is defaulted and sits behind *Advanced settings*. It creates the private settings repository for you, checks your answers against the real APIs before anything is created, shows you exactly what it will do, then installs and hands you the credentials.
+
+The checks are the part worth having: whether your registrar actually delegates the domain to Hetzner DNS (get this wrong and every certificate stays pending with nothing saying why), whether the tokens work, and whether your data and backup directories are on different physical disks. Each of those otherwise fails minutes into an install.
+
+Prerequisites are the same as the scripted route below, minus the manual steps the wizard does for you (creating the settings repository, creating the DNS zone, uploading the SSH key). You still need to **register the domain yourself** and point its nameservers at Hetzner — see step 1.
+
+### The scripted route
+
+The wizard is a front end for these two scripts; running them directly is fully supported and is what you want for automation. Both also run headless with `SMALLWORLDS_NONINTERACTIVE=1`, taking their answers from their cache files and exiting **78** naming any required value that is missing.
 
 Steps 1 and 3 below apply to the **hetzner** target only; steps 2 and 4 apply to both.
 
 ### 1. Domain Registration & DNS Configuration (hetzner target only)
 
 > [!IMPORTANT]
-> **Domain Registration is manual:** The SmallWorlds setup scripts do **not** automatically register or reserve the domain name for you. You must manually register the domain at a registrar of your choice (e.g., Hetzner Domain service, Namecheap, Cloudflare) and point the domain's Nameservers to Hetzner's DNS servers (e.g., `helium.ns.hetzner.de`, `oxygen.ns.hetzner.com`, `hydrogen.ns.hetzner.com`).
+> **Domain Registration is manual:** SmallWorlds does **not** register or reserve the domain name for you — neither the wizard nor the scripts. You must manually register the domain at a registrar of your choice (e.g., Hetzner Domain service, Namecheap, Cloudflare) and point the domain's Nameservers to Hetzner's DNS servers (e.g., `helium.ns.hetzner.de`, `oxygen.ns.hetzner.com`, `hydrogen.ns.hetzner.com`).
 > Domain registration will incur costs at your registrar.
-> For a LAN-only **local** deployment none of this applies — the domain never has to be registered, since name resolution happens inside your LAN. For an internet-exposed local deployment, domain registration and the Hetzner nameservers ARE required (records are then managed by the in-cluster DDNS job instead of Terraform).
+> For a LAN-only **local** deployment none of this applies — the domain never has to be registered, since name resolution happens inside your LAN. For an internet-exposed local deployment, or for Let's Encrypt certificates on a LAN-only one, domain registration and the Hetzner nameservers ARE required (records are then managed by the in-cluster DDNS job instead of Terraform).
 
 The DNS zone and DNS records are automatically managed via the Hetzner API token provided during provisioning (which is free of charge). Subdomains are routed to the provisioned server IP.
 
@@ -95,7 +106,7 @@ Execute the initialization script from the root of this repository:
 ```
 This script handles:
 - Prompting for your target domain (e.g. `smallworlds.network`) and environment extension in subdomain syntax (e.g. `.dev` for a dev cluster, giving hostnames like `identity.dev.smallworlds.network`; leave empty for production).
-- Automatically creating a private GitHub repository using the `gh` CLI (if installed), or allowing you to provide an empty Git URL manually.
+- Automatically creating a private GitHub repository using the `gh` CLI (if installed), or allowing you to provide an empty Git URL manually. (The wizard creates it through the GitHub API instead, so it does not need `gh`.)
 - Interactive selection of optional applications.
 - Generation of the corresponding `kustomization.yaml` overlays, injecting environment-specific patches for the chosen domain.
 - Initialization of the local Git repository and automatic push to your remote repository.
@@ -111,7 +122,7 @@ For the **hetzner** target, these steps are required:
 ### 4. Cluster Provisioning
 
 > [!WARNING]
-> Before your **first** run against a fresh `hetzner` node (or a first-time internet-exposed `local` node), make sure your overlay repo (`my-community-config`, from step 2) is pinned to the **latest** `smallworlds` release tag — see "Managing Updates" below. Some infrastructure-level changes (cloud-init) take effect immediately on a brand-new node, while their corresponding ArgoCD-managed component only appears once your overlay's pinned tag includes it. If those are out of sync at first boot, the result isn't a degraded app or two — it can be a total outage (e.g. every TLS certificate stuck, no app reachable) with nothing obviously pointing at the cause. A newly created overlay may not have caught up via the weekly Renovate PR yet, so check/bump it manually first.
+> Before your **first** run against a fresh `hetzner` node (or a first-time internet-exposed `local` node), make sure your overlay repo (`my-community-config`, from step 2) is pinned to the **latest** `smallworlds` release tag — see "Managing Updates" below. Some infrastructure-level changes (cloud-init) take effect immediately on a brand-new node, while their corresponding ArgoCD-managed component only appears once your overlay's pinned tag includes it. If those are out of sync at first boot, the result isn't a degraded app or two — it can be a total outage (e.g. every TLS certificate stuck, no app reachable) with nothing obviously pointing at the cause. A newly created overlay may not have caught up via the weekly Renovate PR yet, so check/bump it manually first. The wizard pins the newest release by default, so this applies mainly to the scripted route.
 
 Execute the bootstrap script to provision the server and install Kubernetes/ArgoCD. On the `hetzner` target it provisions the VM and DNS via Terraform; on the `local` target it bootstraps your LAN machine over SSH (asking for its SSH target, e.g. `root@192.168.1.50`, or `localhost` to install on the machine you are running the script on).
 
@@ -236,7 +247,7 @@ The `admin-tools/` directory contains helper scripts to automate common operatio
 - **`build-golden-image.sh`**: Builds a pre-configured Hetzner snapshot (golden image) to speed up future VM provisioning.
 
 ### Setup
-- **`setup-wizard/`**: The browser setup wizard behind `./smallworlds-setup` — five panels with live validation, driving the two setup scripts rather than reimplementing them. Python standard library only, no dependencies and no build step. Currently stops at the plan (Phase 1); see [`plans-and-walkthroughs/design-setup-wizard.md`](plans-and-walkthroughs/design-setup-wizard.md).
+- **`setup-wizard/`**: The browser setup wizard behind `./smallworlds-setup` — five panels with live validation, driving the two setup scripts rather than reimplementing them. Python standard library only, no dependencies and no build step. See [`docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md`](docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md) for why it replaced the Operator Console.
 - **`test-setup-wizard.sh`**: Tests the wizard's server, defaults and plan, then walks its five panels in a real browser using the Playwright installed for `e2e-tests/` (skipped when absent).
 - **`test-noninteractive-install.sh`**: Asserts that both setup scripts run with no tty under `SMALLWORLDS_NONINTERACTIVE=1`, that a missing required value exits 78 naming it, and — over a pty — that interactive mode is unchanged.
 
@@ -304,7 +315,7 @@ The HTML report is written to `e2e-tests/reports/html`; view it with `cd e2e-tes
 > launcher to install. The 4 bootstrap assets are still required; a release
 > without console artifacts is complete for the wizard-based install. The
 > instructions below are left intact for when the console returns. See
-> [`plans-and-walkthroughs/design-setup-wizard.md`](plans-and-walkthroughs/design-setup-wizard.md).
+> [`docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md`](docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md).
 
 A SmallWorlds release is a Git tag **plus two independently published families of signed release attachments and one container image**. Tagging alone does not produce a usable release — the tag only becomes installable once the publishing workflows have run against it.
 

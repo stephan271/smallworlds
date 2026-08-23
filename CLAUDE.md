@@ -40,7 +40,7 @@ plans-and-walkthroughs/  Design docs and implementation walkthroughs
 - **Wave -10**: `cert-manager`, `cloudnative-pg`, `persistent-storage`, `traefik` — foundational infra.
 - **Wave -5**: `garage` — S3 storage, needed early by CNPG/Velero backups.
 - **Wave 0**: everything that doesn't need Keycloak — `keycloak` itself, `dashboard`, monitoring/logging stacks, `velero`, `hermes`, `remediation`, `trivy-operator`.
-- **Wave 1**: end-user tenant apps (Nextcloud, Forgejo, Immich, Jitsi, Bulwark, Excalidraw, Stalwart) — all depend on CNPG/Garage/Keycloak/Traefik being up. `operator-console` was in this wave and is **deactivated** (2026-08-23): its code and manifests are untouched but nothing deploys it — see `plans-and-walkthroughs/design-setup-wizard.md`.
+- **Wave 1**: end-user tenant apps (Nextcloud, Forgejo, Immich, Jitsi, Bulwark, Excalidraw, Stalwart) — all depend on CNPG/Garage/Keycloak/Traefik being up. `operator-console` was in this wave and is **deactivated** (2026-08-23): its code and manifests are untouched but nothing deploys it — see `docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md`.
 
 Intra-wave dependencies are handled by init jobs' poll-and-retry loops and ArgoCD sync retries, not by more waves. When adding a new ArgoCD Application, pick the wave based on what it actually depends on, not by copying an unrelated app's wave.
 
@@ -79,9 +79,11 @@ printing `!!! missing:<VAR>`, and progress markers (`>>> step:<id>`) are emitted
 about interactive mode changed, and `admin-tools/test-noninteractive-install.sh` asserts
 that over a pty.
 
-Currently at Phase 1 — it validates and shows the plan, but does not install yet. Read
-`plans-and-walkthroughs/design-setup-wizard.md` before changing it; it also records why
-the Operator Console is deactivated. Tests: `admin-tools/test-setup-wizard.sh`.
+It collects, validates, shows the plan, installs, and hands over the credentials — the
+scripts' `sw_result` markers carry the credentials, addresses, kubeconfig path and hosts
+line, so the handover never scrapes their prose. Read `docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md` for the decision and
+`plans-and-walkthroughs/design-setup-wizard.md` for the design before changing it.
+Tests: `admin-tools/test-setup-wizard.sh` (the browser half needs `npm ci` in `e2e-tests/`).
 
 ## Local end-to-end staging (`admin-tools/test-pr-locally.sh`)
 
