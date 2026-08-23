@@ -42,9 +42,20 @@ resources:
   # run a mail server does not get one. Overlays that do select it add
   # apps/stalwart.yaml themselves, like any other optional app.
 
-  # 3. The Operator Console. Required, not optional: it is the administration
-  # surface, and it is itself a Cluster Capability the console assesses.
-  - apps/operator-console.yaml
+  # 3. The Operator Console is DEACTIVATED (2026-08-23). Its code, manifests,
+  # ADRs and docs are all still here and untouched, but nothing deploys it:
+  # the setup wizard in admin-tools/setup-wizard/ takes over the install half
+  # of what it did, and the observe half is on hold until that lands. See
+  # plans-and-walkthroughs/design-setup-wizard.md.
+  #
+  # Re-activating is this line plus the operator-console Namespace in
+  # namespaces.yaml, the APPS list in admin-tools/prepare-community-repo.sh,
+  # and the operator-console Namespace/Secret in smallworlds-init.sh.
+  #
+  # Note for existing clusters: adopting a release with this commented out
+  # PRUNES the running console (the root app removes the Application, whose
+  # finalizer deletes its resources). That is the intended effect.
+  # - apps/operator-console.yaml
   
   # Note: Optional apps (forgejo, immich, nextcloud, bulwark, excalidraw) 
   # are dynamically added to your private kustomization.yaml by prepare-community-repo.sh

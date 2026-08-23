@@ -1,5 +1,17 @@
 # Operator Console (in-cluster)
 
+> [!WARNING]
+> **DEACTIVATED since 2026-08-23 — nothing below is currently deployed.**
+> The console's source, manifests, ADRs (`docs/adr/0001`–`0046`) and this
+> document are all intact and unchanged; only the four lines that caused it to
+> be deployed are commented out (`infrastructure/kubernetes/kustomization.yaml`,
+> `infrastructure/kubernetes/namespaces.yaml`, the `APPS` list in
+> `admin-tools/prepare-community-repo.sh`, and the session Secret in
+> `smallworlds-init.sh`). The browser setup wizard in `admin-tools/setup-wizard/`
+> replaces the console's install half; its observe half is on hold. Read
+> [`../plans-and-walkthroughs/design-setup-wizard.md`](../plans-and-walkthroughs/design-setup-wizard.md)
+> before acting on anything in this document.
+
 The Operator Console is the privileged interface through which an Operator
 observes and maintains a running SmallWorlds cluster. Its source lives in
 [`operator-console/`](../operator-console/); this note covers the tenant that

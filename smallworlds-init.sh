@@ -10,6 +10,10 @@ NC='\033[0m' # No Color
 
 # Shared helpers (cluster_label, kubeconfig_path)
 source "$(cd "$(dirname "$0")" && pwd)/admin-tools/lib/cluster-env.sh"
+# Shared prompt helpers (ask_with_default, progress markers). Also what lets
+# this script run with no tty under SMALLWORLDS_NONINTERACTIVE=1, which is how
+# the browser setup wizard drives it — see admin-tools/lib/ask.sh.
+source "$(cd "$(dirname "$0")" && pwd)/admin-tools/lib/ask.sh"
 
 echo -e "${CYAN}======================================================${NC}"
 echo -e "${CYAN}        Welcome to the SmallWorlds Installer         ${NC}"
@@ -26,42 +30,10 @@ if [[ -f "$CACHE_FILE" ]]; then
     source "$CACHE_FILE"
 fi
 
-ask_with_default() {
-    local prompt_text="$1"
-    local var_name="$2"
-    local is_secret="$3"
-    
-    local current_val="${!var_name}"
-
-    if [[ -n "$current_val" ]]; then
-        if [[ "$is_secret" == "true" ]]; then
-            read -s -p "$prompt_text [saved]: " input_val
-            echo ""
-        else
-            read -p "$prompt_text [$current_val] (blank=keep, type - to clear): " input_val
-        fi
-
-        if [[ -z "$input_val" ]]; then
-            declare -g "$var_name"="$current_val"
-        elif [[ "$input_val" == "-" ]]; then
-            declare -g "$var_name"=""
-        else
-            declare -g "$var_name"="$input_val"
-        fi
-    else
-        if [[ "$is_secret" == "true" ]]; then
-            read -s -p "$prompt_text: " input_val
-            echo ""
-        else
-            read -p "$prompt_text: " input_val
-        fi
-        declare -g "$var_name"="$input_val"
-    fi
-}
-
 # Ensure the DNS zone for $DOMAIN exists in Hetzner DNS (uses $HCLOUD_TOKEN).
 # Used by the hetzner target and by internet-exposed local deployments.
 ensure_dns_zone() {
+    sw_step dns-zone "Ensuring the Hetzner DNS zone exists"
     echo -e "${CYAN}Ensuring DNS Zone '$DOMAIN' exists in Hetzner...${NC}"
     local existing_id api_response
     # A raw grep for "name":"$DOMAIN" against the list response is fragile
@@ -89,6 +61,7 @@ for z in data.get('zones', []):
         api_response=$(curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $HCLOUD_TOKEN" "https://api.hetzner.cloud/v1/zones" -d '{"name":"'"$DOMAIN"'", "mode": "primary", "ttl": 3600}')
         if echo "$api_response" | grep -q "\"error\""; then
             echo -e "${RED}Failed to create zone: $(echo "$api_response" | jq -r '.error.message' 2>/dev/null || echo "$api_response")${NC}"
+            sw_step_fail dns-zone "could not create the DNS zone"
             exit 1
         else
             echo -e "${GREEN}Zone created successfully.${NC}"
@@ -96,6 +69,7 @@ for z in data.get('zones', []):
     else
         echo -e "${GREEN}Zone $DOMAIN already exists (id: $existing_id).${NC}"
     fi
+    sw_step_ok dns-zone
 }
 
 # Ensure the shared "SmallWorlds Admin Key" exists in Hetzner Cloud (uses
@@ -105,8 +79,10 @@ for z in data.get('zones', []):
 # never creates/owns this key — see infrastructure/terraform/main.tf locals.
 ensure_ssh_key() {
     local pubkey_path="${SSH_PUBLIC_KEY_PATH:-$HOME/.ssh/id_ed25519.pub}"
+    sw_step ssh-key "Ensuring the Hetzner admin SSH key is registered"
     if [[ ! -f "$pubkey_path" ]]; then
         echo -e "${RED}SSH public key not found at $pubkey_path — generate one with 'ssh-keygen -t ed25519' first.${NC}"
+        sw_step_fail ssh-key "no SSH public key at $pubkey_path"
         exit 1
     fi
 
@@ -140,12 +116,14 @@ if key:
 ")
         if [ -z "$SSH_KEY_ID" ]; then
             echo -e "${RED}Failed to upload SSH key: $(echo "$api_response" | jq -r '.error.message' 2>/dev/null || echo "$api_response")${NC}"
+            sw_step_fail ssh-key "upload rejected by the Hetzner API"
             exit 1
         fi
         echo -e "${GREEN}SSH key uploaded (id: $SSH_KEY_ID).${NC}"
     else
         echo -e "${GREEN}SSH key already exists in Hetzner (id: $SSH_KEY_ID).${NC}"
     fi
+    sw_step_ok ssh-key
 }
 
 # Resolve the overlay repository's current HEAD commit. The bootstrap requires
@@ -238,7 +216,7 @@ echo -e "  ${CYAN}local${NC}   — bootstrap an existing Linux machine in your L
 if [[ -z "$DEPLOY_TARGET" ]]; then
     DEPLOY_TARGET="hetzner"
 fi
-ask_with_default "1. Select deployment target (hetzner or local)" "DEPLOY_TARGET" "false"
+ask_with_default "1. Select deployment target (hetzner or local)" "DEPLOY_TARGET" "false" "required"
 if [[ "$DEPLOY_TARGET" != "hetzner" && "$DEPLOY_TARGET" != "local" ]]; then
     echo -e "${YELLOW}Unknown target '$DEPLOY_TARGET' — must be 'hetzner' or 'local'.${NC}"
     exit 1
@@ -254,37 +232,37 @@ else
     echo -e "${YELLOW}If you choose internet exposure later in this wizard, the domain MUST be registered,${NC}"
     echo -e "${YELLOW}with its nameservers pointed at Hetzner DNS (helium/oxygen/hydrogen.ns.hetzner.*).${NC}"
 fi
-ask_with_default "2. Enter your target domain (e.g. smallworlds.network)" "DOMAIN" "false"
-ask_with_default "3. Enter the admin email address" "ADMIN_EMAIL" "false"
+ask_with_default "2. Enter your target domain (e.g. smallworlds.network)" "DOMAIN" "false" "required"
+ask_with_default "3. Enter the admin email address" "ADMIN_EMAIL" "false" "required"
 
 # Ensure ONBOARDING_MODE has a valid default if empty
 if [[ -z "$ONBOARDING_MODE" ]]; then
     ONBOARDING_MODE="invitation"
 fi
-ask_with_default "4. Select onboarding mode (invitation or self-registration)" "ONBOARDING_MODE" "false"
+ask_with_default "4. Select onboarding mode (invitation or self-registration)" "ONBOARDING_MODE" "false" "required"
 
 ask_with_default "5. Enter environment extension (e.g. .dev, or leave empty for prod)" "ENV_EXT" "false"
 
 echo ""
 echo -e "${YELLOW}GitOps Repository Configuration${NC}"
-ask_with_default "6. Enter your Git repository URL (e.g., https://github.com/my-community/config.git)" "GITOPS_REPO_URL" "false"
-ask_with_default "7. Enter your Git username" "GITOPS_REPO_USER" "false"
-ask_with_default "8. Paste your Git Access Token" "GITOPS_REPO_TOKEN" "true"
+ask_with_default "6. Enter your Git repository URL (e.g., https://github.com/my-community/config.git)" "GITOPS_REPO_URL" "false" "required"
+ask_with_default "7. Enter your Git username" "GITOPS_REPO_USER" "false" "required"
+ask_with_default "8. Paste your Git Access Token" "GITOPS_REPO_TOKEN" "true" "required"
 
 if [[ "$DEPLOY_TARGET" == "hetzner" ]]; then
     echo ""
     echo -e "${YELLOW}Hetzner Configuration${NC}"
-    ask_with_default "9. Paste your Hetzner Cloud API Token" "HCLOUD_TOKEN" "true"
+    ask_with_default "9. Paste your Hetzner Cloud API Token" "HCLOUD_TOKEN" "true" "required"
 else
     echo ""
     echo -e "${YELLOW}Local Server Configuration${NC}"
     echo -e "The target machine needs: a systemd-based Linux, SSH access, and sudo/root rights."
     echo -e "Use ${CYAN}user@host${NC} (e.g. root@192.168.1.50), or ${CYAN}localhost${NC} to install on THIS machine."
-    ask_with_default "9. Enter the SSH target of your local server" "LOCAL_SSH_TARGET" "false"
+    ask_with_default "9. Enter the SSH target of your local server" "LOCAL_SSH_TARGET" "false" "required"
     if [[ -z "$DATA_DIR" ]]; then
         DATA_DIR="/var/lib/smallworlds-data"
     fi
-    ask_with_default "10. Enter the data directory on the server (all user data lives here)" "DATA_DIR" "false"
+    ask_with_default "10. Enter the data directory on the server (all user data lives here)" "DATA_DIR" "false" "required"
     if [[ -z "$BACKUP_DIR" ]]; then
         BACKUP_DIR="/var/lib/smallworlds-backup"
     fi
@@ -292,7 +270,7 @@ else
     echo -e "Backups must survive the loss of the operational disk, so they need a"
     echo -e "${CYAN}second physical disk${NC} — the bootstrap refuses to continue if this ends up"
     echo -e "on the same device as the data directory (see docs/adr/0048)."
-    ask_with_default "11. Enter the backup directory on the server (on a second disk)" "BACKUP_DIR" "false"
+    ask_with_default "11. Enter the backup directory on the server (on a second disk)" "BACKUP_DIR" "false" "required"
 
     echo ""
     echo -e "Certificates are issued by Let's Encrypt over a ${CYAN}DNS-01${NC} challenge: cert-manager"
@@ -308,7 +286,7 @@ else
     if [[ -z "$LOCAL_TLS" ]]; then
         LOCAL_TLS="letsencrypt"
     fi
-    ask_with_default "12. Certificates: letsencrypt or self-signed" "LOCAL_TLS" "false"
+    ask_with_default "12. Certificates: letsencrypt or self-signed" "LOCAL_TLS" "false" "required"
     case "$LOCAL_TLS" in
         self-signed|selfsigned|self|s) LOCAL_TLS="self-signed";;
         *) LOCAL_TLS="letsencrypt";;
@@ -323,7 +301,7 @@ else
     if [[ -z "$LOCAL_PUBLIC" ]]; then
         LOCAL_PUBLIC="no"
     fi
-    ask_with_default "13. Expose the apps on the internet? (yes/no)" "LOCAL_PUBLIC" "false"
+    ask_with_default "13. Expose the apps on the internet? (yes/no)" "LOCAL_PUBLIC" "false" "required"
     case "$LOCAL_PUBLIC" in
         y|Y|yes|Yes|YES) LOCAL_PUBLIC="yes";;
         *) LOCAL_PUBLIC="no";;
@@ -331,7 +309,7 @@ else
     # Both paths talk to the same Hetzner DNS API: DNS-01 to solve challenges,
     # DDNS to maintain the A records.
     if [[ "$LOCAL_TLS" == "letsencrypt" || "$LOCAL_PUBLIC" == "yes" ]]; then
-        ask_with_default "14. Paste your Hetzner API Token (used for DNS records only)" "HCLOUD_TOKEN" "true"
+        ask_with_default "14. Paste your Hetzner API Token (used for DNS records only)" "HCLOUD_TOKEN" "true" "required"
     fi
 fi
 
@@ -366,11 +344,12 @@ if [[ -z "$GARAGE_ADMIN_TOKEN" ]]; then GARAGE_ADMIN_TOKEN=$(openssl rand -hex 3
 # Distinct credentials for the backup instance — see docs/adr/0048.
 if [[ -z "$GARAGE_BACKUP_RPC_SECRET" ]]; then GARAGE_BACKUP_RPC_SECRET=$(openssl rand -hex 32); fi
 if [[ -z "$GARAGE_BACKUP_ADMIN_TOKEN" ]]; then GARAGE_BACKUP_ADMIN_TOKEN=$(openssl rand -hex 32); fi
-# Signs the in-cluster Operator Console's session cookies. Absent, the console
-# invents one at startup, which is safe and logs every Operator out on each
-# restart. Nobody ever types it, so it is generated here with the other machine
-# credentials rather than asked for.
-if [[ -z "$CONSOLE_SESSION_KEY" ]]; then CONSOLE_SESSION_KEY=$(openssl rand -hex 32); fi
+# Signs the in-cluster Operator Console's session cookies. DEACTIVATED
+# (2026-08-23) along with the console itself — see the note in
+# infrastructure/kubernetes/kustomization.yaml. Kept, not deleted: an existing
+# cache file still carries the value, so re-activating the console restores the
+# same key rather than logging everyone out.
+# if [[ -z "$CONSOLE_SESSION_KEY" ]]; then CONSOLE_SESSION_KEY=$(openssl rand -hex 32); fi
 if [[ -z "$GRAFANA_PASS" ]]; then GRAFANA_PASS=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32); fi
 
 # Save values to cache for next time
@@ -548,20 +527,6 @@ type: Opaque
 stringData:
   rpcSecret: "${GARAGE_BACKUP_RPC_SECRET}"
   adminToken: "${GARAGE_BACKUP_ADMIN_TOKEN}"
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: operator-console
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: operator-console-session
-  namespace: operator-console
-type: Opaque
-stringData:
-  session-key: "${CONSOLE_SESSION_KEY}"
 EOF
 chmod 600 "$SECRETS_FILE"
 
@@ -609,11 +574,13 @@ ssh_key_id        = ${SSH_KEY_ID}
 EOF
 
     # 3. Execute Terraform
+    sw_step terraform-apply "Provisioning the Hetzner VM and DNS records"
     echo -e "${CYAN}Initializing infrastructure... This will take a few minutes.${NC}"
     cd infrastructure/terraform
 
     terraform init -input=false > /dev/null
     terraform apply -var-file="$TFVARS_FILE" -auto-approve
+    sw_step_ok terraform-apply
 
     # 4. Capture Outputs
     SERVER_IP=$(terraform output -raw server_ipv4)
@@ -626,12 +593,15 @@ EOF
         sleep 2
     done
 
+    sw_step secrets "Planting the cluster secrets on the node"
     echo -e "${CYAN}Deploying secrets to the server securely...${NC}"
     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$SERVER_IP" "mkdir -p /var/lib/rancher/k3s/server/manifests" 2>/dev/null
     scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$SECRETS_FILE" root@"$SERVER_IP":/var/lib/rancher/k3s/server/manifests/smallworlds-secrets.yaml >/dev/null 2>&1
     rm -f "$SECRETS_FILE"
+    sw_step_ok secrets
 
 
+    sw_step kubeconfig "Waiting for k3s and retrieving the kubeconfig"
     echo -e "${CYAN}Waiting for K3s to generate kubeconfig on the remote node...${NC}"
     until ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 root@"$SERVER_IP" "[ -f /etc/rancher/k3s/k3s.yaml ]" 2>/dev/null; do
         sleep 2
@@ -641,6 +611,7 @@ EOF
     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$SERVER_IP" "cat /etc/rancher/k3s/k3s.yaml" > "$KUBECONFIG_LOCAL" 2>/dev/null
     sed -i "s|127.0.0.1|$SERVER_IP|g" "$KUBECONFIG_LOCAL"
     chmod 600 "$KUBECONFIG_LOCAL"
+    sw_step_ok kubeconfig
 
     echo -e "${CYAN}Retrieving ArgoCD initial admin password...${NC}"
     until ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 root@"$SERVER_IP" "kubectl -n argocd get secret argocd-initial-admin-secret >/dev/null 2>&1" 2>/dev/null; do
@@ -750,6 +721,7 @@ EOF
     # and Argo CD manifest sitting next to it, and a script separated from its
     # assets simply refuses to run.
     REMOTE_KUBECONFIG="/tmp/smallworlds-kubeconfig.yaml"
+    sw_step bootstrap "Bootstrapping k3s and Argo CD on the node"
     if [[ "$LOCAL_SSH_TARGET" == "localhost" ]]; then
         echo -e "${CYAN}Bootstrapping THIS machine (sudo password may be requested)...${NC}"
         rm -rf "$RUN_DIR" && mkdir -p "$RUN_DIR"
@@ -781,7 +753,9 @@ EOF
         }
     fi
     rm -f "$SECRETS_FILE" "$LOCAL_ENV_FILE"
+    sw_step_ok bootstrap
 
+    sw_step kubeconfig "Retrieving the kubeconfig from the node"
     # Local clusters get their own kubeconfig label so they never clobber a
     # real production/dev kubeconfig from a Hetzner deployment.
     KUBECONFIG_LABEL="local"
@@ -789,6 +763,7 @@ EOF
     KUBECONFIG_LOCAL="$(kubeconfig_path "$KUBECONFIG_LABEL")"
     KUBECONFIG_FETCH "$KUBECONFIG_LOCAL"
     chmod 600 "$KUBECONFIG_LOCAL"
+    sw_step_ok kubeconfig
 
     # The bootstrap rewrote 127.0.0.1 to the node's LAN IP — read it back
     SERVER_IP=$(sed -n 's|.*server: https://\([^:]*\):6443.*|\1|p' "$KUBECONFIG_LOCAL" | head -1)
@@ -900,6 +875,7 @@ echo -e "${GREEN}======================================================${NC}"
 # ArgoCD parks a sync permanently once its retries are exhausted, so any app
 # whose operation ended in Failed/Error gets re-kicked automatically.
 if command -v kubectl >/dev/null 2>&1; then
+    sw_step argocd-converge "Waiting for every Argo CD application to go Healthy"
     echo -e "${CYAN}Watching application rollout (up to 40 minutes; safe to Ctrl+C — the cluster continues on its own)...${NC}"
     export KUBECONFIG="$KUBECONFIG_LOCAL"
     CONVERGED=false
@@ -926,6 +902,7 @@ if command -v kubectl >/dev/null 2>&1; then
         ROOT_STATE=$(KUBECONFIG="$KUBECONFIG_LOCAL" kubectl get app smallworlds-root -n argocd -o jsonpath='{.status.sync.status}/{.status.health.status}' 2>/dev/null)
         if [ "$TOTAL" -gt 1 ] && [ "$HEALTHY" -eq "$TOTAL" ] && [ "$ROOT_STATE" = "Synced/Healthy" ]; then
             echo -e "${GREEN}All $TOTAL applications are Healthy!${NC}"
+            sw_step_ok argocd-converge
             CONVERGED=true
             break
         fi
@@ -933,6 +910,7 @@ if command -v kubectl >/dev/null 2>&1; then
         sleep 20
     done
     if [ "$CONVERGED" = false ]; then
+        sw_step_fail argocd-converge "not all applications were Healthy after 40 minutes"
         echo -e "${YELLOW}Rollout did not fully converge within 40 minutes. Inspect with:${NC}"
         echo -e "  kubectl get application -n argocd"
     fi
@@ -954,5 +932,12 @@ if [[ "$DEPLOY_TARGET" == "local" ]]; then
     fi
 fi
 echo ""
-echo -e "${CYAN}Opening your dashboard: ${DASHBOARD_URL}${NC}"
-python3 -c "import webbrowser; webbrowser.open('${DASHBOARD_URL}')" >/dev/null 2>&1 || echo -e "${CYAN}Please manually navigate to: ${DASHBOARD_URL}${NC}"
+# Opening a browser is right for someone at a terminal and wrong for the setup
+# wizard, whose operator is already looking at one — it hands over to the
+# dashboard itself.
+if sw_noninteractive; then
+    echo -e "${CYAN}Your dashboard: ${DASHBOARD_URL}${NC}"
+else
+    echo -e "${CYAN}Opening your dashboard: ${DASHBOARD_URL}${NC}"
+    python3 -c "import webbrowser; webbrowser.open('${DASHBOARD_URL}')" >/dev/null 2>&1 || echo -e "${CYAN}Please manually navigate to: ${DASHBOARD_URL}${NC}"
+fi

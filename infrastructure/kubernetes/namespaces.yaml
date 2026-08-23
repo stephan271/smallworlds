@@ -68,10 +68,13 @@ kind: Namespace
 metadata:
   name: remediation
 ---
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: operator-console
+# The Operator Console is DEACTIVATED (2026-08-23) — see the note in
+# kustomization.yaml. Nothing runs in this namespace while that holds, so it is
+# not created; restore this block when the console is re-activated.
+# apiVersion: v1
+# kind: Namespace
+# metadata:
+#   name: operator-console
 ---
 apiVersion: v1
 kind: Namespace

@@ -39,7 +39,7 @@ This project is built upon several foundational open-source technologies, core i
 | **Traefik** | [traefik.io](https://traefik.io/) | Ingress routing and reverse proxy for handling incoming requests. |
 | **Cert-Manager** | [cert-manager.io](https://cert-manager.io/) | Automated TLS certificate provisioning and management. |
 | **Pod Gateway** | [`tenants/pod-gateway/`](infrastructure/kubernetes/tenants/pod-gateway/) | Append-only personal data pods (`pod.<domain>`). Apps deposit each member's source data into a pod they cannot read; the member's home device pulls it and never deletes. Optional. See [`doc/pod-archive.md`](doc/pod-archive.md). |
-| **Operator Console** | [`operator-console/`](operator-console/) | The privileged administration interface (`console.<domain>`). Authenticates through Keycloak with Observer/Operator/Owner roles and explains every capability from configuration, delivery, runtime, access and protection evidence. Reachable only from the Private Network. See [`doc/tenant-operator-console.md`](doc/tenant-operator-console.md). |
+| **Operator Console** *(deactivated)* | [`operator-console/`](operator-console/) | **Not deployed since 2026-08-23.** The code, manifests and ADRs are all still here and unchanged, but no cluster runs it — the browser setup wizard (`admin-tools/setup-wizard/`) takes over the install half of what it did, and the observe half is on hold until that lands. See [`plans-and-walkthroughs/design-setup-wizard.md`](plans-and-walkthroughs/design-setup-wizard.md) and [`doc/tenant-operator-console.md`](doc/tenant-operator-console.md). |
 
 ### End User Applications
 
@@ -282,6 +282,16 @@ The HTML report is written to `e2e-tests/reports/html`; view it with `cd e2e-tes
 
 ## Developer Guide: Cutting a New Release
 
+> [!IMPORTANT]
+> **While the Operator Console is deactivated (since 2026-08-23), the console and
+> launcher parts of this checklist are optional.** Step 1b (the image pin) can be
+> skipped, and `publish-operator-console.yml` / `publish-bootstrap-launcher.yml`
+> need not be run — no cluster deploys the console and no operator needs the
+> launcher to install. The 4 bootstrap assets are still required; a release
+> without console artifacts is complete for the wizard-based install. The
+> instructions below are left intact for when the console returns. See
+> [`plans-and-walkthroughs/design-setup-wizard.md`](plans-and-walkthroughs/design-setup-wizard.md).
+
 A SmallWorlds release is a Git tag **plus two independently published families of signed release attachments and one container image**. Tagging alone does not produce a usable release — the tag only becomes installable once the publishing workflows have run against it.
 
 ### What a complete release contains
@@ -320,7 +330,7 @@ curl -sS https://get.k3s.io | sha256sum
 
 See [`docs/releases/bootstrap-inputs/README.md`](docs/releases/bootstrap-inputs/README.md).
 
-**1b. The operator-console image pin.** Bump the image tag in `infrastructure/kubernetes/tenants/operator-console/deployment.yaml` to the release you are about to cut, so the tagged tree pins the console image that Step 4 will build for that tag:
+**1b. The operator-console image pin.** *(Skip while the console is deactivated.)* Bump the image tag in `infrastructure/kubernetes/tenants/operator-console/deployment.yaml` to the release you are about to cut, so the tagged tree pins the console image that Step 4 will build for that tag:
 
 ```bash
 sed -i 's#smallworlds-operator-console:v[0-9.]*#smallworlds-operator-console:v1.2.29#' \

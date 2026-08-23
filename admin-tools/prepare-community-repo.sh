@@ -23,6 +23,11 @@ echo ""
 # Get the directory of the current script to ensure relative paths work
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Shared prompt helpers (ask_prefilled, progress markers). Also what lets this
+# script run with no tty under SMALLWORLDS_NONINTERACTIVE=1, which is how the
+# browser setup wizard drives it — see admin-tools/lib/ask.sh.
+source "$SCRIPT_DIR/lib/ask.sh"
+
 CONFIG_FILE="$HOME/.config/smallworlds/community-setup.conf"
 mkdir -p "$(dirname "$CONFIG_FILE")"
 if [ -f "$CONFIG_FILE" ]; then
@@ -35,7 +40,7 @@ if [ -n "$STORED_TARGET_DOMAIN" ]; then
 else
     DEFAULT_DOMAIN="smallworlds.network"
 fi
-read -e -i "$DEFAULT_DOMAIN" -p "1. Enter your target base domain (e.g. smallworlds.network): " TARGET_DOMAIN
+ask_prefilled "1. Enter your target base domain (e.g. smallworlds.network): " TARGET_DOMAIN "$DEFAULT_DOMAIN" required
 
 # 2. Ask for Environment Extension
 if [ -n "$STORED_ENV_EXT" ]; then
@@ -43,7 +48,7 @@ if [ -n "$STORED_ENV_EXT" ]; then
 else
     DEFAULT_ENV_EXT=""
 fi
-read -e -i "$DEFAULT_ENV_EXT" -p "2. Enter environment extension (e.g. .dev, or leave empty for prod): " ENV_EXT
+ask_prefilled "2. Enter environment extension (e.g. .dev, or leave empty for prod): " ENV_EXT "$DEFAULT_ENV_EXT"
 
 # 3. Ask for local repository path
 if [ -n "$STORED_REPO_PATH" ]; then
@@ -54,7 +59,7 @@ else
     # Script is in admin-tools, so community repo is normally parallel to smallworlds
     DEFAULT_PATH="$(cd "$SCRIPT_DIR/.." && pwd)/../my-community${ENV_EXT}-config"
 fi
-read -e -i "$DEFAULT_PATH" -p "3. Enter the path where you want to create the repository: " REPO_PATH
+ask_prefilled "3. Enter the path where you want to create the repository: " REPO_PATH "$DEFAULT_PATH" required
 
 # Resolve to absolute path
 mkdir -p "$REPO_PATH"
@@ -75,7 +80,7 @@ elif [ -d "$ABS_REPO_PATH/.git" ]; then
     popd > /dev/null
 fi
 
-read -e -i "n" -p "4. Do you want to automatically create a new private GitHub repository using the GitHub CLI (gh)? (y/n): " CREATE_REPO
+ask_prefilled "4. Do you want to automatically create a new private GitHub repository using the GitHub CLI (gh)? (y/n): " CREATE_REPO "${STORED_CREATE_REPO:-n}"
 if [[ "$CREATE_REPO" =~ ^[Yy]$ ]]; then
     if ! command -v gh &> /dev/null; then
         echo -e "${RED}Error: 'gh' (GitHub CLI) is not installed. Please install it first or answer 'n' to enter an existing URL.${NC}"
@@ -83,7 +88,7 @@ if [[ "$CREATE_REPO" =~ ^[Yy]$ ]]; then
     else
         # Extract default name from REPO_PATH
         DEFAULT_REPO_NAME=$(basename "$ABS_REPO_PATH")
-        read -e -i "$DEFAULT_REPO_NAME" -p "   Enter the name for the new repository: " NEW_REPO_NAME
+        ask_prefilled "   Enter the name for the new repository: " NEW_REPO_NAME "$DEFAULT_REPO_NAME" required
         
         echo -e "${YELLOW}Creating private repository '$NEW_REPO_NAME' on GitHub...${NC}"
         if gh repo create "$NEW_REPO_NAME" --private; then
@@ -101,9 +106,9 @@ fi
 if [[ ! "$CREATE_REPO" =~ ^[Yy]$ ]]; then
     while true; do
         if [ -n "$DEFAULT_URL" ]; then
-            read -e -i "$DEFAULT_URL" -p "4b. Enter your private Git Remote HTTPS URL: " REMOTE_URL
+            ask_prefilled "4b. Enter your private Git Remote HTTPS URL: " REMOTE_URL "$DEFAULT_URL" required
         else
-            read -e -p "4b. Enter your private Git Remote HTTPS URL (required, e.g., https://github.com/user/my-community-config.git): " REMOTE_URL
+            ask_prefilled "4b. Enter your private Git Remote HTTPS URL (required, e.g., https://github.com/user/my-community-config.git): " REMOTE_URL "" required
         fi
         
         if [ -n "$REMOTE_URL" ]; then
@@ -126,13 +131,14 @@ else
     LATEST_TAG=$(git ls-remote --tags --sort=-v:refname https://github.com/stephan271/smallworlds.git | grep -Eo 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 2>/dev/null)
     DEFAULT_VERSION="${LATEST_TAG:-v1.0.0}"
 fi
-read -e -i "$DEFAULT_VERSION" -p "5. Pin to which upstream smallworlds version tag (e.g. v1.0.0, or HEAD to track latest): " SMALLWORLDS_VERSION
+ask_prefilled "5. Pin to which upstream smallworlds version tag (e.g. v1.0.0, or HEAD to track latest): " SMALLWORLDS_VERSION "$DEFAULT_VERSION" required
 SMALLWORLDS_VERSION="${SMALLWORLDS_VERSION:-$DEFAULT_VERSION}"
 # Derive the "owner/repo" slug from the remote URL so the in-cluster Renovate
 # CronJob can scan THIS repo and open weekly base-tag bump PRs against it.
 REPO_SLUG=$(printf '%s' "$REMOTE_URL" | sed -E 's#^(https?://[^/]+/|git@[^:]+:|ssh://[^/]+/)##; s#\.git$##; s#/+$##')
 
 echo ""
+sw_step repo-init "Initializing the overlay repository"
 echo -e "${YELLOW}Initializing repository...${NC}"
 echo -e "Pinning upstream base to: ${GREEN}${SMALLWORLDS_VERSION}${NC}"
 
@@ -169,7 +175,7 @@ for app in "${OPTIONAL_APPS[@]}"; do
     stored_val="${!var_name}"
     default_choice="${stored_val:-y}"
 
-    read -e -i "$default_choice" -p "Do you want to install $app? (y/n): " choice
+    ask_prefilled "Do you want to install $app? (y/n): " choice "$default_choice"
     if [[ "$choice" =~ ^[Yy]$ ]]; then
         SELECTED_APPS+=("$app")
         printf -v "$var_name" 'y'
@@ -195,12 +201,20 @@ if [[ " ${SELECTED_APPS[*]} " == *" bulwark "* && " ${SELECTED_APPS[*]} " != *" 
     echo ""
 fi
 
+sw_step_ok repo-init
+sw_step repo-apps "Writing the application overlays"
 echo -e "${YELLOW}Creating application subdirectories...${NC}"
 # Always installed, and each carries hostnames that have to follow the
-# operator's domain. The Operator Console belongs here for a second reason: it
-# is told its own address, not merely routed to it, so an overlay that skipped
-# it would deploy a console whose OIDC redirect still names somebody else.
-APPS=("dashboard" "keycloak" "operator-console" "${SELECTED_APPS[@]}")
+# operator's domain.
+#
+# "operator-console" was here too, and is DEACTIVATED (2026-08-23): the console
+# is no longer deployed, so an overlay must not carry a directory and patches
+# for it. Its code and manifests are untouched — see the note in
+# infrastructure/kubernetes/kustomization.yaml. Re-activating means putting it
+# back in this list; the console has to be listed, not merely routed to, since
+# it is told its own address and would otherwise name somebody else in its OIDC
+# redirect.
+APPS=("dashboard" "keycloak" "${SELECTED_APPS[@]}")
 
 for app in "${APPS[@]}"; do
     if [ ! -d "$app" ]; then
@@ -387,6 +401,8 @@ STORED_REMOTE_URL="${REMOTE_URL}"
 STORED_VERSION="${SMALLWORLDS_VERSION}"
 STORED_TARGET_DOMAIN="${TARGET_DOMAIN}"
 STORED_ENV_EXT="${ENV_EXT}"
+STORED_CREATE_REPO="${CREATE_REPO}"
+STORED_PUSH_CHOICE="${PUSH_CHOICE}"
 EOF
 for app in "${OPTIONAL_APPS[@]}"; do
     var_name="$(app_pref_var "$app")"
@@ -440,6 +456,8 @@ EOF
 fi
 
 # 7. Commit the files
+sw_step_ok repo-apps
+sw_step repo-commit "Committing the overlay"
 echo -e "${YELLOW}Committing updates...${NC}"
 git add .
 if [ -n "$(git status --porcelain)" ]; then
@@ -449,6 +467,7 @@ else
 fi
 
 # 8. Configure remote and optionally push
+sw_step_ok repo-commit
 echo ""
 echo -e "${YELLOW}Configuring remote URL...${NC}"
 # Check if origin already exists
@@ -460,13 +479,16 @@ fi
 
 echo -e "Remote 'origin' set to: ${GREEN}${REMOTE_URL}${NC}"
 
-read -e -i "y" -p "Would you like to attempt pushing to origin main now? (y/n): " PUSH_CHOICE
+ask_prefilled "Would you like to attempt pushing to origin main now? (y/n): " PUSH_CHOICE "${STORED_PUSH_CHOICE:-y}"
 
 if [[ "$PUSH_CHOICE" =~ ^[Yy]$ ]]; then
+    sw_step repo-push "Pushing the overlay to its remote"
     echo -e "${YELLOW}Pushing to remote repository...${NC}"
     if git push -u origin main; then
         echo -e "${GREEN}Successfully pushed to remote!${NC}"
+        sw_step_ok repo-push
     else
+        sw_step_fail repo-push "git push was rejected"
         echo -e "${RED}Warning: Failed to push to remote repository.${NC}"
         echo -e "Please ensure your repository exists on the host and your SSH keys / access credentials are set up correctly."
         echo -e "You can try pushing manually later using: ${CYAN}git push -u origin main${NC}"
