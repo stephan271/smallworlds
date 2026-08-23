@@ -519,6 +519,7 @@ Promise.all([api("/api/state"), api("/api/install/status").catch(() => ({ status
 /* --- installing ---------------------------------------------------------- */
 
 let events = null;
+let lastResult = {};
 
 const STAGE_GLYPHS = { pending: "", running: "•", done: "✓", failed: "×" };
 
@@ -611,7 +612,7 @@ function applyStatus(snapshot) {
       lede.textContent = "Every application reported healthy.";
       showCheck("install-outcome", { status: "ok", summary: "Installation finished." });
     }
-    finish(snapshot);
+    finish({ ...snapshot, result: snapshot.result || lastResult });
   } else if (status === "failed") {
     heading.textContent = "The install stopped";
     lede.textContent = "Nothing was rolled back. Fix what the message describes and " +
@@ -629,8 +630,109 @@ function applyStatus(snapshot) {
   }
 }
 
-/* Phase 3 replaces this with the credentials and the handover. */
-function finish(snapshot) {}
+/* --- handover ------------------------------------------------------------ */
+
+function finish(snapshot) {
+  const result = snapshot.result || {};
+  const credentials = result.credentials || [];
+  if (!credentials.length && !(result.urls || []).length) return;
+
+  el("handover").hidden = false;
+  el("shutdown").hidden = false;
+
+  const list = el("credentials");
+  list.textContent = "";
+  credentials.forEach((entry) => {
+    const row = document.createElement("div");
+    row.className = "credential";
+    const who = document.createElement("span");
+    who.className = "who";
+    who.textContent = entry.name;
+    const secret = document.createElement("code");
+    secret.className = "secret";
+    secret.textContent = entry.value;
+    row.append(who, secret);
+    if (entry.note) {
+      const why = document.createElement("p");
+      why.className = "why";
+      why.textContent = entry.note;
+      row.append(why);
+    }
+    list.append(row);
+  });
+
+  const urls = el("result-urls");
+  urls.textContent = "";
+  (result.urls || []).forEach((entry) => {
+    const link = document.createElement("a");
+    link.className = "hostname";
+    link.href = entry.url;
+    link.target = "_blank";
+    link.rel = "noreferrer";
+    link.textContent = entry.url.replace(/^https:\/\//, "");
+    link.title = entry.name;
+    urls.append(link);
+  });
+
+  const dashboard = (result.urls || []).find((entry) => entry.name === "Dashboard");
+  if (dashboard) {
+    el("open-dashboard").href = dashboard.url;
+    el("open-dashboard").hidden = false;
+  }
+
+  if (result.hosts) {
+    el("hosts-block").hidden = false;
+    el("hosts-line").textContent = result.hosts;
+  }
+  if (result.kubeconfig) {
+    el("kubeconfig-block").hidden = false;
+    el("kubeconfig-path").textContent = result.kubeconfig;
+  }
+
+  el("save-credentials").onclick = () => saveCredentials(result);
+  document.querySelector("#log-panel summary").textContent =
+    "Show what the installer did";
+}
+
+/* Handed over as a file rather than only shown, because these exist in exactly
+   two places — this page, and the cluster. Built in the browser: the wizard
+   never writes a credential to disk itself. */
+function saveCredentials(result) {
+  const when = new Date().toISOString().replace("T", " ").slice(0, 16);
+  const lines = [
+    "SmallWorlds — administrator credentials",
+    `Created ${when}`,
+    "",
+    "Keep this file somewhere safe. Anyone holding it can administer your cloud.",
+    "",
+  ];
+  (result.credentials || []).forEach((entry) => {
+    lines.push(`${entry.name}`);
+    lines.push(`  ${entry.value}`);
+    if (entry.note) lines.push(`  (${entry.note})`);
+    lines.push("");
+  });
+  if (result.kubeconfig) lines.push(`Kubeconfig: ${result.kubeconfig}`, "");
+  if ((result.urls || []).length) {
+    lines.push("Addresses:");
+    result.urls.forEach((entry) => lines.push(`  ${entry.name}: ${entry.url}`));
+    lines.push("");
+  }
+  if (result.hosts) {
+    lines.push("Add to your router's DNS, Pi-hole, or /etc/hosts:");
+    lines.push(`  ${result.hosts}`, "");
+  }
+
+  const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "smallworlds-credentials.txt";
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 5000);
+  el("save-credentials").textContent = "Saved";
+}
 
 function install() {
   el("next").disabled = true;
@@ -658,6 +760,8 @@ function watch() {
   events.addEventListener("stage", (message) => updateStage(JSON.parse(message.data)));
   events.addEventListener("log", (message) => appendLog([JSON.parse(message.data)]));
   events.addEventListener("progress", (message) => showProgress(JSON.parse(message.data)));
+  events.addEventListener("result", (message) =>
+    (lastResult = JSON.parse(message.data)));
   events.addEventListener("status", (message) =>
     applyStatus({ status: JSON.parse(message.data) }));
   events.addEventListener("done", (message) => {
@@ -674,4 +778,18 @@ function watch() {
 el("cancel").addEventListener("click", () => {
   el("cancel").disabled = true;
   api("/api/install/cancel", {}).catch(() => {});
+});
+
+/* The wizard is single-use: once the cluster is up it has no further job, and
+   leaving a loopback server holding the credentials running is worse than
+   closing it. */
+el("shutdown").addEventListener("click", () => {
+  el("shutdown").disabled = true;
+  api("/api/shutdown", {}).catch(() => {});
+  el("handover").hidden = true;
+  el("log-panel").hidden = true;
+  el("install-heading").textContent = "The wizard is closed";
+  el("install-lede").textContent =
+    "Your cloud carries on without it. Run ./smallworlds-setup again if you need it.";
+  showCheck("install-outcome", null);
 });

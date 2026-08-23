@@ -334,6 +334,16 @@ echo "a careless script printing its token: $GIT_PASSWORD"
 echo ">>> ok:terraform-apply"
 echo ">>> step:argocd-converge Waiting"
 echo "  [3/120] 12/19 apps healthy (root: Synced/Progressing)"
+result() { printf '>>> result\\t%s\\t%s\\t%s\\n' "$1" "$2" "$3"; }
+result kubeconfig kubeconfig "/home/someone/.smallworlds/kubeconfigs/production.yaml"
+result credential "Keycloak Operator (operator)" "operator-password-value"
+result note "Keycloak Operator (operator)" "your login; sets up a TOTP authenticator"
+result credential "Argo CD Admin (admin)" "argocd-password-value"
+result url Dashboard "https://dashboard.example.org"
+result url Identity "https://identity.example.org"
+result url Files "https://files.example.org"
+result url Photos "https://photos.example.org"
+result hosts hosts "192.168.1.50 identity.example.org dashboard.example.org"
 echo "${STUB_INSTALLER_EXTRA:-}"
 exit "${STUB_INSTALLER_EXIT:-0}"
 """
@@ -463,6 +473,27 @@ def test_runner():
           any("a careless script printing its token" in line for line in final["log"]))
     check("watchers saw the stream", {"stage", "log", "status", "done"} <= set(seen))
 
+    print("runner — what the install produced")
+    result = final["result"]
+    names = {entry["name"]: entry for entry in result.get("credentials", [])}
+    check("credentials are collected",
+          names["Keycloak Operator (operator)"]["value"] == "operator-password-value" and
+          names["Argo CD Admin (admin)"]["value"] == "argocd-password-value")
+    check("a note is attached to the credential it explains",
+          "TOTP" in names["Keycloak Operator (operator)"]["note"])
+    check("result markers never reach the log",
+          not any(">>> result" in line for line in final["log"]))
+    check("the kubeconfig path is captured",
+          final["result"]["kubeconfig"].endswith("production.yaml"))
+    check("the hosts line is captured", "192.168.1.50" in final["result"]["hosts"])
+
+    # The installer prints every application's address; listing one for
+    # something this community did not install is a link to a certificate error.
+    offered = {entry["name"] for entry in result.get("urls", [])}
+    check("addresses are shown for what was installed",
+          {"Dashboard", "Identity", "Files"} <= offered)
+    check("addresses are not shown for what was not", "Photos" not in offered)
+
     print("runner — a script that fails")
     os.environ["STUB_INSTALLER_EXIT"] = "1"
     failing = runner.Run(answers, {}, checkout)
@@ -538,11 +569,28 @@ def test_install_endpoint():
             check(f"{os.path.basename(path)} was written 0600",
                   os.path.exists(path) and oct(os.stat(path).st_mode)[-3:] == "600")
 
+        check("the handover reached the browser",
+              any(entry["name"] == "Argo CD Admin (admin)"
+                  for entry in final["result"].get("credentials", [])))
+        check("no generated credential leaked into the log",
+              not any("argocd-password-value" in line for line in final["log"]))
+
         status, body = call(base, "/api/install", token=token,
                             body={"answers": {"target": "local"}})
         refused = json.loads(body)
         check("an incomplete install is refused, with the fields named",
               refused.get("started") is False and refused.get("reason") == "incomplete")
+
+        # The wizard is single-use, but closing it mid-apply would orphan
+        # terraform, so shutting down is only offered once nothing is running.
+        status, body = call(base, "/api/shutdown", token=token, body={})
+        check("the wizard can be closed once the install is done",
+              json.loads(body).get("stopped") is True)
+        for _ in range(40):
+            if process.poll() is not None:
+                break
+            time.sleep(0.25)
+        check("closing it actually stops the server", process.poll() is not None)
     finally:
         process.terminate()
         process.wait(timeout=10)

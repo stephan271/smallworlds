@@ -473,3 +473,41 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 }
 
 .install-actions { margin-top: 1.4rem; display: flex; gap: .6rem; flex-wrap: wrap; }
+
+/* --- handover ----------------------------------------------------------- */
+
+.credentials {
+  display: grid;
+  gap: .5rem;
+  margin-bottom: 1rem;
+}
+.credential {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .6rem .75rem;
+  background: var(--surface-sunken);
+}
+.credential .who { font-size: .84rem; font-weight: 580; }
+.credential .secret {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .84rem;
+  margin-top: .2rem;
+  color: var(--ink);
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+.credential .why { font-size: .78rem; color: var(--ink-soft); margin: .25rem 0 0; }
+
+a.primary-link {
+  display: inline-block;
+  font-size: .9rem;
+  font-weight: 560;
+  padding: .55rem 1.15rem;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  text-decoration: none;
+}
+a.primary-link:hover { filter: brightness(1.07); }
+a.primary-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

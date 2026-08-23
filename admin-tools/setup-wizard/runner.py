@@ -51,6 +51,10 @@ _FAIL = re.compile(r"^>>> fail:([a-z0-9-]+)\s*(.*)$")
 _MISSING = re.compile(r"^!!! missing:([A-Za-z_][A-Za-z0-9_]*)")
 # The installer's convergence loop: "  [7/120] 12/19 apps healthy (root: ...)"
 _CONVERGENCE = re.compile(r"^\s*\[\d+/\d+\]\s+(\d+)/(\d+)\s+apps healthy")
+# What the install produced: ">>> result\t<kind>\t<name>\t<value>". Emitted by
+# sw_result rather than scraped out of the installer's prose, so rewording a
+# message cannot silently empty the handover screen.
+_RESULT = re.compile(r"^>>> result\t([a-z]+)\t([^\t]*)\t(.*)$")
 
 MAX_LOG_LINES = 4000
 
@@ -178,6 +182,7 @@ class Run:
         self._process: subprocess.Popen | None = None
         self._cancelled = False
         self._askpass: str | None = None
+        self._offered: set[str] | None = None
 
         # Every value that must never appear in the log, longest first so a
         # token containing another is masked whole.
@@ -242,6 +247,10 @@ class Run:
     def _consume(self, raw: str) -> None:
         line = self.redact(_ANSI.sub("", raw.rstrip("\n")))
 
+        match = _RESULT.match(line)
+        if match:
+            self._record_result(match.group(1), match.group(2), match.group(3))
+            return
         match = _STEP.match(line)
         if match:
             self._set_stage(match.group(1), "running", match.group(2))
@@ -269,6 +278,43 @@ class Run:
         if len(self.log) > MAX_LOG_LINES:
             del self.log[: len(self.log) - MAX_LOG_LINES]
         self._emit("log", line)
+
+    def _offered_urls(self) -> set[str]:
+        """Always installed, plus whatever was chosen."""
+        if self._offered is None:
+            labels = {app["name"]: app["label"] for app in planning.OPTIONAL_APPS}
+            self._offered = {"Dashboard", "Identity", "Monitoring"} | {
+                labels[app] for app in (self.answers.get("apps") or []) if app in labels}
+        return self._offered
+
+    def _record_result(self, kind: str, name: str, value: str) -> None:
+        """What the install produced. Credentials are held in memory for the
+        handover screen and nothing else — the wizard never writes them
+        anywhere, and the operator's copy is whatever they save."""
+        if kind == "credential":
+            for entry in self.result.setdefault("credentials", []):
+                if entry["name"] == name:
+                    entry["value"] = value
+                    break
+            else:
+                self.result["credentials"].append(
+                    {"name": name, "value": value, "note": ""})
+        elif kind == "note":
+            for entry in self.result.setdefault("credentials", []):
+                if entry["name"] == name:
+                    entry["note"] = value
+        elif kind == "url":
+            # The installer prints every application's address whether or not
+            # it was selected. Listing an address for something this community
+            # did not install would be a link to a certificate error.
+            if name not in self._offered_urls():
+                return
+            urls = self.result.setdefault("urls", [])
+            if not any(entry["name"] == name for entry in urls):
+                urls.append({"name": name, "url": value})
+        elif kind in ("kubeconfig", "hosts"):
+            self.result[kind] = value
+        self._emit("result", self.result)
 
     # -------------------------------------------------------------- execution
 

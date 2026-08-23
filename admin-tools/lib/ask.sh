@@ -45,6 +45,19 @@ sw_step()      { sw_markers_enabled && printf '>>> step:%s %s\n' "$1" "${2:-}"; 
 sw_step_ok()   { sw_markers_enabled && printf '>>> ok:%s\n' "$1"; return 0; }
 sw_step_fail() { sw_markers_enabled && printf '>>> fail:%s %s\n' "$1" "${2:-}"; return 0; }
 
+# What an install produced, for whatever is presenting it:
+#
+#   sw_result <kind> <name> <value>   ->  >>> result\t<kind>\t<name>\t<value>
+#
+# Kinds: credential, url, kubeconfig, hosts, note. Tab-separated because a name
+# has spaces in it and a value can contain very nearly anything.
+#
+# These carry the generated passwords, so they are emitted only when markers
+# are on -- which means only when something asked for them. A person at a
+# terminal reads the human-readable block the installer prints instead, and
+# never sees these at all.
+sw_result() { sw_markers_enabled && printf '>>> result\t%s\t%s\t%s\n' "$1" "$2" "${3:-}"; return 0; }
+
 # A required value was not supplied and cannot be asked for. Named, so the
 # wizard can point at the field the operator left blank rather than reporting
 # that "the installer failed".

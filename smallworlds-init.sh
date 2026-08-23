@@ -836,6 +836,17 @@ else
     echo -e "   record and open port 25 — it will not work from behind a home NAT."
 fi
 echo ""
+# The same facts as the block below, in a form something else can present.
+# Silent unless markers were asked for — see sw_result in admin-tools/lib/ask.sh.
+sw_result kubeconfig "kubeconfig" "$KUBECONFIG_LOCAL"
+sw_result credential "Keycloak Operator (operator)" "$KC_OPERATOR_PASS"
+sw_result note "Keycloak Operator (operator)" "your login; sets up a TOTP authenticator at first sign-in"
+sw_result credential "Keycloak Admin (admin)" "$KC_PASS"
+sw_result note "Keycloak Admin (admin)" "automation and break-glass; reachable only from the Private Network"
+sw_result credential "Argo CD Admin (admin)" "$ARGOCD_PASS"
+sw_result credential "Grafana Admin (admin)" "$GRAFANA_PASS"
+sw_result credential "Bulk Invite Secret" "$INVITE_SECRET"
+
 echo -e "Kubernetes Access (kubeconfig):"
 echo -e "  Saved to:                  ${CYAN}${KUBECONFIG_LOCAL}${NC}"
 echo -e "  To use with kubectl:       ${YELLOW}export KUBECONFIG=${KUBECONFIG_LOCAL}${NC}"
@@ -867,6 +878,16 @@ echo -e "  Meet:              ${CYAN}https://meet${ENV_EXT}.${DOMAIN}${NC}"
 echo -e "  Office:            ${CYAN}https://office${ENV_EXT}.${DOMAIN}${NC}"
 echo -e "  Plan:              ${CYAN}https://plan${ENV_EXT}.${DOMAIN}${NC}"
 echo ""
+for _sub_and_label in "dashboard:Dashboard" "identity:Identity" "mail:Mail" \
+                      "files:Files" "photos:Photos" "git:Git" "webmail:Webmail" \
+                      "monitoring:Monitoring" "whiteboard:Whiteboard" "meet:Meet" \
+                      "office:Office" "plan:Plan"; do
+    sw_result url "${_sub_and_label#*:}" "https://${_sub_and_label%%:*}${ENV_EXT}.${DOMAIN}"
+done
+if [[ "$DEPLOY_TARGET" == "local" && -f "${HOSTS_SNIPPET:-}" ]]; then
+    sw_result hosts "hosts" "$(cat "$HOSTS_SNIPPET")"
+fi
+
 echo -e "ArgoCD Dashboard:            ${CYAN}https://localhost:8080${NC} (requires port-forward)"
 echo -e "  To port-forward:           ${YELLOW}kubectl port-forward svc/argocd-server -n argocd 8080:443${NC}"
 echo -e "${GREEN}======================================================${NC}"

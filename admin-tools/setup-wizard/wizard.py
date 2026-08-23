@@ -213,6 +213,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "/api/plan": self._build_plan,
                 "/api/install": self._install,
                 "/api/install/cancel": self._cancel,
+                "/api/shutdown": self._shutdown,
             }[route]
         except KeyError:
             self._send_json(404, {"error": "No such route."})
@@ -336,6 +337,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
         SESSION.run.start()
         return {"started": True, "remote_url": answers["remote_url"],
                 "stages": SESSION.run.stages}
+
+    def _shutdown(self, body: dict) -> dict:
+        """The wizard is single-use. Once the cluster is up it has no further
+        job, and a loopback server left running still holds the credentials in
+        memory. Refused while an install is under way — closing then would
+        orphan terraform mid-apply."""
+        if SESSION.run and SESSION.run.status in ("starting", "running"):
+            return {"stopped": False,
+                    "message": "An installation is still running."}
+        threading.Timer(0.5, self.server.shutdown).start()
+        return {"stopped": True}
 
     def _cancel(self, body: dict) -> dict:
         if not SESSION.run or SESSION.run.status not in ("starting", "running"):

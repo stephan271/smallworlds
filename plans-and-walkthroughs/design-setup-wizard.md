@@ -1,6 +1,6 @@
 # SmallWorlds Setup Wizard — Design
 
-**Status:** accepted; Phases 0–2 complete, Phase 3 next
+**Status:** accepted; Phases 0–3 complete, Phase 4 next
 **Date:** 2026-08-23
 **Supersedes, in the install half only:** `implementation_plan-operator-console.md`
 
@@ -279,9 +279,26 @@ only from the session, so a token typed and immediately submitted, before the
 debounced check behind that field had fired, never reached the installer at
 all.
 
-### Phase 3 — Convergence and handover
+### Phase 3 — Convergence and handover *(done, 2026-08-23)*
 
-Rollout view, credential panel, hosts snippet, dashboard handoff, shutdown.
+The marker contract gained `sw_result <kind> <name> <value>` (tab-separated;
+kinds `credential`, `note`, `url`, `kubeconfig`, `hosts`), and
+`smallworlds-init.sh` emits the same facts it already prints in prose. Scraping
+the prose with regexes was the obvious alternative and the wrong one: rewording
+a message would silently empty the handover screen, and nothing would fail.
+Like every other marker these are silent unless markers were asked for, so a
+person at a terminal never sees them.
+
+The handover screen shows the credentials with the notes that explain them, a
+**Save to a file** button (built in the browser — the wizard never writes a
+credential to disk), the addresses **for the applications actually selected**
+rather than every address the installer prints, the `/etc/hosts` line where one
+applies, the kubeconfig path, and a link through to the dashboard.
+
+**Closing the wizard** is offered once the install is done, and refused while
+one is running — shutting down mid-apply would orphan terraform. The wizard is
+single-use, and a loopback server left running still holds the credentials in
+memory.
 
 ### Phase 4 — Documentation
 

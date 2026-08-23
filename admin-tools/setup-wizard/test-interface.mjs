@@ -192,6 +192,9 @@ async function walkInstall() {
   await page.fill("#git_token", "another-token-that-must-not-be-shown");
   await page.click("#next");
   await page.waitForSelector('[data-panel="apps"]:not([hidden])');
+  // Deselected on purpose: the installer prints every application's address,
+  // and the handover must list only the ones this community actually gets.
+  await page.locator('.app input[value="immich"]').uncheck();
   await page.click("#next");
   await page.waitForSelector(".plan-summary");
 
@@ -223,6 +226,40 @@ async function walkInstall() {
         /\d+ of \d+ applications ready/.test(
           await page.locator("#progress-text").textContent()));
 
+  check("the handover appears", await page.locator("#handover").isVisible());
+  const credentials = await page.locator(".credential .who").allTextContents();
+  check("the credentials are handed over",
+        credentials.includes("Keycloak Operator (operator)") &&
+        credentials.includes("Argo CD Admin (admin)"));
+  check("a credential carries the note explaining it",
+        (await page.locator(".credential .why").first().textContent()).includes("TOTP"));
+  const addresses = await page.locator("#result-urls a").allTextContents();
+  check("addresses are listed for what was installed",
+        addresses.includes("dashboard.example.org"));
+  check("addresses are not listed for what was not",
+        !addresses.includes("photos.example.org"));
+  check("the dashboard is offered", await page.locator("#open-dashboard").isVisible());
+  check("the dashboard link points at the dashboard",
+        (await page.locator("#open-dashboard").getAttribute("href"))
+          === "https://dashboard.example.org");
+  check("the kubeconfig path is shown",
+        (await page.locator("#kubeconfig-path").textContent()).endsWith("production.yaml"));
+  check("the hosts line is shown for a LAN install",
+        (await page.locator("#hosts-line").textContent()).includes("192.168.1.50"));
+
+  const download = page.waitForEvent("download", { timeout: 15000 });
+  await page.click("#save-credentials");
+  const saved = await download;
+  check("credentials can be saved to a file",
+        saved.suggestedFilename() === "smallworlds-credentials.txt");
+  const stream = await saved.createReadStream();
+  let contents = "";
+  for await (const chunk of stream) contents += chunk;
+  check("the saved file carries the credentials",
+        contents.includes("operator-password-value") && contents.includes("Argo CD"));
+  check("the saved file carries the addresses",
+        contents.includes("https://dashboard.example.org"));
+
   await page.locator("#log-panel summary").click();
   const log = await page.locator("#log").textContent();
   check("the streamed log is shown", log.includes("writing the overlay"));
@@ -240,5 +277,19 @@ async function walkInstall() {
         (await second.locator(".stage").count()) >= 8);
   check("the log is replayed for the reopened page",
         (await second.locator("#log").textContent()).includes("writing the overlay"));
+  check("the handover is shown again on the reopened page",
+        (await second.locator(".credential").count()) >= 2);
+  await second.close();
+
+  // Single-use: once the cluster is up the wizard has no further job, and
+  // leaving a loopback server holding the credentials running is worse.
+  check("closing the wizard is offered", await page.locator("#shutdown").isVisible());
+  await page.click("#shutdown");
+  await page.waitForTimeout(600);
+  check("closing it puts the credentials away",
+        !(await page.locator("#handover").isVisible()));
+  check("closing it says so",
+        (await page.locator("#install-heading").textContent()).includes("closed"));
+
   check("the page logged no errors", problems.length === 0, problems.join(" | "));
 }

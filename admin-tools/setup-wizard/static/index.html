@@ -252,6 +252,33 @@
 
     <div class="check" id="install-outcome"></div>
 
+    <div id="handover" hidden>
+      <h2 class="section">Save these now</h2>
+      <p class="hint">The wizard holds these in memory only. It never writes them
+        anywhere, and once you close this page they are gone — they live on the
+        cluster, where you would have to go and read them back out.</p>
+      <div class="credentials" id="credentials"></div>
+      <button type="button" class="secondary" id="save-credentials">Save to a file</button>
+
+      <h2 class="section">Your community's addresses</h2>
+      <div class="hostnames" id="result-urls"></div>
+
+      <div id="hosts-block" hidden>
+        <h2 class="section">Name resolution</h2>
+        <p class="hint">Nothing manages DNS for a LAN-only cluster. Add this line to
+          your router's DNS or Pi-hole, or to <code>/etc/hosts</code> on every device
+          that should reach the cloud.</p>
+        <pre class="log" id="hosts-line"></pre>
+      </div>
+
+      <div id="kubeconfig-block" hidden>
+        <h2 class="section">Cluster access</h2>
+        <p class="hint">Your kubeconfig was saved to
+          <code id="kubeconfig-path"></code>. Use it with
+          <code>export KUBECONFIG=&lt;that path&gt;</code>.</p>
+      </div>
+    </div>
+
     <details class="advanced" id="log-panel">
       <summary>Show what the installer is doing</summary>
       <pre class="log" id="log" aria-live="polite"></pre>
@@ -259,6 +286,9 @@
 
     <div class="install-actions">
       <button type="button" class="secondary" id="cancel">Stop the install</button>
+      <a class="primary-link" id="open-dashboard" hidden target="_blank" rel="noreferrer">
+        Open your dashboard</a>
+      <button type="button" class="secondary" id="shutdown" hidden>Close the wizard</button>
     </div>
   </section>
 
