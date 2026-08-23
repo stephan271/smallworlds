@@ -1,6 +1,6 @@
 # SmallWorlds Setup Wizard — Design
 
-**Status:** accepted; Phase 0 complete, Phase 1 next
+**Status:** accepted; Phases 0 and 1 complete, Phase 2 next
 **Date:** 2026-08-23
 **Supersedes, in the install half only:** `implementation_plan-operator-console.md`
 
@@ -56,9 +56,12 @@ unchanged for anyone who prefers it.
 
 ```
 admin-tools/setup-wizard/
-  wizard.py          http.server: static files + JSON API + SSE log stream
-  preflight.py       tool, credential, DNS, SSH and disk checks
-  runner.py          subprocess supervision, marker parsing, SSE fan-out
+  wizard.py          http.server: static files, JSON API, and (Phase 2) SSE
+  checks.py          tool, credential, DNS, SSH and disk checks
+  plan.py            defaults, the application catalog, and the dry-run plan
+  runner.py          Phase 2: subprocess supervision, marker parsing, SSE fan-out
+  test_wizard.py     server, defaults and plan
+  test-interface.mjs the five panels, walked in a browser
   static/
     index.html       one page, five panels
     app.js           no framework, no bundler, no dependencies
@@ -222,10 +225,27 @@ interactive prompts are byte-identical to before — `read -p` renders its promp
 only on a terminal, so a pipe-based test would have passed for the wrong
 reason.
 
-### Phase 1 — Wizard skeleton
+### Phase 1 — Wizard skeleton *(done, 2026-08-23)*
 
-Server, session token, `Host` guard, preflight checks, the five panels, and a
-**dry run** that renders the plan and the exact commands without executing.
+- `wizard.py` — loopback-only `http.server`, session token, `Host`-header
+  guard, static files and the JSON API.
+- `checks.py` — the live validation above, including a ~40-line stdlib DNS
+  resolver for the nameserver check (`dig` is absent on plenty of desktops).
+- `plan.py` — defaults read back from the two cache files (parsed, never
+  sourced), the application catalog, field validation, and the dry-run plan.
+- `static/` — the five panels: one page, no framework, no bundler, light and
+  dark.
+- `smallworlds-setup` — the top-level entry point.
+
+`admin-tools/test-setup-wizard.sh` runs both halves: 51 checks over the server,
+its defaults and its plan, and 34 more walking the five panels in a real
+browser via the Playwright already installed for `e2e-tests/` (skipped, not
+failed, when it is absent). The browser half matters here more than usual —
+this is the one part of SmallWorlds whose entire purpose is what a person sees,
+so "the API returned a plan" is not evidence that the wizard works.
+
+Phase 1 explains and does not act: the Install button is inert, and a test
+asserts that planning creates nothing.
 
 ### Phase 2 — Execution
 

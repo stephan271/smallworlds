@@ -64,6 +64,25 @@ Both live under `infrastructure/kubernetes/tenants/{hermes,remediation}/src/` an
 - **`remediation`** (Tier 1): deterministic first-responder. Alertmanager POSTs to `/webhook`; alerts run through an escalation gate (in-process fingerprint + `RESOLVE_DEADLINE_SECONDS`, resets on restart) and a handler registry (`src/registry.py`, `src/handlers/`). A handler either opens a bounded overlay PR (e.g. `handlers/oomkill.py` right-sizes `limits.memory` from Prometheus P95) or declines, which escalates to Hermes. Handlers never mutate the cluster directly — PRs only, targeting the **private overlay** repo (not this base), since that's the only ref ArgoCD actually deploys from. Currently runs with `DRY_RUN: "true"` in `config.yaml` — see `infrastructure/kubernetes/tenants/remediation/README.md` for the arming checklist and known limitations (Deployments only, needs a readable current memory limit).
 - **`hermes`** (Tier 2): the AI SRE agent everything else escalates to; calls Claude over raw HTTP (no `anthropic` SDK) so it stays stdlib-only too.
 
+## The setup wizard (`admin-tools/setup-wizard/`)
+
+`./smallworlds-setup` starts a single-use local web wizard that collects the install
+settings in five panels and then drives `admin-tools/prepare-community-repo.sh` and
+`smallworlds-init.sh` — it never reimplements install logic, so there stays exactly one
+install code path and the terminal route keeps working. Python 3 standard library only,
+no dependencies and no build step (same constraint as the Hermes/Remediation agents);
+the page is plain HTML/CSS/JS with no framework or bundler.
+
+Both scripts run headless under `SMALLWORLDS_NONINTERACTIVE=1` via the shared
+`admin-tools/lib/ask.sh`: a known value is taken, a missing required one exits **78**
+printing `!!! missing:<VAR>`, and progress markers (`>>> step:<id>`) are emitted. Nothing
+about interactive mode changed, and `admin-tools/test-noninteractive-install.sh` asserts
+that over a pty.
+
+Currently at Phase 1 — it validates and shows the plan, but does not install yet. Read
+`plans-and-walkthroughs/design-setup-wizard.md` before changing it; it also records why
+the Operator Console is deactivated. Tests: `admin-tools/test-setup-wizard.sh`.
+
 ## Local end-to-end staging (`admin-tools/test-pr-locally.sh`)
 
 `./admin-tools/test-pr-locally.sh <branch-name>` gives a full ephemeral test of a PR branch: provisions a throwaway Hetzner VM via `infrastructure/terraform-staging/`, diffs the branch against `main` to decide whether to deploy *all* apps (core `apps/`/`bases/`/terraform changed) or only the affected tenants, rewrites `infrastructure/kubernetes/kustomization.yaml` and `targetRevision` fields to point at the branch, deploys via `kubectl apply -k`, waits for every ArgoCD Application to go Healthy, patches `/etc/hosts`, and runs the Playwright e2e suite. It always restores git state and destroys the VM on exit (`trap cleanup EXIT`); set `KEEP_VM=1` to skip teardown for debugging. Requires `HCLOUD_TOKEN`. This script — not manual `kubectl apply` — is the standard way to validate a change against a real cluster before merging.

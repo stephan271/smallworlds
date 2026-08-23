@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>SmallWorlds Setup</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<script>window.SETUP_TOKEN = "__SESSION_TOKEN__";</script>
+
+<header class="masthead">
+  <div class="wordmark">SmallWorlds</div>
+  <div class="subtitle">Set up your community cloud</div>
+</header>
+
+<nav class="steps" id="steps" aria-label="Setup steps"></nav>
+
+<main id="main">
+
+  <!-- 1 ------------------------------------------------------------------ -->
+  <section class="panel" data-panel="community">
+    <h1>Your community</h1>
+    <p class="lede">Two answers. Everything else has a sensible default you can
+      change later in your settings repository.</p>
+
+    <div class="field">
+      <label for="domain">Domain</label>
+      <input id="domain" type="text" autocomplete="off" spellcheck="false"
+             placeholder="example.org">
+      <p class="hint">Every application is named under this — files.example.org,
+        photos.example.org, and so on. You register it with a registrar yourself;
+        nothing here buys a domain.</p>
+      <div class="check" id="check-dns"></div>
+    </div>
+
+    <div class="field">
+      <label for="admin_email">Your email address</label>
+      <input id="admin_email" type="email" autocomplete="off" placeholder="you@example.org">
+      <p class="hint">Used for the Let's Encrypt account and as the operator
+        contact. It is not published to members.</p>
+    </div>
+
+    <details class="advanced">
+      <summary>Advanced settings</summary>
+      <div class="field">
+        <label for="env_ext">Environment extension</label>
+        <input id="env_ext" type="text" autocomplete="off" placeholder="(none)">
+        <p class="hint">Leave empty for production. Set <code>.dev</code> to run a
+          second cluster beside it at files.dev.example.org.</p>
+      </div>
+      <div class="field">
+        <label for="onboarding_mode">How members join</label>
+        <select id="onboarding_mode">
+          <option value="invitation">By invitation — you create the accounts</option>
+          <option value="self-registration">Self-registration — anyone can sign up</option>
+        </select>
+      </div>
+    </details>
+  </section>
+
+  <!-- 2 ------------------------------------------------------------------ -->
+  <section class="panel" data-panel="where" hidden>
+    <h1>Where it runs</h1>
+    <p class="lede">One machine runs everything. You can move it later; the
+      settings repository is what carries your cluster, not the hardware.</p>
+
+    <div class="choices" id="target-choices">
+      <label class="choice">
+        <input type="radio" name="target" value="hetzner">
+        <span class="choice-body">
+          <span class="choice-title">A rented server</span>
+          <span class="choice-detail">A Hetzner Cloud VM, created for you along
+            with its DNS. Reachable from the internet, certificates work out of
+            the box. Roughly €10–25 a month.</span>
+        </span>
+      </label>
+      <label class="choice">
+        <input type="radio" name="target" value="local">
+        <span class="choice-body">
+          <span class="choice-title">A machine you already have</span>
+          <span class="choice-detail">A Linux box on your own network — a mini-PC,
+            an old laptop, a home server. No monthly cost; your electricity and
+            your uptime.</span>
+        </span>
+      </label>
+    </div>
+
+    <div id="hetzner-fields" hidden>
+      <div class="field">
+        <label for="hcloud_token">Hetzner Cloud API token</label>
+        <input id="hcloud_token" type="password" autocomplete="off"
+               placeholder="from Console → Security → API tokens">
+        <p class="hint">Needs read and write. Used to create the server and to
+          manage DNS records. It never leaves this machine except to Hetzner.</p>
+        <div class="check" id="check-hetzner"></div>
+      </div>
+    </div>
+
+    <div id="local-fields" hidden>
+      <div class="field">
+        <label for="ssh_target">The machine</label>
+        <input id="ssh_target" type="text" autocomplete="off"
+               placeholder="root@192.168.1.50, or localhost for this machine">
+        <p class="hint">Needs a systemd Linux, SSH key access and sudo rights.</p>
+      </div>
+      <details class="advanced" open>
+        <summary>Storage and certificates</summary>
+        <div class="field">
+          <label for="data_dir">Data directory</label>
+          <input id="data_dir" type="text" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="backup_dir">Backup directory</label>
+          <input id="backup_dir" type="text" autocomplete="off">
+          <p class="hint">Must be on a <strong>second physical disk</strong>.
+            Backups have to survive losing the operational disk, so the installer
+            refuses a single device.</p>
+        </div>
+        <div class="field">
+          <label for="local_tls">Certificates</label>
+          <select id="local_tls">
+            <option value="letsencrypt">Let's Encrypt — real certificates, works on a LAN</option>
+            <option value="self-signed">Self-signed — breaks single sign-on</option>
+          </select>
+          <p class="hint">Let's Encrypt proves the domain with a DNS record, so it
+            needs no port forwarding and no public IP — a LAN-only cluster gets
+            publicly trusted certificates too.</p>
+        </div>
+        <div class="field">
+          <label for="local_public">Reachable from the internet</label>
+          <select id="local_public">
+            <option value="no">No — LAN only</option>
+            <option value="yes">Yes — keep public DNS pointed at my connection</option>
+          </select>
+          <p class="hint">Needs a public IPv4 without CGNAT and these forwards on
+            your router: 80/tcp, 443/tcp, 10000/udp.</p>
+        </div>
+        <div class="field">
+          <label for="hcloud_token_local">Hetzner API token (DNS only)</label>
+          <input id="hcloud_token_local" type="password" autocomplete="off">
+          <p class="hint">Both Let's Encrypt and internet exposure write records
+            into Hetzner DNS. Not needed if you chose self-signed and LAN only.</p>
+          <div class="check" id="check-hetzner-local"></div>
+        </div>
+        <button type="button" class="secondary" id="probe-target">Check this machine</button>
+        <div class="check" id="check-target"></div>
+      </details>
+    </div>
+
+    <div class="check" id="check-tools"></div>
+  </section>
+
+  <!-- 3 ------------------------------------------------------------------ -->
+  <section class="panel" data-panel="repository" hidden>
+    <h1>Your settings repository</h1>
+    <p class="lede">A private Git repository holds your cluster's configuration.
+      This is the durable part: the cluster follows it, and it is what you would
+      restore from. The wizard writes it once and then gets out of the way.</p>
+
+    <div class="choices" id="git-choices">
+      <label class="choice">
+        <input type="radio" name="git_mode" value="create">
+        <span class="choice-body">
+          <span class="choice-title">Create one for me</span>
+          <span class="choice-detail">A new private GitHub repository, created
+            with the token below.</span>
+        </span>
+      </label>
+      <label class="choice">
+        <input type="radio" name="git_mode" value="existing">
+        <span class="choice-body">
+          <span class="choice-title">I already have one</span>
+          <span class="choice-detail">Any HTTPS Git host — GitHub, a self-hosted
+            Forgejo, GitLab.</span>
+        </span>
+      </label>
+    </div>
+
+    <div class="field">
+      <label for="git_token">Git access token</label>
+      <input id="git_token" type="password" autocomplete="off">
+      <p class="hint">Needs repository read/write, and pull-request rights so the
+        weekly update proposals can be opened. Argo CD reads your repository with
+        this token.</p>
+      <div class="check" id="check-git"></div>
+    </div>
+
+    <div class="field" id="repo-name-field">
+      <label for="repo_name">Repository name</label>
+      <input id="repo_name" type="text" autocomplete="off">
+    </div>
+
+    <div class="field" id="remote-url-field" hidden>
+      <label for="remote_url">Repository URL</label>
+      <input id="remote_url" type="text" autocomplete="off"
+             placeholder="https://github.com/you/my-community-config.git">
+    </div>
+
+    <details class="advanced">
+      <summary>Advanced settings</summary>
+      <div class="field">
+        <label for="git_username">Git username</label>
+        <input id="git_username" type="text" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="repo_path">Where to write it on this machine</label>
+        <input id="repo_path" type="text" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="version">SmallWorlds release to pin</label>
+        <input id="version" type="text" autocomplete="off">
+        <p class="hint">Pinning keeps updates deliberate: the cluster only adopts
+          a newer release when you bump this and commit.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- 4 ------------------------------------------------------------------ -->
+  <section class="panel" data-panel="apps" hidden>
+    <h1>What your community gets</h1>
+    <p class="lede">Start with what you will actually use. Applications can be
+      added later; removing one is harder, so leaving a box unticked costs you
+      nothing.</p>
+
+    <div class="always" id="always-installed"></div>
+    <div class="app-grid" id="app-grid"></div>
+    <div class="check" id="check-apps"></div>
+  </section>
+
+  <!-- 5 ------------------------------------------------------------------ -->
+  <section class="panel" data-panel="review" hidden>
+    <h1>Ready to install</h1>
+    <p class="lede">Everything below is what will happen. Nothing has been
+      created yet.</p>
+    <div id="plan"></div>
+  </section>
+
+</main>
+
+<footer class="actions">
+  <button type="button" class="secondary" id="back">Back</button>
+  <div class="spacer"></div>
+  <span class="footnote" id="footnote"></span>
+  <button type="button" class="primary" id="next">Continue</button>
+</footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

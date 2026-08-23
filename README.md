@@ -59,6 +59,15 @@ This project is built upon several foundational open-source technologies, core i
 
 ## Deployment Instructions
 
+> [!NOTE]
+> **A browser setup wizard is being built** (`./smallworlds-setup`). It asks
+> about five questions with live validation, then drives the very same two
+> scripts documented below — there is one install code path, not two. It is at
+> **Phase 1**: it collects, validates and shows you exactly what would happen,
+> then stops. Installing from it arrives in Phase 2. Until then the steps below
+> are the way to install, and they keep working afterwards as the scripted
+> route. See [`plans-and-walkthroughs/design-setup-wizard.md`](plans-and-walkthroughs/design-setup-wizard.md).
+
 SmallWorlds supports two deployment targets — the installer asks which one you want as its first question:
 
 - **`hetzner`** — a Hetzner Cloud VM provisioned by Terraform, with public DNS and Let's Encrypt certificates. The internet-facing default.
@@ -226,8 +235,13 @@ The `admin-tools/` directory contains helper scripts to automate common operatio
 - **`destroy-cluster.sh`**: Wraps the cluster teardown process. It automatically backs up your certificates and then safely executes `terraform destroy` to delete the cloud resources.
 - **`build-golden-image.sh`**: Builds a pre-configured Hetzner snapshot (golden image) to speed up future VM provisioning.
 
+### Setup
+- **`setup-wizard/`**: The browser setup wizard behind `./smallworlds-setup` — five panels with live validation, driving the two setup scripts rather than reimplementing them. Python standard library only, no dependencies and no build step. Currently stops at the plan (Phase 1); see [`plans-and-walkthroughs/design-setup-wizard.md`](plans-and-walkthroughs/design-setup-wizard.md).
+- **`test-setup-wizard.sh`**: Tests the wizard's server, defaults and plan, then walks its five panels in a real browser using the Playwright installed for `e2e-tests/` (skipped when absent).
+- **`test-noninteractive-install.sh`**: Asserts that both setup scripts run with no tty under `SMALLWORLDS_NONINTERACTIVE=1`, that a missing required value exits 78 naming it, and — over a pty — that interactive mode is unchanged.
+
 ### Repository & Version Management
-- **`prepare-community-repo.sh`**: Interactive script to initialize a new private configuration repository, select applications, and wire it up to the upstream base.
+- **`prepare-community-repo.sh`**: Interactive script to initialize a new private configuration repository, select applications, and wire it up to the upstream base. Also runs non-interactively (`SMALLWORLDS_NONINTERACTIVE=1`), which is how the setup wizard drives it.
 - **`bump-version.sh`**: Automatically detects the highest release tag, increments the patch version, creates a new Git tag, and pushes it to origin.
 - **`update-community-version.sh`**: Updates all `kustomization.yaml` files in your private config repository to pin them to a specific upstream release, then commits and pushes the change.
 

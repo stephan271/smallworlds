@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# The SmallWorlds setup wizard: opens a browser, asks about five questions, and
+# installs your community cloud. The terminal route
+# (admin-tools/prepare-community-repo.sh then ./smallworlds-init.sh) still works
+# exactly as before — this drives those same scripts.
+set -euo pipefail
+
+repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "python3 is required (the installer itself already needs it)." >&2
+    exit 1
+fi
+
+# 3.11 for the typing syntax the wizard uses; every supported distribution has
+# it, and the two in-cluster agents already run 3.14.
+if ! python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)'; then
+    echo "python3 3.11 or newer is required; found $(python3 -V)." >&2
+    exit 1
+fi
+
+exec python3 "$repository_root/admin-tools/setup-wizard/wizard.py" "$@"
