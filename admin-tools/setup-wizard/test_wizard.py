@@ -185,14 +185,16 @@ def test_checks_module():
 # The HTTP surface
 # ---------------------------------------------------------------------------
 
-def start_wizard():
+def start_wizard(extra_environment: dict | None = None):
+    environment = {**os.environ,
+                   "SMALLWORLDS_COMMUNITY_CONFIG": "/nonexistent/community.conf",
+                   "SMALLWORLDS_INIT_CACHE": "/nonexistent/init.env"}
+    environment.update(extra_environment or {})
     process = subprocess.Popen(
         [sys.executable, os.path.join(WIZARD_DIRECTORY, "wizard.py"),
          "--no-browser", "--port", "0"],
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, cwd=REPO_ROOT,
-        env={**os.environ,
-             "SMALLWORLDS_COMMUNITY_CONFIG": "/nonexistent/community.conf",
-             "SMALLWORLDS_INIT_CACHE": "/nonexistent/init.env"},
+        env=environment,
     )
     deadline = time.time() + 20
     while time.time() < deadline:
@@ -310,10 +312,267 @@ def test_server():
         process.wait(timeout=10)
 
 
+# ---------------------------------------------------------------------------
+# Running the scripts
+# ---------------------------------------------------------------------------
+
+STUB_REPOSITORY_SCRIPT = """#!/usr/bin/env bash
+set -e
+[ "$SMALLWORLDS_NONINTERACTIVE" = "1" ] || { echo "not headless"; exit 9; }
+echo ">>> step:repo-init Initialising"
+echo "writing the overlay"
+echo ">>> ok:repo-init"
+echo ">>> step:repo-push Pushing"
+echo "pushing as $GIT_USERNAME"
+echo ">>> ok:repo-push"
+"""
+
+STUB_INSTALLER_SCRIPT = """#!/usr/bin/env bash
+set -e
+echo ">>> step:terraform-apply Creating the server"
+echo "a careless script printing its token: $GIT_PASSWORD"
+echo ">>> ok:terraform-apply"
+echo ">>> step:argocd-converge Waiting"
+echo "  [3/120] 12/19 apps healthy (root: Synced/Progressing)"
+echo "${STUB_INSTALLER_EXTRA:-}"
+exit "${STUB_INSTALLER_EXIT:-0}"
+"""
+
+
+def make_stub_checkout(directory: str) -> str:
+    """A checkout whose two scripts print markers and exit, so the runner can be
+    exercised without provisioning anything."""
+    root = os.path.join(directory, "checkout")
+    os.makedirs(os.path.join(root, "admin-tools"), exist_ok=True)
+    for relative, body in (
+        ("admin-tools/prepare-community-repo.sh", STUB_REPOSITORY_SCRIPT),
+        ("smallworlds-init.sh", STUB_INSTALLER_SCRIPT),
+    ):
+        path = os.path.join(root, relative)
+        with open(path, "w") as handle:
+            handle.write(body)
+        os.chmod(path, 0o755)
+
+    # Tagged, so the wizard reads its default release from here instead of
+    # falling back to asking GitHub — the stub stays usable offline.
+    environment = {**os.environ, "GIT_AUTHOR_NAME": "test",
+                   "GIT_AUTHOR_EMAIL": "test@example.org",
+                   "GIT_COMMITTER_NAME": "test",
+                   "GIT_COMMITTER_EMAIL": "test@example.org"}
+    for command in (["git", "init", "-q", "-b", "main"], ["git", "add", "-A"],
+                    ["git", "commit", "-qm", "stub"], ["git", "tag", "v1.2.43"]):
+        subprocess.run(command, cwd=root, env=environment, capture_output=True)
+    return root
+
+
+def test_runner():
+    print("runner — writing the cache files")
+    import tempfile
+    import runner
+
+    directory = tempfile.mkdtemp()
+    answers = {
+        "domain": "example.org", "admin_email": "you@example.org", "env_ext": ".dev",
+        "onboarding_mode": "invitation", "target": "hetzner",
+        "git_mode": "existing", "git_username": "octocat",
+        "remote_url": "https://github.com/octocat/overlay.git",
+        "repo_path": os.path.join(directory, "overlay"), "version": "v1.2.43",
+        "apps": ["nextcloud", "excalidraw"],
+    }
+    tokens = {"HCLOUD_TOKEN": "hetzner-secret", "GITOPS_REPO_TOKEN": "git-secret"}
+
+    repository_config = os.path.join(directory, "config", "community-setup.conf")
+    runner.write_repository_config(answers, repository_config, answers["apps"])
+    written = plan_module()._read_shell_assignments(repository_config)
+    check("the repository config carries the answers",
+          written["STORED_TARGET_DOMAIN"] == "example.org" and
+          written["STORED_VERSION"] == "v1.2.43")
+    check("selected applications are marked y",
+          written["STORED_APP_nextcloud"] == "y" and written["STORED_APP_excalidraw"] == "y")
+    check("unselected applications are marked n", written["STORED_APP_immich"] == "n")
+    check("pod-gateway becomes a shell-safe name", "STORED_APP_pod_gateway" in written)
+    # The wizard creates the repository itself, so the script must not shell out
+    # to the GitHub CLI, and must push what it wrote.
+    check("repository creation is left to the wizard", written["STORED_CREATE_REPO"] == "n")
+    check("the overlay is pushed", written["STORED_PUSH_CHOICE"] == "y")
+    check("the config is private", oct(os.stat(repository_config).st_mode)[-3:] == "600")
+
+    installer_cache = os.path.join(directory, "cache.env")
+    runner.write_installer_cache(answers, installer_cache, tokens)
+    cached = plan_module()._read_shell_assignments(installer_cache)
+    check("the installer cache carries the answers",
+          cached["DOMAIN"] == "example.org" and cached["ENV_EXT"] == ".dev")
+    check("the tokens reach the installer", cached["HCLOUD_TOKEN"] == "hetzner-secret")
+    check("the cache is private", oct(os.stat(installer_cache).st_mode)[-3:] == "600")
+
+    # Regenerating these would lock the operator out of a cluster already up.
+    with open(installer_cache, "a") as handle:
+        handle.write("KC_PASS='already-generated'\n")
+    runner.write_installer_cache(answers, installer_cache, tokens)
+    check("generated credentials survive a second run",
+          plan_module()._read_shell_assignments(installer_cache)["KC_PASS"]
+          == "already-generated")
+
+    # A value is quoted for bash, not merely inserted into it.
+    runner.write_installer_cache(
+        {**answers, "domain": "evil'; touch /tmp/smallworlds-wizard-injection; #"},
+        installer_cache, tokens)
+    subprocess.run(["bash", "-c", f". {installer_cache}"], capture_output=True)
+    check("a hostile answer cannot escape into the shell",
+          not os.path.exists("/tmp/smallworlds-wizard-injection"))
+
+    print("runner — running the scripts")
+    checkout = make_stub_checkout(directory)
+    run = runner.Run(answers, {"GITOPS_REPO_TOKEN": "SUPER-SECRET-TOKEN-VALUE"}, checkout)
+    check("the stage list is derived from the answers",
+          [stage["id"] for stage in run.stages] == runner.HETZNER_STAGES)
+
+    watcher = run.subscribe()
+    run.start()
+    deadline = time.time() + 60
+    seen = []
+    while time.time() < deadline:
+        try:
+            message = watcher.get(timeout=5)
+        except Exception:
+            break
+        seen.append(message["event"])
+        if message["event"] == "done":
+            break
+    final = run.snapshot()
+
+    check("the run succeeded", final["status"] == "succeeded", final.get("error", ""))
+    check("markers became stages, not log lines",
+          not any(line.startswith(">>>") for line in final["log"]))
+    states = {stage["id"]: stage["state"] for stage in final["stages"]}
+    check("finished stages are marked done",
+          states["repo-init"] == "done" and states["terraform-apply"] == "done")
+    check("stages nobody reached stay pending", states["secrets"] == "pending")
+    check("the convergence counter is parsed",
+          final["progress"] == {"healthy": 12, "total": 19})
+    check("the scripts ran headless",
+          not any("not headless" in line for line in final["log"]))
+    check("git credentials reach the scripts",
+          any("pushing as octocat" in line for line in final["log"]))
+
+    # The single most important property of the log.
+    check("a secret printed by a script is redacted",
+          not any("SUPER-SECRET-TOKEN-VALUE" in line for line in final["log"]) and
+          any("[redacted]" in line for line in final["log"]))
+    check("redaction leaves the rest of the line intact",
+          any("a careless script printing its token" in line for line in final["log"]))
+    check("watchers saw the stream", {"stage", "log", "status", "done"} <= set(seen))
+
+    print("runner — a script that fails")
+    os.environ["STUB_INSTALLER_EXIT"] = "1"
+    failing = runner.Run(answers, {}, checkout)
+    failing.start()
+    deadline = time.time() + 60
+    while time.time() < deadline and failing.status in ("starting", "running"):
+        time.sleep(0.2)
+    del os.environ["STUB_INSTALLER_EXIT"]
+    check("a failing script fails the run", failing.status == "failed", failing.status)
+    check("the failure says what it was doing", "installing the cluster" in failing.error)
+    check("the stage it died in is marked failed",
+          any(stage["state"] == "failed" for stage in failing.stages))
+
+
+def plan_module():
+    import plan
+    return plan
+
+
+def test_install_endpoint():
+    print("server — starting and streaming an install")
+    import tempfile
+    directory = tempfile.mkdtemp()
+    checkout = make_stub_checkout(directory)
+
+    process, base, token = start_wizard(extra_environment={
+        "SMALLWORLDS_REPO_ROOT": checkout,
+        "SMALLWORLDS_COMMUNITY_CONFIG": os.path.join(directory, "community.conf"),
+        "SMALLWORLDS_INIT_CACHE": os.path.join(directory, "cache.env"),
+    })
+    try:
+        status, body = call(base, "/api/install/status", token=token)
+        check("nothing is running to begin with", json.loads(body)["status"] == "idle")
+
+        answers = {
+            "domain": "example.org", "admin_email": "you@example.org", "env_ext": "",
+            "onboarding_mode": "invitation", "target": "hetzner",
+            "hcloud_token": "a-token", "git_token": "another-token",
+            "git_mode": "existing", "git_username": "octocat",
+            "remote_url": "https://github.com/octocat/overlay.git",
+            "repo_path": os.path.join(directory, "overlay"),
+            "repo_name": "overlay", "version": "v1.2.43", "apps": ["nextcloud"],
+        }
+        status, body = call(base, "/api/install", token=token, body={"answers": answers})
+        started = json.loads(body)
+        check("the install starts", started.get("started") is True, body[:200])
+        check("the stage list comes back with it", len(started.get("stages", [])) > 0)
+
+        # A second install must not race the first over the same files and node.
+        status, body = call(base, "/api/install", token=token, body={"answers": answers})
+        second = json.loads(body)
+        check("a second install is refused while one runs",
+              second.get("started") is False and second.get("reason") == "already_running")
+
+        events = read_events(base, token, limit_seconds=45)
+        check("the stream delivers a snapshot first", events[0][0] == "snapshot")
+        kinds = {name for name, _ in events}
+        check("the stream carries stages and log lines", {"stage", "log"} <= kinds)
+        check("the stream ends with done", events[-1][0] == "done")
+
+        final = json.loads(events[-1][1])
+        check("the install succeeded", final["status"] == "succeeded", final.get("error", ""))
+        check("no secret reached the browser",
+              not any("a-token" in line or "another-token" in line for line in final["log"]))
+
+        status, body = call(base, "/api/install/status", token=token)
+        check("the outcome survives for a reopened page",
+              json.loads(body)["status"] == "succeeded")
+
+        # The two cache files are what the scripts read; they must be private.
+        for path in (os.path.join(directory, "community.conf"),
+                     os.path.join(directory, "cache.env")):
+            check(f"{os.path.basename(path)} was written 0600",
+                  os.path.exists(path) and oct(os.stat(path).st_mode)[-3:] == "600")
+
+        status, body = call(base, "/api/install", token=token,
+                            body={"answers": {"target": "local"}})
+        refused = json.loads(body)
+        check("an incomplete install is refused, with the fields named",
+              refused.get("started") is False and refused.get("reason") == "incomplete")
+    finally:
+        process.terminate()
+        process.wait(timeout=10)
+
+
+def read_events(base, token, limit_seconds=45):
+    """Read the event stream to its end, as the browser's EventSource does."""
+    request = urllib.request.Request(f"{base}/api/events?t={token}")
+    collected = []
+    deadline = time.time() + limit_seconds
+    with urllib.request.urlopen(request, timeout=limit_seconds) as response:
+        name = None
+        while time.time() < deadline:
+            line = response.readline().decode("utf-8", "replace").rstrip("\n")
+            if line.startswith("event: "):
+                name = line[len("event: "):]
+            elif line.startswith("data: ") and name:
+                collected.append((name, line[len("data: "):]))
+                if name == "done":
+                    break
+                name = None
+    return collected
+
+
 if __name__ == "__main__":
     test_plan_module()
     test_checks_module()
     test_server()
+    test_runner()
+    test_install_endpoint()
     print()
     if skipped:
         print(f"{len(skipped)} check(s) skipped for lack of network.")

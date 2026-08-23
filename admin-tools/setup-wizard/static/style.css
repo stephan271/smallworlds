@@ -46,6 +46,10 @@
 
 * { box-sizing: border-box; }
 
+/* `hidden` is only display:none at the user-agent level, so any rule that sets
+   display -- .steps and .actions are both flex -- silently wins over it. */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   padding: 0 0 6rem;
@@ -396,3 +400,76 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* --- installing --------------------------------------------------------- */
+
+.stages { list-style: none; margin: 0 0 1.2rem; padding: 0; }
+.stage {
+  display: flex;
+  align-items: flex-start;
+  gap: .7rem;
+  padding: .55rem 0;
+  border-top: 1px solid var(--border);
+  font-size: .9rem;
+}
+.stage:first-child { border-top: none; }
+.stage .glyph {
+  flex: none;
+  width: 1.4rem; height: 1.4rem;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: .75rem; font-weight: 650;
+  background: var(--surface-sunken);
+  color: var(--ink-faint);
+  border: 1px solid var(--border);
+}
+.stage[data-state="pending"] { color: var(--ink-faint); }
+.stage[data-state="running"] .glyph {
+  background: var(--accent); color: var(--accent-ink); border-color: transparent;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.stage[data-state="running"] { font-weight: 560; }
+.stage[data-state="done"] .glyph {
+  background: var(--accent-soft); color: var(--accent); border-color: transparent;
+}
+.stage[data-state="failed"] .glyph {
+  background: var(--error-soft); color: var(--error); border-color: transparent;
+}
+.stage .note { display: block; font-size: .82rem; color: var(--ink-soft); font-weight: 400; }
+
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) {
+  .stage[data-state="running"] .glyph { animation: none; }
+}
+
+.progress { margin: 0 0 1.2rem; }
+.progress-bar {
+  height: .45rem;
+  background: var(--surface-sunken);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.progress-bar span {
+  display: block; height: 100%; width: 0;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width .4s ease;
+}
+
+.log {
+  margin: .8rem 0 0;
+  max-height: 22rem;
+  overflow: auto;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .7rem .8rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .76rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.install-actions { margin-top: 1.4rem; display: flex; gap: .6rem; flex-wrap: wrap; }

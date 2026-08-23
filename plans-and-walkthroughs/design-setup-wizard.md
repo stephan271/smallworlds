@@ -1,6 +1,6 @@
 # SmallWorlds Setup Wizard — Design
 
-**Status:** accepted; Phases 0 and 1 complete, Phase 2 next
+**Status:** accepted; Phases 0–2 complete, Phase 3 next
 **Date:** 2026-08-23
 **Supersedes, in the install half only:** `implementation_plan-operator-console.md`
 
@@ -247,9 +247,37 @@ so "the API returned a plan" is not evidence that the wizard works.
 Phase 1 explains and does not act: the Install button is inert, and a test
 asserts that planning creates nothing.
 
-### Phase 2 — Execution
+### Phase 2 — Execution *(done, 2026-08-23)*
 
-Subprocess supervision, SSE streaming, stage progress, cancel, resume.
+`runner.py` renders the answers into the two cache files — quoted for bash, and
+created `0600` from the open, not chmodded after — creates the private
+repository through the Git host's API rather than shelling out to `gh`, then
+runs both scripts with `SMALLWORLDS_NONINTERACTIVE=1` in their own process
+group. Markers become a stage list, `[n/120] x/y apps healthy` becomes a
+progress bar, and everything else becomes a log streamed over SSE. Each new
+watcher is handed a snapshot first, so reopening the page mid-install shows
+everything that has happened rather than only what arrives next.
+
+Two properties are worth stating because they are easy to get wrong:
+
+- **Redaction.** Every value the operator supplied is stripped from the log
+  before it leaves the runner, so a script that carelessly prints its own token
+  cannot leak it into the browser. The log lives in memory and is never written
+  to disk.
+- **Generated credentials survive a re-run.** The installer cache is the only
+  place the Keycloak, Argo CD and Garage passwords exist before the node does;
+  regenerating them on a second attempt would lock the operator out of a cluster
+  that is already up.
+
+The browser tests grew a second pass that actually clicks Install, against a
+checkout whose two scripts print markers and exit — the whole browser path
+without touching a cloud account. It found four real bugs: `hidden` losing to
+`display: flex` on the step rail and the footer, a load-order race that dropped
+a running install back to the first panel, a stage left pulsing after the
+installer had exited, and — the one that mattered — `_install` reading tokens
+only from the session, so a token typed and immediately submitted, before the
+debounced check behind that field had fired, never reached the installer at
+all.
 
 ### Phase 3 — Convergence and handover
 

@@ -15,9 +15,9 @@
 // wrapper passes the resolved path instead of a second Playwright install.
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || "playwright");
 
-const [url] = process.argv.slice(2);
+const [url, mode = "plan"] = process.argv.slice(2);
 if (!url) {
-  console.error("usage: test-interface.mjs <wizard url>");
+  console.error("usage: test-interface.mjs <wizard url> [plan|install]");
   process.exit(2);
 }
 
@@ -37,6 +37,11 @@ page.on("console", (message) => {
 
 const panel = () => page.locator(".panel:not([hidden])");
 const openPanel = () => panel().getAttribute("data-panel");
+
+if (mode === "install") {
+  await walkInstall();
+  await finish();
+}
 
 console.log("interface — the five panels");
 
@@ -127,8 +132,7 @@ check("the plan repeats the webmail warning",
 check("the plan shows the commands that will run",
       (await page.locator(".commands code").allTextContents())
         .some((text) => text.includes("smallworlds-init.sh")));
-// Phase 1 explains and does not act.
-check("installing is not offered yet", await page.locator("#next").isDisabled());
+check("installing is offered", !(await page.locator("#next").isDisabled()));
 
 await page.locator(".step").first().click();
 await page.waitForSelector('[data-panel="community"]:not([hidden])');
@@ -150,11 +154,91 @@ check("the page paints its own background in dark mode",
       }));
 
 check("the page logged no errors", problems.length === 0, problems.join(" | "));
+await finish();
 
-await browser.close();
-console.log("");
-if (failures.length) {
-  console.log(`${failures.length} check(s) failed.`);
-  process.exit(1);
+async function finish() {
+  await browser.close();
+  console.log("");
+  if (failures.length) {
+    console.log(`${failures.length} check(s) failed.`);
+    process.exit(1);
+  }
+  console.log("All checks passed.");
+  process.exit(0);
 }
-console.log("All checks passed.");
+
+/* The install walk runs against a wizard pointed at a stub checkout whose two
+   scripts print markers and exit, so this exercises the whole browser path —
+   Install, the stage list, the streamed log, the outcome — without touching a
+   cloud account. */
+async function walkInstall() {
+  console.log("interface — installing");
+  await page.goto(url, { waitUntil: "networkidle" });
+  await page.waitForSelector('.step[data-state="current"]');
+
+  await page.fill("#domain", "example.org");
+  await page.fill("#admin_email", "you@example.org");
+  await page.click("#next");
+  await page.waitForSelector('[data-panel="where"]:not([hidden])');
+  await page.fill("#hcloud_token", "a-token-that-must-not-be-shown");
+  await page.click("#next");
+  await page.waitForSelector('[data-panel="repository"]:not([hidden])');
+  await page.check('input[name="git_mode"][value="existing"]');
+  await page.fill("#remote_url", "https://github.com/octocat/overlay.git");
+  // The username lives behind Advanced settings: it defaults to
+  // x-access-token, which is what a GitHub token wants.
+  await page.locator('[data-panel="repository"] .advanced summary').click();
+  await page.fill("#git_username", "octocat");
+  await page.fill("#git_token", "another-token-that-must-not-be-shown");
+  await page.click("#next");
+  await page.waitForSelector('[data-panel="apps"]:not([hidden])');
+  await page.click("#next");
+  await page.waitForSelector(".plan-summary");
+
+  await page.click("#next");
+  await page.waitForSelector('[data-panel="install"]:not([hidden])', { timeout: 20000 });
+  check("clicking Install shows the progress view", true);
+  check("the step rail is put away", !(await page.locator("#steps").isVisible()));
+  check("Back is no longer offered", !(await page.locator(".actions").isVisible()));
+  check("every expected stage is listed up front",
+        (await page.locator(".stage").count()) >= 8);
+
+  await page.waitForSelector('#install-outcome[data-status]', { timeout: 90000 });
+  const outcome = await page.locator("#install-outcome").textContent();
+  check("the install reports success", /finished/i.test(outcome), outcome);
+  check("finished stages are ticked",
+        (await page.locator('.stage[data-state="done"]').count()) >= 2);
+  check("stages nobody reached stay pending",
+        (await page.locator('.stage[data-state="pending"]').count()) >= 1);
+  // The scripts do not emit a completion marker for every stage, so nothing
+  // may be left pulsing once the installer has exited.
+  check("no stage is left running after the install ends",
+        (await page.locator('.stage[data-state="running"]').count()) === 0);
+  check("a finished stage drops its in-progress note",
+        (await page.locator('.stage[data-state="done"] .note').first().textContent())
+          .trim() === "");
+  check("the convergence progress bar appeared",
+        await page.locator("#progress").isVisible());
+  check("the progress bar says how many applications are ready",
+        /\d+ of \d+ applications ready/.test(
+          await page.locator("#progress-text").textContent()));
+
+  await page.locator("#log-panel summary").click();
+  const log = await page.locator("#log").textContent();
+  check("the streamed log is shown", log.includes("writing the overlay"));
+  check("markers are turned into stages, not printed", !log.includes(">>> step:"));
+  check("a secret a script printed is redacted",
+        !log.includes("another-token-that-must-not-be-shown") && log.includes("[redacted]"));
+  check("the tokens typed into the wizard never appear",
+        !log.includes("must-not-be-shown"));
+
+  // Reopening mid-install must show the install, not the first panel again.
+  const second = await browser.newPage({ viewport: { width: 900, height: 1000 } });
+  await second.goto(url, { waitUntil: "networkidle" });
+  await second.waitForSelector('[data-panel="install"]:not([hidden])', { timeout: 20000 });
+  check("reopening the page returns to the install",
+        (await second.locator(".stage").count()) >= 8);
+  check("the log is replayed for the reopened page",
+        (await second.locator("#log").textContent()).includes("writing the overlay"));
+  check("the page logged no errors", problems.length === 0, problems.join(" | "));
+}

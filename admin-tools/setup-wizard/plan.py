@@ -15,7 +15,12 @@ import re
 import shlex
 import subprocess
 
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+# The SmallWorlds checkout whose scripts get run. Normally the one this file
+# lives in; overridable so the tests can point the wizard at stub scripts, and
+# so the wizard can be run against a checkout somewhere else.
+REPO_ROOT = os.path.abspath(
+    os.environ.get("SMALLWORLDS_REPO_ROOT")
+    or os.path.join(os.path.dirname(__file__), "..", ".."))
 # Where the two setup scripts cache their answers. Both are overridable so the
 # tests can exercise a first-time operator's empty machine without touching the
 # operator's real files -- prepare-community-repo.sh already follows $HOME for

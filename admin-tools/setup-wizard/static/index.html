@@ -237,6 +237,31 @@
     <div id="plan"></div>
   </section>
 
+  <!-- installing ---------------------------------------------------------- -->
+  <section class="panel" data-panel="install" hidden>
+    <h1 id="install-heading">Installing</h1>
+    <p class="lede" id="install-lede">This takes five to fifteen minutes. You can
+      close this tab and come back — the install carries on without the browser.</p>
+
+    <ol class="stages" id="stages"></ol>
+
+    <div class="progress" id="progress" hidden>
+      <div class="progress-bar"><span id="progress-fill"></span></div>
+      <p class="hint" id="progress-text"></p>
+    </div>
+
+    <div class="check" id="install-outcome"></div>
+
+    <details class="advanced" id="log-panel">
+      <summary>Show what the installer is doing</summary>
+      <pre class="log" id="log" aria-live="polite"></pre>
+    </details>
+
+    <div class="install-actions">
+      <button type="button" class="secondary" id="cancel">Stop the install</button>
+    </div>
+  </section>
+
 </main>
 
 <footer class="actions">

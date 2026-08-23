@@ -524,3 +524,72 @@ def check_local_target(ssh_target: str, data_dir: str, backup_dir: str) -> dict:
     if notes:
         summary += " " + "; ".join(notes).capitalize() + "."
     return ok(summary, **result)
+
+
+# ---------------------------------------------------------------------------
+# Creating the settings repository
+# ---------------------------------------------------------------------------
+
+def create_github_repository(token: str, name: str) -> dict:
+    """Create the private repository the overlay is pushed to.
+
+    Done here rather than by prepare-community-repo.sh's `gh repo create`,
+    because the wizard already holds a token that can do it — requiring the
+    GitHub CLI as well would mean an operator can be authenticated for one and
+    not the other, which is a confusing way to fail.
+
+    Idempotent: a repository that already exists under this account is adopted
+    rather than treated as an error, so a second run of the wizard works.
+    """
+    if not token:
+        return bad("No token given.")
+    if not name:
+        return bad("No repository name given.")
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "smallworlds-setup-wizard",
+        "Content-Type": "application/json",
+    }
+    status, body, _ = _request(f"{GITHUB_API}/user", headers=headers)
+    if status != 200 or not body:
+        return bad("GitHub rejected this token.")
+    login = body.get("login")
+
+    status, body, _ = _request(f"{GITHUB_API}/repos/{login}/{name}", headers=headers)
+    if status == 200 and body:
+        return ok(
+            f"Using the existing repository {body['full_name']}.",
+            clone_url=body.get("clone_url"), full_name=body.get("full_name"),
+            created=False, private=body.get("private", False),
+        )
+
+    payload = json.dumps({
+        "name": name,
+        "private": True,
+        "description": "SmallWorlds community configuration",
+        # An initial commit would collide with the overlay's own first commit,
+        # which the installer resolves as an exact revision.
+        "auto_init": False,
+    }).encode()
+    request = urllib.request.Request(
+        f"{GITHUB_API}/user/repos", data=payload, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+            created = json.loads(response.read())
+    except urllib.error.HTTPError as error:
+        detail = ""
+        try:
+            detail = (json.loads(error.read()) or {}).get("message") or ""
+        except ValueError:
+            pass
+        return bad(f"GitHub refused to create the repository: {detail or error.code}")
+    except (urllib.error.URLError, socket.timeout, OSError) as error:
+        return unknown("Could not reach GitHub.", detail=str(error))
+
+    return ok(
+        f"Created the private repository {created['full_name']}.",
+        clone_url=created.get("clone_url"), full_name=created.get("full_name"),
+        created=True, private=created.get("private", True),
+    )

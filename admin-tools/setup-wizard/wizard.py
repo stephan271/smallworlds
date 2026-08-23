@@ -19,6 +19,7 @@ import argparse
 import http.server
 import json
 import os
+import queue
 import secrets
 import socket
 import sys
@@ -30,6 +31,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import checks  # noqa: E402
 import plan as planning  # noqa: E402
+import runner as running  # noqa: E402
 
 STATIC_DIRECTORY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
@@ -58,6 +60,9 @@ class Session:
     def __init__(self):
         self.token = secrets.token_urlsafe(32)
         self.secrets: dict[str, str] = {}
+        # At most one installation at a time. A second would race the first
+        # over the same cache files, the same repository and the same node.
+        self.run: running.Run | None = None
 
     def remember_secret(self, name: str, value: str):
         if value:
@@ -165,6 +170,26 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._send_json(200, planning.initial_state())
             return
 
+        if route == "/api/install/status":
+            if not self._authorised():
+                self._send_json(403, {"error": "Bad session token."})
+                return
+            self._send_json(200, SESSION.run.snapshot() if SESSION.run
+                            else {"status": "idle"})
+            return
+
+        if route == "/api/events":
+            # EventSource cannot set headers, so this one route takes its token
+            # from the query string. Same value, same loopback-only server, and
+            # the page's own URL already carries it.
+            query = urllib.parse.parse_qs(path.query)
+            supplied = (query.get("t") or [""])[0]
+            if not secrets.compare_digest(supplied, SESSION.token):
+                self._send_json(403, {"error": "Bad session token."})
+                return
+            self._stream_events()
+            return
+
         self._send_json(404, {"error": "No such route."})
 
     def do_POST(self):
@@ -186,6 +211,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "/api/check/git": self._check_git,
                 "/api/check/target": self._check_target,
                 "/api/plan": self._build_plan,
+                "/api/install": self._install,
+                "/api/install/cancel": self._cancel,
             }[route]
         except KeyError:
             self._send_json(404, {"error": "No such route."})
@@ -263,16 +290,120 @@ class Handler(http.server.BaseHTTPRequestHandler):
             (body.get("backup_dir") or "").strip(),
         )
 
-    def _build_plan(self, body: dict) -> dict:
-        answers = dict(body.get("answers") or {})
-        # Secrets submitted along the way are held by the session, so a plan
-        # request need not carry them again — and the plan itself never
-        # contains one.
+    # ------------------------------------------------------------- installing
+
+    def _install(self, body: dict) -> dict:
+        if SESSION.run and SESSION.run.status in ("starting", "running"):
+            return {"started": False, "reason": "already_running",
+                    "message": "An installation is already under way."}
+
+        answers = self._with_session_secrets(dict(body.get("answers") or {}))
+        problems = planning.validate_answers(answers)
+        if problems:
+            return {"started": False, "reason": "incomplete", "problems": problems}
+
+        # The submitted value first, then whatever a validation call along the
+        # way already remembered, then the token cached on this machine. Reading
+        # only the session would silently install with no token at all when the
+        # operator typed one and pressed Install before the debounced check
+        # behind that field had fired.
+        token_source = {
+            "HCLOUD_TOKEN": SESSION.resolve_secret(
+                "HCLOUD_TOKEN", answers.get("hcloud_token") or "", True),
+            "GITOPS_REPO_TOKEN": SESSION.resolve_secret(
+                "GITOPS_REPO_TOKEN", answers.get("git_token") or "", True),
+        }
+        if not token_source["GITOPS_REPO_TOKEN"]:
+            return {"started": False, "reason": "missing_token",
+                    "message": "No Git access token — Argo CD cannot read your "
+                               "settings repository without one."}
+
+        # The repository has to exist, and hold the overlay, before any machine
+        # is touched: installing IS the act of pointing a new cluster at it.
+        if answers.get("git_mode") == "create":
+            created = checks.create_github_repository(
+                token_source["GITOPS_REPO_TOKEN"], answers["repo_name"])
+            if created["status"] != "ok":
+                return {"started": False, "reason": "repository",
+                        "message": created["summary"]}
+            answers["remote_url"] = created["clone_url"]
+
+        apps = list(answers.get("apps") or [])
+        running.write_repository_config(answers, planning.COMMUNITY_CONFIG, apps)
+        running.write_installer_cache(answers, planning.INIT_CACHE, token_source)
+
+        SESSION.run = running.Run(answers, token_source, planning.REPO_ROOT)
+        SESSION.run.start()
+        return {"started": True, "remote_url": answers["remote_url"],
+                "stages": SESSION.run.stages}
+
+    def _cancel(self, body: dict) -> dict:
+        if not SESSION.run or SESSION.run.status not in ("starting", "running"):
+            return {"cancelled": False, "message": "Nothing is running."}
+        return {"cancelled": SESSION.run.cancel()}
+
+    def _with_session_secrets(self, answers: dict) -> dict:
         answers["use_saved_hcloud_token"] = bool(
             answers.get("use_saved_hcloud_token") or SESSION.secrets.get("HCLOUD_TOKEN"))
         answers["use_saved_git_token"] = bool(
             answers.get("use_saved_git_token") or SESSION.secrets.get("GITOPS_REPO_TOKEN"))
-        return planning.build_plan(answers)
+        return answers
+
+    def _stream_events(self):
+        """Server-sent events for the whole of one installation.
+
+        Each new watcher is handed a snapshot first, so reopening the page in
+        the middle of an install shows everything that has happened rather than
+        only what arrives next.
+        """
+        run = SESSION.run
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Connection", "close")
+        self.end_headers()
+
+        def write(event: str, data) -> bool:
+            try:
+                self.wfile.write(
+                    f"event: {event}\ndata: {json.dumps(data)}\n\n".encode("utf-8"))
+                self.wfile.flush()
+                return True
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                return False
+
+        if run is None:
+            write("snapshot", {"status": "idle"})
+            return
+
+        watcher = run.subscribe()
+        try:
+            while True:
+                try:
+                    message = watcher.get(timeout=20)
+                except queue.Empty:
+                    # A comment frame: proxies and browsers both drop a stream
+                    # that says nothing for long enough, and Argo CD can take a
+                    # quarter of an hour to converge.
+                    try:
+                        self.wfile.write(b": keep-alive\n\n")
+                        self.wfile.flush()
+                        continue
+                    except (BrokenPipeError, ConnectionResetError, OSError):
+                        return
+                if not write(message["event"], message["data"]):
+                    return
+                if message["event"] == "done":
+                    return
+        finally:
+            run.unsubscribe(watcher)
+
+    def _build_plan(self, body: dict) -> dict:
+        # Secrets submitted along the way are held by the session, so a plan
+        # request need not carry them again — and the plan itself never
+        # contains one.
+        return planning.build_plan(
+            self._with_session_secrets(dict(body.get("answers") or {})))
 
 
 class ThreadingServer(http.server.ThreadingHTTPServer):

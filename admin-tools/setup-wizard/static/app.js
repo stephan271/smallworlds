@@ -150,15 +150,27 @@ function go(index) {
   PANELS.forEach((panel, i) => {
     document.querySelector(`[data-panel="${panel.id}"]`).hidden = i !== current;
   });
+  document.querySelector('[data-panel="install"]').hidden = true;
+  el("steps").hidden = false;
   el("back").disabled = current === 0;
   el("next").textContent = current === PANELS.length - 1 ? "Install" : "Continue";
-  el("next").disabled = current === PANELS.length - 1;   // Phase 2 arms this
-  el("footnote").textContent = current === PANELS.length - 1
-    ? "Installing is Phase 2 — this build stops at the plan."
-    : "";
+  el("next").disabled = false;
+  el("footnote").textContent = "";
   renderSteps();
   window.scrollTo({ top: 0, behavior: "instant" });
   if (PANELS[current].id === "review") requestPlan();
+}
+
+/* Installing leaves the panelled flow entirely: there is nothing left to
+   answer, and offering Back would suggest the install could be un-done. */
+function showInstalling() {
+  PANELS.forEach((panel) => {
+    document.querySelector(`[data-panel="${panel.id}"]`).hidden = true;
+  });
+  document.querySelector('[data-panel="install"]').hidden = false;
+  el("steps").hidden = true;
+  document.querySelector(".actions").hidden = true;
+  window.scrollTo({ top: 0, behavior: "instant" });
 }
 
 /* Field-level problems are reported against the panel that owns them, so
@@ -170,6 +182,7 @@ const FIELD_PANEL = {
 };
 
 function advance() {
+  if (PANELS[current].id === "review") { install(); return; }
   const collected = answers();
   api("/api/plan", { answers: collected }).then((result) => {
     document.querySelectorAll("input").forEach((i) => i.classList.remove("invalid"));
@@ -480,13 +493,185 @@ function wire() {
   });
 }
 
-api("/api/state").then((loaded) => {
-  state = loaded;
-  fill();
-  wire();
-  go(0);
-  if (state.domain) checkDomain();
-}).catch((error) => {
-  document.getElementById("main").textContent =
-    "Could not reach the wizard: " + error + ". Open the exact link printed in your terminal.";
+/* An install already under way when the page opens — a refresh, a second tab,
+   or coming back after closing the browser — has to win over the first panel.
+   Both are settled before either paints, rather than racing each other. */
+Promise.all([api("/api/state"), api("/api/install/status").catch(() => ({ status: "idle" }))])
+  .then(([loaded, snapshot]) => {
+    state = loaded;
+    fill();
+    wire();
+    if (snapshot.status && snapshot.status !== "idle") {
+      showInstalling();
+      applySnapshot(snapshot);
+      if (snapshot.status === "running" || snapshot.status === "starting") watch();
+      return;
+    }
+    go(0);
+    if (state.domain) checkDomain();
+  })
+  .catch((error) => {
+    document.getElementById("main").textContent =
+      "Could not reach the wizard: " + error +
+      ". Open the exact link printed in your terminal.";
+  });
+
+/* --- installing ---------------------------------------------------------- */
+
+let events = null;
+
+const STAGE_GLYPHS = { pending: "", running: "•", done: "✓", failed: "×" };
+
+function renderStages(stages) {
+  const list = el("stages");
+  list.textContent = "";
+  stages.forEach((stage) => {
+    const item = document.createElement("li");
+    item.className = "stage";
+    item.dataset.state = stage.state;
+    item.dataset.stage = stage.id;
+
+    const glyph = document.createElement("span");
+    glyph.className = "glyph";
+    glyph.textContent = STAGE_GLYPHS[stage.state] || "";
+
+    const body = document.createElement("span");
+    body.append(document.createTextNode(stage.label));
+    const note = document.createElement("span");
+    note.className = "note";
+    note.textContent = stage.state === "done" ? "" : (stage.note || "");
+    body.append(note);
+    item.append(glyph, body);
+    list.append(item);
+  });
+}
+
+function updateStage(stage) {
+  const existing = document.querySelector(`.stage[data-stage="${stage.id}"]`);
+  if (!existing) { return; }
+  existing.dataset.state = stage.state;
+  existing.querySelector(".glyph").textContent = STAGE_GLYPHS[stage.state] || "";
+  const note = existing.querySelector(".note");
+  if (note) note.textContent = stage.state === "done" ? "" : (stage.note || "");
+}
+
+function appendLog(lines) {
+  const log = el("log");
+  const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+  lines.forEach((line) => log.append(document.createTextNode(line + "\n")));
+  // Follow the tail, unless the operator has scrolled up to read something.
+  if (atBottom) log.scrollTop = log.scrollHeight;
+}
+
+function showProgress(progress) {
+  if (!progress || !progress.total) { el("progress").hidden = true; return; }
+  el("progress").hidden = false;
+  const share = Math.round((progress.healthy / progress.total) * 100);
+  el("progress-fill").style.width = share + "%";
+  el("progress-text").textContent =
+    `${progress.healthy} of ${progress.total} applications ready`;
+}
+
+function applySnapshot(snapshot) {
+  if (snapshot.stages) renderStages(snapshot.stages);
+  if (snapshot.log && snapshot.log.length) {
+    el("log").textContent = "";
+    appendLog(snapshot.log);
+  }
+  showProgress(snapshot.progress);
+  applyStatus(snapshot);
+}
+
+function applyStatus(snapshot) {
+  const status = snapshot.status;
+  const heading = el("install-heading");
+  const lede = el("install-lede");
+  const outcome = el("install-outcome");
+  el("cancel").hidden = status !== "running" && status !== "starting";
+
+  if (status === "succeeded") {
+    const unsettled = Array.from(document.querySelectorAll('.stage[data-state="failed"]'));
+    // Anything still marked running when the installer exited did finish — the
+    // scripts do not emit a completion marker for every stage.
+    document.querySelectorAll('.stage[data-state="running"]').forEach((stage) => {
+      stage.dataset.state = "done";
+      stage.querySelector(".glyph").textContent = STAGE_GLYPHS.done;
+      const note = stage.querySelector(".note");
+      if (note) note.textContent = "";
+    });
+    if (unsettled.length) {
+      heading.textContent = "Installed, but not everything settled";
+      lede.textContent = "The cluster is up and keeps working on its own. One part " +
+        "had not finished when the installer stopped watching.";
+      showCheck("install-outcome", { status: "warning", summary:
+        unsettled.map((stage) => stage.textContent.trim()).join("; ") +
+        " — check with: kubectl get application -n argocd" });
+    } else {
+      heading.textContent = "Your cloud is up";
+      lede.textContent = "Every application reported healthy.";
+      showCheck("install-outcome", { status: "ok", summary: "Installation finished." });
+    }
+    finish(snapshot);
+  } else if (status === "failed") {
+    heading.textContent = "The install stopped";
+    lede.textContent = "Nothing was rolled back. Fix what the message describes and " +
+      "run the wizard again — it carries on from where it got to.";
+    showCheck("install-outcome", { status: "error", summary: snapshot.error ||
+      "The installer failed. The log below has the details." });
+    el("log-panel").open = true;
+  } else if (status === "cancelled") {
+    heading.textContent = "Stopped";
+    lede.textContent = "";
+    showCheck("install-outcome", { status: "warning", summary: snapshot.error || "Stopped." });
+  } else {
+    outcome.textContent = "";
+    outcome.className = "check";
+  }
+}
+
+/* Phase 3 replaces this with the credentials and the handover. */
+function finish(snapshot) {}
+
+function install() {
+  el("next").disabled = true;
+  el("footnote").textContent = "Starting…";
+  api("/api/install", { answers: answers() }).then((result) => {
+    if (!result.started) {
+      el("next").disabled = false;
+      el("footnote").textContent = result.message ||
+        (result.problems ? result.problems[0].message : "Could not start.");
+      return;
+    }
+    showInstalling();
+    renderStages(result.stages || []);
+    watch();
+  }).catch((error) => {
+    el("next").disabled = false;
+    el("footnote").textContent = String(error);
+  });
+}
+
+function watch() {
+  if (events) events.close();
+  events = new EventSource(`/api/events?t=${encodeURIComponent(window.SETUP_TOKEN)}`);
+  events.addEventListener("snapshot", (message) => applySnapshot(JSON.parse(message.data)));
+  events.addEventListener("stage", (message) => updateStage(JSON.parse(message.data)));
+  events.addEventListener("log", (message) => appendLog([JSON.parse(message.data)]));
+  events.addEventListener("progress", (message) => showProgress(JSON.parse(message.data)));
+  events.addEventListener("status", (message) =>
+    applyStatus({ status: JSON.parse(message.data) }));
+  events.addEventListener("done", (message) => {
+    applySnapshot(JSON.parse(message.data));
+    events.close();
+    events = null;
+  });
+  // The browser reconnects a dropped stream on its own, and the server hands
+  // every new watcher a snapshot — so a reconnect re-syncs rather than
+  // resuming mid-sentence.
+  events.onerror = () => {};
+}
+
+el("cancel").addEventListener("click", () => {
+  el("cancel").disabled = true;
+  api("/api/install/cancel", {}).catch(() => {});
 });
