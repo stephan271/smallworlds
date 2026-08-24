@@ -131,6 +131,15 @@ decided per install:
   `var.apps` defaults to every optional app, so a `terraform apply` that does not pass it
   keeps the zone it had.
 
+**Rebuilding a node:** `SMALLWORLDS_REPLACE_NODE=1 ./smallworlds-init.sh` passes
+`-replace=hcloud_server.smallworlds_pilot_node` to the apply (guarded on the resource
+actually being in state — `-replace` on a missing one aborts the whole apply). This is the
+only way a cloud-init change reaches an existing node: cloud-init runs on first boot only,
+and the server has `ignore_changes = [user_data]`. It must go through Terraform, not the
+Console: Hetzner refuses to delete a server with volumes attached, and Terraform already
+orders the detach/delete/create/re-attach. Volumes (`prevent_destroy`) and the Primary IP
+(not Terraform-managed) survive.
+
 ## Waiting for a Hetzner node (`smallworlds-init.sh`)
 
 **Never treat "port 22 answers" as "the node is ready".** `sshd` binds early in boot, while

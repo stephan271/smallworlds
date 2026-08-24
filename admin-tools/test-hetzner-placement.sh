@@ -87,6 +87,7 @@ cat > "$stub_bin/terraform" <<'STUB'
 #!/usr/bin/env bash
 case "${1:-}" in
     apply)
+        printf '%s\n' "$@" > "$FIXTURES/apply-args"
         for argument in "$@"; do
             case "$argument" in -var-file=*) cp "${argument#-var-file=}" "$FIXTURES/applied.tfvars" ;; esac
         done
@@ -99,6 +100,9 @@ case "${1:-}" in
         fi
         exit 0 ;;
     output) echo "203.0.113.9" ;;
+    state)
+        [ -f "$FIXTURES/node-in-state" ] && echo "hcloud_server.smallworlds_pilot_node"
+        exit 0 ;;
 esac
 exit 0
 STUB
@@ -480,6 +484,41 @@ printf '{"server_types":[{"id":105,"name":"cx43"}]}\n' > "$fixtures/server_types
 output="$(run_init)"
 applied="$(cat "$fixtures/applied.tfvars" 2>/dev/null)"
 check_contains "$applied" 'server_type       = "cx43"' "and taken from the cache on a later run"
+
+# --------------------------------------------------------------------------
+echo "rebuilding the node is asked for, not stumbled into"
+# --------------------------------------------------------------------------
+# cloud-init only runs on first boot, so a fix to the bootstrap template reaches
+# a running node by exactly one route: replacing it.
+no_server_yet
+known_server_type
+available_in nbg1 fsn1 hel1
+primary_ip_in fsn1
+rm -f "$fixtures/node-in-state" "$fixtures/apply-args"
+
+output="$(run_init)"
+check_absent "$(cat "$fixtures/apply-args" 2>/dev/null)" "-replace=" \
+    "an ordinary run never replaces the node"
+
+touch "$fixtures/node-in-state"
+output="$(rm -f "$fixtures/applied.tfvars"; cd "$init_root" \
+    && env PATH="$stub_bin:$PATH" HOME="$stub_home" FIXTURES="$fixtures" \
+           SMALLWORLDS_NONINTERACTIVE=1 SMALLWORLDS_REPLACE_NODE=1 \
+       timeout 120 bash smallworlds-init.sh </dev/null 2>&1)"
+check_contains "$(cat "$fixtures/apply-args" 2>/dev/null)" \
+    "-replace=hcloud_server.smallworlds_pilot_node" "asking for it replaces the node"
+check_contains "$output" "volumes and the Primary IP are kept" \
+    "and says what survives the rebuild"
+
+# -replace against a resource Terraform does not have aborts the whole apply.
+rm -f "$fixtures/node-in-state" "$fixtures/apply-args"
+output="$(rm -f "$fixtures/applied.tfvars"; cd "$init_root" \
+    && env PATH="$stub_bin:$PATH" HOME="$stub_home" FIXTURES="$fixtures" \
+           SMALLWORLDS_NONINTERACTIVE=1 SMALLWORLDS_REPLACE_NODE=1 \
+       timeout 120 bash smallworlds-init.sh </dev/null 2>&1)"
+check_absent "$(cat "$fixtures/apply-args" 2>/dev/null)" "-replace=" \
+    "with no node in state there is nothing to replace"
+check_contains "$output" "will simply be created" "which is said rather than failed on"
 
 echo ""
 if [[ "$failures" -eq 0 ]]; then

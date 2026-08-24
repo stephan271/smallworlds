@@ -1142,7 +1142,33 @@ EOF
     cd infrastructure/terraform
 
     terraform init -input=false > /dev/null
-    if ! terraform apply -var-file="$TFVARS_FILE" -auto-approve; then
+
+    # SMALLWORLDS_REPLACE_NODE=1 rebuilds the node from scratch.
+    #
+    # cloud-init only runs on a node's first boot, and the server resource
+    # ignores changes to user_data, so a fix to the bootstrap template reaches a
+    # running node by exactly one route: replacing it. Doing that by hand means
+    # detaching both volumes first — Hetzner refuses to delete a server while
+    # they are attached — and Terraform already knows that order: destroy the
+    # attachments, destroy the server, create the new one, re-attach.
+    #
+    # The volumes and the Primary IP survive. They carry the community's data
+    # and its address, and neither is replaced here.
+    TF_APPLY_ARGS=()
+    if [[ "${SMALLWORLDS_REPLACE_NODE:-}" == "1" ]]; then
+        if terraform state list 2>/dev/null | grep -qx 'hcloud_server.smallworlds_pilot_node'; then
+            echo -e "${YELLOW}SMALLWORLDS_REPLACE_NODE=1 — the node will be destroyed and rebuilt.${NC}"
+            echo -e "${YELLOW}Both volumes and the Primary IP are kept; anything living only on the${NC}"
+            echo -e "${YELLOW}node's own disk is not. Argo CD re-deploys the cluster from your overlay.${NC}"
+            TF_APPLY_ARGS+=(-replace=hcloud_server.smallworlds_pilot_node)
+        else
+            # -replace on a resource Terraform does not have would abort the
+            # apply, and there is nothing to replace anyway.
+            echo -e "${CYAN}No existing node in the Terraform state — it will simply be created.${NC}"
+        fi
+    fi
+
+    if ! terraform apply ${TF_APPLY_ARGS[@]+"${TF_APPLY_ARGS[@]}"} -var-file="$TFVARS_FILE" -auto-approve; then
         rm -f "$TFVARS_FILE"
         sw_step_fail terraform-apply "Hetzner could not build the server"
         echo -e "${RED}Terraform could not provision the node.${NC}"
