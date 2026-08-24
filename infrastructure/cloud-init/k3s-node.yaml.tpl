@@ -186,7 +186,17 @@ runcmd:
   - NODE_IP=$(hostname -I | awk '{print $1}')
 %{ endif ~}
   - sysctl --system
-  - echo "ipv4" > ~/.curlrc
+  # /root, not ~. runcmd is written to a script and executed with `sh -e`, and
+  # that shell has no HOME set: dash leaves the tilde literal, the redirect
+  # fails with "Directory nonexistent", and -e then abandons EVERY REMAINING
+  # runcmd item — the k3s install, the bootstrap manifests, the ClusterIssuer,
+  # the Argo CD root app. The only trace is one WARNING line in
+  # /var/log/cloud-init-output.log, so the node comes up looking fine, answers
+  # SSH, and simply never becomes a cluster.
+  #
+  # curl is pinned to IPv4 because the k3s installer and the image pulls below
+  # stall on a AAAA route that Hetzner advertises but cannot always carry.
+  - echo "ipv4" > /root/.curlrc
 
   # The ClusterIssuer below is deliberately NOT placed under server/manifests.
   # k3s auto-applies that directory and retries forever on failure, and a

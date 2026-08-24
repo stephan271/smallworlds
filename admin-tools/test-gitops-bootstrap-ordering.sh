@@ -37,6 +37,23 @@ for bootstrap in "$local_bootstrap" "$cloud_init"; do
     assert_contains "$bootstrap" 'kubectl get crd clusterissuers.cert-manager.io'
 done
 
+# cloud-init writes runcmd to a script and runs it with `sh -e`, in an
+# environment with no HOME. A tilde is therefore left literal by dash, the
+# command fails, and -e abandons every remaining item — the k3s install, the
+# bootstrap manifests, the Argo CD root app. The node still boots, still answers
+# SSH, and simply never becomes a cluster, with one WARNING in
+# /var/log/cloud-init-output.log as the only trace. `echo "ipv4" > ~/.curlrc`
+# did exactly this. Absolute paths only.
+if grep -nE '^\s*-\s.*[>]\s*~/' "$cloud_init"; then
+    echo "Expected $cloud_init to redirect to absolute paths: runcmd has no HOME," >&2
+    echo "so a tilde is left literal and 'sh -e' abandons the rest of the boot." >&2
+    exit 1
+fi
+if grep -nE '^\s*-\s.*\$HOME' "$cloud_init"; then
+    echo "Expected $cloud_init not to depend on \$HOME in runcmd: it is unset there." >&2
+    exit 1
+fi
+
 assert_contains "$apps_directory/kube-prometheus-stack.yaml" 'argocd.argoproj.io/sync-wave: "0"'
 assert_contains "$apps_directory/trivy-operator.yaml" 'argocd.argoproj.io/sync-wave: "1"'
 assert_contains "$apps_directory/trivy-operator.yaml" 'retry:'
