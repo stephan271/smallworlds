@@ -178,10 +178,10 @@ cleanup() {
         echo -e "  kubectl:      export KUBECONFIG=$STAGING_KUBECONFIG"
         echo -e "  ssh:          ssh -i $TEMP_SSH_KEY root@\$(cd $REPO_ROOT/infrastructure/terraform-staging && terraform output -raw server_ipv4)"
         echo -e "  destroy VM:   cd $REPO_ROOT/infrastructure/terraform-staging && terraform destroy -auto-approve"
-        echo -e "  clean hosts:  sudo sed -i '/smallworlds\\.network/d' /etc/hosts"
+        echo -e "  clean hosts:  sudo sed -i '/# smallworlds-pr-test\$/d' /etc/hosts"
     else
         echo -e "${YELLOW}Cleaning up /etc/hosts... (May prompt for sudo)${NC}"
-        sudo sed -i '/smallworlds\.network/d' /etc/hosts
+        sudo sed -i '/# smallworlds-pr-test$/d' /etc/hosts
 
         if [ -d "$REPO_ROOT/infrastructure/terraform-staging" ]; then
             echo -e "${YELLOW}Destroying Hetzner VM...${NC}"
@@ -456,10 +456,22 @@ for ns in $(kubectl get application -n argocd -o jsonpath='{range .items[*]}{.sp
 done
 
 # 6. Setup Local DNS
+#
+# Every line this script writes carries the marker below, and only marked lines
+# are ever removed. Deleting every line that mentions smallworlds.network — as
+# this used to — also deleted the operator's own entries: a .lab cluster, a
+# machine on the LAN, anything hand-written. Those are not this script's to
+# remove.
+#
+# The marker also makes a leftover identifiable. This entry SHADOWS PRODUCTION
+# for the hostnames it lists, so a run whose cleanup never fired (a kill -9, a
+# closed laptop, KEEP_VM) silently points identity/meet/files at a staging VM
+# that is long gone, while the unlisted hostnames keep working — which reads
+# like a broken cluster rather than a stale hosts file.
 echo -e "\n${CYAN}Setting up local DNS routing... (May prompt for sudo)${NC}"
-sudo sed -i '/smallworlds\.network/d' /etc/hosts
+sudo sed -i '/# smallworlds-pr-test$/d' /etc/hosts
 # Keep this list in sync with the subdomains used in e2e-tests/tests/*.spec.ts
-echo "$SERVER_IP identity.smallworlds.network files.smallworlds.network webmail.smallworlds.network photos.smallworlds.network git.smallworlds.network meet.smallworlds.network whiteboard.smallworlds.network pod.smallworlds.network" | sudo tee -a /etc/hosts >/dev/null
+echo "$SERVER_IP identity.smallworlds.network files.smallworlds.network webmail.smallworlds.network photos.smallworlds.network git.smallworlds.network meet.smallworlds.network whiteboard.smallworlds.network pod.smallworlds.network # smallworlds-pr-test" | sudo tee -a /etc/hosts >/dev/null
 
 # 7. Run E2E Tests
 echo -e "\n${CYAN}Starting E2E Smoke Tests...${NC}"
