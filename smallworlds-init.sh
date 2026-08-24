@@ -26,6 +26,11 @@ echo -e "This wizard will spin up your fully automated sovereign cloud."
 echo ""
 
 CACHE_FILE=".smallworlds-cache.env"
+# Captured before the cache is sourced, because the cache also carries this:
+# only a value the operator put in the environment for THIS run may override
+# the node that is already running. Asking for a different size is a resize,
+# and has to be asked for deliberately.
+SW_SERVER_TYPE_FROM_ENV="${HETZNER_SERVER_TYPE:-}"
 if [[ -f "$CACHE_FILE" ]]; then
     source "$CACHE_FILE"
 fi
@@ -146,7 +151,13 @@ if key:
 HETZNER_LOCATIONS="${HETZNER_LOCATIONS:-nbg1 fsn1 hel1}"
 # 16 GB is the floor: 8 GB nodes saturate once the full app suite deploys, and
 # the probe timeouts cascade into CNPG failovers and OOM crashloops.
-HETZNER_SERVER_TYPE="${HETZNER_SERVER_TYPE:-cx43}"
+#
+# This is only the fallback. resolve_server_type() below prefers, in order, what
+# the operator asked for this run, what the node already running actually is,
+# and what the last run used — a hard-coded default that quietly overrules a
+# live node proposes a resize nobody asked for.
+HETZNER_SERVER_TYPE_DEFAULT="cx43"
+HETZNER_SERVER_TYPE="${HETZNER_SERVER_TYPE:-$HETZNER_SERVER_TYPE_DEFAULT}"
 # Hetzner's type names are lowercase. "CPX42" is not a different server type,
 # it is a name the API will not match — and the honest answer to that is "no
 # such type", not "sold out everywhere", which is what an operator staring at a
@@ -288,6 +299,58 @@ report_capacity_problem() {
     fi
     sw_guidance "Nothing has to be undone" \
         "The installer is safe to re-run: the DNS zone, the SSH key, the Primary IP and any volumes are found and reused rather than created twice."
+}
+
+# The size of the node that already exists, if there is one. Empty otherwise.
+hetzner_existing_server_type() {
+    local response
+    response="$(curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" \
+        "https://api.hetzner.cloud/v1/servers?name=cc-pilot-node-01${ENV_SLUG}")"
+    printf '%s' "$response" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+for server in data.get('servers') or []:
+    server_type = server.get('server_type')
+    # Nested object today; a bare name or an id would both be reasonable
+    # futures, and guessing wrong here proposes a resize of a live node.
+    if isinstance(server_type, dict):
+        print(server_type.get('name') or '')
+    elif isinstance(server_type, str):
+        print(server_type)
+    elif isinstance(server_type, int):
+        print('#%d' % server_type)
+    break
+"
+}
+
+# Decide the node size, and say why. Precedence:
+#   1. HETZNER_SERVER_TYPE in this run's environment  — an explicit request
+#   2. the size the running node actually is          — changing it is a resize
+#   3. the size the last run used (cached)            — a second run offers what
+#                                                       the first one chose
+#   4. the built-in default
+resolve_server_type() {
+    local existing=""
+
+    if [[ -n "$SW_SERVER_TYPE_FROM_ENV" ]]; then
+        HETZNER_SERVER_TYPE="$SW_SERVER_TYPE_FROM_ENV"
+    else
+        existing="$(hetzner_existing_server_type)"
+        if [[ -n "$existing" && "$existing" != \#* ]]; then
+            if [[ -n "$HETZNER_SERVER_TYPE" && "$HETZNER_SERVER_TYPE" != "$existing" ]]; then
+                echo -e "${YELLOW}Node cc-pilot-node-01${ENV_SLUG} is already a ${existing}; keeping that rather than changing it to ${HETZNER_SERVER_TYPE}.${NC}"
+                echo -e "${YELLOW}To resize it deliberately: HETZNER_SERVER_TYPE=<size> ./smallworlds-init.sh${NC}"
+            fi
+            HETZNER_SERVER_TYPE="$existing"
+        fi
+    fi
+
+    HETZNER_SERVER_TYPE="$(printf '%s' "${HETZNER_SERVER_TYPE:-$HETZNER_SERVER_TYPE_DEFAULT}" \
+        | tr '[:upper:]' '[:lower:]')"
+    echo -e "${CYAN}Node size: ${HETZNER_SERVER_TYPE}.${NC}"
 }
 
 # Ensure the Primary IP exists, and set $HETZNER_LOCATION to where it lives.
@@ -834,6 +897,7 @@ ENV_EXT="${ENV_EXT}"
 ADMIN_EMAIL="${ADMIN_EMAIL}"
 ONBOARDING_MODE="${ONBOARDING_MODE}"
 HCLOUD_TOKEN="${HCLOUD_TOKEN}"
+HETZNER_SERVER_TYPE="${HETZNER_SERVER_TYPE}"
 GITOPS_REPO_URL="${GITOPS_REPO_URL}"
 GITOPS_REPO_USER="${GITOPS_REPO_USER}"
 GITOPS_REPO_TOKEN="${GITOPS_REPO_TOKEN}"
@@ -1016,6 +1080,10 @@ if [[ "$DEPLOY_TARGET" == "hetzner" ]]; then
 
     # Ensure the shared admin SSH key exists (sets $SSH_KEY_ID)
     ensure_ssh_key
+
+    # Settle the node size before anything asks Hetzner about capacity: the
+    # scan, the tfvars and every failure message all quote it.
+    resolve_server_type
 
     # Ensure the Primary IP exists and decide where the node goes (sets
     # $HETZNER_LOCATION). Terraform reads the IP as a data source, so this has

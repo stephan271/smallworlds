@@ -74,6 +74,7 @@ case "$url" in
         else cat "$FIXTURES/primary_ips.json"; fi ;;
     *"/v1/server_types"*) cat "$FIXTURES/server_types.json" ;;
     *"/v1/datacenters"*)  cat "$FIXTURES/datacenters.json" ;;
+    *"/v1/servers"*)      cat "$FIXTURES/servers.json" ;;
     *"/v1/images"*)       printf '{"images":[]}\n' ;;
     *)                    printf '{}\n' ;;
 esac
@@ -187,6 +188,7 @@ STORED_APP_plane=n
 STORED_APP_pod_gateway=n
 CONF
 
+printf '{"servers":[]}\n'                                  > "$fixtures/servers.json"
 printf '{"zones":[{"id":1,"name":"example.org"}]}\n'       > "$fixtures/zones.json"
 printf '{"ssh_keys":[{"id":42,"name":"SmallWorlds Admin Key"}]}\n' > "$fixtures/ssh_keys.json"
 printf '{"server_types":[{"id":104,"name":"cx43"}]}\n'     > "$fixtures/server_types.json"
@@ -213,18 +215,31 @@ placeless_primary_ip() {
     printf '{"primary_ips":[{"id":7,"name":"smallworlds-ip","ip":"203.0.113.9"}]}\n' \
         > "$fixtures/primary_ips.json"
 }
+no_server_yet() { printf '{"servers":[]}\n' > "$fixtures/servers.json"; }
+server_running_as() {
+    printf '{"servers":[{"id":9,"name":"cc-pilot-node-01","server_type":{"id":105,"name":"%s"}}]}\n' \
+        "$1" > "$fixtures/servers.json"
+}
 unknown_server_type() { printf '{"server_types":[]}\n' > "$fixtures/server_types.json"; }
 known_server_type()   { printf '{"server_types":[{"id":104,"name":"cx43"}]}\n' > "$fixtures/server_types.json"; }
 api_unreachable()     { printf '' > "$fixtures/server_types.json"; printf '' > "$fixtures/datacenters.json"; }
-# available_in <location>...  -- cx43 (id 104) is orderable exactly there.
+# available_in <location>...  -- whichever type server_types.json currently
+# describes is orderable exactly there. Reading the id from the fixture rather
+# than hard-coding it keeps this honest when a scenario changes the type.
 available_in() {
-    local wanted=" $* " entries=""
+    local wanted=" $* " entries="" type_id
+    type_id="$(python3 -c "
+import json, sys
+data = json.load(open(sys.argv[1]))
+types = data.get('server_types') or []
+print(types[0]['id'] if types else 0)
+" "$fixtures/server_types.json")"
     for location in nbg1 fsn1 hel1 ash; do
         local available="[22]"
-        case "$wanted" in *" $location "*) available="[104,22]" ;; esac
+        case "$wanted" in *" $location "*) available="[$type_id,22]" ;; esac
         entries="${entries:+$entries,}{\"name\":\"${location}-dc1\",
             \"location\":{\"name\":\"$location\"},
-            \"server_types\":{\"supported\":[104],\"available\":$available}}"
+            \"server_types\":{\"supported\":[$type_id],\"available\":$available}}"
     done
     printf '{"datacenters":[%s]}\n' "$entries" > "$fixtures/datacenters.json"
 }
@@ -427,6 +442,41 @@ check_contains "$output" "has not created its admin secret yet" "a slow Argo CD 
 check_absent   "$output" ">>> fail:kubeconfig" "but does not fail the install"
 check_contains "$output" "read it later with" "and the operator is told how to fetch it"
 touch "$fixtures/argocd-up"
+
+# --------------------------------------------------------------------------
+echo "the size of the node that is already running is the size that is kept"
+# --------------------------------------------------------------------------
+# The built-in default must not quietly overrule a live node: changing
+# server_type is a resize, and nobody asked for one by re-running the installer.
+known_server_type
+printf '{"server_types":[{"id":105,"name":"cpx42"}]}\n' > "$fixtures/server_types.json"
+available_in nbg1 fsn1 hel1
+primary_ip_in fsn1
+server_running_as cpx42
+output="$(run_init)"
+applied="$(cat "$fixtures/applied.tfvars" 2>/dev/null)"
+check_contains "$applied" 'server_type       = "cpx42"' "the running node's size wins over the default"
+check_contains "$output" "already a cpx42" "and the operator is told why"
+check_contains "$output" "To resize it deliberately" "with the way to ask for a change"
+
+# An explicit request is still an explicit request.
+output="$(rm -f "$fixtures/applied.tfvars"; cd "$init_root" \
+    && env PATH="$stub_bin:$PATH" HOME="$stub_home" FIXTURES="$fixtures" \
+           SMALLWORLDS_NONINTERACTIVE=1 HETZNER_SERVER_TYPE=cx43 \
+       timeout 120 bash smallworlds-init.sh </dev/null 2>&1)"
+applied="$(cat "$fixtures/applied.tfvars" 2>/dev/null)"
+check_contains "$applied" 'server_type       = "cx43"' "an explicit size overrides the running node"
+
+# And once chosen, it is remembered — the installer's own cache is where every
+# other answer already lives.
+check_contains "$(cat "$init_root/.smallworlds-cache.env")" 'HETZNER_SERVER_TYPE="cx43"' \
+    "the size is cached for the next run"
+no_server_yet
+known_server_type
+printf '{"server_types":[{"id":105,"name":"cx43"}]}\n' > "$fixtures/server_types.json"
+output="$(run_init)"
+applied="$(cat "$fixtures/applied.tfvars" 2>/dev/null)"
+check_contains "$applied" 'server_type       = "cx43"' "and taken from the cache on a later run"
 
 echo ""
 if [[ "$failures" -eq 0 ]]; then

@@ -106,6 +106,15 @@ decided per install:
   silently moving the cluster. Terraform re-checks the same thing in a `precondition` on
   the server, so a bare `terraform apply` gets the same message.
 
+  The size is resolved by `resolve_server_type()`, not hard-coded: `HETZNER_SERVER_TYPE` in
+  this run's environment, then **the size the running node actually is**, then the cached
+  value, then `cx43`. An existing node wins over the default for the same reason an
+  existing Primary IP wins over the location scan — changing `server_type` is a resize, and
+  re-running the installer is not a request for one. It is cached in
+  `.smallworlds-cache.env` like every other answer, and `runner.write_installer_cache()`
+  carries it forward (the wizard never asks for it, so dropping it there would send the
+  next run back to the default).
+
   Two traps, both of which have already bitten. The scan is deliberately three-valued
   (`SW_CAPACITY_STATUS`: `ok` / `no-type` / `unknown`) and only a definite, answered
   "nowhere" blocks — a misspelled type name and a lookup that failed are each reported as

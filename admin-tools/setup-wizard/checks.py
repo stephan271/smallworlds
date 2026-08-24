@@ -37,7 +37,24 @@ HETZNER_NAMESERVERS = ("ns.hetzner.com", "ns.hetzner.de", "ns.hetzner.net")
 # and var.location_preference/var.server_type in infrastructure/terraform.
 EUROPEAN_LOCATIONS = ("nbg1", "fsn1", "hel1")
 LOCATION_NAMES = {"nbg1": "Nuremberg", "fsn1": "Falkenstein", "hel1": "Helsinki"}
-NODE_SERVER_TYPE = "cx43"
+DEFAULT_SERVER_TYPE = "cx43"
+
+
+def node_server_type() -> str:
+    """The size this cluster is, or will be.
+
+    The installer resolves this from the running node and caches it, so a
+    second install must ask about the same size the first one used — reporting
+    capacity for the built-in default would answer a question nobody asked.
+    """
+    # Imported lazily: this is the only place checks.py needs the cache, and a
+    # module-level import would tie the two together for nothing.
+    import plan as planning
+
+    cached = planning._read_shell_assignments(planning.INIT_CACHE)
+    return (os.environ.get("HETZNER_SERVER_TYPE")
+            or cached.get("HETZNER_SERVER_TYPE")
+            or DEFAULT_SERVER_TYPE).lower()
 
 TIMEOUT_SECONDS = 15
 
@@ -149,8 +166,8 @@ def check_ssh_public_key(path: str | None = None) -> dict:
 # Hetzner
 # ---------------------------------------------------------------------------
 
-def _server_type_locations(headers: dict) -> list[str] | None:
-    """Which of EUROPEAN_LOCATIONS can sell NODE_SERVER_TYPE right now, in
+def _server_type_locations(headers: dict, server_type: str) -> list[str] | None:
+    """Which of EUROPEAN_LOCATIONS can sell server_type right now, in
     preference order. None means the question could not be answered, which is
     not the same as "none" and must not be reported as one.
 
@@ -159,7 +176,7 @@ def _server_type_locations(headers: dict) -> list[str] | None:
     firewall and both volumes had been created.
     """
     status, body, _ = _request(
-        f"{HETZNER_API}/server_types?name={NODE_SERVER_TYPE}", headers=headers)
+        f"{HETZNER_API}/server_types?name={urllib.parse.quote(server_type)}", headers=headers)
     if status != 200 or not body:
         return None
     types = body.get("server_types") or []
@@ -265,7 +282,8 @@ def check_hetzner_token(token: str, domain: str = "", env_ext: str = "") -> dict
 
     # Capacity, asked here rather than discovered by Terraform an hour later.
     pinned = _primary_ip_location(headers, env_ext)
-    locations = _server_type_locations(headers)
+    server_type = node_server_type()
+    locations = _server_type_locations(headers, server_type)
     result["primary_ip_location"] = pinned
     result["available_locations"] = locations
 
@@ -276,7 +294,7 @@ def check_hetzner_token(token: str, domain: str = "", env_ext: str = "") -> dict
         pass  # Could not be determined; say nothing rather than something wrong.
     elif pinned and pinned not in locations:
         return warn(
-            " ".join(notes) + f" But Hetzner has no {NODE_SERVER_TYPE} in "
+            " ".join(notes) + f" But Hetzner has no {server_type} in "
             f"{LOCATION_NAMES.get(pinned, pinned)} ({pinned}), where your "
             f"Primary IP already is"
             + (f" — only in {pretty(locations)}. " if locations
@@ -291,14 +309,14 @@ def check_hetzner_token(token: str, domain: str = "", env_ext: str = "") -> dict
         notes.append(
             f"The server will be built in {LOCATION_NAMES.get(pinned, pinned)} "
             f"({pinned}), where your Primary IP already is, and "
-            f"{NODE_SERVER_TYPE} is available there.")
+            f"{server_type} is available there.")
     elif locations:
         notes.append(
-            f"{NODE_SERVER_TYPE} is available in {pretty(locations)}; the "
+            f"{server_type} is available in {pretty(locations)}; the "
             f"installer takes the first of those.")
     else:
         return warn(
-            " ".join(notes) + f" But Hetzner currently has no {NODE_SERVER_TYPE} "
+            " ".join(notes) + f" But Hetzner currently has no {server_type} "
             f"in any of {pretty(EUROPEAN_LOCATIONS)}. This is usually temporary "
             "— they restock within hours — so wait and try again, or install on "
             "a machine you already have instead.",

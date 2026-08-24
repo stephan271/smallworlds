@@ -126,6 +126,11 @@ def write_installer_cache(answers: dict, path: str, token_source: dict) -> None:
         "BACKUP_DIR": answers.get("backup_dir", ""),
         "PROFILE_ID": existing.get("PROFILE_ID", ""),
         "BOOTSTRAP_RELEASE": existing.get("BOOTSTRAP_RELEASE", ""),
+        # Not asked for in the browser, but the installer resolves and caches
+        # it — from the node that is already running, if there is one. Dropping
+        # it here would send the next run back to the built-in default and
+        # propose a resize of a live node.
+        "HETZNER_SERVER_TYPE": existing.get("HETZNER_SERVER_TYPE", ""),
         "LOCAL_PUBLIC": answers.get("local_public", "no"),
         "LOCAL_TLS": answers.get("local_tls", "letsencrypt"),
         "DOMAIN": answers["domain"],
