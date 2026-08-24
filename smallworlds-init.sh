@@ -595,6 +595,12 @@ wait_for_cloud_init() {
 # which is the first thing an operator watching a long silence wants to know.
 report_node_stuck() {
     local what="$1" detail="$2"
+    # First, because it is what an operator hits before they can run any of the
+    # rest. A rebuilt node keeps its Primary IP and comes up with a new host
+    # key, so the ssh commands below refuse to connect until the old one is
+    # dropped. The installer's own ssh is unaffected — it does not check.
+    sw_guidance "If ssh says the host identification has changed" \
+        "That is expected for a node that was rebuilt at the same address: ssh-keygen -R ${SERVER_IP} and try again. It is only a real warning if you did not rebuild the node."
     sw_guidance "Look at the node's own boot log" \
         "ssh root@${SERVER_IP} 'cloud-init status --long; tail -60 /var/log/cloud-init-output.log' — that log is where the first boot installs k3s and pulls the container images, and it names whatever it could not do."
     sw_guidance "Check whether k3s came up at all" \
@@ -1169,6 +1175,8 @@ EOF
         echo -e "${RED}Could not log in to $SERVER_IP over SSH.${NC}"
         echo -e "${YELLOW}$(ssh "${SW_SSH_OPTS[@]}" "root@$SERVER_IP" true 2>&1 | tail -3)${NC}"
         sw_step_fail node-ready "no SSH access to the new node"
+        sw_guidance "If ssh says the host identification has changed" \
+            "A node rebuilt at the same address comes up with a new host key: ssh-keygen -R ${SERVER_IP}, then try again."
         sw_guidance "Check the key the node was given" \
             "The node trusts the key uploaded as 'SmallWorlds Admin Key' — the public half of ${SSH_PUBLIC_KEY_PATH:-$HOME/.ssh/id_ed25519.pub}. If you have more than one key, or the agent is offering a different one, ssh -i <the matching private key> root@${SERVER_IP} will say so."
         sw_guidance "The server is still there, and nothing was rolled back" \

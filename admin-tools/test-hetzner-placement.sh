@@ -433,6 +433,9 @@ output="$(run_init_to_node done)"
 check_contains "$output" ">>> fail:kubeconfig" "a k3s that never comes up stops the install"
 check_contains "$output" "still waiting for k3s" "having said it was waiting"
 check_contains "$output" "cloud-init-output.log" "and points at the node's own boot log"
+# The first thing an operator hits when they try to follow that advice on a
+# node that was rebuilt at the same address.
+check_contains "$output" "ssh-keygen -R" "and at the stale host key that blocks it"
 touch "$fixtures/k3s-up"
 
 # Argo CD is the one wait that must NOT be fatal: the cluster is up by then.

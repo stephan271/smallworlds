@@ -98,6 +98,13 @@ EOF
     cd "$SCRIPT_DIR/../infrastructure/terraform"
     export HCLOUD_TOKEN="$HCLOUD_TOKEN"
 
+    # Read the address before it stops existing, so the stale host key can be
+    # dropped after the destroy. A rebuilt node reuses the Primary IP and comes
+    # up with a NEW host key, and ssh then refuses to connect with
+    # REMOTE HOST IDENTIFICATION HAS CHANGED — at exactly the moment the
+    # operator is trying to look at a node that will not come up.
+    DESTROYED_IP="$(terraform output -raw server_ipv4 2>/dev/null || true)"
+
     # Temporarily disable prevent_destroy for the volume to allow full deletion
     sed -i 's/prevent_destroy = true/prevent_destroy = false/g' main.tf
 
@@ -107,6 +114,15 @@ EOF
     git checkout main.tf 2>/dev/null || git restore main.tf 2>/dev/null || true
 
     rm -f "$TFVARS_FILE"
+
+    # Only ever for a node that has just been destroyed: the key is stale by
+    # definition, so removing it costs nothing. Nothing anywhere else in this
+    # repo touches known_hosts — a host key that changes when a node was NOT
+    # rebuilt is exactly the warning ssh exists to give.
+    if [ -n "${DESTROYED_IP:-}" ]; then
+        ssh-keygen -R "$DESTROYED_IP" >/dev/null 2>&1 || true
+        echo "Removed the destroyed node's host key from ~/.ssh/known_hosts ($DESTROYED_IP)."
+    fi
 
     echo ""
     echo "✅ Cluster has been completely destroyed."
