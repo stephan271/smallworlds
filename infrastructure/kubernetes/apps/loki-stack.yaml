@@ -40,6 +40,14 @@ spec:
   # apart from Argo CD's own tracking annotation. There is no drift to fix in the
   # cluster, only a comparison to correct — and an application that is
   # permanently OutOfSync for no reason teaches operators to ignore OutOfSync.
+  #
+  # Re-measured 2026-08-24 against the live cluster: the list below was still
+  # incomplete and loki-stack was still permanently OutOfSync. Rendering the
+  # chart and comparing it field by field against the live StatefulSet found
+  # four more, all the same shape. Method, if it needs doing again:
+  #   helm template loki-stack grafana/loki-stack --version 2.10.3 \
+  #     -n monitoring -f <the values below>
+  # then diff its StatefulSet against `kubectl -n monitoring get sts loki-stack`.
   ignoreDifferences:
     - group: apps
       kind: StatefulSet
@@ -50,7 +58,23 @@ spec:
         - /spec/template/spec/nodeSelector
         - /spec/template/spec/tolerations
         - /spec/template/spec/containers/0/env
-        - /spec/template/spec/containers/0/volumeMounts/0/subPath
+      # The same empty-value problem, at paths a jsonPointer cannot express.
+      #
+      # subPath was pinned to volumeMounts/0 and the chart emits a null one at
+      # index 2 as well, so the application stayed OutOfSync after the first
+      # fix — by index, which is exactly the kind of thing that silently stops
+      # matching when a chart adds a mount. The jq form covers every mount, so
+      # it cannot drift out of position again.
+      #
+      # volumeClaimTemplates emits empty annotations/labels and a null
+      # storageClassName. Ignoring them is safe beyond the usual argument:
+      # volumeClaimTemplates are immutable on a live StatefulSet, so a
+      # difference there could not be reconciled even if it were real.
+      jqPathExpressions:
+        - .spec.template.spec.containers[].volumeMounts[].subPath
+        - .spec.volumeClaimTemplates[].metadata.annotations
+        - .spec.volumeClaimTemplates[].metadata.labels
+        - .spec.volumeClaimTemplates[].spec.storageClassName
   syncPolicy:
     automated:
       prune: true
