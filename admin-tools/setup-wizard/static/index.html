@@ -190,6 +190,9 @@
     <div class="field" id="repo-name-field">
       <label for="repo_name">Repository name</label>
       <input id="repo_name" type="text" autocomplete="off">
+      <p class="hint">The local copy is named to match, under
+        <code id="repo-path-preview"></code>. Change that under Advanced
+        settings if you want it somewhere else.</p>
     </div>
 
     <div class="field" id="remote-url-field" hidden>
@@ -251,6 +254,14 @@
     </div>
 
     <div class="check" id="install-outcome"></div>
+
+    <!-- Only shown when something went wrong. The wording comes from the
+         installer itself (sw_guidance in admin-tools/lib/ask.sh), so the
+         terminal route and this page give the same advice. -->
+    <div id="guidance" hidden>
+      <h2 class="section">What you can do now</h2>
+      <ol class="guidance-list" id="guidance-list"></ol>
+    </div>
 
     <div id="handover" hidden>
       <h2 class="section">Save these now</h2>

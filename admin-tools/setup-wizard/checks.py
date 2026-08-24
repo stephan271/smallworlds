@@ -32,6 +32,13 @@ ADMIN_SSH_KEY_NAME = "SmallWorlds Admin Key"
 # why.
 HETZNER_NAMESERVERS = ("ns.hetzner.com", "ns.hetzner.de", "ns.hetzner.net")
 
+# Where a SmallWorlds node may go, most preferred first, and how big it is.
+# Kept in step with HETZNER_LOCATIONS/HETZNER_SERVER_TYPE in smallworlds-init.sh
+# and var.location_preference/var.server_type in infrastructure/terraform.
+EUROPEAN_LOCATIONS = ("nbg1", "fsn1", "hel1")
+LOCATION_NAMES = {"nbg1": "Nuremberg", "fsn1": "Falkenstein", "hel1": "Helsinki"}
+NODE_SERVER_TYPE = "cx43"
+
 TIMEOUT_SECONDS = 15
 
 
@@ -142,7 +149,55 @@ def check_ssh_public_key(path: str | None = None) -> dict:
 # Hetzner
 # ---------------------------------------------------------------------------
 
-def check_hetzner_token(token: str, domain: str = "") -> dict:
+def _server_type_locations(headers: dict) -> list[str] | None:
+    """Which of EUROPEAN_LOCATIONS can sell NODE_SERVER_TYPE right now, in
+    preference order. None means the question could not be answered, which is
+    not the same as "none" and must not be reported as one.
+
+    Hetzner sells a type out in one location while the others still have it,
+    and the install's answer for that used to arrive from Terraform, after the
+    firewall and both volumes had been created.
+    """
+    status, body, _ = _request(
+        f"{HETZNER_API}/server_types?name={NODE_SERVER_TYPE}", headers=headers)
+    if status != 200 or not body:
+        return None
+    types = body.get("server_types") or []
+    if not types:
+        return None
+    type_id = types[0].get("id")
+
+    status, body, _ = _request(f"{HETZNER_API}/datacenters", headers=headers)
+    if status != 200 or not body:
+        return None
+
+    with_capacity = set()
+    for datacenter in body.get("datacenters") or []:
+        location = (datacenter.get("location") or {}).get("name")
+        available = (datacenter.get("server_types") or {}).get("available") or []
+        if location and type_id in available:
+            with_capacity.add(location)
+    return [name for name in EUROPEAN_LOCATIONS if name in with_capacity]
+
+
+def _primary_ip_location(headers: dict, env_ext: str) -> str | None:
+    """Where this community's Primary IP already is, if it has one.
+
+    A Primary IP is datacenter-bound and is the community's public address, so
+    once it exists it decides which location the node goes in — which makes it
+    the thing to check the capacity answer against.
+    """
+    name = "smallworlds-ip" + (env_ext or "").replace(".", "-")
+    status, body, _ = _request(
+        f"{HETZNER_API}/primary_ips?name={urllib.parse.quote(name)}", headers=headers)
+    if status != 200 or not body:
+        return None
+    for entry in body.get("primary_ips") or []:
+        return ((entry.get("datacenter") or {}).get("location") or {}).get("name")
+    return None
+
+
+def check_hetzner_token(token: str, domain: str = "", env_ext: str = "") -> dict:
     """Answers three questions in one call sequence: is the token valid, does
     the DNS zone already exist, and is the shared admin SSH key registered."""
     if not token:
@@ -185,6 +240,48 @@ def check_hetzner_token(token: str, domain: str = "") -> dict:
         notes.append("The shared admin SSH key is already registered.")
     else:
         notes.append("The admin SSH key will be uploaded during the install.")
+
+    # Capacity, asked here rather than discovered by Terraform an hour later.
+    pinned = _primary_ip_location(headers, env_ext)
+    locations = _server_type_locations(headers)
+    result["primary_ip_location"] = pinned
+    result["available_locations"] = locations
+
+    def pretty(names):
+        return ", ".join(f"{LOCATION_NAMES.get(n, n)} ({n})" for n in names)
+
+    if locations is None:
+        pass  # Could not be determined; say nothing rather than something wrong.
+    elif pinned and pinned not in locations:
+        return warn(
+            " ".join(notes) + f" But Hetzner has no {NODE_SERVER_TYPE} in "
+            f"{LOCATION_NAMES.get(pinned, pinned)} ({pinned}), where your "
+            f"Primary IP already is"
+            + (f" — only in {pretty(locations)}. " if locations
+               else f" — and none in {pretty(EUROPEAN_LOCATIONS)} either. ")
+            + "A Primary IP is tied to its location, so moving the node means "
+              "giving up that address: delete smallworlds-ip in the Hetzner "
+              "Console and the installer creates a new one where the hardware "
+              "is. This is usually temporary; Hetzner restocks within hours.",
+            **result,
+        )
+    elif pinned:
+        notes.append(
+            f"The server will be built in {LOCATION_NAMES.get(pinned, pinned)} "
+            f"({pinned}), where your Primary IP already is, and "
+            f"{NODE_SERVER_TYPE} is available there.")
+    elif locations:
+        notes.append(
+            f"{NODE_SERVER_TYPE} is available in {pretty(locations)}; the "
+            f"installer takes the first of those.")
+    else:
+        return warn(
+            " ".join(notes) + f" But Hetzner currently has no {NODE_SERVER_TYPE} "
+            f"in any of {pretty(EUROPEAN_LOCATIONS)}. This is usually temporary "
+            "— they restock within hours — so wait and try again, or install on "
+            "a machine you already have instead.",
+            **result,
+        )
 
     return ok(" ".join(notes), **result)
 

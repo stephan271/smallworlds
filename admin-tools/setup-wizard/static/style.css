@@ -353,6 +353,38 @@ input.invalid { border-color: var(--error); }
 h2.section { font-size: .82rem; text-transform: uppercase; letter-spacing: .06em;
   color: var(--ink-faint); margin: 1.6rem 0 .4rem; font-weight: 600; }
 
+/* --- what to do about a failure ----------------------------------------- */
+
+/* Deliberately not styled as an error: by the time this is on screen the
+   operator has already read the red line above, and what they need next is
+   something calm to work through. */
+.guidance-list {
+  list-style: none;
+  margin: 0 0 1.4rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.guidance-list li {
+  padding: .85rem 1rem;
+  border-top: 1px solid var(--border);
+}
+.guidance-list li:first-child { border-top: 0; }
+.guidance-list h3 {
+  margin: 0 0 .2rem;
+  font-size: .92rem;
+  font-weight: 620;
+  color: var(--ink);
+}
+.guidance-list p {
+  margin: 0;
+  font-size: .86rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
 /* --- footer ------------------------------------------------------------- */
 
 .actions {

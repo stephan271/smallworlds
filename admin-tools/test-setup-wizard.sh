@@ -69,4 +69,12 @@ url="$(start_wizard SMALLWORLDS_REPO_ROOT="$checkout")" || exit 1
 PLAYWRIGHT_MODULE="$playwright/index.mjs" \
     node "$wizard/test-interface.mjs" "$url" install || status=1
 
+echo ""
+# 3. An install that stops. The same stub, told to exit non-zero after printing
+# the guidance a real script prints — because "it failed, read the log" is not
+# something an operator can act on, and the last screen is where they are.
+url="$(start_wizard SMALLWORLDS_REPO_ROOT="$checkout" STUB_INSTALLER_EXIT=1)" || exit 1
+PLAYWRIGHT_MODULE="$playwright/index.mjs" \
+    node "$wizard/test-interface.mjs" "$url" failure || status=1
+
 exit "$status"

@@ -268,7 +268,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def _check_hetzner(self, body: dict) -> dict:
         token = SESSION.resolve_secret(
             "HCLOUD_TOKEN", body.get("token") or "", bool(body.get("use_saved")))
-        return checks.check_hetzner_token(token, (body.get("domain") or "").strip().lower())
+        return checks.check_hetzner_token(
+            token,
+            (body.get("domain") or "").strip().lower(),
+            (body.get("env_ext") or "").strip(),
+        )
 
     def _check_dns(self, body: dict) -> dict:
         return checks.check_domain_nameservers((body.get("domain") or "").strip().lower())

@@ -173,11 +173,22 @@ rather than a wall of log. They are ordinary `echo`s, invisible in normal use:
 >>> step:<id> <human-readable text>      a stage began
 >>> ok:<id>                              a stage finished
 >>> fail:<id> <reason>                   a stage failed
+>>> guidance\t<heading>\t<detail>        what the operator can do about it
 !!! missing:<VAR>                        a required value was absent
 ```
 
-Stage ids are stable strings (`preflight`, `dns-zone`, `ssh-key`,
+Stage ids are stable strings (`preflight`, `dns-zone`, `ssh-key`, `primary-ip`,
 `terraform-apply`, `secrets`, `bootstrap`, `kubeconfig`, `argocd-converge`).
+
+`guidance` exists because *"the installer failed, the log below has the
+details"* is not something a first-time operator can act on, and the wizard is
+in no position to invent advice — it does not know why a script stopped. The
+scripts do, so they say it, once, in wording both routes share: a person at a
+terminal reads it as an indented note, and the wizard renders it under the
+failure as **What you can do now**. When a script stops without saying anything,
+the wizard falls back to advice keyed on the stage that failed, and always ends
+with the same two sentences: read the end of the log, and nothing has to be
+undone.
 
 ### Non-goals for Phase 0
 

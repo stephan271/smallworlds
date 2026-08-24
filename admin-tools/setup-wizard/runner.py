@@ -31,6 +31,7 @@ STAGE_LABELS = {
     "repo-push": "Push it to your Git host",
     "dns-zone": "Prepare the DNS zone",
     "ssh-key": "Register the admin SSH key",
+    "primary-ip": "Reserve the public address",
     "terraform-apply": "Create the server",
     "bootstrap": "Install k3s and Argo CD",
     "secrets": "Plant the cluster credentials",
@@ -39,8 +40,8 @@ STAGE_LABELS = {
 }
 
 HETZNER_STAGES = ["repo-init", "repo-apps", "repo-commit", "repo-push",
-                  "dns-zone", "ssh-key", "terraform-apply", "secrets",
-                  "kubeconfig", "argocd-converge"]
+                  "dns-zone", "ssh-key", "primary-ip", "terraform-apply",
+                  "secrets", "kubeconfig", "argocd-converge"]
 LOCAL_STAGES = ["repo-init", "repo-apps", "repo-commit", "repo-push",
                 "dns-zone", "bootstrap", "kubeconfig", "argocd-converge"]
 
@@ -55,6 +56,11 @@ _CONVERGENCE = re.compile(r"^\s*\[\d+/\d+\]\s+(\d+)/(\d+)\s+apps healthy")
 # sw_result rather than scraped out of the installer's prose, so rewording a
 # message cannot silently empty the handover screen.
 _RESULT = re.compile(r"^>>> result\t([a-z]+)\t([^\t]*)\t(.*)$")
+# What the operator can do about a failure, in the installer's own words:
+# ">>> guidance\t<heading>\t<detail>". Emitted by sw_guidance, so the advice a
+# person reads in the terminal and the advice this page shows are the same
+# sentences -- see admin-tools/lib/ask.sh.
+_GUIDANCE = re.compile(r"^>>> guidance\t([^\t]*)\t(.*)$")
 
 MAX_LOG_LINES = 4000
 
@@ -172,6 +178,7 @@ class Run:
         ]
         self.log: list[str] = []
         self.error = ""
+        self.guidance: list[dict] = []
         self.progress: dict | None = None
         self.result: dict = {}
         self.started_at = time.time()
@@ -215,6 +222,7 @@ class Run:
             "stages": self.stages,
             "log": self.log[-MAX_LOG_LINES:],
             "error": self.error,
+            "guidance": self.guidance,
             "progress": self.progress,
             "result": self.result,
         }
@@ -251,6 +259,10 @@ class Run:
         if match:
             self._record_result(match.group(1), match.group(2), match.group(3))
             return
+        match = _GUIDANCE.match(line)
+        if match:
+            self._add_guidance(match.group(1), match.group(2))
+            return
         match = _STEP.match(line)
         if match:
             self._set_stage(match.group(1), "running", match.group(2))
@@ -278,6 +290,17 @@ class Run:
         if len(self.log) > MAX_LOG_LINES:
             del self.log[: len(self.log) - MAX_LOG_LINES]
         self._emit("log", line)
+
+    def _add_guidance(self, heading: str, detail: str) -> None:
+        """Advice arrives while the script is still running, before the exit
+        status is known. Kept in order, and de-duplicated: a re-run of the same
+        check must not stack the same paragraph twice."""
+        if not heading:
+            return
+        if any(entry["heading"] == heading for entry in self.guidance):
+            return
+        self.guidance.append({"heading": heading, "detail": detail})
+        self._emit("guidance", self.guidance)
 
     def _offered_urls(self) -> set[str]:
         """Always installed, plus whatever was chosen."""
@@ -429,4 +452,51 @@ class Run:
         for stage in self.stages:
             if stage["state"] == "running":
                 stage["state"] = "failed"
+        if self.status == "failed":
+            self._add_fallback_guidance()
         self._emit("status", self.status)
+
+    # Advice for the failures the scripts do not recognise themselves. The
+    # scripts speak first (sw_guidance), because they know what they were
+    # doing; this is what is left to say when they did not.
+    _FALLBACK_GUIDANCE = {
+        "repo-push": (
+            "Check what the Git token may do",
+            "Pushing the overlay needs Contents: read/write on the repository "
+            "(and Pull requests: read/write for the weekly update proposals). "
+            "A token that passed the earlier check can still be missing those.",
+        ),
+        "dns-zone": (
+            "Check the Hetzner token and the domain",
+            "The zone is created through the Hetzner Cloud API with the token "
+            "from the second panel, which needs Read & Write. If the zone "
+            "already exists in another Hetzner project, this token cannot see "
+            "it.",
+        ),
+        "argocd-converge": (
+            "The cluster is up and still working",
+            "Convergence timing out is not the same as the install failing: "
+            "Argo CD keeps retrying on its own. Watch it with "
+            "kubectl get application -n argocd.",
+        ),
+    }
+
+    def _add_fallback_guidance(self) -> None:
+        if self.guidance:
+            return
+        failed = next((stage for stage in self.stages
+                       if stage["state"] == "failed"), None)
+        specific = self._FALLBACK_GUIDANCE.get(failed["id"]) if failed else None
+        if specific:
+            self._add_guidance(*specific)
+        self._add_guidance(
+            "Read the end of the log",
+            "Open \u201cShow what the installer is doing\u201d below. The last "
+            "few lines carry the actual error; everything above it succeeded.",
+        )
+        self._add_guidance(
+            "Nothing has to be undone",
+            "Fix what the error names and run ./smallworlds-setup again. Every "
+            "step is written to be safe to repeat \u2014 what already exists is "
+            "found and reused, not created a second time.",
+        )

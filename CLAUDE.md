@@ -14,7 +14,9 @@ Read `README.md` first for deployment/maintenance instructions aimed at operator
 
 ```
 infrastructure/
-  terraform/            Production/dev Hetzner VM + DNS provisioning
+  terraform/            Production/dev Hetzner VM + DNS provisioning (see "Node
+                        placement and DNS" below — location and records are inputs,
+                        not constants)
   terraform-staging/    Ephemeral staging VM used by admin-tools/test-pr-locally.sh
   cloud-init/           Shared k3s+ArgoCD bootstrap template used by both terraform roots
   local/                LAN-server bootstrap (shell counterpart of cloud-init, no Terraform)
@@ -81,9 +83,38 @@ that over a pty.
 
 It collects, validates, shows the plan, installs, and hands over the credentials — the
 scripts' `sw_result` markers carry the credentials, addresses, kubeconfig path and hosts
-line, so the handover never scrapes their prose. Read `docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md` for the decision and
+line, so the handover never scrapes their prose. A failure is answered with advice
+rather than a log: the scripts emit `sw_guidance` markers (`>>> guidance\t<heading>\t<detail>`,
+also in `lib/ask.sh`), the wizard renders them as "What you can do now", and a script
+that stops without saying anything falls back to per-stage advice in `runner.py`. Read `docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md` for the decision and
 `plans-and-walkthroughs/design-setup-wizard.md` for the design before changing it.
 Tests: `admin-tools/test-setup-wizard.sh` (the browser half needs `npm ci` in `e2e-tests/`).
+
+## Node placement and DNS (`hetzner` target)
+
+Two things used to be constants in `infrastructure/terraform/main.tf` and are now
+decided per install:
+
+- **Where the node goes.** `smallworlds-init.sh`'s `ensure_primary_ip()` asks the Hetzner
+  API which of `nbg1`/`fsn1`/`hel1` can currently supply `$HETZNER_SERVER_TYPE` (default
+  `cx43`), creates the Primary IP `smallworlds-ip<env-slug>` there, and passes the location
+  to Terraform as `var.location`. It is the same idempotent-precondition pattern as
+  `ensure_dns_zone`/`ensure_ssh_key`, and for the same reason — the IP must outlive any one
+  Terraform state. **The scan runs once**: a Primary IP is datacenter-bound and is the
+  community's public address, so once it exists it *is* the answer, and a location that
+  has since sold out fails the placement check (before anything is created) rather than
+  silently moving the cluster. Terraform re-checks the same thing in a `precondition` on
+  the server, so a bare `terraform apply` gets the same message.
+- **Which DNS records exist.** `var.apps` carries the selected applications; `main.tf`'s
+  `local.app_subdomains` maps them to subdomains and only those get an A record, alongside
+  `local.core_subdomains` (always deployed) and the apex on production. The map mirrors
+  `admin-tools/generate_domain_patches.py` and `plan.py`'s `_SUBDOMAIN_BY_APP` — change one,
+  change all three. The PTR follows too: no Stalwart means no `mail.<domain>` to point at.
+  `var.apps` defaults to every optional app, so a `terraform apply` that does not pass it
+  keeps the zone it had.
+
+Tests: `admin-tools/test-hetzner-placement.sh` (stubbed Hetzner API + a terraform that
+records its tfvars; covers a fresh project, a pinned Primary IP, and no capacity anywhere).
 
 ## Local end-to-end staging (`admin-tools/test-pr-locally.sh`)
 

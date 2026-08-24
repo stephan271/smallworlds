@@ -376,6 +376,35 @@ function applyTargetVisibility() {
   el("local-fields").hidden = value !== "local";
 }
 
+/* The settings repository's name and the directory it is written to are the
+   same choice twice: leaving them to drift means the operator's disk disagrees
+   with their Git host for no reason. So renaming the repository renames the
+   directory -- until the operator edits the path themselves, after which it is
+   theirs and the wizard stops touching it. */
+let derivedRepoPath = "";
+
+function parentOf(path) {
+  const trimmed = String(path || "").replace(/\/+$/, "");
+  const cut = trimmed.lastIndexOf("/");
+  return cut > 0 ? trimmed.slice(0, cut) : (cut === 0 ? "" : ".");
+}
+
+function syncRepoPathToName() {
+  const name = el("repo_name").value.trim();
+  const path = el("repo_path");
+  // Anything the operator typed themselves wins, now and from then on.
+  if (path.value && path.value !== derivedRepoPath) { showRepoPathPreview(); return; }
+  if (!name) { showRepoPathPreview(); return; }
+  derivedRepoPath = parentOf(derivedRepoPath || path.value) + "/" + name;
+  path.value = derivedRepoPath;
+  showRepoPathPreview();
+}
+
+function showRepoPathPreview() {
+  const preview = el("repo-path-preview");
+  if (preview) preview.textContent = el("repo_path").value || "(not set)";
+}
+
 function applyGitModeVisibility() {
   const mode = document.querySelector('input[name="git_mode"]:checked');
   const creating = !mode || mode.value === "create";
@@ -403,6 +432,11 @@ function fill() {
   el("remote_url").value = state.remote_url;
   el("repo_name").value = state.repo_name;
   el("repo_path").value = state.repo_path;
+  // The default the server computed counts as derived, so a first rename still
+  // moves the directory; a path remembered from a previous run does not, since
+  // it is where the operator's overlay actually is.
+  derivedRepoPath = state.repo_path;
+  showRepoPathPreview();
   el("version").value = state.version;
 
   // A remembered token stays on this machine: the field says one is held
@@ -431,7 +465,11 @@ const checkHetzner = debounce((fieldId, checkId) => {
   const token = el(fieldId).value;
   if (!token && !state.has_saved_hcloud_token) { showCheck(checkId, null); return; }
   runCheck(checkId, "Asking Hetzner…", () => api("/api/check/hetzner", {
-    token, use_saved: !token, domain: el("domain").value.trim().toLowerCase(),
+    token, use_saved: !token,
+    domain: el("domain").value.trim().toLowerCase(),
+    // The environment decides which Primary IP is this cluster's, and that IP
+    // is what pins the location the check reports on.
+    env_ext: el("env_ext").value.trim(),
   }));
 }, 600);
 
@@ -457,6 +495,8 @@ function wire() {
     "input", () => checkHetzner("hcloud_token_local", "check-hetzner-local"));
   el("git_token").addEventListener("input", checkGit);
   el("remote_url").addEventListener("input", checkGit);
+  el("repo_name").addEventListener("input", syncRepoPathToName);
+  el("repo_path").addEventListener("input", showRepoPathPreview);
 
   document.querySelectorAll('input[name="target"]').forEach((input) => {
     input.addEventListener("change", () => {
@@ -520,6 +560,7 @@ Promise.all([api("/api/state"), api("/api/install/status").catch(() => ({ status
 
 let events = null;
 let lastResult = {};
+let lastGuidance = [];
 
 const STAGE_GLYPHS = { pending: "", running: "•", done: "✓", failed: "×" };
 
@@ -573,8 +614,28 @@ function showProgress(progress) {
     `${progress.healthy} of ${progress.total} applications ready`;
 }
 
+function renderGuidance(entries, visible) {
+  lastGuidance = entries || lastGuidance;
+  const block = el("guidance");
+  const list = el("guidance-list");
+  if (!block || !list) return;
+  if (!visible || !lastGuidance.length) { block.hidden = true; return; }
+  list.textContent = "";
+  lastGuidance.forEach((entry) => {
+    const item = document.createElement("li");
+    const heading = document.createElement("h3");
+    heading.textContent = entry.heading;
+    const detail = document.createElement("p");
+    detail.textContent = entry.detail;
+    item.append(heading, detail);
+    list.append(item);
+  });
+  block.hidden = false;
+}
+
 function applySnapshot(snapshot) {
   if (snapshot.stages) renderStages(snapshot.stages);
+  if (snapshot.guidance) lastGuidance = snapshot.guidance;
   if (snapshot.log && snapshot.log.length) {
     el("log").textContent = "";
     appendLog(snapshot.log);
@@ -589,6 +650,9 @@ function applyStatus(snapshot) {
   const lede = el("install-lede");
   const outcome = el("install-outcome");
   el("cancel").hidden = status !== "running" && status !== "starting";
+  // Advice belongs to a stop, not to a working install: an operator watching a
+  // healthy rollout should not be reading about what to do when it breaks.
+  renderGuidance(null, status === "failed" || status === "cancelled");
 
   if (status === "succeeded") {
     const unsettled = Array.from(document.querySelectorAll('.stage[data-state="failed"]'));
@@ -762,6 +826,8 @@ function watch() {
   events.addEventListener("progress", (message) => showProgress(JSON.parse(message.data)));
   events.addEventListener("result", (message) =>
     (lastResult = JSON.parse(message.data)));
+  events.addEventListener("guidance", (message) =>
+    (lastGuidance = JSON.parse(message.data)));
   events.addEventListener("status", (message) =>
     applyStatus({ status: JSON.parse(message.data) }));
   events.addEventListener("done", (message) => {
@@ -792,4 +858,5 @@ el("shutdown").addEventListener("click", () => {
   el("install-lede").textContent =
     "Your cloud carries on without it. Run ./smallworlds-setup again if you need it.";
   showCheck("install-outcome", null);
+  renderGuidance(null, false);
 });

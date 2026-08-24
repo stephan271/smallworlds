@@ -43,6 +43,11 @@ if (mode === "install") {
   await finish();
 }
 
+if (mode === "failure") {
+  await walkFailure();
+  await finish();
+}
+
 console.log("interface — the five panels");
 
 await page.goto(url, { waitUntil: "networkidle" });
@@ -90,6 +95,30 @@ await page.waitForSelector('[data-panel="repository"]:not([hidden])');
 check("the repository panel is reached", (await openPanel()) === "repository");
 check("a repository name is suggested", (await page.inputValue("#repo_name")).length > 0);
 check("a release is pinned by default", /^v\d/.test(await page.inputValue("#version")));
+
+// Naming the repository and naming the directory it is written to are the
+// same decision twice. Renaming one renames the other, until the operator
+// takes the directory over by editing it — after which it is theirs.
+await page.locator('[data-panel="repository"] .advanced summary').click();
+const suggestedPath = await page.inputValue("#repo_path");
+await page.fill("#repo_name", "vereinswolke-config");
+await page.waitForTimeout(200);
+check("renaming the repository renames the local directory",
+      (await page.inputValue("#repo_path")).endsWith("/vereinswolke-config"),
+      await page.inputValue("#repo_path"));
+check("it stays in the same parent directory",
+      (await page.inputValue("#repo_path")).startsWith(
+        suggestedPath.slice(0, suggestedPath.lastIndexOf("/") + 1)));
+check("the directory is shown next to the name",
+      (await page.locator("#repo-path-preview").textContent())
+        === (await page.inputValue("#repo_path")));
+
+await page.fill("#repo_path", "/tmp/somewhere-else");
+await page.fill("#repo_name", "changed-again");
+await page.waitForTimeout(200);
+check("a directory the operator chose is left alone",
+      (await page.inputValue("#repo_path")) === "/tmp/somewhere-else");
+await page.fill("#repo_name", "my-community-config");
 
 await page.check('input[name="git_mode"][value="existing"]');
 await page.waitForTimeout(200);
@@ -167,12 +196,47 @@ async function finish() {
   process.exit(0);
 }
 
+/* An install that stops. The stub installer exits non-zero and prints the
+   guidance markers a real script prints, so this asserts the one thing an
+   operator whose install just failed actually needs: something to do next. */
+async function walkFailure() {
+  console.log("interface — an install that stops");
+  await startInstall();
+  await page.waitForSelector('#install-outcome[data-status="error"]', { timeout: 90000 });
+
+  check("the failure is reported",
+        /stopped|fail/i.test(await page.locator("#install-heading").textContent()));
+  check("the log is opened for you", await page.locator("#log").isVisible());
+  check("what to do next is shown", await page.locator("#guidance").isVisible());
+  const headings = await page.locator("#guidance-list h3").allTextContents();
+  check("the advice comes from the installer itself",
+        headings.includes("Try Falkenstein instead"), headings.join(" | "));
+  check("each piece of advice explains itself",
+        (await page.locator("#guidance-list p").first().textContent()).length > 10);
+  check("no credentials are handed over for an install that failed",
+        !(await page.locator("#handover").isVisible()));
+  check("the page logged no errors", problems.length === 0, problems.join(" | "));
+}
+
 /* The install walk runs against a wizard pointed at a stub checkout whose two
    scripts print markers and exit, so this exercises the whole browser path —
    Install, the stage list, the streamed log, the outcome — without touching a
    cloud account. */
 async function walkInstall() {
   console.log("interface — installing");
+  await startInstall();
+  check("clicking Install shows the progress view", true);
+  check("the step rail is put away", !(await page.locator("#steps").isVisible()));
+  check("Back is no longer offered", !(await page.locator(".actions").isVisible()));
+  check("every expected stage is listed up front",
+        (await page.locator(".stage").count()) >= 8);
+  await afterInstall();
+}
+
+/* Fills in the five panels with answers that pass validation and clicks
+   Install. Shared, because "what the operator sees when it works" and "what
+   they see when it does not" differ only in what the stub script does. */
+async function startInstall() {
   await page.goto(url, { waitUntil: "networkidle" });
   await page.waitForSelector('.step[data-state="current"]');
 
@@ -200,12 +264,9 @@ async function walkInstall() {
 
   await page.click("#next");
   await page.waitForSelector('[data-panel="install"]:not([hidden])', { timeout: 20000 });
-  check("clicking Install shows the progress view", true);
-  check("the step rail is put away", !(await page.locator("#steps").isVisible()));
-  check("Back is no longer offered", !(await page.locator(".actions").isVisible()));
-  check("every expected stage is listed up front",
-        (await page.locator(".stage").count()) >= 8);
+}
 
+async function afterInstall() {
   await page.waitForSelector('#install-outcome[data-status]', { timeout: 90000 });
   const outcome = await page.locator("#install-outcome").textContent();
   check("the install reports success", /finished/i.test(outcome), outcome);

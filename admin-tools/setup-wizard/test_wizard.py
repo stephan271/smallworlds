@@ -344,6 +344,10 @@ result url Identity "https://identity.example.org"
 result url Files "https://files.example.org"
 result url Photos "https://photos.example.org"
 result hosts hosts "192.168.1.50 identity.example.org dashboard.example.org"
+if [ -n "${STUB_INSTALLER_EXIT:-}" ]; then
+  printf '>>> guidance\t%s\t%s\n' "Try Falkenstein instead" "nbg1 has no cx43 right now."
+  printf '>>> guidance\t%s\t%s\n' "Try Falkenstein instead" "a repeat that must not stack"
+fi
 echo "${STUB_INSTALLER_EXTRA:-}"
 exit "${STUB_INSTALLER_EXIT:-0}"
 """
@@ -436,6 +440,8 @@ def test_runner():
     run = runner.Run(answers, {"GITOPS_REPO_TOKEN": "SUPER-SECRET-TOKEN-VALUE"}, checkout)
     check("the stage list is derived from the answers",
           [stage["id"] for stage in run.stages] == runner.HETZNER_STAGES)
+    check("reserving the public address is one of them",
+          "primary-ip" in runner.HETZNER_STAGES)
 
     watcher = run.subscribe()
     run.start()
@@ -506,6 +512,31 @@ def test_runner():
     check("the failure says what it was doing", "installing the cluster" in failing.error)
     check("the stage it died in is marked failed",
           any(stage["state"] == "failed" for stage in failing.stages))
+
+    # "The installer failed, read the log" is not something an operator can act
+    # on. The scripts say what to do about it; the wizard carries the words
+    # through rather than inventing its own.
+    snapshot = failing.snapshot()
+    headings = [entry["heading"] for entry in snapshot["guidance"]]
+    check("the installer's own advice reaches the browser",
+          "Try Falkenstein instead" in headings, headings)
+    check("the same advice is not stacked twice",
+          headings.count("Try Falkenstein instead") == 1, headings)
+    check("the advice keeps its detail",
+          any("no cx43" in entry["detail"] for entry in snapshot["guidance"]))
+    check("guidance markers never reach the log",
+          not any(">>> guidance" in line for line in snapshot["log"]))
+
+    # A script that fails without saying why still has to leave the operator
+    # somewhere to go.
+    silent = runner.Run(answers, {}, checkout)
+    silent._set_stage("repo-push", "running")
+    silent._fail(1, "writing the settings repository")
+    check("a failure with no advice still gets some",
+          [entry["heading"] for entry in silent.guidance] ==
+          ["Check what the Git token may do", "Read the end of the log",
+           "Nothing has to be undone"],
+          [entry["heading"] for entry in silent.guidance])
 
 
 def plan_module():
