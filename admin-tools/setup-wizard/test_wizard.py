@@ -442,6 +442,14 @@ def test_runner():
           [stage["id"] for stage in run.stages] == runner.HETZNER_STAGES)
     check("reserving the public address is one of them",
           "primary-ip" in runner.HETZNER_STAGES)
+    # The longest silence in the whole install is the node's first boot. A
+    # stage nobody can see is indistinguishable from a hang.
+    check("the server's first boot is a stage of its own",
+          "node-ready" in runner.HETZNER_STAGES)
+    check("it comes after the server is created and before the secrets",
+          runner.HETZNER_STAGES.index("terraform-apply")
+          < runner.HETZNER_STAGES.index("node-ready")
+          < runner.HETZNER_STAGES.index("secrets"))
 
     watcher = run.subscribe()
     run.start()

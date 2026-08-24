@@ -33,6 +33,7 @@ STAGE_LABELS = {
     "ssh-key": "Register the admin SSH key",
     "primary-ip": "Reserve the public address",
     "terraform-apply": "Create the server",
+    "node-ready": "Wait for the server's first boot",
     "bootstrap": "Install k3s and Argo CD",
     "secrets": "Plant the cluster credentials",
     "kubeconfig": "Retrieve cluster access",
@@ -41,7 +42,7 @@ STAGE_LABELS = {
 
 HETZNER_STAGES = ["repo-init", "repo-apps", "repo-commit", "repo-push",
                   "dns-zone", "ssh-key", "primary-ip", "terraform-apply",
-                  "secrets", "kubeconfig", "argocd-converge"]
+                  "node-ready", "secrets", "kubeconfig", "argocd-converge"]
 LOCAL_STAGES = ["repo-init", "repo-apps", "repo-commit", "repo-push",
                 "dns-zone", "bootstrap", "kubeconfig", "argocd-converge"]
 
@@ -472,6 +473,12 @@ class Run:
             "from the second panel, which needs Read & Write. If the zone "
             "already exists in another Hetzner project, this token cannot see "
             "it.",
+        ),
+        "node-ready": (
+            "The server exists — its first boot is what stalled",
+            "cloud-init installs k3s and pulls several GB of images on first "
+            "boot. Read what it got stuck on with: ssh root@<the node> "
+            "'cloud-init status --long; tail -60 /var/log/cloud-init-output.log'",
         ),
         "argocd-converge": (
             "The cluster is up and still working",

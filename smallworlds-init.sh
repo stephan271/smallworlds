@@ -446,6 +446,100 @@ except Exception:
     sw_step_ok primary-ip
 }
 
+# ---------------------------------------------------------------------------
+# Talking to a node that did not exist a minute ago
+# ---------------------------------------------------------------------------
+
+# Host keys change every time a node is rebuilt and there is no prior trust to
+# check against, so checking is theatre. LogLevel=ERROR keeps the resulting
+# warning out of the operator's log without hiding real failures.
+SW_SSH_OPTS=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+             -o LogLevel=ERROR -o ConnectTimeout=10 -o BatchMode=yes)
+
+ssh_node() { ssh "${SW_SSH_OPTS[@]}" "root@$SERVER_IP" "$@"; }
+
+# sw_wait_for <seconds> <what> <command...>
+#
+# Poll until the command succeeds. Two things the old `until ssh ...; sleep 2`
+# loops did not do: say something while waiting, and give up. A wait with no
+# output and no end is indistinguishable from a hang, and that is exactly how
+# it was experienced.
+sw_wait_for() {
+    local deadline_seconds="$1" description="$2"
+    shift 2
+    local report_every="${SW_WAIT_REPORT_SECONDS:-30}"
+    local started=$SECONDS next_report=$report_every elapsed
+    while ! "$@" >/dev/null 2>&1; do
+        elapsed=$(( SECONDS - started ))
+        if (( elapsed >= deadline_seconds )); then
+            return 1
+        fi
+        if (( elapsed >= next_report )); then
+            echo -e "${CYAN}  still waiting for ${description} — ${elapsed}s of up to ${deadline_seconds}s${NC}"
+            next_report=$(( next_report + report_every ))
+        fi
+        sleep 5
+    done
+    return 0
+}
+
+# Wait for cloud-init to finish. Returns 0 done, 1 timed out, 2 cloud-init
+# reported an error, 3 could not tell.
+#
+# This is not politeness. cloud-init's runcmd does
+# `rm -rf /var/lib/rancher/k3s/server` and then re-links the directory onto the
+# data volume, so ANYTHING copied in before that point is deleted — the
+# template says as much about its own write_files. sshd binds early in boot,
+# long before runcmd, so "port 22 answers" was never evidence that the node was
+# ready to be given the cluster secrets.
+wait_for_cloud_init() {
+    local deadline_seconds="${SW_CLOUD_INIT_TIMEOUT:-1800}"
+    local report_every="${SW_WAIT_REPORT_SECONDS:-30}"
+    local started=$SECONDS next_report=$report_every elapsed status unreadable_since=""
+
+    while true; do
+        status="$(ssh_node 'cloud-init status 2>/dev/null || true' 2>/dev/null \
+                  | awk -F': ' '/^status:/ {print $2; exit}')"
+        case "$status" in
+            done)     return 0 ;;
+            error)    return 2 ;;
+            disabled) return 3 ;;
+            "")
+                # No answer yet: either SSH blipped, or this image has no
+                # cloud-init at all. Give it a minute before concluding the
+                # latter — an unanswerable question must not become a verdict.
+                : "${unreadable_since:=$SECONDS}"
+                if (( SECONDS - unreadable_since >= 60 )); then
+                    return 3
+                fi
+                ;;
+            *) unreadable_since="" ;;
+        esac
+
+        elapsed=$(( SECONDS - started ))
+        if (( elapsed >= deadline_seconds )); then
+            return 1
+        fi
+        if (( elapsed >= next_report )); then
+            echo -e "${CYAN}  the server is still setting itself up (${status:-no answer yet}) — ${elapsed}s of up to ${deadline_seconds}s${NC}"
+            next_report=$(( next_report + report_every ))
+        fi
+        sleep 5
+    done
+}
+
+# What to say when a wait ran out. The node exists and is untouched by this,
+# which is the first thing an operator watching a long silence wants to know.
+report_node_stuck() {
+    local what="$1" detail="$2"
+    sw_guidance "Look at the node's own boot log" \
+        "ssh root@${SERVER_IP} 'cloud-init status --long; tail -60 /var/log/cloud-init-output.log' — that log is where the first boot installs k3s and pulls the container images, and it names whatever it could not do."
+    sw_guidance "Check whether k3s came up at all" \
+        "ssh root@${SERVER_IP} 'systemctl status k3s --no-pager; journalctl -u k3s -n 60 --no-pager'"
+    sw_guidance "The server is still there, and nothing was rolled back" \
+        "${detail:-Waiting for $what timed out; the node itself was not touched.} Re-run ./smallworlds-setup once the boot log says what went wrong — every step finds and reuses what already exists."
+}
+
 # Which optional applications this community selected, one per line.
 #
 # prepare-community-repo.sh records the answers in this file, and the browser
@@ -1000,37 +1094,115 @@ EOF
     cd ../..
     rm -f "$TFVARS_FILE"
 
-    # 5. Retrieve Kubeconfig
-    echo -e "${CYAN}Waiting for SSH to be available on $SERVER_IP...${NC}"
-    while ! timeout 2 bash -c "</dev/tcp/$SERVER_IP/22" 2>/dev/null; do
-        sleep 2
-    done
+    # 5. Wait for the node to finish building itself, then plant the secrets
+    sw_step node-ready "Waiting for the server to finish setting itself up"
+    echo -e "${CYAN}Waiting for SSH on $SERVER_IP...${NC}"
+    if ! sw_wait_for "${SW_SSH_TIMEOUT:-300}" "SSH" ssh_node true; then
+        echo -e "${RED}Could not log in to $SERVER_IP over SSH.${NC}"
+        echo -e "${YELLOW}$(ssh "${SW_SSH_OPTS[@]}" "root@$SERVER_IP" true 2>&1 | tail -3)${NC}"
+        sw_step_fail node-ready "no SSH access to the new node"
+        sw_guidance "Check the key the node was given" \
+            "The node trusts the key uploaded as 'SmallWorlds Admin Key' — the public half of ${SSH_PUBLIC_KEY_PATH:-$HOME/.ssh/id_ed25519.pub}. If you have more than one key, or the agent is offering a different one, ssh -i <the matching private key> root@${SERVER_IP} will say so."
+        sw_guidance "The server is still there, and nothing was rolled back" \
+            "Re-run ./smallworlds-setup once you can log in — every step finds and reuses what already exists."
+        exit 1
+    fi
+    echo -e "${GREEN}SSH is up.${NC}"
+
+    # The node is not ready just because it answers. cloud-init's runcmd purges
+    # /var/lib/rancher/k3s/server and relocates the directory onto the data
+    # volume, so secrets planted before it finishes are deleted by it.
+    echo -e "${CYAN}Waiting for the first boot to finish — it installs k3s and pulls the container images...${NC}"
+    cloud_init_state=0
+    wait_for_cloud_init || cloud_init_state=$?
+    case "$cloud_init_state" in
+        0)
+            echo -e "${GREEN}The server finished setting itself up.${NC}"
+            ;;
+        2)
+            echo -e "${RED}cloud-init reported an error on the node.${NC}"
+            sw_step_fail node-ready "the first boot failed"
+            report_node_stuck "the first boot" \
+                "cloud-init ran and failed. The node exists and is reachable; nothing has been rolled back."
+            exit 1
+            ;;
+        3)
+            echo -e "${YELLOW}Could not read cloud-init's status; continuing and waiting for k3s itself.${NC}"
+            ;;
+        *)
+            echo -e "${RED}The first boot did not finish in time.${NC}"
+            sw_step_fail node-ready "the first boot did not finish"
+            report_node_stuck "the first boot" \
+                "It may simply be slow — a plain Ubuntu boot installs k3s and pulls several GB of images. Raise the limit with SW_CLOUD_INIT_TIMEOUT=3600 if the boot log shows it still working."
+            exit 1
+            ;;
+    esac
+    sw_step_ok node-ready
 
     sw_step secrets "Planting the cluster secrets on the node"
     echo -e "${CYAN}Deploying secrets to the server securely...${NC}"
-    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$SERVER_IP" "mkdir -p /var/lib/rancher/k3s/server/manifests" 2>/dev/null
-    scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$SECRETS_FILE" root@"$SERVER_IP":/var/lib/rancher/k3s/server/manifests/smallworlds-secrets.yaml >/dev/null 2>&1
+    secrets_error=""
+    if ! secrets_error="$(ssh_node "mkdir -p /var/lib/rancher/k3s/server/manifests" 2>&1)" \
+       || ! secrets_error="$(scp "${SW_SSH_OPTS[@]}" "$SECRETS_FILE" \
+              "root@$SERVER_IP:/var/lib/rancher/k3s/server/manifests/smallworlds-secrets.yaml" 2>&1)"; then
+        rm -f "$SECRETS_FILE"
+        echo -e "${RED}Could not copy the cluster secrets to the node: ${secrets_error}${NC}"
+        sw_step_fail secrets "the secrets could not be copied to the node"
+        sw_guidance "Nothing was lost — the secrets are regenerated" \
+            "They are held in .smallworlds-cache.env on this machine and rebuilt on every run, so re-running is enough. What must not happen is the cluster starting without them, which is why this stops here."
+        exit 1
+    fi
+    # Copied is not the same as present: this is the exact file the first boot
+    # deletes if it is planted too early, so it is read back rather than
+    # assumed. A green tick for a step that silently did nothing is worse than
+    # no tick at all.
+    if ! ssh_node "test -s /var/lib/rancher/k3s/server/manifests/smallworlds-secrets.yaml"; then
+        rm -f "$SECRETS_FILE"
+        echo -e "${RED}The secrets file is not on the node after copying it.${NC}"
+        sw_step_fail secrets "the secrets did not survive on the node"
+        sw_guidance "The first boot removed them" \
+            "cloud-init clears /var/lib/rancher/k3s/server while it relocates k3s onto the data volume. Re-run the installer: it waits for that to finish before copying, so a second run plants them safely."
+        exit 1
+    fi
     rm -f "$SECRETS_FILE"
+    echo -e "${GREEN}Cluster secrets planted.${NC}"
     sw_step_ok secrets
 
-
     sw_step kubeconfig "Waiting for k3s and retrieving the kubeconfig"
-    echo -e "${CYAN}Waiting for K3s to generate kubeconfig on the remote node...${NC}"
-    until ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 root@"$SERVER_IP" "[ -f /etc/rancher/k3s/k3s.yaml ]" 2>/dev/null; do
-        sleep 2
-    done
+    echo -e "${CYAN}Waiting for k3s to generate its kubeconfig...${NC}"
+    if ! sw_wait_for "${SW_K3S_TIMEOUT:-900}" "k3s" \
+            ssh_node "[ -f /etc/rancher/k3s/k3s.yaml ]"; then
+        echo -e "${RED}k3s did not come up on the node.${NC}"
+        sw_step_fail kubeconfig "k3s did not start"
+        report_node_stuck "k3s" "The node is up and reachable over SSH; k3s itself never wrote its kubeconfig."
+        exit 1
+    fi
 
     KUBECONFIG_LOCAL="$(kubeconfig_path "$(cluster_label "$ENV_EXT")")"
-    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$SERVER_IP" "cat /etc/rancher/k3s/k3s.yaml" > "$KUBECONFIG_LOCAL" 2>/dev/null
+    if ! ssh_node "cat /etc/rancher/k3s/k3s.yaml" > "$KUBECONFIG_LOCAL" 2>/dev/null \
+       || [[ ! -s "$KUBECONFIG_LOCAL" ]]; then
+        rm -f "$KUBECONFIG_LOCAL"
+        echo -e "${RED}Could not read the kubeconfig from the node.${NC}"
+        sw_step_fail kubeconfig "the kubeconfig could not be retrieved"
+        report_node_stuck "the kubeconfig" "k3s wrote its kubeconfig but it could not be copied back."
+        exit 1
+    fi
     sed -i "s|127.0.0.1|$SERVER_IP|g" "$KUBECONFIG_LOCAL"
     chmod 600 "$KUBECONFIG_LOCAL"
+    echo -e "${GREEN}Cluster access saved to $KUBECONFIG_LOCAL.${NC}"
     sw_step_ok kubeconfig
 
-    echo -e "${CYAN}Retrieving ArgoCD initial admin password...${NC}"
-    until ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 root@"$SERVER_IP" "kubectl -n argocd get secret argocd-initial-admin-secret >/dev/null 2>&1" 2>/dev/null; do
-        sleep 2
-    done
-    ARGOCD_PASS=$(ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@"$SERVER_IP" "kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath=\"{.data.password}\" | base64 -d" 2>/dev/null)
+    echo -e "${CYAN}Retrieving Argo CD's initial admin password...${NC}"
+    if sw_wait_for "${SW_ARGOCD_TIMEOUT:-900}" "Argo CD" \
+            ssh_node "kubectl -n argocd get secret argocd-initial-admin-secret"; then
+        ARGOCD_PASS=$(ssh_node "kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath=\"{.data.password}\" | base64 -d" 2>/dev/null)
+    else
+        # Not fatal: the cluster is up, Argo CD is simply still starting, and
+        # the password can be read out later. Handing over a blank one without
+        # saying so would be worse.
+        echo -e "${YELLOW}Argo CD has not created its admin secret yet.${NC}"
+        ARGOCD_PASS="(not ready yet — read it later with: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d)"
+    fi
 else
     # ==================================================================
     # Target: local server — an existing Linux machine in your LAN is
@@ -1324,10 +1496,12 @@ echo -e "${GREEN}======================================================${NC}"
 # whose operation ended in Failed/Error gets re-kicked automatically.
 if command -v kubectl >/dev/null 2>&1; then
     sw_step argocd-converge "Waiting for every Argo CD application to go Healthy"
-    echo -e "${CYAN}Watching application rollout (up to 40 minutes; safe to Ctrl+C — the cluster continues on its own)...${NC}"
+    CONVERGE_ATTEMPTS="${SW_CONVERGE_ATTEMPTS:-120}"
+    CONVERGE_INTERVAL="${SW_CONVERGE_INTERVAL:-20}"
+    echo -e "${CYAN}Watching application rollout (up to $(( CONVERGE_ATTEMPTS * CONVERGE_INTERVAL / 60 )) minutes; safe to Ctrl+C — the cluster continues on its own)...${NC}"
     export KUBECONFIG="$KUBECONFIG_LOCAL"
     CONVERGED=false
-    for i in $(seq 1 120); do
+    for i in $(seq 1 "$CONVERGE_ATTEMPTS"); do
         for app in $(kubectl get application -n argocd -o jsonpath='{range .items[?(@.status.operationState.phase=="Failed")]}{.metadata.name}{" "}{end}' 2>/dev/null) \
                    $(kubectl get application -n argocd -o jsonpath='{range .items[?(@.status.operationState.phase=="Error")]}{.metadata.name}{" "}{end}' 2>/dev/null); do
             echo -e "  ${YELLOW}Sync of '$app' gave up — retriggering...${NC}"
@@ -1354,13 +1528,15 @@ if command -v kubectl >/dev/null 2>&1; then
             CONVERGED=true
             break
         fi
-        echo -e "  [$i/120] $HEALTHY/$TOTAL apps healthy (root: ${ROOT_STATE:-pending})"
-        sleep 20
+        echo -e "  [$i/$CONVERGE_ATTEMPTS] $HEALTHY/$TOTAL apps healthy (root: ${ROOT_STATE:-pending})"
+        sleep "$CONVERGE_INTERVAL"
     done
     if [ "$CONVERGED" = false ]; then
-        sw_step_fail argocd-converge "not all applications were Healthy after 40 minutes"
-        echo -e "${YELLOW}Rollout did not fully converge within 40 minutes. Inspect with:${NC}"
+        sw_step_fail argocd-converge "not all applications were Healthy in time"
+        echo -e "${YELLOW}Rollout did not fully converge. Inspect with:${NC}"
         echo -e "  kubectl get application -n argocd"
+        sw_guidance "The cluster is up and Argo CD keeps trying" \
+            "This is not a failed install: Argo CD reconciles on its own and slow first syncs are normal while images are pulled. Watch it with: KUBECONFIG=${KUBECONFIG_LOCAL} kubectl get application -n argocd"
     fi
 else
     echo -e "${YELLOW}kubectl not found locally — skipping rollout watch. Check progress with the ArgoCD dashboard.${NC}"

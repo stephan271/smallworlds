@@ -89,13 +89,60 @@ case "${1:-}" in
         for argument in "$@"; do
             case "$argument" in -var-file=*) cp "${argument#-var-file=}" "$FIXTURES/applied.tfvars" ;; esac
         done
-        echo "Error: resource_unavailable (stub)" >&2
-        exit 1 ;;
+        # Fails by default, which stops the run right after the variables have
+        # been recorded. TERRAFORM_SUCCEEDS=1 lets it through so the node path
+        # can be walked too.
+        if [ -z "${TERRAFORM_SUCCEEDS:-}" ]; then
+            echo "Error: resource_unavailable (stub)" >&2
+            exit 1
+        fi
+        exit 0 ;;
+    output) echo "203.0.113.9" ;;
 esac
 exit 0
 STUB
 
-for stub in ssh scp kubectl jq; do
+# A node, as far as the installer can tell. NODE_STATE drives what it reports,
+# so the first boot's timing -- the thing that decides whether the cluster
+# secrets survive -- can actually be exercised.
+cat > "$stub_bin/ssh" <<'STUB'
+#!/usr/bin/env bash
+command=""
+for argument in "$@"; do
+    case "$argument" in -*|root@*) ;; *) command="$argument" ;; esac
+done
+case "$command" in
+    *"cloud-init status"*)
+        printf 'status: %s\n' "$(cat "$FIXTURES/cloud-init-state" 2>/dev/null || echo done)" ;;
+    *"mkdir -p"*) mkdir -p "$FIXTURES/node-manifests" ;;
+    *"test -s"*)
+        # The first boot wipes this directory while relocating k3s. If the
+        # secrets were planted before it finished, they are gone.
+        [ -s "$FIXTURES/node-manifests/smallworlds-secrets.yaml" ] || exit 1 ;;
+    *k3s.yaml*) [ -f "$FIXTURES/k3s-up" ] || exit 1; echo "apiVersion: v1" ;;
+    *argocd-initial-admin-secret*) [ -f "$FIXTURES/argocd-up" ] || exit 1; echo "cGFzcw==" ;;
+    *) : ;;
+esac
+exit 0
+STUB
+
+cat > "$stub_bin/scp" <<'STUB'
+#!/usr/bin/env bash
+source=""
+for argument in "$@"; do
+    case "$argument" in -*|*:*) ;; *) source="$argument" ;; esac
+done
+[ -f "$FIXTURES/scp-fails" ] && { echo "scp: Connection closed" >&2; exit 1; }
+mkdir -p "$FIXTURES/node-manifests"
+cp "$source" "$FIXTURES/node-manifests/smallworlds-secrets.yaml"
+# The first boot has not finished yet: cloud-init is about to purge exactly
+# this directory, which is what silently emptied the cluster's secrets.
+[ "$(cat "$FIXTURES/cloud-init-state" 2>/dev/null || echo done)" = "done" ] \
+    || rm -f "$FIXTURES/node-manifests/smallworlds-secrets.yaml"
+exit 0
+STUB
+
+for stub in kubectl jq; do
     printf '#!/bin/sh\nexit 0\n' > "$stub_bin/$stub"
 done
 chmod +x "$stub_bin"/*
@@ -180,6 +227,18 @@ available_in() {
             \"server_types\":{\"supported\":[104],\"available\":$available}}"
     done
     printf '{"datacenters":[%s]}\n' "$entries" > "$fixtures/datacenters.json"
+}
+
+run_init_to_node() {
+    rm -rf "$fixtures/node-manifests" "$fixtures/applied.tfvars"
+    printf '%s' "${1:-done}" > "$fixtures/cloud-init-state"
+    ( cd "$init_root" \
+      && env PATH="$stub_bin:$PATH" HOME="$stub_home" FIXTURES="$fixtures" \
+             SMALLWORLDS_NONINTERACTIVE=1 TERRAFORM_SUCCEEDS=1 \
+             SW_CLOUD_INIT_TIMEOUT=8 SW_K3S_TIMEOUT=8 SW_ARGOCD_TIMEOUT=8 \
+             SW_SSH_TIMEOUT=8 SW_WAIT_REPORT_SECONDS=2 \
+             SW_CONVERGE_ATTEMPTS=1 SW_CONVERGE_INTERVAL=1 \
+         timeout 180 bash smallworlds-init.sh </dev/null 2>&1 )
 }
 
 run_init() {
@@ -312,6 +371,62 @@ output="$(run_init)"
 check_contains "$output" "Could not check" "the failed lookup is admitted"
 check_contains "$output" ">>> ok:primary-ip" "and the install carries on"
 check_contains "$output" ">>> step:terraform-apply" "as far as letting Hetzner answer for itself"
+
+# --------------------------------------------------------------------------
+echo "the cluster secrets are planted after the first boot, and read back"
+# --------------------------------------------------------------------------
+known_server_type
+available_in nbg1 fsn1 hel1
+primary_ip_in fsn1
+touch "$fixtures/k3s-up" "$fixtures/argocd-up"
+
+# cloud-init still running: the old code copied the secrets straight into the
+# directory the first boot is about to delete, ticked the stage green, and
+# deleted its only local copy.
+output="$(run_init_to_node running)"
+check_contains "$output" "still setting itself up" "the wait says what it is waiting for"
+check_contains "$output" ">>> fail:node-ready" "an unfinished first boot stops the install"
+check_absent   "$output" ">>> ok:secrets" "the secrets are never reported as planted"
+check_absent   "$output" ">>> step:argocd-converge" "and nothing downstream pretends to work"
+
+output="$(run_init_to_node done)"
+check_contains "$output" ">>> ok:node-ready" "a finished first boot lets it through"
+check_contains "$output" ">>> ok:secrets" "and the secrets are planted"
+check_contains "$output" "Cluster secrets planted" "confirmed by reading them back"
+if [[ -s "$fixtures/node-manifests/smallworlds-secrets.yaml" ]]; then
+    pass "the secrets are actually on the node"
+else
+    fail "the secrets are actually on the node"
+fi
+
+# --------------------------------------------------------------------------
+echo "a copy that fails is not reported as a success"
+# --------------------------------------------------------------------------
+touch "$fixtures/scp-fails"
+output="$(run_init_to_node done)"
+rm -f "$fixtures/scp-fails"
+check_contains "$output" ">>> fail:secrets" "the stage fails"
+check_contains "$output" "Could not copy the cluster secrets" "and says so"
+check_absent   "$output" ">>> ok:secrets" "rather than ticking green over nothing"
+check_contains "$output" "regenerated" "the operator is told the secrets are not lost"
+
+# --------------------------------------------------------------------------
+echo "waits end, and say where to look"
+# --------------------------------------------------------------------------
+rm -f "$fixtures/k3s-up"
+output="$(run_init_to_node done)"
+check_contains "$output" ">>> fail:kubeconfig" "a k3s that never comes up stops the install"
+check_contains "$output" "still waiting for k3s" "having said it was waiting"
+check_contains "$output" "cloud-init-output.log" "and points at the node's own boot log"
+touch "$fixtures/k3s-up"
+
+# Argo CD is the one wait that must NOT be fatal: the cluster is up by then.
+rm -f "$fixtures/argocd-up"
+output="$(run_init_to_node done)"
+check_contains "$output" "has not created its admin secret yet" "a slow Argo CD is reported"
+check_absent   "$output" ">>> fail:kubeconfig" "but does not fail the install"
+check_contains "$output" "read it later with" "and the operator is told how to fetch it"
+touch "$fixtures/argocd-up"
 
 echo ""
 if [[ "$failures" -eq 0 ]]; then

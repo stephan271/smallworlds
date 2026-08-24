@@ -122,8 +122,28 @@ decided per install:
   `var.apps` defaults to every optional app, so a `terraform apply` that does not pass it
   keeps the zone it had.
 
-Tests: `admin-tools/test-hetzner-placement.sh` (stubbed Hetzner API + a terraform that
-records its tfvars; covers a fresh project, a pinned Primary IP, and no capacity anywhere).
+## Waiting for a Hetzner node (`smallworlds-init.sh`)
+
+**Never treat "port 22 answers" as "the node is ready".** `sshd` binds early in boot, while
+cloud-init's `runcmd` still has to `rm -rf /var/lib/rancher/k3s/server` and re-link the
+directory onto the data volume — so anything written there beforehand is deleted. That is
+what silently emptied the cluster secrets: they were scp'd in, the copy was unchecked, the
+local copy was then `rm`'d, and the stage was ticked green. `wait_for_cloud_init()` is the
+real gate; the secrets are copied only after it, and read back with `test -s` before the
+stage is marked done. The cloud-init template's own `write_files` comment says the same
+thing about the same directory.
+
+Every wait goes through `sw_wait_for <seconds> <what> <command...>`: bounded, with a
+heartbeat, and `report_node_stuck()` for the guidance. A silent unbounded `until ssh …;
+sleep 2; done` is indistinguishable from a hang, which is exactly how it was experienced.
+Overrides for the impatient and for tests: `SW_SSH_TIMEOUT`, `SW_CLOUD_INIT_TIMEOUT`,
+`SW_K3S_TIMEOUT`, `SW_ARGOCD_TIMEOUT`, `SW_WAIT_REPORT_SECONDS`, `SW_CONVERGE_ATTEMPTS`,
+`SW_CONVERGE_INTERVAL`. Argo CD's password wait is deliberately **non-fatal** — the cluster
+is up by then, so a slow Argo CD hands over an instruction, not a failure.
+
+Tests: `admin-tools/test-hetzner-placement.sh` (stubbed Hetzner API, ssh/scp and terraform;
+covers a fresh project, a pinned Primary IP, no capacity anywhere, the cloud-init race, a
+failed secrets copy, and each wait running out).
 
 ## Local end-to-end staging (`admin-tools/test-pr-locally.sh`)
 
