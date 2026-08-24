@@ -37,6 +37,7 @@ sw_markers_enabled() {
 #   >>> ok:<id>              a stage finished
 #   >>> fail:<id> <reason>   a stage failed
 #   !!! missing:<VAR>        a required value was absent  (on stderr)
+#   >>> guidance\t<h>\t<d>  what the operator can do about a failure
 #
 # Stage ids are a stable interface: preflight, dns-zone, ssh-key,
 # terraform-apply, secrets, bootstrap, kubeconfig, argocd-converge, and the
@@ -57,6 +58,23 @@ sw_step_fail() { sw_markers_enabled && printf '>>> fail:%s %s\n' "$1" "${2:-}"; 
 # terminal reads the human-readable block the installer prints instead, and
 # never sees these at all.
 sw_result() { sw_markers_enabled && printf '>>> result\t%s\t%s\t%s\n' "$1" "$2" "${3:-}"; return 0; }
+
+# Actionable advice attached to a failure:
+#
+#   sw_guidance <heading> <what to do>  ->  >>> guidance\t<heading>\t<detail>
+#
+# One source of wording for both routes. A person at a terminal reads it as an
+# indented note; the wizard parses the marker and renders it under the failure,
+# where "the installer failed, see the log" would otherwise be all there is.
+# Tab-separated for the same reason as sw_result: both halves are prose.
+sw_guidance() {
+    if sw_markers_enabled; then
+        printf '>>> guidance\t%s\t%s\n' "$1" "${2:-}"
+    else
+        printf '\n  -> %s\n     %s\n' "$1" "${2:-}"
+    fi
+    return 0
+}
 
 # A required value was not supplied and cannot be asked for. Named, so the
 # wizard can point at the field the operator left blank rather than reporting

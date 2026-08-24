@@ -117,7 +117,13 @@ For the **local** target, skip this section — instead make sure the target mac
 For the **hetzner** target, these steps are required:
 1. Create a Hetzner Cloud account and a new project.
 2. Generate an API Token with **Read & Write** permissions. Save this token.
-3. In the Hetzner Cloud Console, navigate to **Primary IPs** and click **Create Primary IP**. Select IPv4, choose your target location (e.g., Helsinki/hel1), and name it exactly `smallworlds-ip` (or `smallworlds-ip-dev` if deploying a `.dev` environment — Hetzner resource names always use the dash form, regardless of the DNS syntax). Leave it unassigned. Terraform will attach it during provisioning.
+3. Nothing else. The Primary IP — the community's permanent public address — is created for you: `smallworlds-init.sh` looks for `smallworlds-ip` (or `smallworlds-ip-dev` for a `.dev` environment — Hetzner resource names always use the dash form, regardless of the DNS syntax), and creates it if it is not there, in a location that can actually build the node. If you would rather create it yourself in the Console, do: it is adopted rather than duplicated, and it then decides where the node goes.
+
+**Where the node ends up.** Hetzner regularly sells a server size out in one location while the others still have it, so the location is not hard-coded. The installer asks the API which of Nuremberg (`nbg1`), Falkenstein (`fsn1`) and Helsinki (`hel1`) can currently supply the node size, takes the first that can, and creates the Primary IP there. All three are in the EU, so member data stays inside it.
+
+Once the Primary IP exists it pins the choice: it is datacenter-bound, and it is the address every DNS record, the PTR and the tailnet point at. If that location later has no capacity, the installer stops before creating anything and tells you where the hardware is — moving there means deleting the Primary IP in the Console and re-running, which gives you a new address and rewrites every record to match. To pin a location or a size deliberately, set `HETZNER_LOCATIONS="fsn1 nbg1"` or `HETZNER_SERVER_TYPE=...` in the environment when you run `./smallworlds-init.sh`.
+
+**DNS records follow your app selection.** Only the applications you chose get an A record, alongside the always-installed `identity`, `dashboard`, `monitoring`, `deploy` and `vpn` (plus the apex on production). A record for `photos.<domain>` with no Immich behind it sends members to a certificate error and makes the zone read as though the app were installed. Selecting an app later adds its record on the next run.
 
 ### 4. Cluster Provisioning
 

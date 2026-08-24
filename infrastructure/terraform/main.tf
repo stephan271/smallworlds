@@ -125,11 +125,58 @@ resource "hcloud_firewall" "k8s_firewall" {
 
 
 
-# Fetch the static Primary IP created in the Hetzner Cloud Console.
-# NOTE: Primary IPs are datacenter-bound — create it in the same location
-# as var.location (e.g. Nuremberg/nbg1), or the server cannot attach it.
+# The Primary IP. Created by smallworlds-init.sh's ensure_primary_ip() before
+# terraform runs — the same idempotent-precondition pattern as the DNS zone and
+# the admin SSH key, and for the same reason: it must outlive any one Terraform
+# state, and destroy-cluster.sh must not be able to take the community's public
+# address away with the node.
+#
+# Primary IPs are datacenter-bound, so this resource is what pins the location
+# once it exists. ensure_primary_ip() therefore does the location scan itself,
+# at the one moment the choice is still free, and hands the answer to
+# var.location.
 data "hcloud_primary_ip" "main_ip" {
   name = "smallworlds-ip${local.env_slug}"
+}
+
+# Where var.server_type can actually be ordered right now. Hetzner sells a type
+# out in one location while the others still have it, and an apply that only
+# discovers this at the server resource has already created the firewall and
+# both volumes by then, in a location that cannot run the node.
+data "hcloud_server_type" "node" {
+  name = var.server_type
+}
+
+locals {
+  server_type_available = {
+    for entry in data.hcloud_server_type.node.locations :
+    entry.name => entry.available
+  }
+
+  # var.location_preference filtered to what is orderable, preference order
+  # preserved. Surfaced as an output and quoted in the failure message below,
+  # because "pick another location" is only useful advice if it says which.
+  available_locations = [
+    for name in var.location_preference : name
+    if lookup(local.server_type_available, name, false)
+  ]
+
+  # An explicit location wins. Otherwise the Primary IP decides, because it
+  # already has. The scan is the fallback for a bare `terraform apply` in a
+  # project whose Primary IP the provider could not report a location for.
+  chosen_location = coalesce(
+    var.location != "" ? var.location : null,
+    data.hcloud_primary_ip.main_ip.location,
+    try(local.available_locations[0], null),
+  )
+
+  # Absence of data is not evidence of unavailability: if the provider reports
+  # no locations at all for this type, let Hetzner answer for itself rather
+  # than blocking an install on a lookup that came back empty.
+  server_type_orderable = lookup(
+    local.server_type_available, local.chosen_location,
+    length(local.server_type_available) == 0,
+  )
 }
 
 # The DNS zone is created by the smallworlds-init.sh script to avoid Terraform state conflicts
@@ -141,28 +188,57 @@ locals {
   zone_id = data.hcloud_zone.existing_zone.id
 }
 
-# Automatically create the A records for the root domain and all service subdomains
+locals {
+  # Deployed by infrastructure/kubernetes/kustomization.yaml for every
+  # community, so their records are unconditional: identity (Keycloak),
+  # dashboard, monitoring (kube-prometheus-stack), deploy (argocd-ingress) and
+  # vpn (headscale).
+  core_subdomains = ["identity", "dashboard", "monitoring", "deploy", "vpn"]
+
+  # The subdomain each optional application answers on. Mirrors the map in
+  # admin-tools/generate_domain_patches.py, which writes the Ingress hosts
+  # these records have to resolve to.
+  app_subdomains = {
+    "nextcloud"   = "files"
+    "immich"      = "photos"
+    "forgejo"     = "git"
+    "excalidraw"  = "whiteboard"
+    "jitsi"       = "meet"
+    "collabora"   = "office"
+    "plane"       = "plan"
+    "stalwart"    = "mail"
+    "bulwark"     = "webmail"
+    "pod-gateway" = "pod"
+  }
+
+  selected_subdomains = [
+    for app in var.apps : local.app_subdomains[app]
+    if contains(keys(local.app_subdomains), app)
+  ]
+
+  # The apex belongs to production only: identity.dev.<domain> and friends are
+  # a second cluster inside the same zone, and it must not take the root record
+  # away from the first.
+  record_names = concat(
+    var.env_ext == "" ? ["@"] : [],
+    local.core_subdomains,
+    local.selected_subdomains,
+  )
+
+  # rDNS has to name something that resolves forward. Mail is opt-in
+  # (docs/adr/0049), so a community that did not select Stalwart has no
+  # mail.<domain> record and must not have its PTR pointed at one.
+  rdns_hostname = contains(var.apps, "stalwart") ? "mail${var.env_ext}.${var.domain_name}" : (
+    var.env_ext == "" ? var.domain_name : "dashboard${var.env_ext}.${var.domain_name}"
+  )
+}
+
+# A records for the root domain, the always-deployed services, and the
+# applications this community actually selected — nothing else. A record for an
+# application that was never installed points members at a certificate error,
+# and makes the zone read as though it were there.
 resource "hcloud_zone_rrset" "app_records" {
-  for_each = toset([
-    for r in [
-      "@",
-      "identity",
-      "dashboard",
-      "files",
-      "photos",
-      "git",
-      "mail",
-      "webmail",
-      "monitoring",
-      "whiteboard",
-      "meet",
-      "office",
-      "plan",
-      "deploy",
-      "vpn",
-      "pod"
-    ] : r if r != "@" || var.env_ext == ""
-  ])
+  for_each = toset(local.record_names)
 
   zone = local.zone_id
   name = each.value == "@" ? "@" : "${each.value}${var.env_ext}"
@@ -180,7 +256,7 @@ resource "hcloud_zone_rrset" "app_records" {
 resource "hcloud_rdns" "main_ip_ptr" {
   primary_ip_id = data.hcloud_primary_ip.main_ip.id
   ip_address    = data.hcloud_primary_ip.main_ip.ip_address
-  dns_ptr       = "mail${var.env_ext}.${var.domain_name}"
+  dns_ptr       = local.rdns_hostname
 }
 
 # Most recent golden image built by admin-tools/build-golden-image.sh
@@ -195,8 +271,8 @@ data "hcloud_image" "golden" {
 resource "hcloud_server" "smallworlds_pilot_node" {
   name        = "cc-pilot-node-01${local.env_slug}"
   image       = var.use_golden_image ? tostring(data.hcloud_image.golden[0].id) : "ubuntu-24.04"
-  server_type = "cx43" # 8 shared vCPU (AMD), 16 GB RAM. Recommended x86 architecture for K3s and ML.
-  location    = var.location
+  server_type = var.server_type
+  location    = local.chosen_location
 
   ssh_keys     = [local.ssh_key_id]
   firewall_ids = [hcloud_firewall.k8s_firewall.id]
@@ -225,6 +301,24 @@ resource "hcloud_server" "smallworlds_pilot_node" {
   lifecycle {
     ignore_changes  = [user_data]
     prevent_destroy = false # Protects the node from accidental terraform destroy in the future
+
+    # Checked before anything is created, so a sold-out server type costs an
+    # error message rather than a half-built project. Hetzner's own answer for
+    # this is "resource_unavailable" at the last step, which says neither what
+    # is unavailable nor where it would be.
+    precondition {
+      condition = local.server_type_orderable
+      error_message = join(" ", [
+        "Hetzner has no ${var.server_type} to sell in ${local.chosen_location} right now.",
+        length(local.available_locations) > 0
+        ? "It is available in: ${join(", ", local.available_locations)}."
+        : "It is available in none of ${join(", ", var.location_preference)}.",
+        "The Primary IP smallworlds-ip${local.env_slug} is datacenter-bound and pins the location,",
+        "so moving the node means giving up that address: delete the Primary IP in the Hetzner",
+        "Console and re-run the installer, which creates a new one where the hardware is.",
+        "Or keep the location and choose another size with TF_VAR_server_type.",
+      ])
+    }
   }
 }
 
@@ -234,9 +328,10 @@ resource "hcloud_server" "smallworlds_pilot_node" {
 # Hetzner re-attaches this volume automatically when the VM is re-created.
 # ------------------------------------------------------------------------------
 resource "hcloud_volume" "smallworlds_data" {
-  name     = "smallworlds-data${local.env_slug}"
-  size     = 200          # GB — covers Garage (100 GB) + Immich library (50 GB) + room to grow
-  location = var.location # Volumes are location-bound and must match the server
+  name = "smallworlds-data${local.env_slug}"
+  size = 200 # GB — covers Garage (100 GB) + Immich library (50 GB) + room to grow
+  # Volumes are location-bound and must match the server.
+  location = local.chosen_location
   format   = "ext4"
 
   lifecycle {
@@ -252,9 +347,10 @@ resource "hcloud_volume" "smallworlds_data" {
 # Holds the garage-backup instance (metadata AND data).
 # ------------------------------------------------------------------------------
 resource "hcloud_volume" "smallworlds_backup" {
-  name     = "smallworlds-backup${local.env_slug}"
-  size     = 100          # GB — barman + Velero + pv-backup + pods + the Nextcloud copy
-  location = var.location # Volumes are location-bound and must match the server
+  name = "smallworlds-backup${local.env_slug}"
+  size = 100 # GB — barman + Velero + pv-backup + pods + the Nextcloud copy
+  # Volumes are location-bound and must match the server.
+  location = local.chosen_location
   format   = "ext4"
 
   lifecycle {
@@ -292,6 +388,21 @@ output "server_ipv4" {
 output "data_volume_linux_device" {
   value       = hcloud_volume.smallworlds_data.linux_device
   description = "The Linux device name for the persistent data volume (e.g., /dev/sdb). Used for mount configuration."
+}
+
+output "location" {
+  value       = local.chosen_location
+  description = "The Hetzner location the node and both volumes were placed in."
+}
+
+output "server_type_available_locations" {
+  value       = local.available_locations
+  description = "Which of var.location_preference can currently sell var.server_type, most preferred first."
+}
+
+output "dns_records" {
+  value       = sort(local.record_names)
+  description = "The names an A record was created for, in the community's zone."
 }
 
 output "backup_volume_linux_device" {

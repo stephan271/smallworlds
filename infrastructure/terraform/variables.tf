@@ -65,9 +65,63 @@ variable "immich_admin_password" {
 
 
 variable "location" {
-  description = "Hetzner location for the server and data volume. The Primary IP must be created in the same location. e.g. hel1 (Helsinki), nbg1 (Nuremberg), fsn1 (Falkenstein)."
+  description = <<-DESC
+    Hetzner location for the server and both volumes. Leave empty (the default)
+    to follow the Primary IP, which is datacenter-bound and therefore already
+    decides this: moving the node elsewhere would mean a different public
+    address, and with it every A record, the PTR and the tailnet.
+
+    The scan across var.location_preference happens where the choice is still
+    free — smallworlds-init.sh's ensure_primary_ip() picks a location that can
+    actually serve var.server_type before it creates the Primary IP, and passes
+    the answer back in here. Set this by hand only to pin a location
+    deliberately; the apply then fails early, with a message, if that location
+    has no var.server_type to sell.
+  DESC
   type        = string
-  default     = "hel1"
+  default     = ""
+}
+
+variable "location_preference" {
+  description = <<-DESC
+    Locations to consider, most preferred first, when nothing pins the choice
+    yet. All three are in the EU, so member data stays inside it, and each can
+    hold the node, both volumes and the Primary IP together. Hetzner sells a
+    server type out in one location while the others still have it, so a single
+    hard-coded location is the difference between an install that proceeds and
+    one that stops at "resource unavailable".
+  DESC
+  type        = list(string)
+  default     = ["nbg1", "fsn1", "hel1"]
+}
+
+variable "server_type" {
+  description = <<-DESC
+    8 shared vCPU / 16 GB. 16 GB is the minimum: 8 GB nodes saturate once the
+    full app suite deploys, and the probe timeouts cascade into CNPG failovers
+    and OOM crashloops. Exposed as a variable because availability differs per
+    location, so choosing a type and choosing a location are one decision.
+  DESC
+  type        = string
+  default     = "cx43"
+}
+
+variable "apps" {
+  description = <<-DESC
+    The optional applications this community selected, by the names
+    admin-tools/prepare-community-repo.sh uses. Only their DNS records are
+    created: an A record for photos.<domain> with no Immich behind it sends
+    members to a certificate error and makes the zone read as though the
+    application were installed.
+
+    Defaults to every optional application, so a plain `terraform apply` that
+    does not pass this keeps the zone it had.
+  DESC
+  type        = list(string)
+  default = [
+    "nextcloud", "immich", "forgejo", "excalidraw", "jitsi",
+    "collabora", "plane", "stalwart", "bulwark", "pod-gateway",
+  ]
 }
 
 variable "use_golden_image" {

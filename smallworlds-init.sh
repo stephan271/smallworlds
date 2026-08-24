@@ -126,6 +126,239 @@ if key:
     sw_step_ok ssh-key
 }
 
+# ---------------------------------------------------------------------------
+# Where the node goes
+#
+# Hetzner sells a server type out in one location while the others still have
+# it, and the apply's answer for that is a bare "resource_unavailable" arriving
+# after the firewall and both volumes have already been created. So the choice
+# is made here, against the API, before anything exists.
+#
+# The choice is only free once. A Primary IP is datacenter-bound, and it is the
+# community's public address: every A record, the PTR and the tailnet follow
+# it. So the scan runs at the moment the Primary IP is created and never again
+# — afterwards, the existing Primary IP's location is simply the answer.
+# ---------------------------------------------------------------------------
+
+# The three European locations, most preferred first. All in the EU, so member
+# data stays inside it, and each can hold the node, both volumes and the
+# Primary IP together.
+HETZNER_LOCATIONS="${HETZNER_LOCATIONS:-nbg1 fsn1 hel1}"
+# 16 GB is the floor: 8 GB nodes saturate once the full app suite deploys, and
+# the probe timeouts cascade into CNPG failovers and OOM crashloops.
+HETZNER_SERVER_TYPE="${HETZNER_SERVER_TYPE:-cx43}"
+
+# Print "<location> <datacenter>" for each preferred location that can sell
+# $HETZNER_SERVER_TYPE right now, most preferred first. Silent (and successful)
+# when nothing is available — the caller decides what that means.
+hetzner_capacity() {
+    curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" \
+        "https://api.hetzner.cloud/v1/datacenters" \
+        | python3 -c "
+import json, sys
+
+preferred = sys.argv[1].split()
+wanted = sys.argv[2]
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+
+# The datacenters endpoint reports availability per datacenter as server type
+# ids; the type list gives the id for the name we want.
+by_location = {}
+for datacenter in data.get('datacenters', []):
+    location = (datacenter.get('location') or {}).get('name')
+    available = (datacenter.get('server_types') or {}).get('available') or []
+    if location and available:
+        by_location.setdefault(location, []).append((datacenter.get('name'), set(available)))
+
+ids = json.loads(sys.argv[3] or '{}')
+type_id = ids.get(wanted)
+if type_id is None:
+    sys.exit(0)
+
+for location in preferred:
+    for name, available in by_location.get(location, []):
+        if type_id in available:
+            print(location, name)
+            break
+" "$HETZNER_LOCATIONS" "$HETZNER_SERVER_TYPE" "$(hetzner_server_type_ids)"
+}
+
+# {"cx43": 123, ...} for the type we care about. Its own call because the
+# datacenters endpoint speaks in ids and nothing else does.
+hetzner_server_type_ids() {
+    curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" \
+        "https://api.hetzner.cloud/v1/server_types?name=$HETZNER_SERVER_TYPE" \
+        | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    print('{}')
+    sys.exit(0)
+print(json.dumps({t['name']: t['id'] for t in data.get('server_types', [])}))
+"
+}
+
+# Say, in the operator's terms, that the hardware is not there and what to do
+# about it. Used both before an apply that cannot work and after one that
+# failed, because Hetzner's own message names neither the type nor a way out.
+report_no_capacity() {
+    local pinned="$1" available
+    available="$(hetzner_capacity | awk '{print $1}' | tr '\n' ' ' | sed 's/  *$//; s/ /, /g')"
+    if [[ -n "$available" ]]; then
+        sw_guidance "Try one of the locations that has the hardware" \
+            "Hetzner has no $HETZNER_SERVER_TYPE in ${pinned:-your location} right now, but does in: $available. The Primary IP smallworlds-ip${ENV_SLUG} is datacenter-bound and pins the location, so moving means giving up that address: delete it in the Hetzner Console under Primary IPs and run the installer again — it creates a new one where the hardware is, and rewrites every DNS record to match."
+    else
+        sw_guidance "No European location has this size right now" \
+            "$HETZNER_SERVER_TYPE is unavailable in all of $HETZNER_LOCATIONS. This is usually temporary — Hetzner restocks within hours. Either wait and run the installer again, or choose another size with HETZNER_SERVER_TYPE=cpx41 ./smallworlds-init.sh (16 GB is the floor; smaller nodes saturate once the applications deploy)."
+    fi
+    sw_guidance "Nothing has to be undone" \
+        "The installer is safe to re-run: the DNS zone, the SSH key, the Primary IP and any volumes are found and reused rather than created twice."
+}
+
+# Ensure the Primary IP exists, and set $HETZNER_LOCATION to where it lives.
+# Idempotent, same pattern as ensure_dns_zone and ensure_ssh_key — and for the
+# same reason: it must outlive any one Terraform state. Terraform reads it as a
+# data source and follows its location.
+ensure_primary_ip() {
+    sw_step primary-ip "Ensuring the Hetzner Primary IP exists"
+    local ip_name="smallworlds-ip${ENV_SLUG}" found location datacenter
+
+    echo -e "${CYAN}Ensuring Primary IP '$ip_name' exists in Hetzner...${NC}"
+    found=$(curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" \
+        "https://api.hetzner.cloud/v1/primary_ips?name=$ip_name" \
+        | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+for ip in data.get('primary_ips') or []:
+    datacenter = ip.get('datacenter') or {}
+    location = (datacenter.get('location') or {}).get('name') or ''
+    print('%s %s %s' % (location, datacenter.get('name') or '', ip.get('ip') or ''))
+    break
+")
+
+    if [[ -n "$found" ]]; then
+        HETZNER_LOCATION="$(awk '{print $1}' <<<"$found")"
+        echo -e "${GREEN}Primary IP $ip_name already exists in ${HETZNER_LOCATION} ($(awk '{print $3}' <<<"$found")).${NC}"
+        # It pins the location, so the only question left is whether the node
+        # can still be built there. Asked now rather than by terraform three
+        # resources in.
+        if [[ -n "$HETZNER_LOCATION" ]] && \
+           ! hetzner_capacity | awk '{print $1}' | grep -qx "$HETZNER_LOCATION"; then
+            echo -e "${RED}Hetzner has no $HETZNER_SERVER_TYPE available in $HETZNER_LOCATION.${NC}"
+            sw_step_fail primary-ip "no $HETZNER_SERVER_TYPE in $HETZNER_LOCATION"
+            report_no_capacity "$HETZNER_LOCATION"
+            exit 1
+        fi
+        sw_step_ok primary-ip
+        return 0
+    fi
+
+    # Nothing pins the location yet: this is the one moment the scan decides.
+    local choice
+    choice="$(hetzner_capacity | head -1)"
+    if [[ -z "$choice" ]]; then
+        echo -e "${RED}No European Hetzner location currently offers $HETZNER_SERVER_TYPE.${NC}"
+        sw_step_fail primary-ip "no $HETZNER_SERVER_TYPE anywhere in $HETZNER_LOCATIONS"
+        report_no_capacity ""
+        exit 1
+    fi
+    location="$(awk '{print $1}' <<<"$choice")"
+    datacenter="$(awk '{print $2}' <<<"$choice")"
+    echo -e "${YELLOW}Primary IP not found. Creating it in ${location} (${datacenter}), which has $HETZNER_SERVER_TYPE available...${NC}"
+
+    local api_response created
+    api_response=$(curl -s -X POST -H "Content-Type: application/json" \
+        -H "Authorization: Bearer $HCLOUD_TOKEN" \
+        "https://api.hetzner.cloud/v1/primary_ips" \
+        -d "{\"name\":\"$ip_name\",\"type\":\"ipv4\",\"datacenter\":\"$datacenter\",\"assignee_type\":\"server\",\"auto_delete\":false}")
+    created=$(echo "$api_response" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+ip = data.get('primary_ip')
+if ip:
+    print(ip.get('ip') or '')
+")
+    if [[ -z "$created" ]]; then
+        echo -e "${RED}Failed to create the Primary IP: $(echo "$api_response" | python3 -c "
+import json, sys
+try:
+    print((json.load(sys.stdin).get('error') or {}).get('message') or '')
+except Exception:
+    pass
+")${NC}"
+        sw_step_fail primary-ip "Hetzner refused to create the Primary IP"
+        sw_guidance "Check what the token is allowed to do" \
+            "Creating a Primary IP needs a Hetzner Cloud API token with Read & Write on this project. A read-only token passes every earlier check and fails here. Console -> Security -> API tokens."
+        exit 1
+    fi
+    HETZNER_LOCATION="$location"
+    echo -e "${GREEN}Primary IP created: $created in ${location}.${NC}"
+    sw_step_ok primary-ip
+}
+
+# Which optional applications this community selected, one per line.
+#
+# prepare-community-repo.sh records the answers in this file, and the browser
+# wizard writes the same one. The DNS records follow it: an A record for
+# photos.<domain> with no Immich behind it sends members to a certificate error
+# and makes the zone read as though the application were installed.
+#
+# Parsed in a subshell rather than sourced into this one, so an overlay
+# preference file cannot redefine DOMAIN or a credential. A file that predates
+# these keys means "no answer recorded", which is not the same as "none
+# selected" — fall back to all of them there, since that is the zone such a
+# cluster already has.
+selected_apps() {
+    local config="${SMALLWORLDS_COMMUNITY_CONFIG:-$HOME/.config/smallworlds/community-setup.conf}"
+    local all=(forgejo immich nextcloud stalwart bulwark excalidraw jitsi collabora plane pod-gateway)
+
+    if [[ ! -f "$config" ]]; then
+        printf '%s\n' "${all[@]}"
+        return 0
+    fi
+
+    local answered
+    answered=$(python3 - "$config" "${all[@]}" <<'PYEOF'
+import re
+import shlex
+import sys
+
+path, apps = sys.argv[1], sys.argv[2:]
+assignment = re.compile(r'^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$')
+values = {}
+with open(path, encoding="utf-8", errors="replace") as handle:
+    for line in handle:
+        if line.lstrip().startswith("#"):
+            continue
+        match = assignment.match(line)
+        if not match:
+            continue
+        try:
+            parts = shlex.split(match.group(2).strip(), comments=True)
+        except ValueError:
+            continue
+        values[match.group(1)] = parts[0] if parts else ""
+
+keys = {app: "STORED_APP_" + re.sub(r"[^A-Za-z0-9_]", "_", app) for app in apps}
+if not any(key in values for key in keys.values()):
+    print("\n".join(apps))
+    sys.exit(0)
+print("\n".join(app for app in apps if values.get(keys[app]) == "y"))
+PYEOF
+)
+    printf '%s\n' "$answered"
+}
+
 # Resolve the overlay repository's current HEAD commit. The bootstrap requires
 # the exact reviewed commit rather than a branch name: HEAD must never decide
 # what a node deploys between the moment you approve an install and the moment
@@ -539,11 +772,22 @@ if [[ "$DEPLOY_TARGET" == "hetzner" ]]; then
     # Export Hetzner Token as environment variable so Terraform can find it
     export HCLOUD_TOKEN=$HCLOUD_TOKEN
 
+    # Hetzner resource names use the dash form of the extension: ".dev" is DNS
+    # syntax, "-dev" is what a resource is called. Mirrors local.env_slug in
+    # infrastructure/terraform/main.tf.
+    ENV_SLUG="${ENV_EXT//./-}"
+
     # Ensure DNS Zone exists in Hetzner Cloud DNS
     ensure_dns_zone
 
     # Ensure the shared admin SSH key exists (sets $SSH_KEY_ID)
     ensure_ssh_key
+
+    # Ensure the Primary IP exists and decide where the node goes (sets
+    # $HETZNER_LOCATION). Terraform reads the IP as a data source, so this has
+    # to happen first — and it is where a location that cannot sell the server
+    # type is caught, while the community still has no address tied to one.
+    ensure_primary_ip
 
     # Boot from the golden image (preloaded k3s + container images) if one exists
     GOLDEN_COUNT=$(curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" \
@@ -562,6 +806,12 @@ if [[ "$DEPLOY_TARGET" == "hetzner" ]]; then
 
     # 2. Generate temporary tfvars file
     TFVARS_FILE="/tmp/smallworlds-${DOMAIN}.tfvars"
+    # The selected applications decide which A records exist, so the list is
+    # rendered as an HCL array here rather than left to a default.
+    TF_APPS_LIST="$(selected_apps | python3 -c "
+import json, sys
+print(', '.join(json.dumps(line) for line in sys.stdin.read().split()))
+")"
     cat <<EOF > "$TFVARS_FILE"
 domain_name       = "${DOMAIN}"
 env_ext           = "${ENV_EXT}"
@@ -570,8 +820,13 @@ git_username   = "${TF_GIT_USER}"
 git_password   = "${TF_GIT_TOKEN}"
 hcloud_token      = "${HCLOUD_TOKEN}"
 ssh_key_id        = ${SSH_KEY_ID}
+location          = "${HETZNER_LOCATION}"
+server_type       = "${HETZNER_SERVER_TYPE}"
+apps              = [${TF_APPS_LIST}]
 
 EOF
+    _SELECTED_LIST="$(selected_apps | paste -sd, - | sed 's/,/, /g')"
+    echo -e "${CYAN}DNS records: identity, dashboard, monitoring, deploy, vpn${_SELECTED_LIST:+, and one for each of: }${_SELECTED_LIST}${NC}"
 
     # 3. Execute Terraform
     sw_step terraform-apply "Provisioning the Hetzner VM and DNS records"
@@ -579,7 +834,23 @@ EOF
     cd infrastructure/terraform
 
     terraform init -input=false > /dev/null
-    terraform apply -var-file="$TFVARS_FILE" -auto-approve
+    if ! terraform apply -var-file="$TFVARS_FILE" -auto-approve; then
+        rm -f "$TFVARS_FILE"
+        sw_step_fail terraform-apply "Hetzner could not build the server"
+        echo -e "${RED}Terraform could not provision the node.${NC}"
+        # Capacity is the common cause and the one an operator can act on, so
+        # ask the API again and say what it answers. Anything else falls
+        # through to advice that fits any Terraform failure.
+        if ! hetzner_capacity | awk '{print $1}' | grep -qx "${HETZNER_LOCATION:-none}"; then
+            report_no_capacity "$HETZNER_LOCATION"
+        else
+            sw_guidance "Read the last Terraform error above" \
+                "It names the resource and the Hetzner API's reason. Quota limits (servers, volumes, Primary IPs) are the usual one and are raised from Console -> Limits; a read-only API token is the other."
+            sw_guidance "Nothing has to be undone" \
+                "The installer is safe to re-run: the DNS zone, the SSH key, the Primary IP and any volumes are found and reused rather than created twice."
+        fi
+        exit 1
+    fi
     sw_step_ok terraform-apply
 
     # 4. Capture Outputs
@@ -864,25 +1135,39 @@ echo ""
 echo -e "Note: Passwords for optional apps (Nextcloud, Immich, Forgejo) and Stalwart are automatically"
 echo -e "generated securely upon installation. You can retrieve them via kubectl later."
 echo ""
-echo -e "Application URLs (installed apps will be available here):"
-echo -e "  Dashboard:         ${CYAN}https://dashboard${ENV_EXT}.${DOMAIN}${NC}"
-echo -e "  Identity:          ${CYAN}https://identity${ENV_EXT}.${DOMAIN}${NC}"
-echo -e "  Mail (Stalwart):   ${CYAN}https://mail${ENV_EXT}.${DOMAIN}${NC}"
-echo -e "  Files (Nextcloud): ${CYAN}https://files${ENV_EXT}.${DOMAIN}${NC}"
-echo -e "  Photos (Immich):   ${CYAN}https://photos${ENV_EXT}.${DOMAIN}${NC}"
-echo -e "  Git (Forgejo):     ${CYAN}https://git${ENV_EXT}.${DOMAIN}${NC}"
-echo -e "  Webmail (Bulwark): ${CYAN}https://webmail${ENV_EXT}.${DOMAIN}${NC}"
-echo -e "  Monitoring:        ${CYAN}https://monitoring${ENV_EXT}.${DOMAIN}${NC}"
-echo -e "  Whiteboard:        ${CYAN}https://whiteboard${ENV_EXT}.${DOMAIN}${NC}"
-echo -e "  Meet:              ${CYAN}https://meet${ENV_EXT}.${DOMAIN}${NC}"
-echo -e "  Office:            ${CYAN}https://office${ENV_EXT}.${DOMAIN}${NC}"
-echo -e "  Plan:              ${CYAN}https://plan${ENV_EXT}.${DOMAIN}${NC}"
+# Only what this community selected. Listing an address for an application
+# that was never installed is a link to a certificate error, and the same
+# selection decides which A records exist (var.apps in
+# infrastructure/terraform/main.tf).
+declare -A _APP_ADDRESS=(
+    [nextcloud]="files|Files|Files (Nextcloud)"
+    [immich]="photos|Photos|Photos (Immich)"
+    [forgejo]="git|Git|Git (Forgejo)"
+    [excalidraw]="whiteboard|Whiteboard|Whiteboard"
+    [jitsi]="meet|Meet|Meet (Jitsi)"
+    [collabora]="office|Office|Office (Collabora)"
+    [plane]="plan|Plan|Plan"
+    [stalwart]="mail|Mail|Mail (Stalwart)"
+    [bulwark]="webmail|Webmail|Webmail (Bulwark)"
+    [pod-gateway]="pod|Personal data pods|Personal data pods"
+)
+_ADDRESSES=("dashboard|Dashboard|Dashboard" "identity|Identity|Identity"
+            "monitoring|Monitoring|Monitoring")
+while read -r _app; do
+    if [[ -n "$_app" && -n "${_APP_ADDRESS[$_app]:-}" ]]; then
+        _ADDRESSES+=("${_APP_ADDRESS[$_app]}")
+    fi
+done < <(selected_apps)
+
+echo -e "Application URLs:"
+for _entry in "${_ADDRESSES[@]}"; do
+    IFS='|' read -r _sub _name _display <<<"$_entry"
+    printf "  %-22s ${CYAN}https://%s${ENV_EXT}.${DOMAIN}${NC}\n" "${_display}:" "$_sub"
+done
 echo ""
-for _sub_and_label in "dashboard:Dashboard" "identity:Identity" "mail:Mail" \
-                      "files:Files" "photos:Photos" "git:Git" "webmail:Webmail" \
-                      "monitoring:Monitoring" "whiteboard:Whiteboard" "meet:Meet" \
-                      "office:Office" "plan:Plan"; do
-    sw_result url "${_sub_and_label#*:}" "https://${_sub_and_label%%:*}${ENV_EXT}.${DOMAIN}"
+for _entry in "${_ADDRESSES[@]}"; do
+    IFS='|' read -r _sub _name _display <<<"$_entry"
+    sw_result url "$_name" "https://${_sub}${ENV_EXT}.${DOMAIN}"
 done
 if [[ "$DEPLOY_TARGET" == "local" && -f "${HOSTS_SNIPPET:-}" ]]; then
     sw_result hosts "hosts" "$(cat "$HOSTS_SNIPPET")"
