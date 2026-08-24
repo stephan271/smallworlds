@@ -147,73 +147,144 @@ HETZNER_LOCATIONS="${HETZNER_LOCATIONS:-nbg1 fsn1 hel1}"
 # 16 GB is the floor: 8 GB nodes saturate once the full app suite deploys, and
 # the probe timeouts cascade into CNPG failovers and OOM crashloops.
 HETZNER_SERVER_TYPE="${HETZNER_SERVER_TYPE:-cx43}"
+# Hetzner's type names are lowercase. "CPX42" is not a different server type,
+# it is a name the API will not match — and the honest answer to that is "no
+# such type", not "sold out everywhere", which is what an operator staring at a
+# Console full of available servers was previously told.
+HETZNER_SERVER_TYPE="$(printf '%s' "$HETZNER_SERVER_TYPE" | tr '[:upper:]' '[:lower:]')"
 
-# Print "<location> <datacenter>" for each preferred location that can sell
-# $HETZNER_SERVER_TYPE right now, most preferred first. Silent (and successful)
-# when nothing is available — the caller decides what that means.
-hetzner_capacity() {
-    curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" \
-        "https://api.hetzner.cloud/v1/datacenters" \
-        | python3 -c "
-import json, sys
+# Ask Hetzner where $HETZNER_SERVER_TYPE can be ordered right now.
+#
+# Sets:
+#   SW_CAPACITY         "<location> <datacenter>" lines, preference order
+#   SW_CAPACITY_STATUS  ok       -- answered; SW_CAPACITY may still be empty,
+#                                   which then means genuinely sold out
+#                       no-type  -- Hetzner does not know that type name
+#                       unknown  -- the question could not be answered at all
+#
+# The three-way split is the point. Treating "could not tell" as "sold out"
+# stops an install that would have worked, and blames Hetzner for it. Only a
+# real, answered "nowhere" is allowed to block.
+hetzner_scan_capacity() {
+    SW_CAPACITY=""
+    SW_CAPACITY_STATUS="unknown"
 
-preferred = sys.argv[1].split()
-wanted = sys.argv[2]
-try:
-    data = json.load(sys.stdin)
-except Exception:
-    sys.exit(0)
-
-# The datacenters endpoint reports availability per datacenter as server type
-# ids; the type list gives the id for the name we want.
-by_location = {}
-for datacenter in data.get('datacenters', []):
-    location = (datacenter.get('location') or {}).get('name')
-    available = (datacenter.get('server_types') or {}).get('available') or []
-    if location and available:
-        by_location.setdefault(location, []).append((datacenter.get('name'), set(available)))
-
-ids = json.loads(sys.argv[3] or '{}')
-type_id = ids.get(wanted)
-if type_id is None:
-    sys.exit(0)
-
-for location in preferred:
-    for name, available in by_location.get(location, []):
-        if type_id in available:
-            print(location, name)
-            break
-" "$HETZNER_LOCATIONS" "$HETZNER_SERVER_TYPE" "$(hetzner_server_type_ids)"
-}
-
-# {"cx43": 123, ...} for the type we care about. Its own call because the
-# datacenters endpoint speaks in ids and nothing else does.
-hetzner_server_type_ids() {
-    curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" \
+    local type_id datacenters
+    type_id="$(curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" \
         "https://api.hetzner.cloud/v1/server_types?name=$HETZNER_SERVER_TYPE" \
         | python3 -c "
 import json, sys
 try:
     data = json.load(sys.stdin)
 except Exception:
-    print('{}')
     sys.exit(0)
-print(json.dumps({t['name']: t['id'] for t in data.get('server_types', [])}))
-"
+types = data.get('server_types')
+if types is None:
+    sys.exit(0)          # not a well-formed answer -- unknown, not 'no type'
+if not types:
+    print('none')        # a well-formed answer saying no such name
+    sys.exit(0)
+print(types[0]['id'])
+")"
+
+    if [[ -z "$type_id" ]]; then
+        return 0                      # could not ask; SW_CAPACITY_STATUS=unknown
+    fi
+    if [[ "$type_id" == "none" ]]; then
+        SW_CAPACITY_STATUS="no-type"
+        return 0
+    fi
+
+    datacenters="$(curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" \
+        "https://api.hetzner.cloud/v1/datacenters" \
+        | python3 -c "
+import json, sys
+
+preferred = sys.argv[1].split()
+try:
+    type_id = int(sys.argv[2])
+except ValueError:
+    sys.exit(0)
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+
+datacenters = data.get('datacenters')
+if not datacenters:
+    sys.exit(0)          # nothing to go on -- the caller keeps 'unknown'
+
+# The datacenters endpoint reports availability per datacenter as server type
+# ids, which is why the id had to be looked up first.
+by_location = {}
+for datacenter in datacenters:
+    location = (datacenter.get('location') or {}).get('name')
+    available = (datacenter.get('server_types') or {}).get('available') or []
+    if location:
+        by_location.setdefault(location, []).append((datacenter.get('name'), set(available)))
+
+print('answered')
+for location in preferred:
+    for name, available in by_location.get(location, []):
+        if type_id in available:
+            print(location, name)
+            break
+" "$HETZNER_LOCATIONS" "$type_id")"
+
+    if [[ -z "$datacenters" ]]; then
+        return 0                      # could not ask; still unknown
+    fi
+    SW_CAPACITY_STATUS="ok"
+    # The first line is the "I did get an answer" marker; the rest is the answer.
+    SW_CAPACITY="$(printf '%s\n' "$datacenters" | tail -n +2)"
 }
 
-# Say, in the operator's terms, that the hardware is not there and what to do
-# about it. Used both before an apply that cannot work and after one that
-# failed, because Hetzner's own message names neither the type nor a way out.
-report_no_capacity() {
+# The first datacenter in $1, e.g. "fsn1" -> "fsn1-dc14". Creating a Primary IP
+# needs a datacenter name, not a location name, and this has to work even when
+# the capacity scan could not answer.
+hetzner_datacenter_in() {
+    curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" \
+        "https://api.hetzner.cloud/v1/datacenters" \
+        | python3 -c "
+import json, sys
+wanted = sys.argv[1]
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+for datacenter in data.get('datacenters') or []:
+    if ((datacenter.get('location') or {}).get('name')) == wanted:
+        print(datacenter.get('name') or '')
+        break
+" "$1"
+}
+
+# The locations from the last scan, as "nbg1, fsn1".
+hetzner_capacity_list() {
+    printf '%s' "$SW_CAPACITY" | awk 'NF {print $1}' | paste -sd, - | sed 's/,/, /g'
+}
+
+# Whether the last scan found capacity in $1.
+hetzner_has_capacity_in() {
+    [[ -n "$1" ]] && printf '%s\n' "$SW_CAPACITY" | awk 'NF {print $1}' | grep -qx "$1"
+}
+
+# Say, in the operator's terms, what the scan found and what to do about it.
+# Used before an apply that cannot work and after one that failed, because
+# Hetzner's own message names neither the type nor a way out.
+report_capacity_problem() {
     local pinned="$1" available
-    available="$(hetzner_capacity | awk '{print $1}' | tr '\n' ' ' | sed 's/  *$//; s/ /, /g')"
-    if [[ -n "$available" ]]; then
+    available="$(hetzner_capacity_list)"
+
+    if [[ "$SW_CAPACITY_STATUS" == "no-type" ]]; then
+        sw_guidance "Hetzner has no server type called '$HETZNER_SERVER_TYPE'" \
+            "Type names are lowercase and exact — cpx42, not CPX42 or 'CPX 42'. Run: curl -s -H \"Authorization: Bearer \$HCLOUD_TOKEN\" https://api.hetzner.cloud/v1/server_types | python3 -m json.tool | grep '\"name\"' to see the ones your project can order, then re-run with HETZNER_SERVER_TYPE=<name>. 16 GB of RAM is the floor."
+    elif [[ -n "$available" ]]; then
         sw_guidance "Try one of the locations that has the hardware" \
             "Hetzner has no $HETZNER_SERVER_TYPE in ${pinned:-your location} right now, but does in: $available. The Primary IP smallworlds-ip${ENV_SLUG} is datacenter-bound and pins the location, so moving means giving up that address: delete it in the Hetzner Console under Primary IPs and run the installer again — it creates a new one where the hardware is, and rewrites every DNS record to match."
     else
         sw_guidance "No European location has this size right now" \
-            "$HETZNER_SERVER_TYPE is unavailable in all of $HETZNER_LOCATIONS. This is usually temporary — Hetzner restocks within hours. Either wait and run the installer again, or choose another size with HETZNER_SERVER_TYPE=cpx41 ./smallworlds-init.sh (16 GB is the floor; smaller nodes saturate once the applications deploy)."
+            "$HETZNER_SERVER_TYPE is unavailable in all of $HETZNER_LOCATIONS. This is usually temporary — Hetzner restocks within hours. Either wait and run the installer again, or choose another size with HETZNER_SERVER_TYPE=cpx41 ./smallworlds-init.sh (16 GB is the floor; smaller nodes saturate once the applications deploy). If the Console shows this size in stock, check the name is exactly right — it is case-sensitive."
     fi
     sw_guidance "Nothing has to be undone" \
         "The installer is safe to re-run: the DNS zone, the SSH key, the Primary IP and any volumes are found and reused rather than created twice."
@@ -236,25 +307,70 @@ try:
     data = json.load(sys.stdin)
 except Exception:
     sys.exit(0)
+
+
+def location_of(entry):
+    \"\"\"Where a Primary IP is, whichever way the API says it.
+
+    Hetzner now reports 'location' on the Primary IP itself; the nested
+    'datacenter' object is the older form and is not always sent. Reading only
+    the old one put the IP ADDRESS in the location variable and compared that
+    against location names for the rest of the install.
+    \"\"\"
+    location = entry.get('location')
+    if isinstance(location, dict):
+        return location.get('name') or ''
+    if isinstance(location, str) and location:
+        return location
+    datacenter = entry.get('datacenter')
+    if isinstance(datacenter, dict):
+        return ((datacenter.get('location') or {}).get('name')) or ''
+    if isinstance(datacenter, str) and datacenter:
+        # 'fsn1-dc14' -> 'fsn1'
+        return datacenter.rsplit('-', 1)[0]
+    return ''
+
+
 for ip in data.get('primary_ips') or []:
-    datacenter = ip.get('datacenter') or {}
-    location = (datacenter.get('location') or {}).get('name') or ''
-    print('%s %s %s' % (location, datacenter.get('name') or '', ip.get('ip') or ''))
+    # Tab-separated: an empty field in the middle must not shift the others
+    # along, which is exactly how the location silently became the address.
+    print('%s\t%s' % (location_of(ip), ip.get('ip') or ''))
     break
 ")
 
+    hetzner_scan_capacity
+
     if [[ -n "$found" ]]; then
-        HETZNER_LOCATION="$(awk '{print $1}' <<<"$found")"
-        echo -e "${GREEN}Primary IP $ip_name already exists in ${HETZNER_LOCATION} ($(awk '{print $3}' <<<"$found")).${NC}"
+        HETZNER_LOCATION="$(cut -f1 <<<"$found")"
+        local existing_address
+        existing_address="$(cut -f2 <<<"$found")"
+        if [[ -z "$HETZNER_LOCATION" ]]; then
+            # The address exists, so the install can go on; terraform reads the
+            # IP itself and will place the node beside it. Only the pre-flight
+            # capacity check is lost, which is a warning, not a failure.
+            echo -e "${YELLOW}Primary IP $ip_name already exists (${existing_address}), but Hetzner did not say where.${NC}"
+            echo -e "${YELLOW}Skipping the placement check — Terraform will follow the IP's own location.${NC}"
+            sw_step_ok primary-ip
+            return 0
+        fi
+        echo -e "${GREEN}Primary IP $ip_name already exists in ${HETZNER_LOCATION} (${existing_address}).${NC}"
         # It pins the location, so the only question left is whether the node
         # can still be built there. Asked now rather than by terraform three
-        # resources in.
-        if [[ -n "$HETZNER_LOCATION" ]] && \
-           ! hetzner_capacity | awk '{print $1}' | grep -qx "$HETZNER_LOCATION"; then
+        # resources in — but only when the answer is actually known.
+        if [[ "$SW_CAPACITY_STATUS" == "ok" ]] && ! hetzner_has_capacity_in "$HETZNER_LOCATION"; then
             echo -e "${RED}Hetzner has no $HETZNER_SERVER_TYPE available in $HETZNER_LOCATION.${NC}"
             sw_step_fail primary-ip "no $HETZNER_SERVER_TYPE in $HETZNER_LOCATION"
-            report_no_capacity "$HETZNER_LOCATION"
+            report_capacity_problem "$HETZNER_LOCATION"
             exit 1
+        fi
+        if [[ "$SW_CAPACITY_STATUS" == "no-type" ]]; then
+            echo -e "${RED}Hetzner has no server type called '$HETZNER_SERVER_TYPE'.${NC}"
+            sw_step_fail primary-ip "unknown server type $HETZNER_SERVER_TYPE"
+            report_capacity_problem "$HETZNER_LOCATION"
+            exit 1
+        fi
+        if [[ "$SW_CAPACITY_STATUS" == "unknown" ]]; then
+            echo -e "${YELLOW}Could not check $HETZNER_SERVER_TYPE availability; continuing and letting Hetzner answer.${NC}"
         fi
         sw_step_ok primary-ip
         return 0
@@ -262,16 +378,40 @@ for ip in data.get('primary_ips') or []:
 
     # Nothing pins the location yet: this is the one moment the scan decides.
     local choice
-    choice="$(hetzner_capacity | head -1)"
+    choice="$(printf '%s\n' "$SW_CAPACITY" | awk 'NF' | head -1)"
     if [[ -z "$choice" ]]; then
-        echo -e "${RED}No European Hetzner location currently offers $HETZNER_SERVER_TYPE.${NC}"
-        sw_step_fail primary-ip "no $HETZNER_SERVER_TYPE anywhere in $HETZNER_LOCATIONS"
-        report_no_capacity ""
-        exit 1
+        if [[ "$SW_CAPACITY_STATUS" == "unknown" ]]; then
+            # Refusing to create an address because a lookup failed would be a
+            # worse outcome than trying: fall back to the first preference and
+            # let the Hetzner API give the real answer.
+            local fallback_location fallback_datacenter
+            fallback_location="$(awk '{print $1}' <<<"$HETZNER_LOCATIONS")"
+            fallback_datacenter="$(hetzner_datacenter_in "$fallback_location")"
+            if [[ -z "$fallback_datacenter" ]]; then
+                echo -e "${RED}Could not reach the Hetzner API to place the Primary IP.${NC}"
+                sw_step_fail primary-ip "the Hetzner API did not answer"
+                sw_guidance "Check the token and the connection" \
+                    "Neither the server types nor the datacenters could be read. Either this machine cannot reach api.hetzner.cloud, or the token is not valid for this project. Everything before this point uses the DNS API, which a token can be scoped differently for."
+                sw_guidance "Nothing has to be undone" \
+                    "The installer is safe to re-run: the DNS zone, the SSH key, the Primary IP and any volumes are found and reused rather than created twice."
+                exit 1
+            fi
+            choice="$fallback_location $fallback_datacenter"
+            echo -e "${YELLOW}Could not check availability; trying ${fallback_location}, the first preferred location.${NC}"
+        else
+            echo -e "${RED}Cannot place a node: no $HETZNER_SERVER_TYPE offered in $HETZNER_LOCATIONS.${NC}"
+            sw_step_fail primary-ip "no $HETZNER_SERVER_TYPE anywhere in $HETZNER_LOCATIONS"
+            report_capacity_problem ""
+            exit 1
+        fi
     fi
     location="$(awk '{print $1}' <<<"$choice")"
     datacenter="$(awk '{print $2}' <<<"$choice")"
-    echo -e "${YELLOW}Primary IP not found. Creating it in ${location} (${datacenter}), which has $HETZNER_SERVER_TYPE available...${NC}"
+    if [[ "$SW_CAPACITY_STATUS" == "ok" ]]; then
+        echo -e "${YELLOW}Primary IP not found. Creating it in ${location} (${datacenter}), which has $HETZNER_SERVER_TYPE available...${NC}"
+    else
+        echo -e "${YELLOW}Primary IP not found. Creating it in ${location} (${datacenter}).${NC}"
+    fi
 
     local api_response created
     api_response=$(curl -s -X POST -H "Content-Type: application/json" \
@@ -841,8 +981,10 @@ EOF
         # Capacity is the common cause and the one an operator can act on, so
         # ask the API again and say what it answers. Anything else falls
         # through to advice that fits any Terraform failure.
-        if ! hetzner_capacity | awk '{print $1}' | grep -qx "${HETZNER_LOCATION:-none}"; then
-            report_no_capacity "$HETZNER_LOCATION"
+        hetzner_scan_capacity
+        if [[ "$SW_CAPACITY_STATUS" == "no-type" ]] || \
+           { [[ "$SW_CAPACITY_STATUS" == "ok" ]] && ! hetzner_has_capacity_in "$HETZNER_LOCATION"; }; then
+            report_capacity_problem "$HETZNER_LOCATION"
         else
             sw_guidance "Read the last Terraform error above" \
                 "It names the resource and the Hetzner API's reason. Quota limits (servers, volumes, Primary IPs) are the usual one and are raised from Console -> Limits; a read-only API token is the other."

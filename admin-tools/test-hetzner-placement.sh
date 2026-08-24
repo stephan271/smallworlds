@@ -146,11 +146,29 @@ printf '{"server_types":[{"id":104,"name":"cx43"}]}\n'     > "$fixtures/server_t
 printf '{"primary_ip":{"id":7,"ip":"203.0.113.9"}}\n'      > "$fixtures/primary_ip_created.json"
 
 no_primary_ip() { printf '{"primary_ips":[]}\n' > "$fixtures/primary_ips.json"; }
+# What Hetzner sends today: `location` on the Primary IP itself, no nested
+# `datacenter` object at all. Reading only the old shape put the IP ADDRESS in
+# the location variable, and every comparison after it compared an address
+# against location names.
 primary_ip_in() {
+    printf '{"primary_ips":[{"id":7,"name":"smallworlds-ip","ip":"203.0.113.9",
+        "location":{"name":"%s","city":"Somewhere"}}]}\n' "$1" \
+        > "$fixtures/primary_ips.json"
+}
+# The older shape, still accepted.
+legacy_primary_ip_in() {
     printf '{"primary_ips":[{"id":7,"name":"smallworlds-ip","ip":"203.0.113.9",
         "datacenter":{"name":"%s-dc1","location":{"name":"%s"}}}]}\n' "$1" "$1" \
         > "$fixtures/primary_ips.json"
 }
+# Neither shape — the address is known, where it lives is not.
+placeless_primary_ip() {
+    printf '{"primary_ips":[{"id":7,"name":"smallworlds-ip","ip":"203.0.113.9"}]}\n' \
+        > "$fixtures/primary_ips.json"
+}
+unknown_server_type() { printf '{"server_types":[]}\n' > "$fixtures/server_types.json"; }
+known_server_type()   { printf '{"server_types":[{"id":104,"name":"cx43"}]}\n' > "$fixtures/server_types.json"; }
+api_unreachable()     { printf '' > "$fixtures/server_types.json"; printf '' > "$fixtures/datacenters.json"; }
 # available_in <location>...  -- cx43 (id 104) is orderable exactly there.
 available_in() {
     local wanted=" $* " entries=""
@@ -240,6 +258,60 @@ check_contains "$output" ">>> fail:primary-ip" "the install stops before reservi
 check_contains "$output" "No European location has this size right now" "says so plainly"
 check_contains "$output" "HETZNER_SERVER_TYPE" "and offers the escape hatch"
 check_absent   "$output" "Creating it in ash" "never leaves the EU"
+
+# --------------------------------------------------------------------------
+echo "the Primary IP's location is read whichever way Hetzner reports it"
+# --------------------------------------------------------------------------
+known_server_type
+available_in nbg1 fsn1 hel1
+legacy_primary_ip_in fsn1
+output="$(run_init)"
+check_contains "$output" "already exists in fsn1" "the older nested datacenter shape still works"
+check_absent   "$output" "already exists in 203.0.113.9" "the address is never mistaken for a location"
+applied="$(cat "$fixtures/applied.tfvars" 2>/dev/null)"
+check_contains "$applied" 'location          = "fsn1"' "and reaches terraform"
+
+placeless_primary_ip
+output="$(run_init)"
+check_contains "$output" "did not say where" "an unplaceable Primary IP is reported honestly"
+check_contains "$output" ">>> ok:primary-ip" "and does not stop the install"
+check_contains "$output" ">>> step:terraform-apply" "terraform runs and follows the IP itself"
+
+# --------------------------------------------------------------------------
+echo "a server type Hetzner does not know is not 'sold out'"
+# --------------------------------------------------------------------------
+primary_ip_in fsn1
+unknown_server_type
+available_in nbg1 fsn1 hel1
+output="$(run_init)"
+check_contains "$output" ">>> fail:primary-ip" "the install stops"
+check_contains "$output" "no server type called" "and says the name is wrong"
+check_absent   "$output" "No European location has this size" "rather than blaming Hetzner's stock"
+
+# Case is the way this happens in practice: HETZNER_SERVER_TYPE=CPX42.
+known_server_type
+printf '{"server_types":[{"id":104,"name":"cpx42"}]}\n' > "$fixtures/server_types.json"
+available_in nbg1 fsn1 hel1
+output="$(rm -f "$fixtures/applied.tfvars"; cd "$init_root" \
+    && env PATH="$stub_bin:$PATH" HOME="$stub_home" FIXTURES="$fixtures" \
+           SMALLWORLDS_NONINTERACTIVE=1 HETZNER_SERVER_TYPE=CPX42 \
+       timeout 120 bash smallworlds-init.sh </dev/null 2>&1)"
+applied="$(cat "$fixtures/applied.tfvars" 2>/dev/null)"
+check_contains "$applied" 'server_type       = "cpx42"' "an upper-case type name is folded, not rejected"
+check_absent   "$output" "no server type called" "so it is not reported as unknown"
+
+# --------------------------------------------------------------------------
+echo "an API that will not answer does not stop an install"
+# --------------------------------------------------------------------------
+# "Could not tell" is not "sold out". Blocking on a failed lookup stops an
+# install that would have worked, and blames Hetzner for it.
+known_server_type
+primary_ip_in fsn1
+printf '' > "$fixtures/datacenters.json"
+output="$(run_init)"
+check_contains "$output" "Could not check" "the failed lookup is admitted"
+check_contains "$output" ">>> ok:primary-ip" "and the install carries on"
+check_contains "$output" ">>> step:terraform-apply" "as far as letting Hetzner answer for itself"
 
 echo ""
 if [[ "$failures" -eq 0 ]]; then

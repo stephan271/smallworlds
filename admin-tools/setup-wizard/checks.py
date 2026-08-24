@@ -193,7 +193,29 @@ def _primary_ip_location(headers: dict, env_ext: str) -> str | None:
     if status != 200 or not body:
         return None
     for entry in body.get("primary_ips") or []:
-        return ((entry.get("datacenter") or {}).get("location") or {}).get("name")
+        return _location_of(entry)
+    return None
+
+
+def _location_of(entry: dict) -> str | None:
+    """Where a Hetzner resource is, whichever way the API says it.
+
+    Hetzner reports `location` on the Primary IP itself; the nested
+    `datacenter` object is the older form and is not always sent. Reading only
+    the old one yields None here — and, in the installer, once yielded the IP
+    address, which was then compared against location names for the rest of the
+    install.
+    """
+    location = entry.get("location")
+    if isinstance(location, dict):
+        return location.get("name")
+    if isinstance(location, str) and location:
+        return location
+    datacenter = entry.get("datacenter")
+    if isinstance(datacenter, dict):
+        return ((datacenter.get("location") or {}).get("name"))
+    if isinstance(datacenter, str) and datacenter:
+        return datacenter.rsplit("-", 1)[0]  # 'fsn1-dc14' -> 'fsn1'
     return None
 
 

@@ -105,6 +105,15 @@ decided per install:
   has since sold out fails the placement check (before anything is created) rather than
   silently moving the cluster. Terraform re-checks the same thing in a `precondition` on
   the server, so a bare `terraform apply` gets the same message.
+
+  Two traps, both of which have already bitten. The scan is deliberately three-valued
+  (`SW_CAPACITY_STATUS`: `ok` / `no-type` / `unknown`) and only a definite, answered
+  "nowhere" blocks — a misspelled type name and a lookup that failed are each reported as
+  themselves, because treating either as "sold out" stopped an install while the Console
+  plainly showed the size in stock. And the Primary IP's location must be read through
+  `location_of()`: Hetzner reports `location` on the Primary IP itself, while the nested
+  `datacenter` object is the older form and is not always sent — reading only the old one
+  silently put the IP *address* into `$HETZNER_LOCATION`.
 - **Which DNS records exist.** `var.apps` carries the selected applications; `main.tf`'s
   `local.app_subdomains` maps them to subdomains and only those get an A record, alongside
   `local.core_subdomains` (always deployed) and the apex on production. The map mirrors
