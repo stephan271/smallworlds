@@ -54,7 +54,9 @@ spec:
                       continue
                     fi
                     echo "--- $bucket"
-                    if ! rclone sync "source:$bucket" "dest:$bucket" -v --stats-one-line; then
+                    if ! rclone sync "source:$bucket" "dest:$bucket" \
+                      --fast-list --transfers 16 --checkers 32 \
+                      -v --stats-one-line; then
                       echo "ERROR: replication of '$bucket' failed" >&2
                       failed="$failed $bucket"
                     fi
@@ -74,6 +76,7 @@ spec:
                     postgres-backups
                     postgres-backups-keycloak
                     velero-backups
+                    immich
                     nextcloud
                     forgejo
                     plane

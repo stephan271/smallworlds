@@ -43,7 +43,11 @@ spec:
               args:
                 - |
                   echo "Backing up /data -> garage:${S3_DEST}"
-                  rclone sync /data "garage:${S3_DEST}" -v --links
+                  # Nextcloud's PVC contains tens of thousands of small files.
+                  # More parallel transfers/checkers and one recursive listing
+                  # reduce S3 round trips while keeping the same sync semantics.
+                  rclone sync /data "garage:${S3_DEST}" -v --links \
+                    --fast-list --transfers 16 --checkers 32 --stats-one-line
                   rc=$?
                   if [ $rc -ne 0 ]; then
                     echo "PV backup failed (rc=$rc)!"

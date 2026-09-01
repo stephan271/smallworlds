@@ -206,6 +206,14 @@ CronJob mirrors every bucket offsite at 04:00.
 > (which the monitoring emails about). Follow
 > [`infrastructure/kubernetes/tenants/backup-replicator/README.md`](infrastructure/kubernetes/tenants/backup-replicator/README.md).
 
+To exercise a destructive, three-user restore of Immich and Nextcloud on a
+fresh disposable Hetzner cluster, run `./admin-tools/restore-drill.sh all`. It
+uses central all-user Recovery Points on a physically separate backup volume,
+not personal pod archives, and destroys the cloud resources after recording the
+result. See the restore procedures above for scope and safety checks.
+The latest recorded run is the [2026-09-01 Immich + Nextcloud restore
+drill](docs/restore-drills/2026-09-01-immich-nextcloud.md).
+
 ### Managing Updates — the two-repo model
 
 SmallWorlds runs on **two repositories**, and understanding their interplay is the key to safe day-2 operations:

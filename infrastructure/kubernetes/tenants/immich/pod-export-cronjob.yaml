@@ -1,9 +1,8 @@
 # Nightly append of each enrolled user's Immich originals into their pod.
 #
-# This replaces the pv-backup mirror of the library PVC: the pod archive is the
-# only server-side copy of the pixels (docs/adr/0047). Unlike `rclone sync`,
-# which mirrored deletions, nothing here can remove or overwrite what a pod
-# already holds.
+# This complements the all-user pv-backup mirror. The central mirror is the
+# cluster restore source; the pod archive gives each enrolled member an
+# append-only copy that nothing here can remove or overwrite.
 apiVersion: batch/v1
 kind: CronJob
 metadata:

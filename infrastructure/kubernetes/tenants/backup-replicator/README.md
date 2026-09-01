@@ -1,9 +1,11 @@
 # backup-replicator — offsite leg setup
 
-The CronJob in this tenant mirrors the **entire in-cluster Garage instance** to an
-offsite S3 target every night at 04:00 (`rclone sync source: dest:`). It is the
-*only* real backup hop — Garage itself runs `replicationFactor: 1` on the same
-disk as the primary data (see `doc/storage-and-backup.md` §3/§8).
+The CronJob in this tenant mirrors an **explicit allow-list of backup buckets**
+to an offsite S3 target every night at 04:00
+(`rclone sync source:<bucket> dest:<bucket>`). It is the second failure-domain
+hop: `garage-backup` is already on a separate volume, but runs
+`replicationFactor: 1`, so offsite storage protects against loss of the node or
+provider account (see `doc/storage-and-backup.md` §3/§8).
 
 Everything below is **operator setup**: the base repo deliberately ships no
 credentials, and the `replicator-config-secret` is mounted `optional: true`, so
@@ -21,7 +23,7 @@ remain recoverable as older versions.
    enabled** (B2 buckets keep all versions by default — do not switch to "keep
    only the latest"). The names must match the source exactly:
    `postgres-backups`, `postgres-backups-keycloak`, `velero-backups`,
-   `nextcloud`, `forgejo`, `plane`.
+   `immich`, `nextcloud`, `forgejo`, `plane`.
 2. Add a lifecycle rule: hide/delete prior versions after ~30 days.
 3. Create an **application key** scoped to those buckets (read+write).
 
@@ -55,7 +57,7 @@ never needs to read operational storage at all.
 # in the garage-backup-system namespace, NOT garage-system
 garage key create replicator-key
 for b in postgres-backups postgres-backups-keycloak velero-backups \
-         nextcloud forgejo plane; do
+         immich nextcloud forgejo plane; do
   garage bucket allow "$b" --read --key replicator-key
 done
 ```
@@ -100,11 +102,8 @@ access_key_id = <b2 keyID>
 secret_access_key = <b2 applicationKey>
 ```
 
-With `bucket_acl`/paths: the job syncs the instance root, so buckets map 1:1
-onto `dest:` — if the B2 side is a *single* bucket, instead set
-`dest = :s3:<bucket>` style paths by pointing the job at a prefix; the simplest
-setup is one B2 bucket per Garage bucket name (rclone creates them on first
-sync if the key may create buckets, otherwise pre-create them).
+The simplest setup is one pre-created B2 bucket per Garage bucket name, so each
+allow-listed source bucket maps 1:1 to its versioned offsite counterpart.
 
 ```bash
 kubectl create secret generic replicator-config-secret \

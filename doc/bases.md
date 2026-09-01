@@ -36,7 +36,7 @@ This job provisions S3 object storage buckets and access keys for a tenant withi
   | `GARAGE_BACKUP_NAMESPACE` | `garage-backup-system` | `postgres-backups` + `garage-secret-cnpg` |
   | `GARAGE_BACKUP_ENDPOINT` | the `garage-backup` Service | the `endpointURL` written into `garage-secret-cnpg` |
 
-  `tenants/pod-gateway` patches `TENANT_BUCKET_NAMESPACE` to `garage-backup-system`: its "tenant bucket" *is* the pod archive — the only server-side copy of the Immich originals — so it belongs with the Recovery Points rather than on operational storage. Any future tenant whose bucket is a backup rather than app storage needs the same patch.
+  `tenants/pod-gateway` patches `TENANT_BUCKET_NAMESPACE` to `garage-backup-system`: its "tenant bucket" is a member-owned archive, so it belongs with the Recovery Points rather than on operational storage. Any future tenant whose bucket is a backup rather than app storage needs the same patch.
 - **Layouts are per instance.** The job assigns and applies a Garage layout on each instance it touches; this cannot be hoisted out, because the two instances are independent clusters with independent layouts.
 
 **Notable changes (from git history):**
@@ -44,12 +44,16 @@ This job provisions S3 object storage buckets and access keys for a tenant withi
 - **Image pinning** (`62aa15b`, `bf7535f`, `4bb426f`): Same migration as the Keycloak job — off floating `bitnami/kubectl:latest` (unmaintained after Bitnami purged tags) onto a pinned, maintained `alpine/k8s` image for reproducible init runs.
 
 ### 3. Backup Job (`backup-job`)
-A generic CronJob template designed to replicate S3 backups (e.g., from Garage) to an external location (like a home server) using `rclone`.
+A generic CronJob template for copying an application's operational S3 bucket
+to `garage-backup`, retaining overwritten and deleted objects under dated
+`versions/` prefixes.
 
 **Key Configuration Highlights:**
 - **Schedule**: Defaults to `0 3 * * *` (3 AM daily), though tenants can override this via Kustomize.
 - **Environment Variable**: Expects `S3_BUCKET` to be patched in by the tenant.
-- **Volume Mounts**: Requires an `rclone-config-secret` containing the Rclone configuration mapping the `source:` (Garage) and `dest:` endpoints.
+- **Credentials**: Uses the tenant's operational `garage-secret` as `src:` and
+  its `garage-secret-backup` as `dst:`; both remotes are configured through
+  environment variables.
 
 ### 3b. Velero Garage Init Job (`velero-garage-init-job`)
 A specialized variant of the Garage init job dedicated to Velero.
@@ -72,7 +76,7 @@ storage: the Immich library PV, Forgejo's git-repo PVC and Nextcloud's
 - **Consumers must patch** the volume `claimName` and the `S3_DEST` env var
   (first env entry), and should stagger `schedule` (current: immich 00:30,
   forgejo 00:45, nextcloud 01:00 — all before the 04:00 replicator run).
-- **Credentials**: reads `garage-secret` (`accessKey`/`secretKey`) — the rclone
+- **Credentials**: reads `garage-secret-backup` (`accessKey`/`secretKey`) — the rclone
   remote is defined purely via `RCLONE_CONFIG_GARAGE_*` env vars, no config file.
 - **RWO caveat**: mounting an RWO PVC alongside the app pod works because
   everything runs on the single node; revisit when going multi-node.

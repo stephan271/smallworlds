@@ -6,6 +6,7 @@ bases:
   - ../../bases/setup-rbac
   - ../../bases/garage-init-job
   - ../../bases/keycloak-client-job
+  - ../../bases/pv-backup-job
 
 resources:
   - redis.yaml
@@ -36,9 +37,22 @@ patches:
       - op: replace
         path: /metadata/name
         value: setup-binding-immich
-  # The originals are no longer mirrored into the tenant bucket by pv-backup.
-  # immich-pod-export appends them to each enrolled user's pod instead, and that
-  # archive is deliberately the only server-side copy — docs/adr/0047.
+  # Central, all-user Recovery Point for originals. Personal pod exports remain
+  # member-owned copies, but they are not the cluster restore source: recovery
+  # must include members without an enrolled device (ADR 0052).
+  - target:
+      kind: CronJob
+      name: pv-backup
+    patch: |-
+      - op: replace
+        path: /spec/schedule
+        value: "30 0 * * *"
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/volumes/0/persistentVolumeClaim/claimName
+        value: immich-library-pvc
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/containers/0/env/0/value
+        value: "immich/pv-backup/library"
   - target:
       kind: Job
       name: keycloak-client-init

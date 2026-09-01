@@ -45,11 +45,11 @@ photos as the only ones with no copy of their own — but a member should know
 they land on the device as ordinary files, which is one more reason to encrypt
 the disk.
 
-For Immich, the pod archive is now the only server-side copy of the originals —
-`pv-backup` no longer mirrors the library PVC, and the `pods` bucket is not
-replicated offsite. That leaves the pixels in two failure domains, the node disk
-and the member's device. It is a deliberate trade: see the callout in
-`doc/storage-and-backup.md` §7.
+For Immich, the pod archive is the member-owned, append-only copy. It is not the
+cluster restore source: `pv-backup` also mirrors the complete library PVC to the
+physically separate backup instance so recovery includes members who never
+enrolled a device. The pod bucket itself is still not replicated offsite. See
+ADR 0052 and `doc/storage-and-backup.md` §7.
 
 ## The protocol
 

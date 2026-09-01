@@ -41,6 +41,7 @@ spec:
                   # next run would try to sync the retained versions too.
                   rclone sync "src:${S3_BUCKET}" "dst:${S3_BUCKET}/current" \
                     --backup-dir "dst:${S3_BUCKET}/versions/${STAMP}" \
+                    --fast-list --transfers 16 --checkers 32 \
                     -v --stats-one-line
                   echo "Backup completed successfully."
               env:

@@ -164,26 +164,18 @@ storage rather than Recovery Points (§1, `docs/adr/0048`).
 | 1 | 5 tenant CNPG DBs (`database` in nextcloud/immich/plane/forgejo/stalwart) | Barman object store (base backup + continuous WAL, gzip) via `ScheduledBackup`, per-tenant `serverName: <tenant>-database` | `s3://postgres-backups/<tenant>-database/` on **`garage-backup`** (shared bucket, credential `garage-secret-cnpg` per namespace, which also carries `endpointURL`) | daily 02:00 | 7 d |
 | 2 | Keycloak DB (`keycloak-db`) | Same, but dedicated bucket + key (custom `garage-init-job.yaml`, credential `garage-secret`) | `s3://postgres-backups-keycloak/` on **`garage-backup`** | daily 03:00 | 7 d |
 | 3 | Kubernetes resources (all namespaces except `kube-system`) | Velero 12.x, AWS S3 plugin, `deployNodeAgent: false`, no volume snapshots | **`garage-backup`** bucket `velero-backups` | daily 02:00 | 720 h (30 d) |
-| 4 | PVC file data: Forgejo git repos, Nextcloud `/var/www/html` | `bases/pv-backup-job` rclone CronJob per tenant (PVC mounted read-only, RWO is fine on a single node) | **`garage-backup`**, under `pv-backup/` (`forgejo/pv-backup/data`, `nextcloud/pv-backup/html`) | daily 00:45 / 01:00 | Mirror in Garage; history via offsite versioning |
-| 4b | **Immich originals** — no longer covered by row 4 | `immich-pod-export` CronJob appends each enrolled user's originals to their pod (`doc/pod-archive.md`) | `pod-gateway` bucket on **`garage-backup`**, `<user>/objects/`, then pulled by that user's home device | daily 01:15 | Append-only; never overwritten or deleted |
-| 4c | **Nextcloud user files** — the `nextcloud` bucket itself | `bases/backup-job` rclone CronJob, `sync src:nextcloud dst:nextcloud/current --backup-dir dst:nextcloud/versions/<date>` | `nextcloud` bucket on **`garage-backup`** | daily 03:15 | `current/` mirrors the live bucket; superseded and deleted objects retained under `versions/<date>/` |
-| 5 | An **explicit list** of `garage-backup` buckets: `postgres-backups`, `postgres-backups-keycloak`, `velero-backups`, `nextcloud`, `forgejo`, `plane`. **Never `pod-gateway`** — see below | `backup-replicator` CronJob, per-bucket `rclone sync source:<b> dest:<b>`; refuses to start if the key can even see `pod-gateway`, and fails loudly on a missing bucket | Offsite S3 — operator-provisioned per `tenants/backup-replicator/README.md` (**pre-created versioned** buckets, §8) | daily 04:00 | Point-in-time via destination versioning — buckets rclone auto-creates are un-versioned and give only a mirror |
+| 4 | PVC file data: **all users' Immich originals**, Forgejo git repos, Nextcloud `/var/www/html` | `bases/pv-backup-job` rclone CronJob per tenant (PVC mounted read-only, RWO is fine on a single node) | **`garage-backup`**, under `pv-backup/` (`immich/pv-backup/library`, `forgejo/pv-backup/data`, `nextcloud/pv-backup/html`) | daily 00:30 / 00:45 / 01:00 | Current-state mirror in Garage; historical retention is only the offsite destination's version policy |
+| 4b | Immich member-owned copy | `immich-pod-export` CronJob appends each enrolled user's originals to their pod (`doc/pod-archive.md`) | `pod-gateway` bucket on **`garage-backup`**, `<user>/objects/`, then pulled by that user's home device | daily 01:15 | Append-only; never overwritten or deleted |
+| 4c | **Nextcloud user files** — the `nextcloud` bucket itself | `bases/backup-job` rclone CronJob, `sync src:nextcloud dst:nextcloud/current --backup-dir dst:nextcloud/versions/<date>` | `nextcloud` bucket on **`garage-backup`** | daily 03:15 | `current/` mirrors the live bucket; superseded/deleted objects accumulate under `versions/<date>/` with no in-cluster expiry yet |
+| 5 | An **explicit list** of `garage-backup` buckets: `postgres-backups`, `postgres-backups-keycloak`, `velero-backups`, `immich`, `nextcloud`, `forgejo`, `plane`. **Never `pod-gateway`** — see below | `backup-replicator` CronJob, per-bucket `rclone sync source:<b> dest:<b>`; refuses to start if the key can even see `pod-gateway`, and fails loudly on a missing bucket | Offsite S3 — operator-provisioned per `tenants/backup-replicator/README.md` (**pre-created versioned** buckets, §8) | daily 04:00 | Operator-managed; runbook recommends destination versioning plus expiry of prior versions after about 30 d |
 | 6 | Let's Encrypt certificates | `admin-tools/backup-certs-to-laptop.sh` / `restore-certs-from-laptop.sh` | Operator laptop `~/.smallworlds/cert-backups/<env>/` | manual (part of rebuild flow) | n/a |
 
-> **Immich originals are a deliberate exception to this chain.** They used to be
-> mirrored into Garage by `pv-backup` and carried offsite by the replicator. That
-> mirror is gone: the pod archive is now the only server-side copy, and it is not
-> replicated offsite (docs/adr/0047). The trade is honest but real — the archive
-> is tamper-resistant where `rclone sync` was not, because nothing can overwrite
-> or delete what a pod already holds, but the pixels now live in only two failure
-> domains: the node disk and user home devices. The Immich **database** is
-> unaffected and still backed up by row 1, which matters because album membership,
-> face names and tags are user intent that can never be recomputed from pixels.
-> Two independent controls keep it that way: `pod-gateway` is absent from
-> `REPLICATE_BUCKETS` in the replicator CronJob, and the replicator key is
-> granted read on the listed buckets only. Re-enabling it would mean changing
-> both — deliberately, since the archive is unencrypted at rest and includes
-> the `immich-locked/` prefix.
+> **The all-user Immich mirror and personal pods have different jobs.** The
+> `immich` backup bucket is the cluster Recovery Point and is replicated
+> offsite; it covers every member in one operation. `pod-gateway` is an
+> append-only, member-owned copy and is deliberately absent from
+> `REPLICATE_BUCKETS`. The database remains essential because album membership,
+> face names and tags cannot be recomputed from pixels. See ADR 0052.
 >
 > Note this was **not** true before `docs/adr/0048`: the job ran a
 > whole-instance `rclone sync` and the setup guide granted read on every
@@ -202,12 +194,12 @@ receiver like every other alert.
 What this chain **covers end-to-end** (once the offsite leg is configured):
 all PostgreSQL databases — and therefore Stalwart mail, Plane/Forgejo/Nextcloud/Immich
 metadata, Keycloak identities — plus Nextcloud user files and Forgejo LFS/attachments
-(both live in Garage buckets), and the cluster's resource manifests.
+(both live in Garage buckets), all Immich originals, and the cluster's resource manifests.
 
-There is also an unused building block: `bases/backup-job` is a per-bucket rclone
-CronJob template (`S3_BUCKET` patched per consumer) that no tenant currently consumes;
-`backup-replicator` supersedes it with a whole-instance sync (and
-`bases/pv-backup-job` covers the filesystem→bucket direction).
+`bases/backup-job` handles the operational-bucket→backup-bucket direction and is
+currently consumed by Nextcloud. `backup-replicator` is the independent second
+hop from an explicit backup-bucket allow-list to offsite storage;
+`bases/pv-backup-job` covers filesystem→backup-bucket data.
 
 ## 5. Remaining gaps
 
@@ -228,23 +220,15 @@ What still remains, ranked:
    Garage `replicator-key` grants, `replicator-config-secret`), but until an
    operator performs it, nothing leaves the node. Until then the nightly Job
    fails and `KubeJobFailed` emails about it — by design.
-2. **Restore path is only partly drilled.** §7.1 (CloudNativePG), §7.2 (Velero)
-   and §7.4 (Immich originals from the pod archive) *have* now been exercised end
-   to end — see the notes in each — and doing so found faults in two of the three
-   recipes, one of which made §7.1 unable to work at all. That is the argument for
-   drilling the rest rather than a reason to trust them: §7.3 (buckets from
-   offsite, which cannot be drilled until the offsite leg exists), §7.4's
-   `--from-device` path, and §7.5/§7.6 (whole-cluster and total-loss rebuilds)
-   remain untried, and a procedure nobody has run is a hypothesis. The serverName
-   change also means pre-change barman archives (if any) live under the old
-   `database/` path — irrelevant once the first post-change backup lands.
+2. **The in-cluster Immich + Nextcloud restore is drilled; offsite loss is not.**
+   On 2026-09-01 the disposable Hetzner drill created three users in both apps,
+   destroyed both databases and all operational file stores, restored exclusively
+   from the central `garage-backup`, and verified every user's bytes and metadata.
+   It also produced new post-restore database backups. §7.3 from a real offsite
+   provider (not configured here), §7.4's `--from-device` fallback, and total loss
+   in §7.6 remain untested.
 
-3. **The database chain runs on a deprecated API.** Every CNPG cluster archives
-   through the in-tree `barmanObjectStore`, which CloudNativePG 1.30 deprecates
-   and **1.31.0 removes entirely**. A routine operator bump therefore deletes both
-   the production of database Recovery Points and the ability to read the existing
-   ones, and a cluster whose backups have stopped is indistinguishable from one
-   whose backups work — so it would surface during a restore. Migration to the
+3. **The former deprecated database API has been migrated.** Migration to the
    Barman Cloud plugin is `docs/adr/0050`, and it is **done and drilled**: one
    `ObjectStore` per tenant namespace, the plugin at wave −9, each
    `Cluster`/`ScheduledBackup` switched over, and — the part that mattered — a
@@ -314,6 +298,25 @@ that the single-node assumption is baked into the storage layer:
 
 ## 7. Restore procedures
 
+The destructive, reproducible Immich + Nextcloud drill is automated for the
+disposable Hetzner staging workspace:
+
+```bash
+./admin-tools/restore-drill.sh all
+# Keep a failed or successful cluster for inspection:
+KEEP_CLUSTER=1 ./admin-tools/restore-drill.sh all
+```
+
+It creates a fresh node with distinct operational and backup volumes, seeds
+three synthetic users through both application APIs, quiesces writers, creates
+explicit CNPG/file/Velero Recovery Points, deletes the operational databases and
+file data, restores from `garage-backup`, and verifies every user's bytes and
+metadata through both restored applications. It refuses any node not named
+`cc-staging-node-01` and never reads `pod-gateway`. Evidence lands under
+`admin-tools/restore-drill/evidence/`; synthetic credentials live under a
+private runtime directory in `/tmp` while the cluster exists and are removed by
+the normal teardown.
+
 > Absorbed from the former `admin-tools/restore-procedures.md`, with corrections:
 > the CNPG example there referenced `garage-auth-secret` (`access-key`/`secret-key`),
 > which actually holds Garage's `rpcSecret`/`adminToken` — following it verbatim
@@ -324,9 +327,9 @@ that the single-node assumption is baked into the storage layer:
 > pixels under asset UUIDs with the human name only in its database; Nextcloud
 > stores objects as `urn:oid:<fileid>` with filenames, folders and owners only in
 > its database. Neither bucket is restorable to anything a person recognises
-> without a database restored to a consistent point. The pod archive is the sole
-> exception — it is deliberately self-describing, which is what lets a member
-> read their own copy with no cluster at all.
+> without a database restored to a consistent point. A pod archive is
+> self-describing enough for a member to read their copy without a cluster, but
+> restoring the application still requires the database.
 
 ### 7.1 PostgreSQL databases (CloudNativePG)
 
@@ -345,38 +348,29 @@ CNPG restores by bootstrapping a *new* cluster from the object store of the old 
      imageName: ghcr.io/cloudnative-pg/postgresql:16
      storage:
        size: 20Gi
-     # NOT optional, and the reason a recovery cluster without them fails to
-     # bootstrap at all: Garage answers a request signed for any other region
-     # with HTTP 400. The tenant clusters carry the same two variables, and a
-     # region mismatch is how the 2026-08-09 outage began.
-     env:
-       - name: AWS_REGION
-         value: garage
-       - name: AWS_DEFAULT_REGION
-         value: garage
      bootstrap:
        recovery:
          source: database
      externalClusters:
        - name: database
-         barmanObjectStore:
-           destinationPath: s3://postgres-backups/
-           # Must match what the original cluster archived under — every tenant
-           # cluster sets serverName: <tenant>-database in its cnpg-cluster.yaml
-           serverName: <tenant>-database
-           # garage-backup, not garage: every Recovery Point lives on the backup
-           # instance (docs/adr/0048), and the operational endpoint holds none.
-           endpointURL: http://garage-backup.garage-backup-system.svc.cluster.local:3900
-           s3Credentials:
-             accessKeyId:
-               name: garage-secret-cnpg
-               key: accessKeyId
-             secretAccessKey:
-               name: garage-secret-cnpg
-               key: secretAccessKey
+         plugin:
+           name: barman-cloud.cloudnative-pg.io
+           parameters:
+             barmanObjectName: postgres-backups
+             # Must match the original Cluster's plugin parameter.
+             serverName: <tenant>-database
    ```
-   For Keycloak use `s3://postgres-backups-keycloak/`, source `keycloak-db`, and the
-   `garage-secret` credential (its custom init job's key layout).
+   `barmanObjectName` names the tenant namespace's `ObjectStore`; that object
+   owns the `garage-backup` endpoint, credentials, region and 7-day policy. For
+   Keycloak use its `postgres-backups-keycloak` object store and original
+   `serverName`.
+
+   Deliberately do **not** copy the source Cluster's `spec.plugins` WAL-archiver
+   block into this recovery manifest. During bootstrap it points at the same
+   non-empty `serverName`, and the plugin refuses recovery with “expected empty
+   archive”. Add the original archiver block only after recovery reaches Ready;
+   this restarts the instance once. Then create a new explicit `Backup` and wait
+   for `phase: completed` before declaring the database operational.
 3. Apply and wait for the cluster to reach `Cluster in healthy state`. Recovery
    replays WAL as well as restoring the base backup, so the result is current to
    the last archived segment rather than to the last base backup.
@@ -387,12 +381,10 @@ CNPG restores by bootstrapping a *new* cluster from the object store of the old 
    credential to the recovery cluster's Secret, or restore the original Secret
    (e.g. from Velero) and let the operator set the role back.
 
-> Drilled end to end on 2026-08-16 against `nextcloud-database`: a two-instance
-> recovery cluster reached a healthy state in about 100 seconds and recovered the
-> database with **zero data loss**, replaying an hour of WAL written after the base
-> backup. The three corrections above — the `env` block, the `garage-backup`
-> endpoint, and the inverted credential note — are what that drill found; the
-> recipe could not have worked as previously written.
+> Re-drilled on 2026-09-01 for both Immich and Nextcloud through the Barman Cloud
+> plugin. Both recovery clusters reached Ready, the original WAL-archiver blocks
+> were re-enabled, and a new base backup completed for each. The drill found the
+> archiver-ordering rule above; enabling it during bootstrap makes recovery fail.
 
 ### 7.2 Cluster state and workloads (Velero)
 
@@ -453,12 +445,47 @@ After restoring buckets on a *rebuilt* Garage, the tenant init jobs will have
 generated fresh access keys; their `bucket allow … || true` grants re-attach the new
 keys to the restored buckets on the next sync retry.
 
-### 7.4 Immich originals (the pod archive)
+For Nextcloud, restore both `nextcloud/current` into the operational `nextcloud`
+bucket and `nextcloud/pv-backup/html` onto the `nextcloud-nextcloud` PVC. An S3
+object copy does not preserve Unix ownership/mode: before starting Nextcloud,
+set the raw PVC tree to uid/gid 33 and ensure its `data` subdirectory has no
+permissions for “other” (the automated drill uses `chown -R 33:33` and
+`chmod 0770`). Without this, `status.php` returns 503 even though every byte is
+present. Restore the matching database before opening the application.
 
-Since `docs/adr/0047` the pod archive is the only server-side copy of the
-pixels — `pv-backup` no longer mirrors the library PVC. Restores read the
-`pod-gateway` bucket on `garage-backup`; a member's device is the disaster tier
-(§7.6, planned), not the routine one.
+The 2026-09-01 first copy measured 795.080 MiB across 28,056 Nextcloud PVC files:
+8m35s to back up and 4m45s to restore on the disposable single-node cluster.
+These are ordinary objects, not ZIP files. `rclone sync` is full on its first
+run and transfers only changed/new files on later runs; disaster restore still
+recreates the full tree. The jobs use 16 transfers, 32 checkers and `--fast-list`
+to reduce small-file overhead. A subsequent tuned run transferred only 927.607
+KiB of runtime changes but still took 2m47s to compare all 28,056 objects. A
+future switch to a metadata-preserving,
+deduplicating archive such as restic/kopia would accelerate this further, but is
+a backup-format migration rather than a tuning flag.
+
+### 7.4 Immich originals (central all-user mirror)
+
+The routine cluster restore reads `immich/pv-backup/library` from
+`garage-backup`, never individual pod prefixes. Stop Immich, mount
+`immich-library-pvc` read-write in a temporary rclone Job, and first inspect the
+copy with `--dry-run`:
+
+```bash
+rclone sync garage:immich/pv-backup/library /library -v --links --dry-run
+rclone sync garage:immich/pv-backup/library /library -v --links
+```
+
+Use `garage-secret-backup` and the backup-instance endpoint, exactly as the
+`pv-backup` CronJob does. Restore the database from the same quiesced Recovery
+Point before starting Immich, then verify originals and relational metadata
+through the application for more than one user.
+
+#### Personal pod fallback
+
+If the central and offsite mirrors are both lost, the pod archive can recover
+enrolled members one at a time. This is a disaster fallback, not the tested
+all-user path.
 
 > **The database must be restored first.** The archive's keys are built for a
 > human — `immich/<year>/<date>/<id8>-<originalFileName>` — while the library is
@@ -538,8 +565,9 @@ pixels — `pv-backup` no longer mirrors the library PVC. Restores read the
 4. Restore databases from the recovered `postgres-backups*` buckets (§7.1).
 5. Let ArgoCD finish syncing; apps reconnect to restored data.
 
-**This sequence has never been drilled end-to-end** (§5 item 2). Treat it as a plan,
-not a proven runbook, until a staging drill has validated it.
+Steps 3–5 were drilled for Immich and Nextcloud against the separate in-cluster
+backup volume on 2026-09-01. Rebuilding from the external provider remains
+untested because no offsite account is configured in this repository.
 
 
 ### 7.6 Total loss — rebuilding from offsite and members' devices

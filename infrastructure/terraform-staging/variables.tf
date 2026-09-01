@@ -63,8 +63,9 @@ variable "location" {
   description = <<-DESC
     Hetzner location for the ephemeral staging VM. Override per run, e.g.
     TF_VAR_location=hel1 (Helsinki). Nothing here is location-bound — staging
-    uses an ephemeral IP and no volumes — but var.server_type must be offered
-    in whichever location is chosen, or the apply fails before the VM is made.
+    uses an ephemeral IP and, by default, no volumes. Restore drills opt into
+    disposable data and backup volumes. var.server_type must be offered in
+    whichever location is chosen, or the apply fails before the VM is made.
   DESC
   type        = string
   default     = "nbg1"
@@ -78,4 +79,22 @@ variable "server_type" {
   DESC
   type        = string
   default     = "cx43"
+}
+
+variable "separate_backup_volumes" {
+  description = "Attach distinct operational and backup volumes for restore drills."
+  type        = bool
+  default     = false
+}
+
+variable "data_volume_size" {
+  description = "Disposable operational volume size in GiB."
+  type        = number
+  default     = 30
+}
+
+variable "backup_volume_size" {
+  description = "Disposable Recovery Point volume size in GiB."
+  type        = number
+  default     = 20
 }
