@@ -1,5 +1,19 @@
 # SmallWorlds: Technical Strategy and Implementation Approach
 
+## Massive Transformative Purpose
+
+> **Every community in control of its digital world.**
+
+This is the change SmallWorlds exists to advance. It is broader than providing a
+self-hosted application bundle: communities should be able to choose their digital
+spaces, govern them, and retain control of their identities and data without
+depending on a dominant platform. It is intentionally open-ended—there will always
+be more communities to reach and more of digital life to bring under their control.
+
+The MTP is also a strategy filter: prefer work that gives more communities meaningful
+control, makes that control easier to exercise, or expands the parts of digital life
+they can govern for themselves.
+
 ## 1. Executive Summary
 The SmallWorlds project envisions a distributed, decentralized network of community-operated digital hubs ("small worlds") offering a complete suite of privacy-respecting, everyday software applications. The goal is to provide a 99% coverage of normal user needs through fully automated, secure, and fun-to-use platforms. This document outlines the technological strategy to realize this vision, starting with an initial pilot of an Immich server on European cloud infrastructure.
 
