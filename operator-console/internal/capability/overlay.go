@@ -82,7 +82,11 @@ func (catalog Catalog) RenderOverlay(input OverlayInput) (Overlay, error) {
 	files["overlay-config.yaml"] = "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: smallworlds-overlay\n  namespace: default\ndata:\n  baseDomain: " + input.Domain + "\n  deploymentMode: " + string(input.Selection.DeploymentMode) + "\n  smallworldsRelease: " + input.Release + "\n"
 	for _, app := range apps {
 		contents := "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\nresources:\n  - https://github.com/stephan271/smallworlds.git/infrastructure/kubernetes/tenants/" + app + "?ref=" + input.Release + "\n"
-		if patches := DomainPatches(app, input.Domain, input.EnvironmentExtension); patches != "" {
+		patches := DomainPatches(app, input.Domain, input.EnvironmentExtension)
+		if app == "nextcloud" {
+			patches += OfficeBackendPatch(assessment.CommunityIDs)
+		}
+		if patches != "" {
 			contents += "patches:\n" + patches
 		}
 		files[app+"/kustomization.yaml"] = contents

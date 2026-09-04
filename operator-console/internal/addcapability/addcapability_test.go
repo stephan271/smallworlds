@@ -48,7 +48,7 @@ func TestOffersOnlyDisabledOptionalCommunityApps(t *testing.T) {
 	if _, offered := got["keycloak"]; offered {
 		t.Fatal("a required platform service must never be offered as a Community Application")
 	}
-	for _, want := range []string{"forgejo", "immich", "bulwark", "excalidraw", "jitsi", "collabora", "plane"} {
+	for _, want := range []string{"forgejo", "immich", "bulwark", "excalidraw", "jitsi", "collabora", "euro-office", "plane"} {
 		if _, offered := got[want]; !offered {
 			t.Errorf("disabled optional community app %q was not offered", want)
 		}
@@ -57,6 +57,23 @@ func TestOffersOnlyDisabledOptionalCommunityApps(t *testing.T) {
 	// present here, so collabora has no disabled dependencies.
 	if deps := got["collabora"].DisabledDependencies; len(deps) != 0 {
 		t.Errorf("collabora disabled dependencies = %v, want none when nextcloud is present", deps)
+	}
+}
+
+func TestOffersOnlyTheOfficeAlternativeThatDoesNotConflict(t *testing.T) {
+	catalog := capability.DefaultCatalog()
+	observed := states(catalog, map[string]assessment.CapabilityState{
+		"nextcloud": assessment.StateHealthy,
+		"collabora": assessment.StateHealthy,
+	})
+	offers, err := Offers(catalog, observed, capability.Hetzner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, offer := range offers {
+		if offer.ID == "euro-office" {
+			t.Fatal("Euro-Office must not be offered as an additive change while Collabora is present")
+		}
 	}
 }
 

@@ -92,7 +92,7 @@ both, since which volume a static PV uses is decided by its `local.path`:
 | **Stalwart** | All mail data *and blobs* stored in PostgreSQL (`@type: PostgreSql` store in `stalwart-config`) | CNPG `database` (stalwart ns), 20 Gi ×2 | — |
 | **Keycloak** | — (realm/SPI mounted from ConfigMaps) | CNPG `keycloak-db` (pgvecto.rs image), 20 Gi ×2 | — |
 | **Bulwark** | Admin state → `bulwark-data` PVC (512 Mi, local-path) | — | — |
-| **Jitsi, Excalidraw, Collabora, Dashboard, Hermes, Remediation** | Stateless (config via ConfigMaps; Hermes/Remediation source ships as ConfigMaps) | — | — |
+| **Jitsi, Excalidraw, Collabora, Euro-Office, Dashboard, Hermes, Remediation** | Stateless (config via ConfigMaps/Secrets; users' Euro-Office source documents remain in Nextcloud) | — | — |
 | **Monitoring** | Prometheus 20 Gi, Alertmanager 2 Gi, Loki 20 Gi (all local-path StatefulSet claims) | — | Grafana ephemeral |
 | **Garage itself** | 120 Gi static PV, layout capacity assigned **100 G** by `garage-init-job`, `replicationFactor: 1` | — | — |
 | **k3s control plane** | Embedded datastore under `/mnt/smallworlds-data/k3s` | — | — |

@@ -205,6 +205,7 @@ locals {
     "excalidraw"  = "whiteboard"
     "jitsi"       = "meet"
     "collabora"   = "office"
+    "euro-office" = "office"
     "plane"       = "plan"
     "stalwart"    = "mail"
     "bulwark"     = "webmail"
@@ -409,6 +410,5 @@ output "backup_volume_linux_device" {
   value       = hcloud_volume.smallworlds_backup.linux_device
   description = "The Linux device name for the backup volume holding garage-backup (docs/adr/0048)."
 }
-
 
 

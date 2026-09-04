@@ -11,7 +11,7 @@ var displayTranslations = map[string]map[string]string{
 }
 
 func init() {
-	for _, id := range []string{"cert-manager", "cert-manager-webhook-hetzner", "cloudnative-pg", "argocd-ingress", "garage", "persistent-storage", "traefik", "kube-prometheus-stack", "loki-stack", "hermes", "remediation", "velero", "backup-replicator", "alertmanager-config", "backup-alerts", "trivy-operator", "trivy-dashboard", "renovate-cronjob", "headscale", "dashboard", "keycloak", "stalwart", "operator-console", "forgejo", "immich", "nextcloud", "bulwark", "excalidraw", "jitsi", "collabora", "plane"} {
+	for _, id := range []string{"cert-manager", "cert-manager-webhook-hetzner", "cloudnative-pg", "argocd-ingress", "garage", "persistent-storage", "traefik", "kube-prometheus-stack", "loki-stack", "hermes", "remediation", "velero", "backup-replicator", "alertmanager-config", "backup-alerts", "trivy-operator", "trivy-dashboard", "renovate-cronjob", "headscale", "dashboard", "keycloak", "stalwart", "operator-console", "forgejo", "immich", "nextcloud", "bulwark", "excalidraw", "jitsi", "collabora", "euro-office", "plane"} {
 		displayTranslations["en"]["capability."+id] = id
 		displayTranslations["de"]["capability."+id] = id
 	}
@@ -43,6 +43,7 @@ type Entry struct {
 	Category                 Category         `json:"category"`
 	Required                 bool             `json:"required"`
 	Dependencies             []string         `json:"dependencies"`
+	Conflicts                []string         `json:"conflicts,omitempty"`
 	SupportedDeploymentModes []DeploymentMode `json:"supportedDeploymentModes"`
 	Resources                Resources        `json:"resources"`
 	Exposure                 string           `json:"exposure"`
@@ -91,7 +92,20 @@ func DefaultCatalog() Catalog {
 		// and it is why the console must never be the only path by which a
 		// failure can be noticed (the alerting chain is independent of it).
 		operatorConsole(),
-		community("forgejo", 768, 30, "keycloak", "cloudnative-pg"), community("immich", 2048, 100, "keycloak", "cloudnative-pg", "garage"), community("nextcloud", 1024, 28, "keycloak", "cloudnative-pg", "garage"), community("stalwart", 256, 20), community("bulwark", 256, 2, "stalwart", "keycloak"), community("excalidraw", 128, 1, "keycloak"), community("jitsi", 1024, 8, "keycloak"), community("collabora", 768, 4, "nextcloud"), community("plane", 1024, 30, "keycloak", "cloudnative-pg"),
+		community("forgejo", 768, 30, "keycloak", "cloudnative-pg"), community("immich", 2048, 100, "keycloak", "cloudnative-pg", "garage"), community("nextcloud", 1024, 28, "keycloak", "cloudnative-pg", "garage"), community("stalwart", 256, 20), community("bulwark", 256, 2, "stalwart", "keycloak"), community("excalidraw", 128, 1, "keycloak"), community("jitsi", 1024, 8, "keycloak"),
+		func() Entry {
+			entry := community("collabora", 768, 4, "nextcloud")
+			entry.Conflicts = []string{"euro-office"}
+			return entry
+		}(),
+		func() Entry {
+			// The container is stateless here, but its large image, bundled services
+			// and conversion workspace still need roughly 10 GiB of node capacity.
+			entry := community("euro-office", 4096, 10, "nextcloud")
+			entry.Conflicts = []string{"collabora"}
+			return entry
+		}(),
+		community("plane", 1024, 30, "keycloak", "cloudnative-pg"),
 	}
 	return Catalog{Version: 1, Capabilities: entries}
 }
@@ -138,6 +152,15 @@ func (catalog Catalog) Validate() error {
 		for _, dependency := range entry.Dependencies {
 			if _, exists := entries[dependency]; !exists {
 				return fmt.Errorf("capability %q depends on unknown %q", entry.ID, dependency)
+			}
+		}
+		for _, conflict := range entry.Conflicts {
+			other, exists := entries[conflict]
+			if !exists {
+				return fmt.Errorf("capability %q conflicts with unknown %q", entry.ID, conflict)
+			}
+			if !containsString(other.Conflicts, entry.ID) {
+				return fmt.Errorf("capability conflict %q/%q is not symmetric", entry.ID, conflict)
 			}
 		}
 	}
@@ -208,7 +231,9 @@ func (catalog Catalog) Assess(selection Selection) (Assessment, error) {
 	case Full:
 		requested = nil
 		for _, entry := range catalog.Capabilities {
-			if entry.Category == CommunityApplication {
+			// Full retains Collabora as its established Office choice. Euro-Office
+			// remains available through Custom, but the two are mutually exclusive.
+			if entry.Category == CommunityApplication && entry.ID != "euro-office" {
 				requested = append(requested, entry.ID)
 			}
 		}
@@ -242,6 +267,14 @@ func (catalog Catalog) Assess(selection Selection) (Assessment, error) {
 			return Assessment{}, err
 		}
 	}
+	for id := range selected {
+		entry, _ := catalog.Entry(id)
+		for _, conflict := range entry.Conflicts {
+			if selected[conflict] {
+				return Assessment{}, fmt.Errorf("capabilities %q and %q are mutually exclusive", id, conflict)
+			}
+		}
+	}
 	result := Assessment{Selected: selected}
 	exposures, protections := map[string]bool{}, map[string]bool{}
 	for _, entry := range catalog.Capabilities {
@@ -266,4 +299,13 @@ func (catalog Catalog) Assess(selection Selection) (Assessment, error) {
 	sort.Strings(result.Exposure)
 	sort.Strings(result.Protection)
 	return result, nil
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }

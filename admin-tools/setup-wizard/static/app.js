@@ -117,7 +117,9 @@ function answers() {
     repo_path: el("repo_path").value.trim(),
     version: el("version").value.trim(),
 
-    apps: Array.from(document.querySelectorAll(".app input:checked")).map((i) => i.value),
+    apps: Array.from(document.querySelectorAll(".app input:checked"))
+      .map((i) => i.value)
+      .filter(Boolean),
   };
 }
 
@@ -179,6 +181,7 @@ const FIELD_PANEL = {
   domain: 0, admin_email: 0, env_ext: 0, onboarding_mode: 0,
   target: 1, ssh_target: 1, data_dir: 1, backup_dir: 1, hcloud_token: 1,
   git_token: 2, remote_url: 2, repo_name: 2, version: 2,
+  apps: 3,
 };
 
 function advance() {
@@ -219,15 +222,53 @@ function renderApps() {
 
   const grid = el("app-grid");
   grid.textContent = "";
-  state.catalog.optional.forEach((app) => {
+  state.catalog.optional.filter((app) => !app.choice_group).forEach((app) => {
+    grid.append(renderAppChoice(app, "checkbox"));
+  });
+
+  (state.catalog.choice_groups || []).forEach((group) => {
+    const fieldset = document.createElement("fieldset");
+    fieldset.className = "app-choice-group";
+    const legend = document.createElement("legend");
+    legend.textContent = group.label;
+    const detail = document.createElement("p");
+    detail.className = "hint";
+    detail.textContent = group.description;
+    fieldset.append(legend, detail);
+
+    const none = {
+      name: "",
+      label: group.none_label,
+      weight: "light",
+      description: "Files remain available; office documents download or open locally.",
+    };
+    const groupApps = state.catalog.optional.filter((app) => app.choice_group === group.name);
+    fieldset.append(renderAppChoice(none, "radio", group.name,
+      !groupApps.some((app) => state.apps.includes(app.name))));
+    groupApps.forEach((app) => {
+      fieldset.append(renderAppChoice(app, "radio", group.name));
+    });
+    grid.append(fieldset);
+  });
+  reviewAppSelection();
+}
+
+function renderAppChoice(app, type, groupName = "", forceChecked = false) {
     const label = document.createElement("label");
     label.className = "app";
 
     const input = document.createElement("input");
-    input.type = "checkbox";
+    input.type = type;
+    if (groupName) input.name = `app-choice-${groupName}`;
     input.value = app.name;
-    input.checked = state.apps.includes(app.name);
-    input.addEventListener("change", reviewAppSelection);
+    input.checked = forceChecked || state.apps.includes(app.name);
+    input.addEventListener("change", () => {
+      if (app.auto_select_requires && app.requires && input.checked) {
+        const dependency = document.querySelector(`.app input[value="${app.requires}"]`);
+        if (dependency) dependency.checked = true;
+      }
+      reviewAppSelection();
+    });
 
     const body = document.createElement("span");
     const name = document.createElement("span");
@@ -243,15 +284,15 @@ function renderApps() {
     body.append(name, description);
 
     label.append(input, body);
-    grid.append(label);
-  });
-  reviewAppSelection();
+    return label;
 }
 
 /* The bulwark-without-stalwart warning, shown the moment the box is ticked
    rather than printed after the overlay has already been written. */
 function reviewAppSelection() {
-  const selected = Array.from(document.querySelectorAll(".app input:checked")).map((i) => i.value);
+  const selected = Array.from(document.querySelectorAll(".app input:checked"))
+    .map((i) => i.value)
+    .filter(Boolean);
   const notes = state.catalog.optional
     .filter((app) => app.requires && selected.includes(app.name) && !selected.includes(app.requires))
     .map((app) => app.requires_note);

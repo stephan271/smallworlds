@@ -39,6 +39,7 @@ type Offer struct {
 	Protection           string               `json:"protection"`
 	Stateful             bool                 `json:"stateful"`
 	Dependencies         []string             `json:"dependencies"`
+	Conflicts            []string             `json:"conflicts,omitempty"`
 	DisabledDependencies []string             `json:"disabledDependencies"`
 }
 
@@ -61,6 +62,16 @@ func Offers(catalog capability.Catalog, states map[string]assessment.CapabilityS
 		if !supportsMode(entry, mode) {
 			continue
 		}
+		conflictPresent := false
+		for _, conflict := range entry.Conflicts {
+			if present(states[conflict]) {
+				conflictPresent = true
+				break
+			}
+		}
+		if conflictPresent {
+			continue
+		}
 		offers = append(offers, newOffer(entry, states))
 	}
 	sort.Slice(offers, func(i, j int) bool { return offers[i].ID < offers[j].ID })
@@ -76,6 +87,7 @@ func newOffer(entry capability.Entry, states map[string]assessment.CapabilitySta
 		Protection:   entry.Protection,
 		Stateful:     entry.Resources.StorageGi > 0,
 		Dependencies: append([]string(nil), entry.Dependencies...),
+		Conflicts:    append([]string(nil), entry.Conflicts...),
 	}
 	for _, dependency := range entry.Dependencies {
 		if !present(states[dependency]) {

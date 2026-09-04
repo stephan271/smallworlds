@@ -157,7 +157,7 @@ echo -e "${YELLOW}Selecting Optional Applications...${NC}"
 # stalwart is here rather than in APPS below because mail is opt-in
 # (docs/adr/0049): nothing in the cluster depends on it. Note that bulwark does
 # — selecting bulwark without stalwart leaves it with no mail server to protect.
-OPTIONAL_APPS=("forgejo" "immich" "nextcloud" "stalwart" "bulwark" "excalidraw" "jitsi" "collabora" "plane" "pod-gateway")
+OPTIONAL_APPS=("forgejo" "immich" "nextcloud" "stalwart" "bulwark" "excalidraw" "jitsi" "collabora" "euro-office" "plane" "pod-gateway")
 SELECTED_APPS=()
 
 # An app name is not automatically a shell identifier: pod-gateway has a hyphen,
@@ -170,6 +170,10 @@ app_pref_var() {
 }
 
 for app in "${OPTIONAL_APPS[@]}"; do
+    # Office is one three-way choice below, not two independent checkboxes.
+    if [[ "$app" == "collabora" || "$app" == "euro-office" ]]; then
+        continue
+    fi
     # Check stored preference
     var_name="$(app_pref_var "$app")"
     stored_val="${!var_name}"
@@ -183,6 +187,41 @@ for app in "${OPTIONAL_APPS[@]}"; do
         printf -v "$var_name" 'n'
     fi
 done
+
+if [[ "${STORED_APP_euro_office:-n}" == "y" ]]; then
+    DEFAULT_OFFICE_BACKEND="euro-office"
+elif [[ "${STORED_APP_collabora:-n}" == "y" ]]; then
+    DEFAULT_OFFICE_BACKEND="collabora"
+else
+    DEFAULT_OFFICE_BACKEND="none"
+fi
+ask_prefilled "Which Office editor should Files use? (none/collabora/euro-office): " OFFICE_BACKEND "$DEFAULT_OFFICE_BACKEND" required
+case "$OFFICE_BACKEND" in
+    none)
+        STORED_APP_collabora=n
+        STORED_APP_euro_office=n
+        ;;
+    collabora)
+        SELECTED_APPS+=("collabora")
+        STORED_APP_collabora=y
+        STORED_APP_euro_office=n
+        ;;
+    euro-office)
+        SELECTED_APPS+=("euro-office")
+        STORED_APP_collabora=n
+        STORED_APP_euro_office=y
+        ;;
+    *)
+        echo -e "${RED}Choose exactly one of: none, collabora, euro-office.${NC}" >&2
+        exit 1
+        ;;
+esac
+
+if [[ "$OFFICE_BACKEND" != "none" && " ${SELECTED_APPS[*]} " != *" nextcloud "* ]]; then
+    echo -e "${YELLOW}Office needs Nextcloud; selecting nextcloud as well.${NC}"
+    SELECTED_APPS+=("nextcloud")
+    STORED_APP_nextcloud=y
+fi
 
 # Bulwark is webmail, not a mail server: it needs a JMAP server that accepts
 # bearer tokens from this cluster's Keycloak. Warn rather than refuse — pointing
@@ -230,19 +269,30 @@ resources:
 #     patch: |- ...
 EOF
     fi
-    # Generate domain patches if using a different domain or extension
-    if [ "$TARGET_DOMAIN" != "smallworlds.network" ] || [ -n "$ENV_EXT" ]; then
-        python3 "$SCRIPT_DIR/generate_domain_patches.py" \
-            --app "$app" \
-            --domain "$TARGET_DOMAIN" \
-            --ext="$ENV_EXT" \
+    # Every new Nextcloud overlay records the Office choice explicitly. Domain
+    # patches remain conditional for apps that have no such non-domain setting.
+    if [ "$TARGET_DOMAIN" != "smallworlds.network" ] || [ -n "$ENV_EXT" ] || [ "$app" = "nextcloud" ]; then
+        patch_args=(
+            --app "$app"
+            --domain "$TARGET_DOMAIN"
+            --ext="$ENV_EXT"
             --kustomization-file "$ABS_REPO_PATH/$app/kustomization.yaml"
+        )
+        if [ "$app" = "nextcloud" ]; then
+            patch_args+=(--office-backend "$OFFICE_BACKEND")
+        fi
+        python3 "$SCRIPT_DIR/generate_domain_patches.py" "${patch_args[@]}"
     fi
 done
 
 # 4. Create or Update root kustomization.yaml
 if [ -f "kustomization.yaml" ]; then
     echo -e "${YELLOW}Existing kustomization.yaml found. Upgrading in place...${NC}"
+    # Selecting another Office backend (or none) must stop declaring the old
+    # Argo CD Application. Keep its directory so local customisations are not
+    # destroyed and switching back remains lossless.
+    python3 "$SCRIPT_DIR/reconcile_office_selection.py" \
+        "$ABS_REPO_PATH/kustomization.yaml" "$OFFICE_BACKEND"
     for app in "${SELECTED_APPS[@]}"; do
         if ! grep -q "apps/$app.yaml" kustomization.yaml; then
             echo -e "Adding $app to kustomization.yaml..."

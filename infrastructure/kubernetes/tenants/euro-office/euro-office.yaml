@@ -1,0 +1,125 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: euro-office
+  namespace: nextcloud
+  labels:
+    app.kubernetes.io/name: euro-office
+spec:
+  replicas: 1
+  # The image bundles stateful PostgreSQL/RabbitMQ processes. Never overlap two
+  # generations behind the Service during an update.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: euro-office
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: euro-office
+    spec:
+      # The upstream all-in-one image starts nginx, PostgreSQL, Redis and
+      # RabbitMQ under their own service users, so it cannot run as one fixed
+      # non-root UID. It receives no Kubernetes API credentials or host access.
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 120
+      containers:
+        - name: euro-office
+          # v9.3.4-hotfix.1 production image. Digest pinning makes installs reproducible.
+          image: ghcr.io/euro-office/documentserver:v9.3.4-hotfix.1@sha256:889e681923d2dcc8bdfb92fe128d10e185fcff880d302b6a0c0c7bf339499290
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+          env:
+            - name: JWT_ENABLED
+              value: "true"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: euro-office-jwt
+                  key: jwt-secret
+            - name: JWT_HEADER
+              value: Authorization
+            - name: EXAMPLE_ENABLED
+              value: "false"
+            # Nextcloud's eurooffice connector uses the Document Server API,
+            # not the optional WOPI host bundled into this image.
+            - name: WOPI_ENABLED
+              value: "false"
+            # Local deployments resolve files.<domain> to the node's private
+            # address. The document server must be allowed to fetch that URL.
+            - name: ALLOW_PRIVATE_IP_ADDRESS
+              value: "true"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              memory: 6Gi
+          startupProbe:
+            httpGet:
+              path: /healthcheck
+              port: http
+            periodSeconds: 5
+            failureThreshold: 120
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: http
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: http
+            periodSeconds: 30
+            failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: euro-office
+  namespace: nextcloud
+spec:
+  selector:
+    app.kubernetes.io/name: euro-office
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: euro-office
+  namespace: nextcloud
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.middlewares: nextcloud-edge-ratelimit@kubernetescrd,nextcloud-edge-headers@kubernetescrd
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/name: "Nextcloud Office"
+    gethomepage.dev/description: "Euro-Office Document Server"
+    gethomepage.dev/group: "Applications"
+    gethomepage.dev/icon: "euro-office.png"
+spec:
+  rules:
+    - host: office.smallworlds.network
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: euro-office
+                port:
+                  name: http
+  tls:
+    - hosts:
+        - office.smallworlds.network
+      secretName: euro-office-tls

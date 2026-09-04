@@ -1,7 +1,30 @@
 #!/usr/bin/env python3
 import argparse
-import os
+import re
 import textwrap
+
+OFFICE_BACKENDS = ("none", "collabora", "euro-office")
+
+
+def generate_office_backend_patch(backend):
+    """Select exactly one Nextcloud editor, independently of the domain.
+
+    The base defaults to Collabora so old overlays retain their historical
+    behaviour. Every newly generated overlay carries an explicit value,
+    including ``none``, so later releases cannot silently change that choice.
+    """
+    if backend not in OFFICE_BACKENDS:
+        raise ValueError(f"unsupported office backend: {backend}")
+    return textwrap.indent(textwrap.dedent(f"""\
+      - target:
+          kind: ConfigMap
+          name: nextcloud-oidc-config-map
+        patch: |-
+          - op: replace
+            path: /data/OFFICE_BACKEND
+            value: "{backend}"
+    """), "  ")
+
 
 def generate_patches(app_name, domain, ext):
     """Generate Kustomize patches for a specific app based on the domain and extension."""
@@ -414,6 +437,20 @@ def generate_patches(app_name, domain, ext):
                 value: {subdomains['office']}
         """), "  ")
 
+    elif app_name == "euro-office":
+        patches += textwrap.indent(textwrap.dedent(f"""\
+          - target:
+              kind: Ingress
+              name: euro-office
+            patch: |-
+              - op: replace
+                path: /spec/rules/0/host
+                value: {subdomains['office']}
+              - op: replace
+                path: /spec/tls/0/hosts/0
+                value: {subdomains['office']}
+        """), "  ")
+
     elif app_name == "excalidraw":
         patches += textwrap.indent(textwrap.dedent(f"""\
           - target:
@@ -622,13 +659,34 @@ def main():
     parser.add_argument("--domain", required=True, help="The target domain (e.g. example.com)")
     parser.add_argument("--ext", required=False, default="", help="The environment extension in subdomain syntax (e.g. .dev)")
     parser.add_argument("--kustomization-file", required=True, help="Path to the kustomization.yaml to append patches to")
+    parser.add_argument("--office-backend", choices=OFFICE_BACKENDS,
+                        help="Explicit Nextcloud editor choice (only valid for --app nextcloud)")
     
     args = parser.parse_args()
     
-    if args.domain == "smallworlds.network" and not args.ext:
-        return
-        
-    patches = generate_patches(args.app, args.domain, args.ext)
+    if args.office_backend and args.app != "nextcloud":
+        parser.error("--office-backend is only valid with --app nextcloud")
+
+    patches = ""
+    if args.domain != "smallworlds.network" or args.ext:
+        patches = generate_patches(args.app, args.domain, args.ext)
+    if args.office_backend:
+        # A setup rerun changes the existing choice in place. Appending another
+        # JSON patch for the same key happens to be last-one-wins, but leaves an
+        # ambiguous overlay and makes every subsequent run noisier.
+        with open(args.kustomization_file, "r", newline="\n") as existing:
+            content = existing.read()
+        office_value = re.compile(
+            r"(?m)^(\s*path: /data/OFFICE_BACKEND\n\s*value: )[\"']?[^\"'\n]+[\"']?$"
+        )
+        updated, replacements = office_value.subn(
+            lambda match: f'{match.group(1)}"{args.office_backend}"', content
+        )
+        if replacements:
+            with open(args.kustomization_file, "w", newline="\n") as target:
+                target.write(updated)
+        else:
+            patches += generate_office_backend_patch(args.office_backend)
     
     if patches:
         # newline="\n" on both handles: text mode would translate on Windows, and
@@ -641,7 +699,9 @@ def main():
                 if "\npatches:" not in content:
                     f.write("\npatches:\n")
             f.write(patches)
-        print(f"Appended domain patches for {args.app} to {getattr(args, 'kustomization_file')}")
+        print(f"Appended patches for {args.app} to {getattr(args, 'kustomization_file')}")
+    elif args.office_backend:
+        print(f"Updated Office backend for {args.app} in {args.kustomization_file}")
 
 if __name__ == "__main__":
     main()

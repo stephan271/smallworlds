@@ -103,7 +103,7 @@ has a defensible default and sits behind that panel's *Advanced settings*.
 | **1 · Your community** | domain, admin email | environment extension `""` (production), onboarding mode `invitation` |
 | **2 · Where it runs** | Hetzner Cloud + API token — *or* — an existing machine + SSH target | data dir `/var/lib/smallworlds-data`, backup dir `/var/lib/smallworlds-backup`, certificates `letsencrypt`, internet exposure `no` |
 | **3 · Settings repository** | one Git token → the wizard creates the private repo itself | repo name `my-community<ext>-config`, local path, pinned upstream tag (prefilled with the newest release) |
-| **4 · Applications** | checkboxes, sensible defaults | — |
+| **4 · Applications** | checkboxes plus one Office radio group, sensible defaults | — |
 | **5 · Review** | reads back the plan in plain language, plus the exact commands | — |
 
 ### Defaults for applications
@@ -111,7 +111,12 @@ has a defensible default and sits behind that panel's *Advanced settings*.
 Following ADR 0049 (mail is opt-in) and ADR 0037 (capacity-aware opt-in apps):
 
 - **On:** `nextcloud`, `immich`, `forgejo`, `excalidraw`
-- **Off:** `stalwart`, `bulwark`, `jitsi`, `collabora`, `plane`, `pod-gateway`
+- **Off:** `stalwart`, `bulwark`, `jitsi`, `plane`, `pod-gateway`; the Office
+  group explicitly starts at `none` rather than `collabora` or `euro-office`
+
+Collabora, Euro-Office and no online editor are one mutually exclusive choice.
+Selecting either editor also selects Nextcloud, because both are document
+servers rather than standalone file stores.
 
 The bulwark-without-stalwart warning that
 [`prepare-community-repo.sh`](../admin-tools/prepare-community-repo.sh) prints

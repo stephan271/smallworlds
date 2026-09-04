@@ -28,9 +28,12 @@ Identity, management, observability, and cluster utilities all deploy together i
 * **`velero.yaml`**: backup controller (only depends on Garage from wave -5, not on Keycloak).
 * **`hermes.yaml`**, **`remediation.yaml`**, **`trivy-operator.yaml`**, **`backup-replicator.yaml`**: the two-tier alert-remediation agents (Tier 2 Claude SRE + Tier 1 deterministic handlers), security scanning, and backup utilities.
 * `argocd-ingress.yaml`, `renovate-cronjob.yaml` and `trivy-dashboard.yaml` carry no sync-wave annotation, which defaults to wave 0 as well.
+* **`euro-office.yaml`**, when selected, starts its Document Server and creates
+  the shared JWT here. This lets Nextcloud's wave-1 configuration hook wire the
+  connector without racing the Secret initialization.
 
 ### Wave 1 (End-User Tenant Applications)
-* **`nextcloud.yaml`**, **`collabora.yaml`**, **`forgejo.yaml`**, **`immich.yaml`**, **`jitsi.yaml`**, **`bulwark.yaml`**, **`excalidraw.yaml`**, **`plane.yaml`**, **`stalwart.yaml`**
+* **`nextcloud.yaml`**, **`collabora.yaml`**, **`forgejo.yaml`**, **`immich.yaml`**, **`jitsi.yaml`**, **`bulwark.yaml`**, **`excalidraw.yaml`**, **`plane.yaml`**, **`stalwart.yaml`**. Collabora is mutually exclusive with the wave-0 Euro-Office Application.
 * These are the final workloads. They rely on the foundational layers (CNPG for DBs, Garage for S3, Keycloak for SSO, Traefik for Ingress) being operational. **Stalwart stays in this wave** despite being "infrastructure" because it depends on Keycloak's OIDC/directory integration.
 * **`alertmanager-config.yaml`** also sits at wave 1 — unlike its neighbours it is not an `Application` but a raw `AlertmanagerConfig` CR applied directly by the root app, and its CRD only arrives with `kube-prometheus-stack` at wave 0. The root app's `SkipDryRunOnMissingResource=true` sync option exists largely for this resource (see the bootstrap section below).
 

@@ -424,6 +424,17 @@ var domainPatchTemplates = map[string]string{
         path: /spec/template/spec/containers/0/env/1/value
         value: {{office}}
 `,
+	"euro-office": `  - target:
+      kind: Ingress
+      name: euro-office
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: {{office}}
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: {{office}}
+`,
 	"excalidraw": `  - target:
       kind: Ingress
       name: excalidraw
@@ -582,4 +593,25 @@ func DomainPatches(app, domain, ext string) string {
 	// from the base domain rather than being told each hostname separately.
 	replacements = append(replacements, "{{domain}}", domain)
 	return strings.NewReplacer(replacements...).Replace(template)
+}
+
+// OfficeBackendPatch records the editor choice in the Nextcloud overlay. The
+// base stays Collabora-compatible for old overlays, while newly rendered ones
+// explicitly choose Collabora, Euro-Office, or neither.
+func OfficeBackendPatch(communityIDs []string) string {
+	backend := "none"
+	for _, id := range communityIDs {
+		switch id {
+		case "collabora", "euro-office":
+			backend = id
+		}
+	}
+	return `  - target:
+      kind: ConfigMap
+      name: nextcloud-oidc-config-map
+    patch: |-
+      - op: replace
+        path: /data/OFFICE_BACKEND
+        value: "` + backend + `"
+`
 }

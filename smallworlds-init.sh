@@ -623,10 +623,15 @@ report_node_stuck() {
 # cluster already has.
 selected_apps() {
     local config="${SMALLWORLDS_COMMUNITY_CONFIG:-$HOME/.config/smallworlds/community-setup.conf}"
-    local all=(forgejo immich nextcloud stalwart bulwark excalidraw jitsi collabora plane pod-gateway)
+    local all=(forgejo immich nextcloud stalwart bulwark excalidraw jitsi collabora euro-office plane pod-gateway)
 
     if [[ ! -f "$config" ]]; then
-        printf '%s\n' "${all[@]}"
+        # Historical installs selected every old optional app. Keep Collabora
+        # as that legacy Office choice; never default both exclusive editors.
+        local app
+        for app in "${all[@]}"; do
+            [[ "$app" == "euro-office" ]] || printf '%s\n' "$app"
+        done
         return 0
     fi
 
@@ -654,7 +659,7 @@ with open(path, encoding="utf-8", errors="replace") as handle:
 
 keys = {app: "STORED_APP_" + re.sub(r"[^A-Za-z0-9_]", "_", app) for app in apps}
 if not any(key in values for key in keys.values()):
-    print("\n".join(apps))
+    print("\n".join(app for app in apps if app != "euro-office"))
     sys.exit(0)
 print("\n".join(app for app in apps if values.get(keys[app]) == "y"))
 PYEOF
@@ -1562,6 +1567,7 @@ declare -A _APP_ADDRESS=(
     [excalidraw]="whiteboard|Whiteboard|Whiteboard"
     [jitsi]="meet|Meet|Meet (Jitsi)"
     [collabora]="office|Office|Office (Collabora)"
+    [euro-office]="office|Office|Office (Euro-Office)"
     [plane]="plan|Plan|Plan"
     [stalwart]="mail|Mail|Mail (Stalwart)"
     [bulwark]="webmail|Webmail|Webmail (Bulwark)"

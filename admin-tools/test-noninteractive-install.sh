@@ -199,6 +199,7 @@ STORED_APP_bulwark=n
 STORED_APP_excalidraw=y
 STORED_APP_jitsi=n
 STORED_APP_collabora=n
+STORED_APP_euro_office=n
 STORED_APP_plane=n
 STORED_APP_pod_gateway=n
 CONF
@@ -222,11 +223,17 @@ for app in dashboard keycloak nextcloud excalidraw; do
         fail "selected app present: $app"
     fi
 done
-for app in immich forgejo jitsi plane; do
+for app in immich forgejo jitsi collabora euro-office plane; do
     if [[ ! -d "$overlay/$app" ]]; then pass "unselected app absent: $app"; else
         fail "unselected app absent: $app"
     fi
 done
+if grep -q 'path: /data/OFFICE_BACKEND' "$overlay/nextcloud/kustomization.yaml" \
+   && grep -q 'value: "none"' "$overlay/nextcloud/kustomization.yaml"; then
+    pass "Nextcloud explicitly records no Office backend"
+else
+    fail "Nextcloud explicitly records no Office backend"
+fi
 # The Operator Console is deactivated: an overlay must no longer carry it.
 if grep -rq "operator-console" "$overlay" 2>/dev/null; then
     fail "no operator-console in the overlay (it is deactivated)"
@@ -237,6 +244,36 @@ if grep -q 'ref=v1.2.43' "$overlay/kustomization.yaml"; then
     pass "pinned the requested upstream tag"
 else
     fail "pinned the requested upstream tag"
+fi
+
+# Re-running setup is also the supported switch path. Exercise the full
+# none -> Euro-Office -> none cycle against the already-created overlay.
+sed -i 's/^STORED_APP_euro_office=n$/STORED_APP_euro_office=y/' \
+    "$stub_home/.config/smallworlds/community-setup.conf"
+output="$(cd "$repository_root" && HOME="$stub_home" SMALLWORLDS_NONINTERACTIVE=1 \
+    GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.org \
+    GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.org \
+    timeout 120 bash admin-tools/prepare-community-repo.sh </dev/null 2>&1)"
+if grep -q '/apps/euro-office.yaml' "$overlay/kustomization.yaml" \
+   && grep -q 'value: "euro-office"' "$overlay/nextcloud/kustomization.yaml" \
+   && grep -q 'value: office.example.org' "$overlay/euro-office/kustomization.yaml"; then
+    pass "a rerun switches the existing overlay to Euro-Office"
+else
+    fail "a rerun switches the existing overlay to Euro-Office"
+fi
+
+sed -i 's/^STORED_APP_euro_office=y$/STORED_APP_euro_office=n/' \
+    "$stub_home/.config/smallworlds/community-setup.conf"
+output="$(cd "$repository_root" && HOME="$stub_home" SMALLWORLDS_NONINTERACTIVE=1 \
+    GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.org \
+    GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.org \
+    timeout 120 bash admin-tools/prepare-community-repo.sh </dev/null 2>&1)"
+if ! grep -q '/apps/euro-office.yaml' "$overlay/kustomization.yaml" \
+   && grep -q 'value: "none"' "$overlay/nextcloud/kustomization.yaml" \
+   && [[ "$(grep -c 'path: /data/OFFICE_BACKEND' "$overlay/nextcloud/kustomization.yaml")" -eq 1 ]]; then
+    pass "a rerun switches Euro-Office off without duplicate patches"
+else
+    fail "a rerun switches Euro-Office off without duplicate patches"
 fi
 
 # --------------------------------------------------------------------------
@@ -273,10 +310,13 @@ check_contains "$output" \
     "1. Enter your target base domain (e.g. smallworlds.network): example.org" \
     "prompt 1 still renders its pre-filled default"
 check_contains "$output" \
-    "5. Pin to which upstream smallworlds version tag (e.g. v1.0.0, or HEAD to track latest): v1.2.43" \
+    "tag (e.g. v1.0.0, or HEAD to track latest): v1.2.43" \
     "prompt 5 still renders its pre-filled default"
 check_contains "$output" "Do you want to install nextcloud? (y/n): y" \
     "the per-app loop still renders its stored answer"
+check_contains "$output" \
+    "Which Office editor should Files use? (none/collabora/euro-office): none" \
+    "the Office prompt renders its stored three-way choice"
 check_absent "$output" ">>> step:" "no progress markers in a human's terminal"
 
 echo ""

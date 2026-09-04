@@ -18,13 +18,16 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 WIZARD_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(WIZARD_DIRECTORY, "..", ".."))
 sys.path.insert(0, WIZARD_DIRECTORY)
+sys.path.insert(0, os.path.join(REPO_ROOT, "admin-tools"))
 
 failures: list[str] = []
 skipped: list[str] = []
@@ -71,6 +74,11 @@ def test_plan_module():
     check("webmail is off by default", "bulwark" not in state["apps"])
     check("a useful set is on by default",
           {"nextcloud", "immich", "forgejo", "excalidraw"} == set(state["apps"]))
+    check("Office is an explicit three-way choice",
+          state["catalog"]["choice_groups"][0]["name"] == "office" and
+          {"collabora", "euro-office"} <=
+          {app["name"] for app in state["catalog"]["optional"]} and
+          not {"collabora", "euro-office"}.intersection(state["apps"]))
 
     serialised = json.dumps(state)
     check("the state carries no secret",
@@ -110,6 +118,14 @@ def test_plan_module():
     check("an extension without its dot is caught", "env_ext" in fields({"env_ext": "dev"}))
     check("a missing Hetzner token is caught", "hcloud_token" in fields({"hcloud_token": ""}))
     check("a missing Git token is caught", "git_token" in fields({"git_token": ""}))
+    check("Collabora is a valid Office choice",
+          "apps" not in fields({"apps": ["nextcloud", "collabora"]}))
+    check("Euro-Office is a valid Office choice",
+          "apps" not in fields({"apps": ["nextcloud", "euro-office"]}))
+    check("both Office editors are refused",
+          "apps" in fields({"apps": ["nextcloud", "collabora", "euro-office"]}))
+    check("an Office editor without Nextcloud is refused",
+          "apps" in fields({"apps": ["euro-office"]}))
 
     # docs/adr/0048: backups have to survive losing the operational disk.
     same_directory = fields({
@@ -142,6 +158,9 @@ def test_plan_module():
           {"identity.example.org", "files.example.org", "photos.example.org"} <=
           {entry["host"] for entry in built["hostnames"]})
     check("the plan carries no secret", "x" not in json.dumps(built["summary"]).split())
+    euro_plan = plan.build_plan({**complete, "apps": ["nextcloud", "euro-office"]})
+    check("Euro-Office uses the one shared office hostname",
+          [entry["host"] for entry in euro_plan["hostnames"]].count("office.example.org") == 1)
 
     warned = plan.build_plan({**complete, "apps": ["bulwark"]})
     check("webmail without mail is warned about",
@@ -179,6 +198,72 @@ def test_checks_module():
     check("every tool is reported with what it is needed for",
           all({"name", "present", "needed_for", "purpose"} <= set(tool)
               for tool in tools["tools"]))
+
+
+def test_office_overlay_helpers():
+    print("office selection — idempotent overlay changes")
+    import reconcile_office_selection
+
+    with tempfile.TemporaryDirectory() as directory:
+        nextcloud = os.path.join(directory, "nextcloud.yaml")
+        with open(nextcloud, "w", encoding="utf-8") as handle:
+            handle.write("resources:\n  - base\n")
+        generator = os.path.join(REPO_ROOT, "admin-tools", "generate_domain_patches.py")
+        for backend in ("collabora", "euro-office", "none"):
+            completed = subprocess.run([
+                sys.executable, generator, "--app", "nextcloud",
+                "--domain", "smallworlds.network", "--office-backend", backend,
+                "--kustomization-file", nextcloud,
+            ], capture_output=True, text=True)
+            check(f"generator accepts {backend}", completed.returncode == 0,
+                  completed.stderr)
+        with open(nextcloud, encoding="utf-8") as handle:
+            generated = handle.read()
+        check("reruns leave one Office selector",
+              generated.count("path: /data/OFFICE_BACKEND") == 1)
+        check("the latest Office choice replaces the old one",
+              'value: "none"' in generated and 'value: "collabora"' not in generated)
+
+        root = os.path.join(directory, "kustomization.yaml")
+        with open(root, "w", encoding="utf-8") as handle:
+            handle.write("""resources:
+  - https://example.test/apps/collabora.yaml
+  - https://example.test/apps/euro-office.yaml
+patches:
+  - target:
+      kind: Application
+      name: collabora
+    patch: |-\n      - op: replace\n        path: /spec/source/path\n        value: collabora
+  - target:
+      kind: Application
+      name: euro-office
+    patch: |-\n      - op: replace\n        path: /spec/source/path\n        value: euro-office
+  - target:
+      kind: CronJob
+      name: euro-office
+    patch: |-\n      - op: replace\n        path: /spec/schedule\n        value: daily
+images:
+  - name: unrelated
+    newTag: current
+""")
+        reconcile_office_selection.reconcile(Path(root), "euro-office")
+        with open(root, encoding="utf-8") as handle:
+            reconciled = handle.read()
+        check("switching removes the unselected Application",
+              "/apps/collabora.yaml" not in reconciled and
+              "name: collabora" not in reconciled)
+        check("switching keeps the selected Application",
+              "/apps/euro-office.yaml" in reconciled and
+              "kind: Application\n      name: euro-office" in reconciled)
+        check("only Application patches are removed",
+              "kind: CronJob\n      name: euro-office" in reconciled and
+              "newTag: current" in reconciled)
+        reconcile_office_selection.reconcile(Path(root), "none")
+        with open(root, encoding="utf-8") as handle:
+            without_office = handle.read()
+        check("choosing no editor removes the remaining Office Application",
+              "/apps/euro-office.yaml" not in without_office and
+              "kind: Application\n      name: euro-office" not in without_office)
 
 
 # ---------------------------------------------------------------------------
@@ -404,6 +489,9 @@ def test_runner():
     check("selected applications are marked y",
           written["STORED_APP_nextcloud"] == "y" and written["STORED_APP_excalidraw"] == "y")
     check("unselected applications are marked n", written["STORED_APP_immich"] == "n")
+    check("unselected Office alternatives are both recorded",
+          written["STORED_APP_collabora"] == "n" and
+          written["STORED_APP_euro_office"] == "n")
     check("pod-gateway becomes a shell-safe name", "STORED_APP_pod_gateway" in written)
     # The wizard creates the repository itself, so the script must not shell out
     # to the GitHub CLI, and must push what it wrote.
@@ -657,6 +745,7 @@ def read_events(base, token, limit_seconds=45):
 if __name__ == "__main__":
     test_plan_module()
     test_checks_module()
+    test_office_overlay_helpers()
     test_server()
     test_runner()
     test_install_endpoint()

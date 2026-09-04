@@ -29,8 +29,8 @@ func TestSelectionModesAreExplainableAndKeepRequiredPlatformServices(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Nine since stalwart became opt-in (docs/adr/0049): mail is a community
-	// application an Operator chooses, not a platform service every cluster runs.
+	// Full includes one of the two mutually exclusive Office editors (Collabora),
+	// not both. Euro-Office is available through Custom.
 	if len(full.CommunityIDs) != 9 {
 		t.Fatalf("full community apps = %v, want 9", full.CommunityIDs)
 	}
@@ -40,5 +40,15 @@ func TestSelectionModesAreExplainableAndKeepRequiredPlatformServices(t *testing.
 	}
 	if !reflect.DeepEqual(custom.CommunityIDs, []string{"collabora", "nextcloud"}) {
 		t.Fatalf("custom dependencies = %v, want collabora and nextcloud", custom.CommunityIDs)
+	}
+	euroOffice, err := catalog.Assess(capability.Selection{Mode: capability.Custom, DeploymentMode: capability.LocalLAN, CommunityIDs: []string{"euro-office"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(euroOffice.CommunityIDs, []string{"euro-office", "nextcloud"}) {
+		t.Fatalf("Euro-Office dependencies = %v, want euro-office and nextcloud", euroOffice.CommunityIDs)
+	}
+	if _, err := catalog.Assess(capability.Selection{Mode: capability.Custom, DeploymentMode: capability.LocalLAN, CommunityIDs: []string{"collabora", "euro-office"}}); err == nil {
+		t.Fatal("mutually exclusive Office editors were accepted together")
 	}
 }

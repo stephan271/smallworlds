@@ -3997,6 +3997,12 @@
               "type": "string"
             }
           },
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "supportedDeploymentModes": {
             "type": "array",
             "items": {

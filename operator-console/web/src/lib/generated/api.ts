@@ -1748,6 +1748,7 @@ export interface components {
             category: "platform-service" | "community-application";
             required: boolean;
             dependencies: string[];
+            conflicts?: string[];
             supportedDeploymentModes: ("hetzner" | "local-lan" | "local-public")[];
             resources: components["schemas"]["CapabilityResources"];
             exposure: string;

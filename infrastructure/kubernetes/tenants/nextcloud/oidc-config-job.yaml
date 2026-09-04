@@ -16,6 +16,9 @@ rules:
   - apiGroups: [""]
     resources: ["pods/exec"]
     verbs: ["create", "get"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -100,9 +103,47 @@ spec:
               kubectl exec -n nextcloud $POD_NAME -- su -s /bin/sh www-data -c "php occ app:disable updatenotification" || true
               kubectl exec -n nextcloud $POD_NAME -- su -s /bin/sh www-data -c "php occ app:disable nextcloud_announcements" || true
 
-              echo "Installing Nextcloud Office (richdocuments) and configuring Collabora server..."
-              kubectl exec -n nextcloud $POD_NAME -- su -s /bin/sh www-data -c "php occ app:install richdocuments" || true
-              kubectl exec -n nextcloud $POD_NAME -- su -s /bin/sh www-data -c "php occ config:app:set richdocuments wopi_url --value='$OFFICE_URL'" || true
+              echo "Selecting Nextcloud office backend: $OFFICE_BACKEND"
+              case "$OFFICE_BACKEND" in
+                collabora)
+                  # Keep the other connector installed but disabled: switching
+                  # back is then quick and does not discard its configuration.
+                  kubectl exec -n nextcloud "$POD_NAME" -- su -s /bin/sh www-data -c "php occ app:disable eurooffice" || true
+                  kubectl exec -n nextcloud "$POD_NAME" -- su -s /bin/sh www-data -c "php occ app:install richdocuments" || true
+                  kubectl exec -n nextcloud "$POD_NAME" -- su -s /bin/sh www-data -c "php occ app:enable richdocuments"
+                  kubectl exec -n nextcloud "$POD_NAME" -- su -s /bin/sh www-data -c "php occ config:app:set richdocuments wopi_url --value='$OFFICE_URL'"
+                  ;;
+                euro-office)
+                  echo "Waiting for the Euro-Office JWT secret..."
+                  JWT_SECRET=""
+                  for attempt in $(seq 1 60); do
+                    JWT_SECRET=$(kubectl get secret euro-office-jwt -n nextcloud -o jsonpath='{.data.jwt-secret}' 2>/dev/null | base64 -d) || true
+                    [ -n "$JWT_SECRET" ] && break
+                    sleep 5
+                  done
+                  if [ -z "$JWT_SECRET" ]; then
+                    echo "Euro-Office JWT secret was not created within five minutes." >&2
+                    exit 1
+                  fi
+
+                  kubectl exec -n nextcloud "$POD_NAME" -- su -s /bin/sh www-data -c "php occ app:disable richdocuments" || true
+                  kubectl exec -n nextcloud "$POD_NAME" -- su -s /bin/sh www-data -c "php occ app:install eurooffice" || true
+                  kubectl exec -n nextcloud "$POD_NAME" -- su -s /bin/sh www-data -c "php occ app:enable eurooffice"
+                  kubectl exec -n nextcloud "$POD_NAME" -- su -s /bin/sh www-data -c "php occ config:app:set eurooffice DocumentServerUrl --value='$OFFICE_URL/'"
+                  kubectl exec -n nextcloud "$POD_NAME" -- su -s /bin/sh www-data -c "php occ config:app:set eurooffice DocumentServerInternalUrl --value='http://euro-office.nextcloud.svc.cluster.local/'"
+                  kubectl exec -n nextcloud "$POD_NAME" -- su -s /bin/sh www-data -c "php occ config:app:set eurooffice StorageUrl --value='https://$FILES_DOMAIN/'"
+                  kubectl exec -n nextcloud "$POD_NAME" -- su -s /bin/sh www-data -c "php occ config:app:set eurooffice jwt_secret --value='$JWT_SECRET'"
+                  kubectl exec -n nextcloud "$POD_NAME" -- su -s /bin/sh www-data -c "php occ config:app:set eurooffice jwt_header --value='Authorization'"
+                  ;;
+                none)
+                  kubectl exec -n nextcloud "$POD_NAME" -- su -s /bin/sh www-data -c "php occ app:disable richdocuments" || true
+                  kubectl exec -n nextcloud "$POD_NAME" -- su -s /bin/sh www-data -c "php occ app:disable eurooffice" || true
+                  ;;
+                *)
+                  echo "Unsupported OFFICE_BACKEND: $OFFICE_BACKEND" >&2
+                  exit 1
+                  ;;
+              esac
 
               echo "Configuration complete."
       restartPolicy: OnFailure

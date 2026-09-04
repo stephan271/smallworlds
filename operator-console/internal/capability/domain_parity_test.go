@@ -33,7 +33,8 @@ func TestDomainPatchesMatchTheShellPathExactly(t *testing.T) {
 		"dashboard": "dashboard", "keycloak": "keycloak", "stalwart": "stalwart",
 		"bulwark": "bulwark", "nextcloud": "nextcloud", "immich": "immich",
 		"forgejo": "forgejo", "jitsi": "jitsi", "collabora": "collabora",
-		"excalidraw": "excalidraw", "plane": "plane",
+		"euro-office": "euro-office",
+		"excalidraw":  "excalidraw", "plane": "plane",
 		"argocd-ingress": "argocd", "kube-prometheus-stack": "monitoring",
 		"headscale": "headscale", "operator-console": "operator-console",
 		// Not a selectable capability yet — only the console's catalog is
@@ -71,6 +72,37 @@ func TestDomainPatchesMatchTheShellPathExactly(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestOfficeBackendPatchMatchesTheShellPath(t *testing.T) {
+	script, err := filepath.Abs("../../../admin-tools/generate_domain_patches.py")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, backend := range []string{"none", "collabora", "euro-office"} {
+		t.Run(backend, func(t *testing.T) {
+			const seed = "\npatches:\n"
+			target := filepath.Join(t.TempDir(), "kustomization.yaml")
+			if err := os.WriteFile(target, []byte(seed), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			command := exec.Command("python3", script, "--app", "nextcloud", "--domain", "smallworlds.network", "--office-backend", backend, "--kustomization-file", target)
+			if output, err := command.CombinedOutput(); err != nil {
+				t.Fatalf("shell path generator failed: %v\n%s", err, output)
+			}
+			written, err := os.ReadFile(target)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ids := []string{}
+			if backend != "none" {
+				ids = append(ids, backend)
+			}
+			if got, want := capability.OfficeBackendPatch(ids), string(written[len(seed):]); got != want {
+				t.Fatalf("backend patch differs.\n--- go ---\n%s\n--- python ---\n%s", got, want)
+			}
+		})
 	}
 }
 

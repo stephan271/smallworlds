@@ -132,8 +132,19 @@ await page.waitForTimeout(3000);
 await page.click("#next");
 await page.waitForSelector('[data-panel="apps"]:not([hidden])');
 check("the applications panel is reached", (await openPanel()) === "apps");
-check("every optional application is offered", (await page.locator(".app").count()) === 10);
-check("a useful set is ticked", (await page.locator(".app input:checked").count()) === 4);
+check("every optional application and the no-Office choice are offered",
+      (await page.locator(".app").count()) === 12);
+check("a useful set is ticked",
+      (await page.locator('.app input:checked:not([value=""])').count()) === 4);
+check("no Office editor is the initial explicit choice",
+      await page.locator('input[name="app-choice-office"][value=""]').isChecked());
+check("the three Office choices are mutually exclusive radios",
+      (await page.locator('input[name="app-choice-office"]').count()) === 3);
+await page.locator('.app input[value="nextcloud"]').uncheck();
+await page.locator('input[name="app-choice-office"][value="euro-office"]').check();
+check("choosing an Office editor also selects Nextcloud",
+      await page.locator('.app input[value="nextcloud"]').isChecked());
+await page.locator('input[name="app-choice-office"][value=""]').check();
 // docs/adr/0049 — mail is opt-in.
 check("mail is not ticked", !(await page.locator('.app input[value="stalwart"]').isChecked()));
 

@@ -19,11 +19,34 @@ Nextcloud doesn't provide a fully declarative way to configure OIDC through envi
 ### 3. Proxy Configuration (`values.yaml`)
 - **Trusted Proxies**: In the `configs` section, a custom PHP configuration snippet adds `10.42.0.0/16` and `10.43.0.0/16` (the Kubernetes internal pod/service subnets) to the `trusted_proxies` list. Without this, Nextcloud would reject logins and fail to generate correct redirect URLs behind the Traefik ingress controller.
 
-### 4. Collabora Online Integration (`collabora.yaml`)
-Nextcloud is integrated with a standalone Collabora Online Development Edition (CODE) server to provide collaborative document editing capabilities.
-- **Standalone Microservice**: Instead of using the resource-heavy built-in CODE server, Collabora is deployed as its own independent Kubernetes Deployment (`collabora.yaml`). This separates document rendering workloads from file storage workloads.
-- **WOPI Protocol**: Nextcloud acts as a WOPI host. Users access documents via the Nextcloud frontend (`files.smallworlds.network`), which opens an iframe where the user's browser connects directly to the Collabora server (`office.smallworlds.network`) via WebSockets to stream the editing session.
-- **Configuration**: The `oidc-config-job.yaml` automates the installation of the `richdocuments` app and sets the `wopi_url` so the integration is seamless out of the box.
+### 4. Selectable Office integration
+
+Setup records exactly one `OFFICE_BACKEND` value in the Nextcloud overlay:
+`collabora`, `euro-office`, or `none`. The configuration Job applies that state
+idempotently and disables the connector belonging to the inactive backend.
+Both servers use `office.<domain>`, so deploying both at once is rejected by the
+wizard, scripts, Terraform validation, and capability catalog.
+
+- **Collabora**: deploys the standalone CODE server from
+  `tenants/collabora`, enables Nextcloud's `richdocuments` connector and sets
+  its `wopi_url`. Nextcloud is the WOPI host and the browser connects to the
+  editor through `office.<domain>`.
+- **Euro-Office**: deploys the standalone Document Server from
+  `tenants/euro-office`, enables the `eurooffice` connector and configures its
+  public, cluster-internal, and Nextcloud callback URLs. A 64-character JWT
+  secret is generated once in Kubernetes, shared with the connector, and never
+  written to Git. The internal URL avoids an unnecessary trip through Traefik
+  for Nextcloud-to-editor requests.
+- **None**: deploys no document server and disables both connectors. Files stay
+  available for storage, sharing and download without browser-based editing.
+
+The Document Server is deliberately stateless in this integration: users'
+source documents remain in Nextcloud, and all integration settings including
+the stable JWT are declarative or held in a Kubernetes Secret. The upstream
+container's persistent-volume support is currently unreliable, so mounting its
+internal service directories would make the nominally safer deployment less
+likely to start. `strategy: Recreate` prevents two generations of its bundled
+PostgreSQL/RabbitMQ processes from serving concurrently during an update.
 
 ## Backup, and why the database is part of it
 
@@ -57,6 +80,9 @@ backups are never optional.
 
 ### `oidc-config-job.yaml` & `nextcloud-oidc-config-map.yaml`
 - **`richdocuments`/Collabora wiring** (`fce1053`, `196eeff`, `0fcd2b7`, `878480b`): the Collabora integration was iterated on heavily — installing the `richdocuments` app, setting `wopi_url`, and fixing the Nextcloud↔Collabora communication path — before it worked end to end.
+- **Explicit Office selection**: `OFFICE_BACKEND` now chooses Collabora,
+  Euro-Office, or neither. The same Job enables only the corresponding
+  connector and reads Euro-Office's shared JWT from a Kubernetes Secret.
 - **Domain-dependent values moved into a ConfigMap** (`4649414`): the overlay's domain-patch generator used to rewrite the discovery/WOPI URLs by JSON-patching the Job's env array by *index*, which conflicted with other env patches (Kustomize can't merge competing index-based `add`s — the same class of bug as Keycloak's `KC_HOSTNAME`, see `doc/tenant-keycloak.md`). `IDENTITY_URL`/`FILES_DOMAIN`/`OFFICE_URL` now live in `nextcloud-oidc-config-map.yaml` and reach the job via `envFrom`, so overlays override a ConfigMap value instead of fighting over array positions. The job also gained an explicit `occ config:system:set trusted_domains 3` step for the public hostname, since it was removed from the static array.
 
 ### `nextcloud-secret-init-job.yaml`
@@ -64,6 +90,12 @@ backups are never optional.
 
 ### `collabora/collabora.yaml`
 - **Standalone CODE deployment** (`fce1053` onward): added as its own Deployment (see §4). Multiple follow-ups (`0fcd2b7`, `878480b`, `196eeff`) tuned the WOPI host allow-list and proxy settings until Nextcloud and Collabora could reach each other through Traefik.
+
+### `euro-office/`
+- **Standalone Document Server**: a separately selectable Deployment, Service,
+  Ingress, and JWT initialization hook. It uses the official versioned release
+  image rather than a moving development tag. Runtime caches are disposable;
+  source documents and the integration secret live outside the container.
 
 ### `cnpg-cluster.yaml` & `redis.yaml`
 - **Decoupled data services + secret isolation** (`c100cea`, `68bc5c9`, `b9a864f`): dedicated CNPG cluster and Redis with isolated secrets/S3, matching the cluster-wide decoupling pattern.

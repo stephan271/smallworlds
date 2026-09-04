@@ -57,8 +57,14 @@ OPTIONAL_APPS = [
      "description": "Shared drawing board. No database, no storage."},
     {"name": "jitsi", "label": "Meet", "default": False, "weight": "heavy",
      "description": "Video meetings. Needs UDP 10000 reachable to work well."},
-    {"name": "collabora", "label": "Office", "default": False, "weight": "heavy",
-     "description": "Online document editing inside Files. Memory-hungry."},
+    {"name": "collabora", "label": "Collabora", "default": False, "weight": "heavy",
+     "choice_group": "office", "requires": "nextcloud", "auto_select_requires": True,
+     "requires_note": "An Office editor requires Files (Nextcloud).",
+     "description": "Mature online editor with strong native OpenDocument support."},
+    {"name": "euro-office", "label": "Euro-Office", "default": False, "weight": "heavy",
+     "choice_group": "office", "requires": "nextcloud", "auto_select_requires": True,
+     "requires_note": "An Office editor requires Files (Nextcloud).",
+     "description": "New European editor focused on DOCX, XLSX and PPTX compatibility."},
     {"name": "plane", "label": "Plan", "default": False, "weight": "heavy",
      "description": "Project and issue planning across several services."},
     {"name": "stalwart", "label": "Mail", "default": False, "weight": "medium",
@@ -80,6 +86,13 @@ OPTIONAL_APPS = [
      "description": "Append-only personal archives members can keep on their own "
                     "hardware at home (docs/adr/0047)."},
 ]
+
+CHOICE_GROUPS = [{
+    "name": "office",
+    "label": "Office editor inside Files",
+    "none_label": "No online office editor",
+    "description": "Choose one document server. You can also leave online editing disabled.",
+}]
 
 
 def default_apps() -> list[str]:
@@ -200,7 +213,11 @@ def initial_state() -> dict:
         "has_saved_hcloud_token": bool(cached.get("HCLOUD_TOKEN")),
         "has_saved_git_token": bool(cached.get("GITOPS_REPO_TOKEN")),
 
-        "catalog": {"always": ALWAYS_INSTALLED, "optional": OPTIONAL_APPS},
+        "catalog": {
+            "always": ALWAYS_INSTALLED,
+            "optional": OPTIONAL_APPS,
+            "choice_groups": CHOICE_GROUPS,
+        },
         "repo_root": REPO_ROOT,
         "latest_tag": tag,
     }
@@ -276,6 +293,24 @@ def validate_answers(answers: dict) -> list[dict]:
     if not (answers.get("version") or "").strip():
         problem("version", "Choose which upstream release to pin.")
 
+    apps = list(answers.get("apps") or [])
+    known_apps = {app["name"] for app in OPTIONAL_APPS}
+    unknown_apps = sorted(set(apps) - known_apps)
+    if unknown_apps:
+        problem("apps", "Unknown applications were selected: " + ", ".join(unknown_apps))
+    if len(apps) != len(set(apps)):
+        problem("apps", "An application was selected more than once.")
+    for group in CHOICE_GROUPS:
+        selected = [
+            app["name"] for app in OPTIONAL_APPS
+            if app.get("choice_group") == group["name"] and app["name"] in apps
+        ]
+        if len(selected) > 1:
+            problem("apps", f"Choose only one {group['label'].lower()}.")
+    office = next((name for name in ("collabora", "euro-office") if name in apps), None)
+    if office and "nextcloud" not in apps:
+        problem("apps", f"{office} requires Files (Nextcloud).")
+
     return problems
 
 
@@ -286,6 +321,7 @@ def validate_answers(answers: dict) -> list[dict]:
 _SUBDOMAIN_BY_APP = {
     "nextcloud": "files", "immich": "photos", "forgejo": "git",
     "excalidraw": "whiteboard", "jitsi": "meet", "collabora": "office",
+    "euro-office": "office",
     "plane": "plan", "stalwart": "mail", "bulwark": "webmail",
     "pod-gateway": "pod",
 }

@@ -122,6 +122,19 @@ variable "apps" {
     "nextcloud", "immich", "forgejo", "excalidraw", "jitsi",
     "collabora", "plane", "stalwart", "bulwark", "pod-gateway",
   ]
+
+  validation {
+    condition     = !(contains(var.apps, "collabora") && contains(var.apps, "euro-office"))
+    error_message = "Choose at most one Office backend: collabora or euro-office."
+  }
+
+  validation {
+    condition = (
+      (!contains(var.apps, "collabora") && !contains(var.apps, "euro-office")) ||
+      contains(var.apps, "nextcloud")
+    )
+    error_message = "An Office backend requires nextcloud in the selected apps."
+  }
 }
 
 variable "use_golden_image" {

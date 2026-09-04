@@ -49,7 +49,8 @@ This project is built upon several foundational open-source technologies, core i
 
 | Name | Source URL | Role in this Project |
 | :--- | :--- | :--- |
-| **Collabora Online** | [collaboraonline.com](https://collaboraonline.com/) | Powerful online office suite for collaborative document editing. Integrated into Nextcloud. |
+| **Collabora Online** | [collaboraonline.com](https://collaboraonline.com/) | Mature online editor with strong OpenDocument support. One of two mutually exclusive Nextcloud Office choices. |
+| **Euro-Office** | [euro-office.com](https://www.euro-office.com/) | European collaborative editor for Office and OpenDocument formats. The setup can install it instead of Collabora. |
 | **Excalidraw** | [excalidraw.com](https://excalidraw.com/) | Virtual collaborative whiteboard tool. |
 | **Forgejo** | [forgejo.org](https://forgejo.org/) | Git repository management and software collaboration. |
 | **Immich** | [immich.app](https://immich.app/) | High performance photo and video backup. |
@@ -69,6 +70,13 @@ SmallWorlds supports two deployment targets — you are asked which one you want
 - **`local`** — an existing Linux machine in your LAN (laptop, mini-PC, home server; 32 GB RAM recommended), bootstrapped in place over SSH without Terraform. By default LAN-only: no public DNS (you add router-DNS or `/etc/hosts` entries). Optionally **internet-exposed**: with a registered domain, a Hetzner DNS token and router port forwards (80/tcp, 443/tcp, 10000/udp), an in-cluster DDNS job keeps the DNS records pointed at your home IP. See [`doc/local-deployment.md`](doc/local-deployment.md) for requirements and limitations before you start.
 
 There are two ways to install, and they do the same thing — **the wizard runs the scripts**, so there is one install code path, not two.
+
+The application step offers one explicit Office choice for Nextcloud Files:
+**Collabora**, **Euro-Office**, or **no online editor**. Collabora and Euro-Office
+share `office.<domain>` and are never deployed together; choosing either also
+selects Nextcloud. Re-running setup safely switches the declared Argo CD
+Application and connector while retaining the inactive app's overlay directory
+for an easy rollback.
 
 ### The setup wizard (recommended)
 

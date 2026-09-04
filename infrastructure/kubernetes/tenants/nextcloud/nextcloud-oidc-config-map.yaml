@@ -7,3 +7,6 @@ data:
   IDENTITY_URL: "https://identity.smallworlds.network/realms/smallworlds"
   FILES_DOMAIN: "files.smallworlds.network"
   OFFICE_URL: "https://office.smallworlds.network"
+  # Backwards-compatible for overlays created before office selection existed.
+  # New overlays always replace this with none, collabora, or euro-office.
+  OFFICE_BACKEND: "collabora"

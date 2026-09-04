@@ -13,7 +13,7 @@ func TestCatalogRepresentsEveryDeclaredCapabilityWithLocalizedStableMetadata(t *
 	}
 	want := []string{
 		"cert-manager", "cert-manager-webhook-hetzner", "cloudnative-pg", "argocd-ingress", "garage", "persistent-storage", "traefik", "kube-prometheus-stack", "loki-stack", "hermes", "remediation", "velero", "backup-replicator", "alertmanager-config", "backup-alerts", "trivy-operator", "trivy-dashboard", "renovate-cronjob", "headscale", "dashboard", "keycloak", "stalwart", "operator-console",
-		"forgejo", "immich", "nextcloud", "bulwark", "excalidraw", "jitsi", "collabora", "plane",
+		"forgejo", "immich", "nextcloud", "bulwark", "excalidraw", "jitsi", "collabora", "euro-office", "plane",
 	}
 	if len(catalog.Capabilities) != len(want) {
 		t.Fatalf("catalog has %d entries, want %d", len(catalog.Capabilities), len(want))
