@@ -86,6 +86,16 @@ cd smallworlds
 ./smallworlds-setup
 ```
 
+The Apps step includes an interactive 3D community globe. Each selected app
+adds a miniature continent with a matching landmark, roads, moving cars and
+people. Drag or use the arrow keys to rotate, use the zoom buttons to look
+closer, and select an app in the globe legend to inspect its neighbourhood.
+Pause stops the animation; reduced-motion preferences are respected. The
+preview uses locally bundled Three.js and needs no external assets or build
+step. If WebGL is unavailable, a Canvas renderer keeps the same scene interactive
+with simpler lighting and a lower frame rate. If neither rendering mode is
+available, app selection remains usable with a text notice.
+
 A browser opens on `127.0.0.1`. Five panels ask for your domain, your email address, where the cluster should run, a Git access token, and which applications your community gets; everything else is defaulted and sits behind *Advanced settings*. It creates the private settings repository for you, checks your answers against the real APIs before anything is created, shows you exactly what it will do, then installs and hands you the credentials.
 
 The checks are the part worth having: whether your registrar actually delegates the domain to Hetzner DNS (get this wrong and every certificate stays pending with nothing saying why), whether the tokens work, and whether your data and backup directories are on different physical disks. Each of those otherwise fails minutes into an install.

@@ -58,6 +58,10 @@ echo ""
 url="$(start_wizard SMALLWORLDS_NOOP=1)" || exit 1
 PLAYWRIGHT_MODULE="$playwright/index.mjs" \
     node "$wizard/test-interface.mjs" "$url" plan || status=1
+PLAYWRIGHT_MODULE="$playwright/index.mjs" \
+    node "$wizard/test-globe.mjs" "$url" || status=1
+PLAYWRIGHT_MODULE="$playwright/index.mjs" \
+    node "$wizard/test-globe.mjs" "$url" software || status=1
 
 echo ""
 # 2. Clicking Install, against a checkout whose two scripts print markers and

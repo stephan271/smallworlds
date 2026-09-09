@@ -227,6 +227,27 @@
       added later; removing one is harder, so leaving a box unticked costs you
       nothing.</p>
 
+    <div class="world-preview" id="world-preview" aria-label="Your community world">
+      <div class="world-heading"><span class="world-eyebrow">A small world of your own</span>
+        <h2>Your apps. Brought to life.</h2>
+        <p>Every selected app becomes a continent. Build your world below.</p></div>
+      <div class="world-viewport" id="world-viewport">
+        <canvas id="world-canvas" tabindex="0" aria-label="Interactive community globe. Drag or use arrow keys to rotate. Use plus and minus to zoom." aria-describedby="world-help"></canvas>
+        <div id="world-labels" class="world-labels" aria-hidden="true"></div>
+        <p class="world-fallback" id="world-fallback" role="status">Preparing your world…</p>
+      </div>
+      <div class="world-toolbar" aria-label="Globe controls">
+        <span id="world-help">Drag to explore · + / − to zoom</span>
+        <button type="button" id="world-zoom-in" aria-label="Zoom in">+</button>
+        <button type="button" id="world-zoom-out" aria-label="Zoom out">−</button>
+        <button type="button" id="world-motion" aria-pressed="false">Pause</button>
+        <button type="button" id="world-reset">Reset view</button>
+      </div>
+      <p class="world-summary" id="world-summary" aria-live="polite"></p>
+      <p class="world-rendering-note" id="world-rendering-note" hidden>Compatibility view · Your browser’s 3D acceleration is unavailable. Rotation and animation remain available with simpler lighting.</p>
+      <div class="world-legend" id="world-legend" aria-label="Explore selected app continents"></div>
+      <p class="world-detail" id="world-detail">Choose a continent to discover its neighbourhood.</p>
+    </div>
     <div class="always" id="always-installed"></div>
     <div class="app-grid" id="app-grid"></div>
     <div class="check" id="check-apps"></div>
@@ -313,5 +334,6 @@
 </footer>
 
 <script src="/static/app.js"></script>
+<script type="module" src="/static/globe.js"></script>
 </body>
 </html>
