@@ -11,9 +11,13 @@ plans-and-walkthroughs/design-setup-wizard.md.
 
 from __future__ import annotations
 
+import datetime
+import hashlib
+import hmac
 import json
 import os
 import random
+import re
 import shutil
 import socket
 import struct
@@ -590,7 +594,10 @@ printf 'memory_kb=%s\n' "$(awk '/MemTotal/{print $2}' /proc/meminfo 2>/dev/null)
 """
 
 
-def check_local_target(ssh_target: str, data_dir: str, backup_dir: str) -> dict:
+def check_local_target(ssh_target: str, data_dir: str, backup_dir: str,
+                       external_storage: bool = False) -> dict:
+    """`external_storage`: backups go to an S3 provider, so the machine needs no
+    second disk and the backup directory is not looked at (docs/adr/0053)."""
     if not ssh_target:
         return bad("No SSH target given.")
     if not shutil.which("ssh") and ssh_target != "localhost":
@@ -633,8 +640,10 @@ def check_local_target(ssh_target: str, data_dir: str, backup_dir: str) -> dict:
 
     data_device = facts.get("data_device") or ""
     backup_device = facts.get("backup_device") or ""
-    same_device = bool(data_device) and data_device == backup_device
-    if same_device:
+    same_device = (not external_storage) and bool(data_device) and data_device == backup_device
+    if external_storage:
+        notes.append("backups go to the S3 provider, so one disk is enough")
+    elif same_device:
         problems.append(
             f"{data_dir} and {backup_dir} are both on {data_device}. Backups "
             "have to survive losing the operational disk, so the bootstrap "
@@ -661,6 +670,98 @@ def check_local_target(ssh_target: str, data_dir: str, backup_dir: str) -> dict:
     if notes:
         summary += " " + "; ".join(notes).capitalize() + "."
     return ok(summary, **result)
+
+
+# ---------------------------------------------------------------------------
+# External object storage
+# ---------------------------------------------------------------------------
+
+def sigv4_headers(method: str, url: str, region: str, access_key: str,
+                  secret_key: str, now: datetime.datetime | None = None) -> dict:
+    """AWS Signature Version 4 for a bodiless S3 request.
+
+    Hand-rolled because the wizard is standard library only. The in-cluster
+    init jobs sign with curl's --aws-sigv4, and an endpoint that accepts this
+    accepts that: same algorithm, same path-style addressing.
+    """
+    parts = urllib.parse.urlsplit(url)
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    amz_date = now.strftime("%Y%m%dT%H%M%SZ")
+    day = amz_date[:8]
+    empty_hash = hashlib.sha256(b"").hexdigest()
+    signed = "host;x-amz-content-sha256;x-amz-date"
+    canonical = "\n".join([
+        method, parts.path or "/", parts.query,
+        f"host:{parts.netloc}", f"x-amz-content-sha256:{empty_hash}", f"x-amz-date:{amz_date}",
+        "", signed, empty_hash,
+    ])
+    scope = f"{day}/{region}/s3/aws4_request"
+    to_sign = "\n".join([
+        "AWS4-HMAC-SHA256", amz_date, scope, hashlib.sha256(canonical.encode()).hexdigest()])
+
+    def keyed(key: bytes, message: str) -> bytes:
+        return hmac.new(key, message.encode(), hashlib.sha256).digest()
+
+    key = keyed(("AWS4" + secret_key).encode(), day)
+    for part in (region, "s3", "aws4_request"):
+        key = keyed(key, part)
+    signature = hmac.new(key, to_sign.encode(), hashlib.sha256).hexdigest()
+    return {
+        "x-amz-date": amz_date,
+        "x-amz-content-sha256": empty_hash,
+        "Authorization": (f"AWS4-HMAC-SHA256 Credential={access_key}/{scope}, "
+                          f"SignedHeaders={signed}, Signature={signature}"),
+    }
+
+
+def check_s3(endpoint: str, region: str, access_key: str, secret_key: str) -> dict:
+    """Does this provider accept this key? Asked by listing buckets, which is
+    the one request that needs no bucket to exist yet.
+
+    A wrong key is otherwise discovered ten minutes into an install, as init
+    jobs that never finish and applications that never turn Healthy.
+    """
+    if not endpoint or not region:
+        return bad("Give the provider's endpoint URL and region first.")
+    if not access_key or not secret_key:
+        return bad("Give the access key ID and the secret access key.")
+    parts = urllib.parse.urlsplit(endpoint.strip())
+    if parts.scheme not in ("http", "https") or not parts.netloc:
+        return bad(f"'{endpoint}' is not an endpoint URL — expected something like https://s3.example.com")
+    url = f"{parts.scheme}://{parts.netloc}/"
+
+    request = urllib.request.Request(
+        url, method="GET", headers={
+            **sigv4_headers("GET", url, region, access_key, secret_key),
+            "User-Agent": "smallworlds-setup-wizard"})
+    try:
+        with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+            listing = response.read(200_000).decode("utf-8", "replace")
+    except urllib.error.HTTPError as error:
+        body = error.read(20_000).decode("utf-8", "replace")
+        code = re.search(r"<Code>([^<]+)</Code>", body)
+        code = code.group(1) if code else ""
+        if code in ("InvalidAccessKeyId", "SignatureDoesNotMatch"):
+            return bad("The provider rejected this key — check the access key ID and the secret.",
+                       detail=code)
+        if code == "AuthorizationHeaderMalformed":
+            return bad(f"The provider does not accept the region '{region}'.", detail=body[:300])
+        if error.code == 403:
+            # A key scoped to particular buckets may not list them. That is a
+            # working key; whether its buckets exist is the init jobs' question.
+            return warn(
+                "The key is accepted but may not list buckets. The install creates one bucket per "
+                "application — create them beforehand if this key is not allowed to.",
+                detail=code or str(error.code))
+        return unknown(f"The endpoint answered HTTP {error.code}.", detail=(code or body[:200]))
+    except (urllib.error.URLError, socket.timeout, OSError, ValueError) as error:
+        return bad(f"Could not reach {url}", detail=str(getattr(error, "reason", error)))
+
+    if "ListAllMyBucketsResult" not in listing:
+        return unknown("The endpoint answered, but not like an S3 service.", detail=listing[:200])
+    buckets = re.findall(r"<Name>([^<]+)</Name>", listing)
+    return ok(f"The provider accepts this key ({len(buckets)} existing "
+              f"bucket{'' if len(buckets) == 1 else 's'} visible).", buckets=buckets)
 
 
 # ---------------------------------------------------------------------------

@@ -13,7 +13,11 @@
 #
 # Consumers patch S3_BUCKET. Credentials come from the two secrets the
 # garage-init-job creates: garage-secret on the operational side (source) and
-# garage-secret-backup on the backup side (destination).
+# garage-secret-backup on the backup side (destination). Endpoint, region and
+# the real bucket name travel in the same secrets (docs/adr/0053) — on an
+# external provider the two buckets carry a prefix and differ from each other,
+# so S3_BUCKET is only the fallback for a secret written before those keys
+# existed.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -36,11 +40,13 @@ spec:
                 - |
                   set -eu
                   STAMP=$(date -u +%Y-%m-%d)
-                  echo "Backing up src:${S3_BUCKET} -> dst:${S3_BUCKET}/current"
+                  SRC="${SRC_BUCKET:-$S3_BUCKET}"
+                  DST="${DST_BUCKET:-$S3_BUCKET}"
+                  echo "Backing up src:${SRC} -> dst:${DST}/current"
                   # --backup-dir must sit outside the destination path, or the
                   # next run would try to sync the retained versions too.
-                  rclone sync "src:${S3_BUCKET}" "dst:${S3_BUCKET}/current" \
-                    --backup-dir "dst:${S3_BUCKET}/versions/${STAMP}" \
+                  rclone sync "src:${SRC}" "dst:${DST}/current" \
+                    --backup-dir "dst:${DST}/versions/${STAMP}" \
                     --fast-list --transfers 16 --checkers 32 \
                     -v --stats-one-line
                   echo "Backup completed successfully."
@@ -53,9 +59,21 @@ spec:
                 - name: RCLONE_CONFIG_SRC_PROVIDER
                   value: "Other"
                 - name: RCLONE_CONFIG_SRC_ENDPOINT
-                  value: "http://garage.garage-system.svc.cluster.local:3900"
+                  valueFrom:
+                    secretKeyRef:
+                      name: garage-secret
+                      key: endpointURL
                 - name: RCLONE_CONFIG_SRC_REGION
-                  value: "garage"
+                  valueFrom:
+                    secretKeyRef:
+                      name: garage-secret
+                      key: region
+                - name: SRC_BUCKET
+                  valueFrom:
+                    secretKeyRef:
+                      name: garage-secret
+                      key: bucket
+                      optional: true
                 - name: RCLONE_CONFIG_SRC_FORCE_PATH_STYLE
                   value: "true"
                 - name: RCLONE_CONFIG_SRC_ACCESS_KEY_ID
@@ -74,9 +92,21 @@ spec:
                 - name: RCLONE_CONFIG_DST_PROVIDER
                   value: "Other"
                 - name: RCLONE_CONFIG_DST_ENDPOINT
-                  value: "http://garage-backup.garage-backup-system.svc.cluster.local:3900"
+                  valueFrom:
+                    secretKeyRef:
+                      name: garage-secret-backup
+                      key: endpointURL
                 - name: RCLONE_CONFIG_DST_REGION
-                  value: "garage"
+                  valueFrom:
+                    secretKeyRef:
+                      name: garage-secret-backup
+                      key: region
+                - name: DST_BUCKET
+                  valueFrom:
+                    secretKeyRef:
+                      name: garage-secret-backup
+                      key: bucket
+                      optional: true
                 - name: RCLONE_CONFIG_DST_FORCE_PATH_STYLE
                   value: "true"
                 - name: RCLONE_CONFIG_DST_ACCESS_KEY_ID

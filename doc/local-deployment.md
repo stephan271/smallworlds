@@ -19,7 +19,10 @@ on Hetzner works locally and vice versa.
 - 16 GB RAM minimum for the full app suite; 32 GB recommended.
 - 100 GB+ free disk space for the data directory (Garage S3, Immich library,
   databases).
-- **A second physical disk for `BACKUP_DIR`.** Every Recovery Point lives there
+- **A second physical disk for `BACKUP_DIR`** — unless object storage is
+  external (`docs/adr/0053`), in which case backups go to the S3 provider, no
+  backup directory is asked for and one disk is enough. Otherwise every
+  Recovery Point lives there
   (`docs/adr/0048`), and the bootstrap refuses to continue when `DATA_DIR` and
   `BACKUP_DIR` resolve to the same block device — a co-located backup disk is
   indistinguishable from a correctly separated one until the day it is needed.

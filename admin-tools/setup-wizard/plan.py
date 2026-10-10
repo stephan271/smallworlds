@@ -10,6 +10,7 @@ Standard library only. See plans-and-walkthroughs/design-setup-wizard.md.
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import re
 import shlex
@@ -30,6 +31,22 @@ COMMUNITY_CONFIG = os.environ.get("SMALLWORLDS_COMMUNITY_CONFIG") or \
 INIT_CACHE = os.environ.get("SMALLWORLDS_INIT_CACHE") or \
     os.path.join(REPO_ROOT, ".smallworlds-cache.env")
 UPSTREAM_REPO = "https://github.com/stephan271/smallworlds.git"
+
+# The rules for an S3 endpoint and a bucket prefix belong to the generator that
+# writes them into the overlay; the wizard asks it rather than keeping a second
+# copy that could accept what the generator then refuses mid-install. Loaded
+# from this file's own checkout, not REPO_ROOT, which tests point at stubs.
+_storage_spec = importlib.util.spec_from_file_location(
+    "generate_storage_patches",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "generate_storage_patches.py"))
+storage = importlib.util.module_from_spec(_storage_spec)
+_storage_spec.loader.exec_module(storage)
+
+
+def default_bucket_prefix(domain: str, env_ext: str) -> str:
+    """Mirrors DEFAULT_BUCKET_PREFIX in prepare-community-repo.sh."""
+    raw = f"sw-{domain}{env_ext}".lower().replace(".", "-")
+    return re.sub(r"[^a-z0-9-]", "", raw)[:30].rstrip("-")
 
 # ---------------------------------------------------------------------------
 # The application catalog
@@ -196,6 +213,21 @@ def initial_state() -> dict:
         "local_tls": cached.get("LOCAL_TLS") or "letsencrypt",
         "local_public": cached.get("LOCAL_PUBLIC") or "no",
 
+        # The overlay's record wins, as it does in smallworlds-init.sh: the
+        # overlay is what was actually written for one mode or the other.
+        "object_storage": stored.get("STORED_OBJECT_STORAGE")
+                          or cached.get("OBJECT_STORAGE") or "garage",
+        "s3_endpoint": stored.get("STORED_S3_ENDPOINT") or cached.get("S3_ENDPOINT", ""),
+        "s3_region": stored.get("STORED_S3_REGION") or cached.get("S3_REGION", ""),
+        "s3_bucket_prefix": stored.get("STORED_S3_BUCKET_PREFIX")
+                            or cached.get("S3_BUCKET_PREFIX", ""),
+        "s3_access_key_id": cached.get("S3_ACCESS_KEY_ID", ""),
+        "s3_backup_endpoint": stored.get("STORED_S3_BACKUP_ENDPOINT")
+                              or cached.get("S3_BACKUP_ENDPOINT", ""),
+        "s3_backup_region": stored.get("STORED_S3_BACKUP_REGION")
+                            or cached.get("S3_BACKUP_REGION", ""),
+        "s3_backup_access_key_id": cached.get("S3_BACKUP_ACCESS_KEY_ID", ""),
+
         "git_mode": "existing" if stored.get("STORED_REMOTE_URL") else "create",
         "git_username": cached.get("GITOPS_REPO_USER", ""),
         "remote_url": stored.get("STORED_REMOTE_URL", "") or cached.get("GITOPS_REPO_URL", ""),
@@ -212,6 +244,8 @@ def initial_state() -> dict:
         # a field can offer "use the saved token" without carrying it.
         "has_saved_hcloud_token": bool(cached.get("HCLOUD_TOKEN")),
         "has_saved_git_token": bool(cached.get("GITOPS_REPO_TOKEN")),
+        "has_saved_s3_secret": bool(cached.get("S3_SECRET_ACCESS_KEY")),
+        "has_saved_s3_backup_secret": bool(cached.get("S3_BACKUP_SECRET_ACCESS_KEY")),
 
         "catalog": {
             "always": ALWAYS_INSTALLED,
@@ -259,6 +293,37 @@ def validate_answers(answers: dict) -> list[dict]:
     if answers.get("onboarding_mode") not in ("invitation", "self-registration"):
         problem("onboarding_mode", "Choose either invitation or self-registration.")
 
+    object_storage = answers.get("object_storage") or "garage"
+    external = object_storage == "external"
+    if object_storage not in ("garage", "external"):
+        problem("object_storage", "Choose where files and backups are stored.")
+    if external:
+        for field, check in (("s3_endpoint", storage.parse_endpoint),
+                             ("s3_bucket_prefix", storage.validate_prefix)):
+            try:
+                check((answers.get(field) or "").strip())
+            except storage.StorageConfigError as error:
+                problem(field, str(error)[0].upper() + str(error)[1:] + ".")
+        if not (answers.get("s3_region") or "").strip():
+            problem("s3_region", "A region is required — the provider documents which.")
+        if not (answers.get("s3_access_key_id") or "").strip():
+            problem("s3_access_key_id", "The provider's access key ID is required.")
+        if not answers.get("s3_secret_access_key") and not answers.get("use_saved_s3_secret"):
+            problem("s3_secret_access_key", "The provider's secret access key is required.")
+        if (answers.get("s3_backup_endpoint") or "").strip():
+            try:
+                storage.parse_endpoint(answers["s3_backup_endpoint"].strip())
+            except storage.StorageConfigError as error:
+                problem("s3_backup_endpoint", str(error)[0].upper() + str(error)[1:] + ".")
+            if not (answers.get("s3_backup_region") or "").strip():
+                problem("s3_backup_region", "The backup endpoint needs its region too.")
+            if not (answers.get("s3_backup_access_key_id") or "").strip():
+                problem("s3_backup_access_key_id", "The backup endpoint needs its own access key ID.")
+            if not answers.get("s3_backup_secret_access_key") \
+                    and not answers.get("use_saved_s3_backup_secret"):
+                problem("s3_backup_secret_access_key",
+                        "The backup endpoint needs its own secret access key.")
+
     target = answers.get("target")
     if target == "hetzner":
         if not answers.get("hcloud_token") and not answers.get("use_saved_hcloud_token"):
@@ -268,10 +333,13 @@ def validate_answers(answers: dict) -> list[dict]:
             problem("ssh_target", "Enter the machine's SSH target, or localhost to use this one.")
         if not (answers.get("data_dir") or "").startswith("/"):
             problem("data_dir", "The data directory must be an absolute path.")
-        if not (answers.get("backup_dir") or "").startswith("/"):
-            problem("backup_dir", "The backup directory must be an absolute path.")
-        if answers.get("data_dir") and answers.get("data_dir") == answers.get("backup_dir"):
-            problem("backup_dir", "Backups cannot live in the data directory (docs/adr/0048).")
+        # With an external provider there is no backup directory at all
+        # (docs/adr/0053), so nothing about it can be wrong.
+        if not external:
+            if not (answers.get("backup_dir") or "").startswith("/"):
+                problem("backup_dir", "The backup directory must be an absolute path.")
+            if answers.get("data_dir") and answers.get("data_dir") == answers.get("backup_dir"):
+                problem("backup_dir", "Backups cannot live in the data directory (docs/adr/0048).")
         needs_dns = (answers.get("local_tls") == "letsencrypt"
                      or answers.get("local_public") == "yes")
         if needs_dns and not answers.get("hcloud_token") and not answers.get("use_saved_hcloud_token"):
@@ -347,6 +415,17 @@ def build_plan(answers: dict) -> dict:
     env_ext = (answers.get("env_ext") or "").strip()
     apps = list(answers.get("apps") or [])
     target = answers["target"]
+    external = answers.get("object_storage") == "external"
+    if external:
+        s3_host = storage.parse_endpoint(answers["s3_endpoint"].strip())[1]
+        backup_endpoint = (answers.get("s3_backup_endpoint") or "").strip()
+        backup_host = storage.parse_endpoint(backup_endpoint)[1] if backup_endpoint else s3_host
+        storage_summary = (
+            f"at {s3_host}, in buckets named {answers['s3_bucket_prefix'].strip()}-…"
+            + (f"; backups at {backup_host}" if backup_host != s3_host else
+               "; backups in separate buckets at the same provider"))
+    else:
+        storage_summary = "on the machine itself (Garage), with backups on its second disk"
 
     if answers.get("git_mode") == "create":
         repository = f"a new private repository named {answers['repo_name']}"
@@ -392,8 +471,10 @@ def build_plan(answers: dict) -> dict:
             "title": "Prepare the machine",
             "detail": (
                 f"Install k3s and Argo CD on {answers['ssh_target']} over SSH, with "
-                f"data in {answers['data_dir']} and backups in "
-                f"{answers['backup_dir']} on a separate device."
+                f"data in {answers['data_dir']} and backups "
+                + ("sent to the S3 provider — no second disk is used."
+                   if external else
+                   f"in {answers['backup_dir']} on a separate device.")
             ),
         })
 
@@ -402,8 +483,10 @@ def build_plan(answers: dict) -> dict:
             "id": "secrets",
             "title": "Generate and plant the credentials",
             "detail": (
-                "Generate the Keycloak, Argo CD, Grafana, Garage and invite "
-                "credentials and place them on the node as Kubernetes Secrets. They "
+                "Generate the Keycloak, Argo CD, Grafana"
+                + ("" if external else ", Garage") + " and invite "
+                "credentials and place them on the node as Kubernetes Secrets"
+                + (", together with your S3 provider key" if external else "") + ". They "
                 "are shown to you once, at the end, and never committed to Git."
             ),
         },
@@ -422,6 +505,30 @@ def build_plan(answers: dict) -> dict:
         warnings.append(next(
             a["requires_note"] for a in OPTIONAL_APPS if a["name"] == "bulwark"
         ))
+    if external:
+        warnings.append(
+            "Files, photo backups and database backups will be stored at the "
+            "S3 provider unencrypted by SmallWorlds — whoever runs that "
+            "storage can read them. A provider outage makes files unavailable "
+            "even while the cluster itself is up."
+        )
+        if backup_host == s3_host:
+            warnings.append(
+                "Backups share the provider with the live data. That survives "
+                "losing this machine, but not losing the provider account — "
+                "give a separate backup endpoint to cover that too."
+            )
+        if "pod-gateway" in apps:
+            warnings.append(
+                "The pod archive will sit in a bucket at the backup provider "
+                "instead of on a disk of this cluster, which docs/adr/0047 "
+                "avoided on purpose. Members' own devices still pull their copy."
+            )
+        if target == "hetzner":
+            warnings.append(
+                "The Hetzner target still creates its second (backup) volume; "
+                "it stays empty with external storage and can be removed by hand."
+            )
     if target == "local" and answers.get("local_tls") != "letsencrypt":
         warnings.append(
             "Self-signed certificates mean single sign-on does not work at all: "
@@ -449,6 +556,7 @@ def build_plan(answers: dict) -> dict:
             "target": "a Hetzner Cloud VM" if target == "hetzner" else answers["ssh_target"],
             "certificates": certificates,
             "reachable": reachable,
+            "storage": storage_summary,
             "onboarding": answers["onboarding_mode"],
             "repository": repository,
             "version": answers["version"],

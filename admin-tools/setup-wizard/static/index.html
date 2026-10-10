@@ -111,7 +111,7 @@
           <label for="data_dir">Data directory</label>
           <input id="data_dir" type="text" autocomplete="off">
         </div>
-        <div class="field">
+        <div class="field" id="backup-dir-field">
           <label for="backup_dir">Backup directory</label>
           <input id="backup_dir" type="text" autocomplete="off">
           <p class="hint">Must be on a <strong>second physical disk</strong>.
@@ -150,6 +150,81 @@
     </div>
 
     <div class="check" id="check-tools"></div>
+
+    <h2 class="section">Where files and backups are kept</h2>
+    <div class="choices" id="storage-choices">
+      <label class="choice">
+        <input type="radio" name="object_storage" value="garage">
+        <span class="choice-body">
+          <span class="choice-title">On the machine itself</span>
+          <span class="choice-detail">An S3 service runs inside the cluster and
+            nothing leaves it. Backups go to a second disk, so the machine needs
+            two. The choice for a fully local installation.</span>
+        </span>
+      </label>
+      <label class="choice">
+        <input type="radio" name="object_storage" value="external">
+        <span class="choice-body">
+          <span class="choice-title">At an S3 storage provider</span>
+          <span class="choice-detail">Files and every backup go to a provider you
+            rent storage from. One disk is enough and backups are off the machine
+            from the start — but the provider can read what is stored there.</span>
+        </span>
+      </label>
+    </div>
+
+    <div id="external-storage-fields" hidden>
+      <div class="field">
+        <label for="s3_endpoint">S3 endpoint</label>
+        <input id="s3_endpoint" type="text" autocomplete="off"
+               placeholder="https://s3.example.com">
+        <p class="hint">The provider's endpoint only, without a bucket name.</p>
+      </div>
+      <div class="field">
+        <label for="s3_region">Region</label>
+        <input id="s3_region" type="text" autocomplete="off"
+               placeholder="as the provider documents it, e.g. eu-central-1">
+      </div>
+      <div class="field">
+        <label for="s3_bucket_prefix">Bucket name prefix</label>
+        <input id="s3_bucket_prefix" type="text" autocomplete="off">
+        <p class="hint">The cluster creates one bucket per application, each
+          named with this prefix. Lowercase letters, digits and hyphens.</p>
+      </div>
+      <div class="field">
+        <label for="s3_access_key_id">Access key ID</label>
+        <input id="s3_access_key_id" type="text" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="s3_secret_access_key">Secret access key</label>
+        <input id="s3_secret_access_key" type="password" autocomplete="off">
+        <p class="hint">Placed on the node as a Kubernetes Secret. It is never
+          written to the settings repository.</p>
+        <div class="check" id="check-s3"></div>
+      </div>
+      <details class="advanced" id="backup-storage">
+        <summary>Send backups to a different provider</summary>
+        <p class="hint">Left empty, backups go to separate buckets at the same
+          provider. A second provider also survives losing that account.</p>
+        <div class="field">
+          <label for="s3_backup_endpoint">Backup S3 endpoint</label>
+          <input id="s3_backup_endpoint" type="text" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="s3_backup_region">Backup region</label>
+          <input id="s3_backup_region" type="text" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="s3_backup_access_key_id">Backup access key ID</label>
+          <input id="s3_backup_access_key_id" type="text" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="s3_backup_secret_access_key">Backup secret access key</label>
+          <input id="s3_backup_secret_access_key" type="password" autocomplete="off">
+          <div class="check" id="check-s3-backup"></div>
+        </div>
+      </details>
+    </div>
   </section>
 
   <!-- 3 ------------------------------------------------------------------ -->

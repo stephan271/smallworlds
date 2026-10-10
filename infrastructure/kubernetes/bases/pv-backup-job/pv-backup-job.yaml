@@ -11,6 +11,11 @@
 #   - the volume claimName (placeholder REPLACE_ME_IN_PATCH)
 #   - the S3_DEST env var, e.g. "immich/pv-backup/library" (bucket/prefix —
 #     use the tenant's own bucket so the existing key grants apply)
+#
+# Endpoint, region and bucket come from garage-secret-backup, next to the key
+# (docs/adr/0053). The bucket named there replaces the first segment of
+# S3_DEST: on Garage that is the same name, on an external provider it is the
+# prefixed one, and the path below it means the same thing on both.
 # and SHOULD patch the schedule so tenants don't hammer the shared disk at
 # the same minute. Keep every schedule well before the 04:00 replicator run.
 #
@@ -42,6 +47,9 @@ spec:
               command: ["/bin/sh", "-c"]
               args:
                 - |
+                  if [ -n "${S3_BUCKET:-}" ]; then
+                    S3_DEST="${S3_BUCKET}/${S3_DEST#*/}"
+                  fi
                   echo "Backing up /data -> garage:${S3_DEST}"
                   # Nextcloud's PVC contains tens of thousands of small files.
                   # More parallel transfers/checkers and one recursive listing
@@ -66,9 +74,21 @@ spec:
                 - name: RCLONE_CONFIG_GARAGE_PROVIDER
                   value: "Other"
                 - name: RCLONE_CONFIG_GARAGE_ENDPOINT
-                  value: "http://garage-backup.garage-backup-system.svc.cluster.local:3900"
+                  valueFrom:
+                    secretKeyRef:
+                      name: garage-secret-backup
+                      key: endpointURL
                 - name: RCLONE_CONFIG_GARAGE_REGION
-                  value: "garage"
+                  valueFrom:
+                    secretKeyRef:
+                      name: garage-secret-backup
+                      key: region
+                - name: S3_BUCKET
+                  valueFrom:
+                    secretKeyRef:
+                      name: garage-secret-backup
+                      key: bucket
+                      optional: true
                 - name: RCLONE_CONFIG_GARAGE_FORCE_PATH_STYLE
                   value: "true"
                 - name: RCLONE_CONFIG_GARAGE_ACCESS_KEY_ID

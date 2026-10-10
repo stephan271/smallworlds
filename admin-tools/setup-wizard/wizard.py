@@ -212,6 +212,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "/api/check/dns": self._check_dns,
                 "/api/check/git": self._check_git,
                 "/api/check/target": self._check_target,
+                "/api/check/s3": self._check_s3,
                 "/api/plan": self._build_plan,
                 "/api/install": self._install,
                 "/api/install/cancel": self._cancel,
@@ -295,6 +296,22 @@ class Handler(http.server.BaseHTTPRequestHandler):
             (body.get("ssh_target") or "").strip(),
             (body.get("data_dir") or "").strip(),
             (body.get("backup_dir") or "").strip(),
+            external_storage=body.get("object_storage") == "external",
+        )
+
+    def _check_s3(self, body: dict) -> dict:
+        # `which` selects the primary key or the separate backup one; each is
+        # remembered under its own name so "use the saved secret" cannot hand
+        # one provider the other's key.
+        name = "S3_BACKUP_SECRET_ACCESS_KEY" if body.get("which") == "backup" \
+            else "S3_SECRET_ACCESS_KEY"
+        secret = SESSION.resolve_secret(
+            name, body.get("secret") or "", bool(body.get("use_saved")))
+        return checks.check_s3(
+            (body.get("endpoint") or "").strip(),
+            (body.get("region") or "").strip(),
+            (body.get("access_key_id") or "").strip(),
+            secret,
         )
 
     # ------------------------------------------------------------- installing
@@ -319,7 +336,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "HCLOUD_TOKEN", answers.get("hcloud_token") or "", True),
             "GITOPS_REPO_TOKEN": SESSION.resolve_secret(
                 "GITOPS_REPO_TOKEN", answers.get("git_token") or "", True),
+            "S3_SECRET_ACCESS_KEY": SESSION.resolve_secret(
+                "S3_SECRET_ACCESS_KEY", answers.get("s3_secret_access_key") or "", True),
+            "S3_BACKUP_SECRET_ACCESS_KEY": SESSION.resolve_secret(
+                "S3_BACKUP_SECRET_ACCESS_KEY",
+                answers.get("s3_backup_secret_access_key") or "", True),
         }
+        if answers.get("object_storage") == "external" and not token_source["S3_SECRET_ACCESS_KEY"]:
+            return {"started": False, "reason": "missing_token",
+                    "message": "No S3 secret access key — the cluster would have "
+                               "nowhere to store a single file."}
         if not token_source["GITOPS_REPO_TOKEN"]:
             return {"started": False, "reason": "missing_token",
                     "message": "No Git access token — Argo CD cannot read your "
@@ -365,6 +391,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
             answers.get("use_saved_hcloud_token") or SESSION.secrets.get("HCLOUD_TOKEN"))
         answers["use_saved_git_token"] = bool(
             answers.get("use_saved_git_token") or SESSION.secrets.get("GITOPS_REPO_TOKEN"))
+        answers["use_saved_s3_secret"] = bool(
+            answers.get("use_saved_s3_secret") or SESSION.secrets.get("S3_SECRET_ACCESS_KEY"))
+        answers["use_saved_s3_backup_secret"] = bool(
+            answers.get("use_saved_s3_backup_secret")
+            or SESSION.secrets.get("S3_BACKUP_SECRET_ACCESS_KEY"))
         return answers
 
     def _stream_events(self):

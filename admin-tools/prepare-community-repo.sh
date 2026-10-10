@@ -240,6 +240,58 @@ if [[ " ${SELECTED_APPS[*]} " == *" bulwark "* && " ${SELECTED_APPS[*]} " != *" 
     echo ""
 fi
 
+# Object storage: the in-cluster Garage, or an external S3 provider that
+# replaces it (docs/adr/0053). Only the coordinates are asked for here — they
+# are not secret and belong in the overlay. The access key is asked for by
+# smallworlds-init.sh, which plants it on the node and never commits it.
+ask_prefilled "Object storage: in-cluster garage, or an external S3 provider? (garage/external): " OBJECT_STORAGE "${STORED_OBJECT_STORAGE:-garage}" required
+case "$OBJECT_STORAGE" in
+    garage|external) ;;
+    *)
+        echo -e "${RED}Choose exactly one of: garage, external.${NC}" >&2
+        exit 1
+        ;;
+esac
+if [[ "$OBJECT_STORAGE" == "external" ]]; then
+    # Bucket names share one namespace per account, and at some providers one
+    # across all accounts, so every bucket this cluster creates carries a prefix.
+    DEFAULT_BUCKET_PREFIX="$(printf 'sw-%s%s' "$TARGET_DOMAIN" "$ENV_EXT" \
+        | tr 'A-Z.' 'a-z-' | tr -cd 'a-z0-9-' | cut -c1-30 | sed 's/-*$//')"
+    ask_prefilled "   S3 endpoint URL of the provider (e.g. https://s3.example.com): " S3_ENDPOINT "${STORED_S3_ENDPOINT:-}" required
+    ask_prefilled "   S3 region (as the provider documents it): " S3_REGION "${STORED_S3_REGION:-}" required
+    ask_prefilled "   Prefix for the bucket names: " S3_BUCKET_PREFIX "${STORED_S3_BUCKET_PREFIX:-$DEFAULT_BUCKET_PREFIX}" required
+    ask_prefilled "   Separate S3 endpoint for backups (blank = same provider): " S3_BACKUP_ENDPOINT "${STORED_S3_BACKUP_ENDPOINT:-}"
+    if [[ -n "$S3_BACKUP_ENDPOINT" ]]; then
+        ask_prefilled "   S3 region of the backup endpoint: " S3_BACKUP_REGION "${STORED_S3_BACKUP_REGION:-}" required
+    else
+        S3_BACKUP_REGION=""
+    fi
+    if [[ " ${SELECTED_APPS[*]} " == *" pod-gateway "* ]]; then
+        echo ""
+        echo -e "${YELLOW}Note: pod-gateway selected with external object storage.${NC}"
+        echo -e "The pod archive then sits in a bucket at the backup provider instead of on"
+        echo -e "a disk of this cluster — docs/adr/0047 kept it off third-party storage on"
+        echo -e "purpose. Members' own devices still pull their copy as before."
+        echo ""
+    fi
+else
+    S3_ENDPOINT="" S3_REGION="" S3_BUCKET_PREFIX="" S3_BACKUP_ENDPOINT="" S3_BACKUP_REGION=""
+fi
+
+# Refuse an unusable answer here, before any file of the overlay is touched.
+python3 "$SCRIPT_DIR/generate_storage_patches.py" --check --app root --mode "$OBJECT_STORAGE" \
+    --endpoint "$S3_ENDPOINT" --region "$S3_REGION" --bucket-prefix "$S3_BUCKET_PREFIX" \
+    --backup-endpoint "$S3_BACKUP_ENDPOINT" --backup-region "$S3_BACKUP_REGION"
+
+# Applied to every overlay kustomization on every run: it replaces its own
+# block, and removes it again when the choice goes back to Garage.
+apply_storage_patches() {
+    python3 "$SCRIPT_DIR/generate_storage_patches.py" \
+        --app "$1" --mode "$OBJECT_STORAGE" --kustomization-file "$2" \
+        --endpoint "$S3_ENDPOINT" --region "$S3_REGION" --bucket-prefix "$S3_BUCKET_PREFIX" \
+        --backup-endpoint "$S3_BACKUP_ENDPOINT" --backup-region "$S3_BACKUP_REGION"
+}
+
 sw_step_ok repo-init
 sw_step repo-apps "Writing the application overlays"
 echo -e "${YELLOW}Creating application subdirectories...${NC}"
@@ -283,6 +335,7 @@ EOF
         fi
         python3 "$SCRIPT_DIR/generate_domain_patches.py" "${patch_args[@]}"
     fi
+    apply_storage_patches "$app" "$ABS_REPO_PATH/$app/kustomization.yaml"
 done
 
 # 4. Create or Update root kustomization.yaml
@@ -378,6 +431,10 @@ if [ "$TARGET_DOMAIN" != "smallworlds.network" ] || [ -n "$ENV_EXT" ]; then
         --kustomization-file "$ABS_REPO_PATH/kustomization.yaml"
 fi
 
+# Without Garage the root loses the two Garage Applications, their volumes and
+# the replicator, and Velero is pointed at the provider (docs/adr/0053).
+apply_storage_patches root "$ABS_REPO_PATH/kustomization.yaml"
+
 # Wire the in-cluster Renovate CronJob to also scan THIS overlay repo, so the
 # weekly base-tag bump PRs (see renovate.json) are raised here. Operator-specific
 # (your private repo), so it lives in the overlay, not the public base. Idempotent.
@@ -453,6 +510,12 @@ STORED_TARGET_DOMAIN="${TARGET_DOMAIN}"
 STORED_ENV_EXT="${ENV_EXT}"
 STORED_CREATE_REPO="${CREATE_REPO}"
 STORED_PUSH_CHOICE="${PUSH_CHOICE}"
+STORED_OBJECT_STORAGE="${OBJECT_STORAGE}"
+STORED_S3_ENDPOINT="${S3_ENDPOINT}"
+STORED_S3_REGION="${S3_REGION}"
+STORED_S3_BUCKET_PREFIX="${S3_BUCKET_PREFIX}"
+STORED_S3_BACKUP_ENDPOINT="${S3_BACKUP_ENDPOINT}"
+STORED_S3_BACKUP_REGION="${S3_BACKUP_REGION}"
 EOF
 for app in "${OPTIONAL_APPS[@]}"; do
     var_name="$(app_pref_var "$app")"

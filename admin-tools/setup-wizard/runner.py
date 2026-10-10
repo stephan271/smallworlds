@@ -103,6 +103,19 @@ def write_repository_config(answers: dict, path: str, apps: list[str]) -> None:
         "STORED_CREATE_REPO='n'",
         "STORED_PUSH_CHOICE='y'",
     ]
+    # Only the coordinates: they go into the overlay. The key itself travels
+    # through the installer cache below and never reaches the repository.
+    external = answers.get("object_storage") == "external"
+    lines.append(f"STORED_OBJECT_STORAGE={_shell_quote('external' if external else 'garage')}")
+    for stored, field in (("STORED_S3_ENDPOINT", "s3_endpoint"),
+                          ("STORED_S3_REGION", "s3_region"),
+                          ("STORED_S3_BUCKET_PREFIX", "s3_bucket_prefix"),
+                          ("STORED_S3_BACKUP_ENDPOINT", "s3_backup_endpoint"),
+                          ("STORED_S3_BACKUP_REGION", "s3_backup_region")):
+        value = (answers.get(field) or "").strip() if external else ""
+        if stored == "STORED_S3_BACKUP_REGION" and not (answers.get("s3_backup_endpoint") or "").strip():
+            value = ""
+        lines.append(f"{stored}={_shell_quote(value)}")
     for app in planning.OPTIONAL_APPS:
         key = planning._app_preference_key(app["name"])
         lines.append(f"{key}={'y' if app['name'] in apps else 'n'}")
@@ -142,6 +155,25 @@ def write_installer_cache(answers: dict, path: str, token_source: dict) -> None:
         "GITOPS_REPO_USER": answers.get("git_username") or "x-access-token",
         "GITOPS_REPO_TOKEN": token_source.get("GITOPS_REPO_TOKEN", ""),
     }
+    # External object storage (docs/adr/0053). The installer takes endpoint,
+    # region and prefix from the overlay record written above; they are
+    # repeated here so a later terminal run on a machine without that record
+    # still has them.
+    external = answers.get("object_storage") == "external"
+    separate_backup = external and bool((answers.get("s3_backup_endpoint") or "").strip())
+    values["OBJECT_STORAGE"] = "external" if external else "garage"
+    for cache_key, field, wanted in (
+            ("S3_ENDPOINT", "s3_endpoint", external),
+            ("S3_REGION", "s3_region", external),
+            ("S3_BUCKET_PREFIX", "s3_bucket_prefix", external),
+            ("S3_ACCESS_KEY_ID", "s3_access_key_id", external),
+            ("S3_BACKUP_ENDPOINT", "s3_backup_endpoint", separate_backup),
+            ("S3_BACKUP_REGION", "s3_backup_region", separate_backup),
+            ("S3_BACKUP_ACCESS_KEY_ID", "s3_backup_access_key_id", separate_backup)):
+        values[cache_key] = (answers.get(field) or "").strip() if wanted else ""
+    values["S3_SECRET_ACCESS_KEY"] = token_source.get("S3_SECRET_ACCESS_KEY", "") if external else ""
+    values["S3_BACKUP_SECRET_ACCESS_KEY"] = (
+        token_source.get("S3_BACKUP_SECRET_ACCESS_KEY", "") if separate_backup else "")
     # Anything the installer generates rather than asks for.
     for generated in ("KC_PASS", "KC_OPERATOR_PASS", "INVITE_SECRET",
                       "GARAGE_RPC_SECRET", "CONSOLE_SESSION_KEY",

@@ -117,6 +117,36 @@ else
 fi
 
 # --------------------------------------------------------------------------
+echo "smallworlds-init.sh — external object storage"
+# --------------------------------------------------------------------------
+# No overlay record exists in this HOME yet, so the installer has to ask for
+# everything itself — and has to notice when the provider is not described.
+write_init_cache
+echo 'OBJECT_STORAGE="external"' >> "$init_root/.smallworlds-cache.env"
+output="$(run_init SMALLWORLDS_NONINTERACTIVE=1)"
+status=$?
+check_contains "$output" "!!! missing:S3_ENDPOINT" "external storage without an endpoint is refused by name"
+check_absent "$output" ">>> step:dns-zone" "stopped before provisioning anything"
+if [[ "$status" -eq 78 ]]; then pass "exited 78 (EX_CONFIG)"; else fail "exited 78 (EX_CONFIG) — got $status"; fi
+
+write_init_cache
+cat >> "$init_root/.smallworlds-cache.env" <<CACHE
+OBJECT_STORAGE="external"
+S3_ENDPOINT="https://s3.provider.example"
+S3_REGION="eu-central-1"
+S3_BUCKET_PREFIX="sw-example-org"
+S3_ACCESS_KEY_ID="AKIDEXAMPLE"
+S3_SECRET_ACCESS_KEY="s3-secret-should-never-be-printed"
+CACHE
+output="$(run_init SMALLWORLDS_NONINTERACTIVE=1)"
+check_contains "$output" "OBJECT_STORAGE: external" "took the object storage choice"
+check_contains "$output" "S3_ENDPOINT: https://s3.provider.example" "took the endpoint"
+check_contains "$output" "S3_SECRET_ACCESS_KEY: [supplied]" "S3 secret masked"
+check_absent "$output" "should-never-be-printed" "no secret value reached stdout"
+check_absent "$output" "S3_BACKUP_ACCESS_KEY_ID" "no backup key asked for when backups share the provider"
+check_contains "$output" ">>> step:dns-zone" "reached provisioning, so every question was answered"
+
+# --------------------------------------------------------------------------
 echo "smallworlds-init.sh — interactive is unchanged"
 # --------------------------------------------------------------------------
 # read -p only renders its prompt on a terminal, so this needs a real pty:
@@ -274,6 +304,80 @@ if ! grep -q '/apps/euro-office.yaml' "$overlay/kustomization.yaml" \
     pass "a rerun switches Euro-Office off without duplicate patches"
 else
     fail "a rerun switches Euro-Office off without duplicate patches"
+fi
+
+# --------------------------------------------------------------------------
+echo "prepare-community-repo.sh — external object storage"
+# --------------------------------------------------------------------------
+run_prepare() {
+    ( cd "$repository_root" && HOME="$stub_home" SMALLWORLDS_NONINTERACTIVE=1 \
+        GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.org \
+        GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.org \
+        timeout 120 bash admin-tools/prepare-community-repo.sh </dev/null 2>&1 )
+}
+set_stored() {
+    local conf="$stub_home/.config/smallworlds/community-setup.conf"
+    sed -i "/^$1=/d" "$conf"
+    printf '%s="%s"\n' "$1" "$2" >> "$conf"
+}
+marker='>>> smallworlds:object-storage'
+
+if grep -rq "$marker" "$overlay"; then
+    fail "an overlay that never chose external storage carries no storage patches"
+else
+    pass "an overlay that never chose external storage carries no storage patches"
+fi
+check_contains "$(cat "$stub_home/.config/smallworlds/community-setup.conf")" \
+    'STORED_OBJECT_STORAGE="garage"' "the default choice is recorded for the installer"
+
+set_stored STORED_OBJECT_STORAGE external
+set_stored STORED_S3_ENDPOINT https://s3.provider.example
+set_stored STORED_S3_REGION eu-central-1
+output="$(run_prepare)"
+status=$?
+if [[ "$status" -eq 0 ]]; then pass "prepared an overlay for an external provider"; else
+    fail "prepared an overlay for an external provider — exited $status: $output"
+fi
+check_contains "$output" "S3_BUCKET_PREFIX: sw-example-org" "derived a bucket prefix from the domain"
+root_overlay="$(cat "$overlay/kustomization.yaml")"
+check_contains "$root_overlay" "name: garage-backup" "the root drops the Garage applications"
+check_contains "$root_overlay" "value: sw-example-org-velero-backups" "Velero is pointed at the prefixed bucket"
+check_contains "$(cat "$overlay/nextcloud/kustomization.yaml")" 'value: "s3.provider.example"' \
+    "Nextcloud is pointed at the provider"
+check_contains "$(cat "$overlay/keycloak/kustomization.yaml")" \
+    "s3://sw-example-org-postgres-backups-keycloak/" "Keycloak's database backups follow"
+if grep -q "$marker" "$overlay/excalidraw/kustomization.yaml"; then
+    fail "an app that stores nothing in S3 gets no storage patches"
+else
+    pass "an app that stores nothing in S3 gets no storage patches"
+fi
+
+run_prepare >/dev/null
+if [[ "$(grep -c "$marker" "$overlay/kustomization.yaml")" -eq 1 \
+   && "$(grep -c "$marker" "$overlay/nextcloud/kustomization.yaml")" -eq 1 ]]; then
+    pass "a rerun replaces the storage patches instead of appending"
+else
+    fail "a rerun replaces the storage patches instead of appending"
+fi
+
+set_stored STORED_S3_ENDPOINT https://s3.provider.example/my-bucket
+before="$(cat "$overlay/kustomization.yaml")"
+output="$(run_prepare)"
+status=$?
+check_contains "$output" "has a path" "a bucket URL in place of the endpoint is refused"
+if [[ "$status" -ne 0 && "$(cat "$overlay/kustomization.yaml")" == "$before" ]]; then
+    pass "and the overlay is left untouched"
+else
+    fail "and the overlay is left untouched"
+fi
+set_stored STORED_S3_ENDPOINT https://s3.provider.example
+
+set_stored STORED_OBJECT_STORAGE garage
+run_prepare >/dev/null
+if grep -rq "$marker" "$overlay" || grep -rq "sw-example-org" "$overlay"; then
+    fail "choosing Garage again removes every storage patch"
+else
+    pass "choosing Garage again removes every storage patch"
 fi
 
 # --------------------------------------------------------------------------

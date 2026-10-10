@@ -667,6 +667,34 @@ PYEOF
     printf '%s\n' "$answered"
 }
 
+# One recorded answer from the overlay preference file, e.g.
+# `community_setting STORED_OBJECT_STORAGE`. Parsed, never sourced, for the same
+# reason as selected_apps above. Prints nothing when the file or the key is
+# absent — "no answer recorded", which callers must not read as a choice.
+community_setting() {
+    local config="${SMALLWORLDS_COMMUNITY_CONFIG:-$HOME/.config/smallworlds/community-setup.conf}"
+    [[ -f "$config" ]] || return 0
+    python3 - "$config" "$1" <<'PYEOF'
+import re
+import shlex
+import sys
+
+path, wanted = sys.argv[1], sys.argv[2]
+assignment = re.compile(r'^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$')
+with open(path, encoding="utf-8", errors="replace") as handle:
+    for line in handle:
+        match = assignment.match(line)
+        if not match or line.lstrip().startswith("#") or match.group(1) != wanted:
+            continue
+        try:
+            parts = shlex.split(match.group(2).strip(), comments=True)
+        except ValueError:
+            continue
+        print(parts[0] if parts else "")
+        break
+PYEOF
+}
+
 # Resolve the overlay repository's current HEAD commit. The bootstrap requires
 # the exact reviewed commit rather than a branch name: HEAD must never decide
 # what a node deploys between the moment you approve an install and the moment
@@ -790,6 +818,64 @@ ask_with_default "6. Enter your Git repository URL (e.g., https://github.com/my-
 ask_with_default "7. Enter your Git username" "GITOPS_REPO_USER" "false" "required"
 ask_with_default "8. Paste your Git Access Token" "GITOPS_REPO_TOKEN" "true" "required"
 
+# Object storage: the in-cluster Garage, or an external S3 provider that
+# replaces it (docs/adr/0053). The overlay was already written for one or the
+# other by prepare-community-repo.sh, and the two have to agree — an overlay
+# without Garage on a node that was given no provider key has nowhere to put a
+# single object. So what the overlay recorded is the answer where it exists,
+# and only the credentials, which never go into the overlay, are asked here.
+RECORDED_OBJECT_STORAGE="$(community_setting STORED_OBJECT_STORAGE)"
+if [[ -n "$RECORDED_OBJECT_STORAGE" ]]; then
+    OBJECT_STORAGE="$RECORDED_OBJECT_STORAGE"
+    echo -e "Object storage: ${CYAN}${OBJECT_STORAGE}${NC} (as recorded when the overlay was prepared)"
+else
+    if [[ -z "$OBJECT_STORAGE" ]]; then
+        OBJECT_STORAGE="garage"
+    fi
+    ask_with_default "Object storage: garage (in-cluster) or external (an S3 provider)" "OBJECT_STORAGE" "false" "required"
+fi
+case "$OBJECT_STORAGE" in
+    garage|external) ;;
+    *)
+        echo -e "${YELLOW}Unknown object storage '$OBJECT_STORAGE' — must be 'garage' or 'external'.${NC}"
+        exit 1
+        ;;
+esac
+if [[ "$OBJECT_STORAGE" == "external" ]]; then
+    if [[ -n "$RECORDED_OBJECT_STORAGE" ]]; then
+        S3_ENDPOINT="$(community_setting STORED_S3_ENDPOINT)"
+        S3_REGION="$(community_setting STORED_S3_REGION)"
+        S3_BUCKET_PREFIX="$(community_setting STORED_S3_BUCKET_PREFIX)"
+        S3_BACKUP_ENDPOINT="$(community_setting STORED_S3_BACKUP_ENDPOINT)"
+        S3_BACKUP_REGION="$(community_setting STORED_S3_BACKUP_REGION)"
+        echo -e "  endpoint ${CYAN}${S3_ENDPOINT}${NC}, region ${CYAN}${S3_REGION}${NC}, bucket prefix ${CYAN}${S3_BUCKET_PREFIX}${NC}"
+        if [[ -z "$S3_ENDPOINT" || -z "$S3_REGION" || -z "$S3_BUCKET_PREFIX" ]]; then
+            echo -e "${RED}The overlay records external object storage, but not where it is.${NC}" >&2
+            sw_guidance "Prepare the overlay again" \
+                "Run admin-tools/prepare-community-repo.sh and answer the object storage questions; it writes the endpoint, region and bucket prefix into the overlay and records them for this installer."
+            exit 1
+        fi
+    else
+        ask_with_default "S3 endpoint URL of the provider (e.g. https://s3.example.com)" "S3_ENDPOINT" "false" "required"
+        ask_with_default "S3 region" "S3_REGION" "false" "required"
+        ask_with_default "Prefix for the bucket names" "S3_BUCKET_PREFIX" "false" "required"
+    fi
+    ask_with_default "S3 access key ID" "S3_ACCESS_KEY_ID" "false" "required"
+    ask_with_default "S3 secret access key" "S3_SECRET_ACCESS_KEY" "true" "required"
+    if [[ -z "$RECORDED_OBJECT_STORAGE" ]]; then
+        ask_with_default "Separate S3 endpoint for backups (leave empty to use the same provider)" "S3_BACKUP_ENDPOINT" "false"
+        if [[ -n "$S3_BACKUP_ENDPOINT" ]]; then
+            ask_with_default "S3 region of the backup endpoint" "S3_BACKUP_REGION" "false" "required"
+        fi
+    fi
+    if [[ -n "$S3_BACKUP_ENDPOINT" ]]; then
+        ask_with_default "S3 access key ID for backups" "S3_BACKUP_ACCESS_KEY_ID" "false" "required"
+        ask_with_default "S3 secret access key for backups" "S3_BACKUP_SECRET_ACCESS_KEY" "true" "required"
+    else
+        S3_BACKUP_REGION="" S3_BACKUP_ACCESS_KEY_ID="" S3_BACKUP_SECRET_ACCESS_KEY=""
+    fi
+fi
+
 if [[ "$DEPLOY_TARGET" == "hetzner" ]]; then
     echo ""
     echo -e "${YELLOW}Hetzner Configuration${NC}"
@@ -807,11 +893,19 @@ else
     if [[ -z "$BACKUP_DIR" ]]; then
         BACKUP_DIR="/var/lib/smallworlds-backup"
     fi
-    echo ""
-    echo -e "Backups must survive the loss of the operational disk, so they need a"
-    echo -e "${CYAN}second physical disk${NC} — the bootstrap refuses to continue if this ends up"
-    echo -e "on the same device as the data directory (see docs/adr/0048)."
-    ask_with_default "11. Enter the backup directory on the server (on a second disk)" "BACKUP_DIR" "false" "required"
+    if [[ "$OBJECT_STORAGE" == "external" ]]; then
+        # Every Recovery Point goes to the provider, which is further from the
+        # operational disk than a second disk in the same machine ever was — so
+        # there is no backup directory to ask for (docs/adr/0053).
+        echo ""
+        echo -e "Backups go to the external S3 provider, so ${CYAN}no second disk is needed${NC}."
+    else
+        echo ""
+        echo -e "Backups must survive the loss of the operational disk, so they need a"
+        echo -e "${CYAN}second physical disk${NC} — the bootstrap refuses to continue if this ends up"
+        echo -e "on the same device as the data directory (see docs/adr/0048)."
+        ask_with_default "11. Enter the backup directory on the server (on a second disk)" "BACKUP_DIR" "false" "required"
+    fi
 
     echo ""
     echo -e "Certificates are issued by Let's Encrypt over a ${CYAN}DNS-01${NC} challenge: cert-manager"
@@ -921,6 +1015,16 @@ GARAGE_ADMIN_TOKEN="${GARAGE_ADMIN_TOKEN}"
 GARAGE_BACKUP_RPC_SECRET="${GARAGE_BACKUP_RPC_SECRET}"
 GARAGE_BACKUP_ADMIN_TOKEN="${GARAGE_BACKUP_ADMIN_TOKEN}"
 GRAFANA_PASS="${GRAFANA_PASS}"
+OBJECT_STORAGE="${OBJECT_STORAGE}"
+S3_ENDPOINT="${S3_ENDPOINT}"
+S3_REGION="${S3_REGION}"
+S3_BUCKET_PREFIX="${S3_BUCKET_PREFIX}"
+S3_ACCESS_KEY_ID="${S3_ACCESS_KEY_ID}"
+S3_SECRET_ACCESS_KEY="${S3_SECRET_ACCESS_KEY}"
+S3_BACKUP_ENDPOINT="${S3_BACKUP_ENDPOINT}"
+S3_BACKUP_REGION="${S3_BACKUP_REGION}"
+S3_BACKUP_ACCESS_KEY_ID="${S3_BACKUP_ACCESS_KEY_ID}"
+S3_BACKUP_SECRET_ACCESS_KEY="${S3_BACKUP_SECRET_ACCESS_KEY}"
 EOF
 chmod 600 "$CACHE_FILE"
 
@@ -1035,6 +1139,34 @@ type: Opaque
 stringData:
   admin-user: "admin"
   admin-password: "${GRAFANA_PASS}"
+EOF
+
+if [[ "$OBJECT_STORAGE" == "external" ]]; then
+    # The whole switch, as far as the cluster is concerned: every init job that
+    # would otherwise mint a key on Garage finds this Secret and uses the
+    # provider instead (bases/garage-init-job, docs/adr/0053). Empty backup*
+    # values mean "the same account as the primary".
+    cat <<EOF >> "$SECRETS_FILE"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: smallworlds-object-storage
+  namespace: default
+type: Opaque
+stringData:
+  endpoint: "${S3_ENDPOINT}"
+  region: "${S3_REGION}"
+  bucketPrefix: "${S3_BUCKET_PREFIX}"
+  accessKeyId: "${S3_ACCESS_KEY_ID}"
+  secretAccessKey: "${S3_SECRET_ACCESS_KEY}"
+  backupEndpoint: "${S3_BACKUP_ENDPOINT}"
+  backupRegion: "${S3_BACKUP_REGION}"
+  backupAccessKeyId: "${S3_BACKUP_ACCESS_KEY_ID}"
+  backupSecretAccessKey: "${S3_BACKUP_SECRET_ACCESS_KEY}"
+EOF
+else
+    cat <<EOF >> "$SECRETS_FILE"
 ---
 apiVersion: v1
 kind: Namespace
@@ -1070,6 +1202,7 @@ stringData:
   rpcSecret: "${GARAGE_BACKUP_RPC_SECRET}"
   adminToken: "${GARAGE_BACKUP_ADMIN_TOKEN}"
 EOF
+fi
 chmod 600 "$SECRETS_FILE"
 
 if [[ "$DEPLOY_TARGET" == "hetzner" ]]; then
@@ -1401,6 +1534,7 @@ ACME_EMAIL="${LOCAL_ACME_EMAIL}"
 MANAGE_DNS="${MANAGE_DNS}"
 DATA_DIR="${DATA_DIR}"
 BACKUP_DIR="${BACKUP_DIR}"
+OBJECT_STORAGE="${OBJECT_STORAGE}"
 NODE_NAME="smallworlds-local-node"
 PROFILE_ID="${PROFILE_ID}"
 BOOTSTRAP_RUN_ID="${BOOTSTRAP_RUN_ID}"

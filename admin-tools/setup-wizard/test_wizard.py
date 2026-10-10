@@ -176,6 +176,53 @@ def test_plan_module():
     check("self-signed certificates are warned about",
           any("single sign-on" in warning for warning in self_signed["warnings"]))
 
+    # docs/adr/0053: an external S3 provider instead of the in-cluster Garage.
+    external = {
+        "object_storage": "external", "s3_endpoint": "https://s3.provider.example",
+        "s3_region": "eu-central-1", "s3_bucket_prefix": "sw-example-org",
+        "s3_access_key_id": "AKID", "s3_secret_access_key": "s3-secret-value",
+    }
+    check("Garage remains the default, and asks for nothing",
+          not {f for f in fields({}) if f.startswith("s3_")})
+    check("a complete provider description validates", fields(external) == set())
+    check("a bucket URL in place of the endpoint is caught",
+          "s3_endpoint" in fields({**external, "s3_endpoint": "https://s3.provider.example/bucket"}))
+    check("an unusable bucket prefix is caught",
+          "s3_bucket_prefix" in fields({**external, "s3_bucket_prefix": "Has_Upper"}))
+    check("a missing S3 secret is caught",
+          "s3_secret_access_key" in fields({**external, "s3_secret_access_key": ""}))
+    check("a saved S3 secret satisfies it",
+          "s3_secret_access_key" not in fields(
+              {**external, "s3_secret_access_key": "", "use_saved_s3_secret": True}))
+    check("a separate backup endpoint needs its own region and key",
+          {"s3_backup_region", "s3_backup_access_key_id", "s3_backup_secret_access_key"} <=
+          fields({**external, "s3_backup_endpoint": "https://backup.other.example"}))
+    local_external = {
+        **external, "target": "local", "ssh_target": "root@10.0.0.2",
+        "local_tls": "self-signed", "local_public": "no",
+        "data_dir": "/srv/data", "backup_dir": "/srv/data",
+    }
+    check("with a provider, one disk is enough: no backup directory is demanded",
+          "backup_dir" not in fields(local_external))
+    external_plan = plan.build_plan({**complete, **local_external, "hcloud_token": ""})
+    check("the plan says where files and backups go",
+          "s3.provider.example" in external_plan["summary"]["storage"])
+    check("the plan no longer promises a separate device",
+          not any("separate device" in step["detail"] for step in external_plan["steps"]))
+    check("the plan carries no S3 secret", "s3-secret-value" not in json.dumps(external_plan))
+    check("storing data at a third party is warned about",
+          any("can read them" in warning for warning in external_plan["warnings"]))
+    check("backups sharing the provider are warned about",
+          any("provider account" in warning for warning in external_plan["warnings"]))
+    separate = plan.build_plan({
+        **complete, **external, "s3_backup_endpoint": "https://backup.other.example",
+        "s3_backup_region": "fra1", "s3_backup_access_key_id": "BK",
+        "s3_backup_secret_access_key": "backup-secret-value"})
+    check("a second provider for backups lifts that warning",
+          not any("provider account" in warning for warning in separate["warnings"]))
+    check("the default bucket prefix matches the script's",
+          plan.default_bucket_prefix("Example.org", ".dev") == "sw-example-org-dev")
+
 
 # ---------------------------------------------------------------------------
 # Offline: the DNS resolver
@@ -193,6 +240,66 @@ def test_checks_module():
           checks.check_git_token("")["status"] == "error")
     check("an empty SSH target is refused without a call",
           checks.check_local_target("", "/a", "/b")["status"] == "error")
+
+    # Hand-rolled SigV4, pinned to what botocore's S3SigV4Auth produces for the
+    # same request and instant. A drift here is a key every provider rejects.
+    import datetime
+    signed = checks.sigv4_headers(
+        "GET", "https://s3.provider.example/", "eu-central-1", "AKIDEXAMPLE",
+        "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY",
+        datetime.datetime(2026, 10, 10, 12, 0, 0, tzinfo=datetime.timezone.utc))
+    check("the S3 request signature matches the reference implementation",
+          signed["Authorization"].endswith(
+              "Signature=bc95c6b0f32cda3969c8227101fb9c0129714ff8e6105dce57c2507ddde3c1a0"),
+          signed["Authorization"])
+
+    import http.server
+    import threading
+
+    answer = {"status": 200, "body": b""}
+    seen = {}
+
+    class FakeS3(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            seen["authorization"] = self.headers.get("Authorization", "")
+            self.send_response(answer["status"])
+            self.send_header("Content-Length", str(len(answer["body"])))
+            self.end_headers()
+            self.wfile.write(answer["body"])
+
+        def log_message(self, *arguments):
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), FakeS3)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    endpoint = f"http://127.0.0.1:{server.server_port}"
+    try:
+        answer.update(status=200, body=(
+            b"<ListAllMyBucketsResult><Buckets><Bucket><Name>one</Name></Bucket>"
+            b"</Buckets></ListAllMyBucketsResult>"))
+        accepted = checks.check_s3(endpoint, "eu-central-1", "AKID", "zz-distinct-value-zz")
+        check("an accepted S3 key is reported ok",
+              accepted["status"] == "ok" and accepted["buckets"] == ["one"], str(accepted))
+        check("the S3 check signs its request",
+              "Credential=AKID/" in seen.get("authorization", ""))
+        check("the S3 secret is neither sent nor echoed",
+              "zz-distinct-value-zz" not in json.dumps(accepted) + seen.get("authorization", ""))
+
+        answer.update(status=403, body=b"<Error><Code>SignatureDoesNotMatch</Code></Error>")
+        check("a wrong S3 secret is an error",
+              checks.check_s3(endpoint, "eu-central-1", "AKID", "wrong")["status"] == "error")
+        answer.update(status=403, body=b"<Error><Code>AccessDenied</Code></Error>")
+        check("a key that may not list buckets is a warning, not a failure",
+              checks.check_s3(endpoint, "eu-central-1", "AKID", "secret")["status"] == "warning")
+        answer.update(status=200, body=b"<html>welcome</html>")
+        check("an endpoint that is not S3 is not called ok",
+              checks.check_s3(endpoint, "eu-central-1", "AKID", "secret")["status"] == "unknown")
+    finally:
+        server.shutdown()
+    check("an unreachable S3 endpoint is an error, not a crash",
+          checks.check_s3("http://127.0.0.1:9", "r", "AKID", "secret")["status"] == "error")
+    check("an incomplete S3 description is refused before any request",
+          checks.check_s3("", "", "", "")["status"] == "error")
 
     tools = checks.check_local_tools()
     check("every tool is reported with what it is needed for",
@@ -390,6 +497,12 @@ def test_server():
                                   "data_dir": "/a", "backup_dir": "/b"})
         check("an unreachable machine is reported, not crashed into",
               status == 200 and json.loads(body)["status"] in ("error", "unknown"))
+        status, body = call(base, "/api/check/s3", token=token,
+                            body={"endpoint": "http://127.0.0.1:9", "region": "r",
+                                  "access_key_id": "AKID", "secret": "not-a-real-secret"})
+        check("an unreachable storage provider is reported, not crashed into",
+              status == 200 and json.loads(body)["status"] == "error", body)
+        check("the storage check does not echo the secret", "not-a-real-secret" not in body)
         check("the wizard is still answering after a failed check",
               call(base, "/api/state", token=token)[0] == 200)
     finally:
@@ -506,6 +619,39 @@ def test_runner():
           cached["DOMAIN"] == "example.org" and cached["ENV_EXT"] == ".dev")
     check("the tokens reach the installer", cached["HCLOUD_TOKEN"] == "hetzner-secret")
     check("the cache is private", oct(os.stat(installer_cache).st_mode)[-3:] == "600")
+
+    check("an install that never chose a provider records Garage for both scripts",
+          written["STORED_OBJECT_STORAGE"] == "garage" and cached["OBJECT_STORAGE"] == "garage"
+          and cached["S3_SECRET_ACCESS_KEY"] == "")
+
+    external_answers = {
+        **answers, "object_storage": "external", "s3_endpoint": "https://s3.provider.example",
+        "s3_region": "eu-central-1", "s3_bucket_prefix": "sw-example-org-dev",
+        "s3_access_key_id": "AKID",
+        # Left over from an earlier attempt with a second provider: must not leak.
+        "s3_backup_region": "stale", "s3_backup_access_key_id": "stale",
+    }
+    external_tokens = {**tokens, "S3_SECRET_ACCESS_KEY": "s3-secret",
+                       "S3_BACKUP_SECRET_ACCESS_KEY": "stale-backup-secret"}
+    runner.write_repository_config(external_answers, repository_config, answers["apps"])
+    stored_external = plan_module()._read_shell_assignments(repository_config)
+    check("the provider's coordinates reach the repository script",
+          (stored_external["STORED_OBJECT_STORAGE"], stored_external["STORED_S3_ENDPOINT"],
+           stored_external["STORED_S3_BUCKET_PREFIX"]) ==
+          ("external", "https://s3.provider.example", "sw-example-org-dev"))
+    with open(repository_config) as handle:
+        check("no S3 key is written where the overlay script reads",
+              "s3-secret" not in handle.read())
+    external_cache = os.path.join(directory, "external-cache.env")
+    runner.write_installer_cache(external_answers, external_cache, external_tokens)
+    cached_external = plan_module()._read_shell_assignments(external_cache)
+    check("the S3 key reaches the installer",
+          (cached_external["OBJECT_STORAGE"], cached_external["S3_ACCESS_KEY_ID"],
+           cached_external["S3_SECRET_ACCESS_KEY"]) == ("external", "AKID", "s3-secret"))
+    check("without a backup endpoint no backup key is passed on",
+          cached_external["S3_BACKUP_REGION"] == "" and
+          cached_external["S3_BACKUP_ACCESS_KEY_ID"] == "" and
+          cached_external["S3_BACKUP_SECRET_ACCESS_KEY"] == "")
 
     # Regenerating these would lock the operator out of a cluster already up.
     with open(installer_cache, "a") as handle:

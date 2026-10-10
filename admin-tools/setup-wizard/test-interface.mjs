@@ -83,6 +83,29 @@ check("choosing a LAN machine swaps the fields in",
 check("the two directories are defaulted apart",
       (await page.inputValue("#data_dir")) !== (await page.inputValue("#backup_dir")));
 
+// docs/adr/0053: an external S3 provider replaces Garage and the second disk.
+check("storage on the machine itself is the default",
+      (await page.locator('input[name="object_storage"][value="garage"]').isChecked()) &&
+      !(await page.locator("#external-storage-fields").isVisible()));
+await page.check('input[name="object_storage"][value="external"]');
+await page.waitForTimeout(250);
+check("choosing a provider swaps its fields in and the backup directory out",
+      (await page.locator("#external-storage-fields").isVisible()) &&
+      !(await page.locator("#backup-dir-field").isVisible()));
+check("a bucket prefix is suggested from the domain",
+      (await page.inputValue("#s3_bucket_prefix")) === "sw-example-org",
+      await page.inputValue("#s3_bucket_prefix"));
+await page.click("#next");
+await page.waitForTimeout(600);
+check("continuing without the provider's endpoint is refused",
+      (await openPanel()) === "where" && (await page.locator("#s3_endpoint.invalid").count()) === 1,
+      await page.locator("#footnote").textContent());
+await page.check('input[name="object_storage"][value="garage"]');
+await page.waitForTimeout(250);
+check("going back to the machine brings the backup directory back",
+      (await page.locator("#backup-dir-field").isVisible()) &&
+      !(await page.locator("#external-storage-fields").isVisible()));
+
 await page.check('input[name="target"][value="hetzner"]');
 await page.fill("#hcloud_token", "not-a-real-token");
 await page.waitForTimeout(3500);
@@ -162,7 +185,7 @@ await page.click("#next");
 await page.waitForSelector(".plan-summary");
 check("the plan is rendered", (await openPanel()) === "review");
 check("the plan summarises every decision",
-      (await page.locator(".plan-summary dt").count()) === 9);
+      (await page.locator(".plan-summary dt").count()) === 10);
 check("the plan lists what will happen", (await page.locator(".plan-step").count()) === 4);
 const hostnames = await page.locator(".hostname").allTextContents();
 check("the plan lists the addresses members will use",

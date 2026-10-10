@@ -40,6 +40,10 @@
 #                     /mnt/smallworlds-backup. MUST be on a different block
 #                     device than DATA_DIR — see docs/adr/0048. The bootstrap
 #                     refuses to continue when they share one.
+#   OBJECT_STORAGE    "garage" (default) or "external". External means object
+#                     data and Recovery Points live at an S3 provider
+#                     (docs/adr/0053): BACKUP_DIR is then not used at all, and
+#                     the machine may have a single disk.
 #   ETCD_DIR          where the cluster datastore lives (default
 #                     /var/lib/smallworlds-etcd, on the machine's own disk).
 #                     Must be fast storage — see the relocation below.
@@ -109,6 +113,7 @@ ACME_EMAIL="${ACME_EMAIL:-}"
 MANAGE_DNS="${MANAGE_DNS:-}"
 DATA_DIR="${DATA_DIR:-/var/lib/smallworlds-data}"
 BACKUP_DIR="${BACKUP_DIR:-/var/lib/smallworlds-backup}"
+OBJECT_STORAGE="${OBJECT_STORAGE:-garage}"
 ETCD_DIR="${ETCD_DIR:-/var/lib/smallworlds-etcd}"
 NODE_NAME="${NODE_NAME:-smallworlds-local-node}"
 PROFILE_ID="${PROFILE_ID:?PROFILE_ID must be set in $CONFIG_FILE}"
@@ -232,31 +237,42 @@ sysctl --system >/dev/null
 #    (see infrastructure/kubernetes/apps/persistent-storage.yaml), so the
 #    configurable DATA_DIR is exposed there via a symlink.
 # ------------------------------------------------------------------
-mkdir -p "$DATA_DIR/garage" "$DATA_DIR/immich-library" "$DATA_DIR/k3s"
+mkdir -p "$DATA_DIR/immich-library" "$DATA_DIR/k3s"
 if [ "$DATA_DIR" != "/mnt/smallworlds-data" ]; then
     ln -sfn "$DATA_DIR" /mnt/smallworlds-data
 fi
 
-# Every Recovery Point lives here, and the whole point is that it survives the
-# loss of DATA_DIR (docs/adr/0048). Both the garage-backup data and metadata
-# directories go on it: the LMDB index is what resolves a bucket key to
-# content-addressed blocks, so leaving meta behind on the operational disk
-# would make the surviving blocks unreadable.
-mkdir -p "$BACKUP_DIR/garage-backup/data" "$BACKUP_DIR/garage-backup/meta"
-if [ "$BACKUP_DIR" != "/mnt/smallworlds-backup" ]; then
-    ln -sfn "$BACKUP_DIR" /mnt/smallworlds-backup
-fi
+if [ "$OBJECT_STORAGE" = "external" ]; then
+    # Object data and every Recovery Point live at an S3 provider
+    # (docs/adr/0053): there is no Garage to give a directory to, and nothing
+    # is kept on this machine that a second disk would have to protect. The
+    # two-disk rule below exists to keep backups off the operational disk; a
+    # provider is further from it than a second disk here could be.
+    echo -e "${CYAN}Object storage is external — no Garage directories, no backup disk.${NC}"
+else
+    mkdir -p "$DATA_DIR/garage"
 
-# A co-located backup directory looks identical to a separated one right up
-# until the disk it shares dies. Refuse rather than pretend.
-DATA_DEVICE=$(df --output=source "$DATA_DIR" 2>/dev/null | tail -1)
-BACKUP_DEVICE=$(df --output=source "$BACKUP_DIR" 2>/dev/null | tail -1)
-if [ "$DATA_DEVICE" = "$BACKUP_DEVICE" ]; then
-    echo -e "${RED}DATA_DIR and BACKUP_DIR are both on $DATA_DEVICE.${NC}" >&2
-    echo "Backups must survive the loss of the operational disk, so they may not" >&2
-    echo "share one. Point BACKUP_DIR at a second disk and re-run:" >&2
-    echo "    BACKUP_DIR=/mnt/<second-disk>/smallworlds-backup" >&2
-    exit 1
+    # Every Recovery Point lives here, and the whole point is that it survives the
+    # loss of DATA_DIR (docs/adr/0048). Both the garage-backup data and metadata
+    # directories go on it: the LMDB index is what resolves a bucket key to
+    # content-addressed blocks, so leaving meta behind on the operational disk
+    # would make the surviving blocks unreadable.
+    mkdir -p "$BACKUP_DIR/garage-backup/data" "$BACKUP_DIR/garage-backup/meta"
+    if [ "$BACKUP_DIR" != "/mnt/smallworlds-backup" ]; then
+        ln -sfn "$BACKUP_DIR" /mnt/smallworlds-backup
+    fi
+
+    # A co-located backup directory looks identical to a separated one right up
+    # until the disk it shares dies. Refuse rather than pretend.
+    DATA_DEVICE=$(df --output=source "$DATA_DIR" 2>/dev/null | tail -1)
+    BACKUP_DEVICE=$(df --output=source "$BACKUP_DIR" 2>/dev/null | tail -1)
+    if [ "$DATA_DEVICE" = "$BACKUP_DEVICE" ]; then
+        echo -e "${RED}DATA_DIR and BACKUP_DIR are both on $DATA_DEVICE.${NC}" >&2
+        echo "Backups must survive the loss of the operational disk, so they may not" >&2
+        echo "share one. Point BACKUP_DIR at a second disk and re-run:" >&2
+        echo "    BACKUP_DIR=/mnt/<second-disk>/smallworlds-backup" >&2
+        exit 1
+    fi
 fi
 
 # Relocate k3s state onto the data dir so a k3s reinstall/upgrade never

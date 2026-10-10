@@ -9,6 +9,11 @@ commit `e1755fd`, 2026-07-18). This document absorbed and replaces the former
 the file-shaped, per-user slice into user-owned Solid pods as an append-only
 sovereignty layer on top of the backup chain described here — not implemented).
 
+> **Two storage modes.** Everything below describes the default, in-house mode:
+> two Garage instances on two volumes. A community may instead choose an
+> external S3 provider at install time, which replaces both Garage instances
+> and the second volume — see §1a and `docs/adr/0053`.
+
 ## 1. Physical storage foundation
 
 Stateful data lives on **two separate volumes**, one operational and one holding
@@ -48,6 +53,32 @@ older "first unmounted disk" heuristic could not tell them apart.
 Both volumes attach to one machine, so this addresses disk failure and capacity
 starvation, **not** node loss, compromise or provider failure. The offsite leg
 (§4 row 5) remains the disaster tier.
+
+### 1a. External object storage (`docs/adr/0053`)
+
+Chosen at install time (`prepare-community-repo.sh` / the setup wizard). The
+`garage`, `garage-backup` and `backup-replicator` Applications and the three
+Garage PersistentVolumes are removed from the overlay, and the node needs one
+disk: the bootstrap skips the Garage directories and the two-disk check.
+
+| What | In-house (Garage) | External provider |
+|---|---|---|
+| Tenant bucket (`nextcloud`, `forgejo`, `plane`) | `<tenant>` on `garage` | `<prefix>-<tenant>` at the primary endpoint |
+| Tenant backup bucket (pv-backup, bucket copies) | `<tenant>` on `garage-backup` | `<prefix>-<tenant>-backup` at the backup endpoint |
+| Database backups | `postgres-backups`, `postgres-backups-keycloak` on `garage-backup` | `<prefix>-postgres-backups`, `<prefix>-postgres-backups-keycloak` |
+| Velero | `velero-backups` on `garage-backup` | `<prefix>-velero-backups` |
+| Pod archive | `pod-gateway` on `garage-backup` | `<prefix>-pod-gateway` at the backup endpoint |
+| Offsite leg | `backup-replicator` (§4 row 5) | not deployed — Recovery Points are already offsite |
+| Immich library | static PV on the data volume | unchanged: still on the node's disk |
+
+The backup endpoint is the primary one unless a second was given. Paths below
+the bucket are identical in both modes, so the restore procedures in §7 apply
+with the bucket and endpoint substituted; credentials, endpoint, region and
+bucket name are all in the tenant's `garage-secret*` Secrets either way.
+
+Not yet done for this mode: provider-side versioning and lifecycle rules (set
+them at the provider by hand, as §8 describes for the offsite bucket), and a
+restore drill against a real provider.
 
 ### Why etcd is not on the data volume
 

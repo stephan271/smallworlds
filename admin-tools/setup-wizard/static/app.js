@@ -93,6 +93,7 @@ function answers() {
   const target = document.querySelector('input[name="target"]:checked');
   const gitMode = document.querySelector('input[name="git_mode"]:checked');
   const usingLocal = target && target.value === "local";
+  const storage = document.querySelector('input[name="object_storage"]:checked');
   return {
     domain: el("domain").value.trim().toLowerCase(),
     admin_email: el("admin_email").value.trim(),
@@ -107,6 +108,19 @@ function answers() {
     local_public: el("local_public").value,
     hcloud_token: usingLocal ? el("hcloud_token_local").value : el("hcloud_token").value,
     use_saved_hcloud_token: state ? state.has_saved_hcloud_token : false,
+
+    object_storage: storage ? storage.value : "garage",
+    s3_endpoint: el("s3_endpoint").value.trim(),
+    s3_region: el("s3_region").value.trim(),
+    s3_bucket_prefix: el("s3_bucket_prefix").value.trim(),
+    s3_access_key_id: el("s3_access_key_id").value.trim(),
+    s3_secret_access_key: el("s3_secret_access_key").value,
+    use_saved_s3_secret: state ? state.has_saved_s3_secret : false,
+    s3_backup_endpoint: el("s3_backup_endpoint").value.trim(),
+    s3_backup_region: el("s3_backup_region").value.trim(),
+    s3_backup_access_key_id: el("s3_backup_access_key_id").value.trim(),
+    s3_backup_secret_access_key: el("s3_backup_secret_access_key").value,
+    use_saved_s3_backup_secret: state ? state.has_saved_s3_backup_secret : false,
 
     git_mode: gitMode ? gitMode.value : "create",
     git_token: el("git_token").value,
@@ -180,6 +194,9 @@ function showInstalling() {
 const FIELD_PANEL = {
   domain: 0, admin_email: 0, env_ext: 0, onboarding_mode: 0,
   target: 1, ssh_target: 1, data_dir: 1, backup_dir: 1, hcloud_token: 1,
+  object_storage: 1, s3_endpoint: 1, s3_region: 1, s3_bucket_prefix: 1,
+  s3_access_key_id: 1, s3_secret_access_key: 1, s3_backup_endpoint: 1,
+  s3_backup_region: 1, s3_backup_access_key_id: 1, s3_backup_secret_access_key: 1,
   git_token: 2, remote_url: 2, repo_name: 2, version: 2,
   apps: 3,
 };
@@ -330,6 +347,7 @@ function renderPlan(target, result) {
     ["Runs on", result.summary.target],
     ["Certificates", result.summary.certificates],
     ["Reachable", result.summary.reachable],
+    ["Files and backups", result.summary.storage],
     ["Members join", result.summary.onboarding === "invitation"
       ? "by invitation" : "by signing up themselves"],
     ["Settings repo", result.summary.repository],
@@ -417,6 +435,23 @@ function applyTargetVisibility() {
   el("local-fields").hidden = value !== "local";
 }
 
+/* With a provider there is no backup directory to ask for: every backup goes
+   off the machine, which is what the second disk was standing in for. */
+function applyStorageVisibility() {
+  const storage = document.querySelector('input[name="object_storage"]:checked');
+  const external = storage && storage.value === "external";
+  el("external-storage-fields").hidden = !external;
+  el("backup-dir-field").hidden = external;
+  if (external && !el("s3_bucket_prefix").value) suggestBucketPrefix();
+}
+
+/* Mirrors default_bucket_prefix in plan.py, which mirrors the script. */
+function suggestBucketPrefix() {
+  const raw = ("sw-" + el("domain").value.trim() + el("env_ext").value.trim())
+    .toLowerCase().replace(/\./g, "-").replace(/[^a-z0-9-]/g, "");
+  el("s3_bucket_prefix").value = raw.slice(0, 30).replace(/-+$/, "");
+}
+
 /* The settings repository's name and the directory it is written to are the
    same choice twice: leaving them to drift means the operator's disk disagrees
    with their Git host for no reason. So renaming the repository renames the
@@ -467,6 +502,24 @@ function fill() {
   el("local_tls").value = state.local_tls;
   el("local_public").value = state.local_public;
 
+  const storage = document.querySelector(
+    `input[name="object_storage"][value="${state.object_storage}"]`);
+  if (storage) storage.checked = true;
+  el("s3_endpoint").value = state.s3_endpoint;
+  el("s3_region").value = state.s3_region;
+  el("s3_bucket_prefix").value = state.s3_bucket_prefix;
+  el("s3_access_key_id").value = state.s3_access_key_id;
+  el("s3_backup_endpoint").value = state.s3_backup_endpoint;
+  el("s3_backup_region").value = state.s3_backup_region;
+  el("s3_backup_access_key_id").value = state.s3_backup_access_key_id;
+  el("backup-storage").open = Boolean(state.s3_backup_endpoint);
+  if (state.has_saved_s3_secret) {
+    el("s3_secret_access_key").placeholder = "a saved key will be used — type to replace it";
+  }
+  if (state.has_saved_s3_backup_secret) {
+    el("s3_backup_secret_access_key").placeholder = "a saved key will be used — type to replace it";
+  }
+
   const gitMode = document.querySelector(`input[name="git_mode"][value="${state.git_mode}"]`);
   if (gitMode) gitMode.checked = true;
   el("git_username").value = state.git_username;
@@ -491,9 +544,34 @@ function fill() {
   }
 
   applyTargetVisibility();
+  applyStorageVisibility();
   applyGitModeVisibility();
   renderApps();
 }
+
+/* One checker for both keys: the primary provider's and, when backups go
+   somewhere else, that one's. Nothing is asked until the form could succeed. */
+function s3Checker(prefix, checkId, which, savedFlag) {
+  return debounce(() => {
+    const secret = el(prefix + "secret_access_key").value;
+    const body = {
+      which,
+      endpoint: el(prefix + "endpoint").value.trim(),
+      region: el(prefix + "region").value.trim(),
+      access_key_id: el(prefix + "access_key_id").value.trim(),
+      secret,
+      use_saved: !secret,
+    };
+    const hasSecret = secret || (state && state[savedFlag]);
+    if (!body.endpoint || !body.region || !body.access_key_id || !hasSecret) {
+      showCheck(checkId, null);
+      return;
+    }
+    runCheck(checkId, "Asking the storage provider…", () => api("/api/check/s3", body));
+  }, 700);
+}
+const checkS3 = s3Checker("s3_", "check-s3", "primary", "has_saved_s3_secret");
+const checkS3Backup = s3Checker("s3_backup_", "check-s3-backup", "backup", "has_saved_s3_backup_secret");
 
 const checkDomain = debounce(() => {
   const domain = el("domain").value.trim().toLowerCase();
@@ -557,11 +635,20 @@ function wire() {
     input.addEventListener("change", () => { applyGitModeVisibility(); checkGit(); });
   });
 
+  document.querySelectorAll('input[name="object_storage"]').forEach((input) => {
+    input.addEventListener("change", () => { applyStorageVisibility(); checkS3(); });
+  });
+  ["endpoint", "region", "access_key_id", "secret_access_key"].forEach((field) => {
+    el("s3_" + field).addEventListener("input", checkS3);
+    el("s3_backup_" + field).addEventListener("input", checkS3Backup);
+  });
+
   el("probe-target").addEventListener("click", () => {
     runCheck("check-target", "Connecting…", () => api("/api/check/target", {
       ssh_target: el("ssh_target").value.trim(),
       data_dir: el("data_dir").value.trim(),
       backup_dir: el("backup_dir").value.trim(),
+      object_storage: answers().object_storage,
     }));
   });
 

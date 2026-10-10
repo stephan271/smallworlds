@@ -29,6 +29,12 @@ spec:
               value: garage-backup-system
             - name: GARAGE_BACKUP_ENDPOINT
               value: http://garage-backup.garage-backup-system.svc.cluster.local:3900
+            # S3 endpoint of the operational instance. Not used for a tenant
+            # that points TENANT_BUCKET_NAMESPACE at the backup instance — the
+            # script follows the namespace, so pod-gateway's existing patch
+            # keeps meaning what it says.
+            - name: GARAGE_ENDPOINT
+              value: http://garage.garage-system.svc.cluster.local:3900
           command:
             - /bin/bash
             - -c
@@ -40,6 +46,112 @@ spec:
               : "${TENANT_BUCKET_NAMESPACE:?must name the instance for the tenant bucket}"
 
               TENANT_NAMESPACE=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+
+              # Where a bucket lives travels with its credential: endpoint,
+              # region and bucket name sit in the same Secret as the key, so a
+              # consumer never has to know whether that is an in-cluster Garage
+              # or an external provider (docs/adr/0053). Applied on every run,
+              # including to a Secret that already exists — a cluster installed
+              # before these keys were introduced gets them on its next sync.
+              describe_secret() {
+                local name="$1" endpoint="$2" region="$3" bucket="$4"
+                local host="${endpoint#*://}" ssl="false"
+                [[ "$endpoint" == https://* ]] && ssl="true"
+                kubectl patch secret "$name" -n "$TENANT_NAMESPACE" --type merge -p \
+                  "{\"stringData\":{\"endpointURL\":\"$endpoint\",\"endpointHost\":\"${host%/}\",\"useSSL\":\"$ssl\",\"region\":\"$region\",\"bucket\":\"$bucket\"}}"
+              }
+
+              # --- External object storage (docs/adr/0053) ---
+              # The installer plants this Secret only when the operator chose an
+              # external S3 provider; there is then no Garage to wait for. Its
+              # presence is the whole switch, so say which way it went.
+              EXTERNAL_SECRET=smallworlds-object-storage
+              ext() {
+                kubectl get secret "$EXTERNAL_SECRET" -n default -o jsonpath="{.data.$1}" 2>/dev/null | base64 -d
+              }
+              if kubectl get secret "$EXTERNAL_SECRET" -n default >/dev/null 2>&1; then
+                echo "Object storage: EXTERNAL (default/$EXTERNAL_SECRET is present) — Garage is not used."
+                PREFIX=$(ext bucketPrefix)
+                P_ENDPOINT=$(ext endpoint); P_REGION=$(ext region)
+                P_KEY=$(ext accessKeyId);   P_SECRET=$(ext secretAccessKey)
+                # Recovery Points may go to a second account or provider. Left
+                # unset they share the primary one, in buckets of their own.
+                B_ENDPOINT=$(ext backupEndpoint); B_REGION=$(ext backupRegion)
+                B_KEY=$(ext backupAccessKeyId);   B_SECRET=$(ext backupSecretAccessKey)
+                B_ENDPOINT="${B_ENDPOINT:-$P_ENDPOINT}"; B_REGION="${B_REGION:-$P_REGION}"
+                B_KEY="${B_KEY:-$P_KEY}";                B_SECRET="${B_SECRET:-$P_SECRET}"
+                for required in PREFIX P_ENDPOINT P_REGION P_KEY P_SECRET; do
+                  if [[ -z "${!required}" ]]; then
+                    echo "Error: default/$EXTERNAL_SECRET is incomplete ($required is empty)."
+                    exit 1
+                  fi
+                done
+
+                # Create the bucket unless it is already there. Plain SigV4 over
+                # curl, path-style, so no provider CLI is needed. A key that may
+                # not create buckets is fine as long as the bucket exists.
+                s3_status() {
+                  local method="$1" endpoint="$2" region="$3" key="$4" secret="$5" bucket="$6"
+                  local args=(-sS -o /dev/null -w '%{http_code}' --max-time 30
+                              --aws-sigv4 "aws:amz:${region}:s3" --user "${key}:${secret}")
+                  [[ "$method" == HEAD ]] && args+=(--head) || args+=(-X "$method")
+                  curl "${args[@]}" "${endpoint%/}/${bucket}" || true
+                }
+                ensure_bucket() {
+                  local endpoint="$1" region="$2" key="$3" secret="$4" bucket="$5" code
+                  code=$(s3_status HEAD "$endpoint" "$region" "$key" "$secret" "$bucket")
+                  if [[ "$code" != 200 ]]; then
+                    echo "Creating bucket $bucket at $endpoint (HEAD said $code)..."
+                    s3_status PUT "$endpoint" "$region" "$key" "$secret" "$bucket" >/dev/null
+                    code=$(s3_status HEAD "$endpoint" "$region" "$key" "$secret" "$bucket")
+                  fi
+                  if [[ "$code" != 200 ]]; then
+                    echo "Error: bucket $bucket at $endpoint is not usable with the supplied key (HTTP $code)."
+                    echo "Create it by hand and give the key read/write on it, or allow the key to create buckets."
+                    exit 1
+                  fi
+                  echo "Bucket $bucket is ready."
+                }
+                write_secret() {
+                  local name="$1" key="$2" secret="$3"
+                  kubectl create secret generic "$name" -n "$TENANT_NAMESPACE" \
+                    --from-literal=accessKey="$key" --from-literal=secretKey="$secret" \
+                    --from-literal=accessKeyId="$key" --from-literal=secretAccessKey="$secret" \
+                    --dry-run=client -o yaml | kubectl apply -f -
+                }
+
+                # A tenant whose "own" bucket is itself a Recovery Point
+                # (pod-gateway) keeps it on the backup side here too.
+                T_BUCKET="${PREFIX}-${TENANT_NAMESPACE}"
+                if [[ "$TENANT_BUCKET_NAMESPACE" == "$GARAGE_BACKUP_NAMESPACE" ]]; then
+                  T_ENDPOINT="$B_ENDPOINT"; T_REGION="$B_REGION"; T_KEY="$B_KEY"; T_SECRET="$B_SECRET"
+                else
+                  T_ENDPOINT="$P_ENDPOINT"; T_REGION="$P_REGION"; T_KEY="$P_KEY"; T_SECRET="$P_SECRET"
+                fi
+                ensure_bucket "$T_ENDPOINT" "$T_REGION" "$T_KEY" "$T_SECRET" "$T_BUCKET"
+                write_secret garage-secret "$T_KEY" "$T_SECRET"
+                describe_secret garage-secret "$T_ENDPOINT" "$T_REGION" "$T_BUCKET"
+
+                ensure_bucket "$B_ENDPOINT" "$B_REGION" "$B_KEY" "$B_SECRET" "${PREFIX}-postgres-backups"
+                write_secret garage-secret-cnpg "$B_KEY" "$B_SECRET"
+                describe_secret garage-secret-cnpg "$B_ENDPOINT" "$B_REGION" "${PREFIX}-postgres-backups"
+
+                # "-backup" keeps it apart from the tenant's own bucket when
+                # both sides are one account, where names share a namespace.
+                ensure_bucket "$B_ENDPOINT" "$B_REGION" "$B_KEY" "$B_SECRET" "${T_BUCKET}-backup"
+                write_secret garage-secret-backup "$B_KEY" "$B_SECRET"
+                describe_secret garage-secret-backup "$B_ENDPOINT" "$B_REGION" "${T_BUCKET}-backup"
+
+                echo "External object storage initialized for $TENANT_NAMESPACE."
+                exit 0
+              fi
+              echo "Object storage: in-cluster Garage (no default/$EXTERNAL_SECRET)."
+
+              if [[ "$TENANT_BUCKET_NAMESPACE" == "$GARAGE_BACKUP_NAMESPACE" ]]; then
+                TENANT_BUCKET_ENDPOINT="$GARAGE_BACKUP_ENDPOINT"
+              else
+                TENANT_BUCKET_ENDPOINT="${GARAGE_ENDPOINT:?must give the operational Garage S3 endpoint}"
+              fi
 
               # Wait for an instance to be ready and echo its pod name.
               await_garage() {
@@ -106,6 +218,7 @@ spec:
                   --from-literal=accessKeyId="$ACCESS_KEY" \
                   --from-literal=secretAccessKey="$SECRET_KEY"
               fi
+              describe_secret garage-secret "$TENANT_BUCKET_ENDPOINT" garage "$TENANT_NAMESPACE"
 
               # --- Dedicated CNPG key: BACKUP instance ---
               # Separate key from the tenant's own, so a compromised app
@@ -136,6 +249,7 @@ spec:
                 --from-literal=secretAccessKey="$CNPG_SECRET" \
                 --from-literal=endpointURL="$GARAGE_BACKUP_ENDPOINT" \
                 --dry-run=client -o yaml | kubectl apply -f -
+              describe_secret garage-secret-cnpg "$GARAGE_BACKUP_ENDPOINT" garage postgres-backups
 
               # --- Per-tenant backup bucket & key: BACKUP instance ---
               # Where this tenant's file-shaped backups land: pv-backup-job
@@ -171,6 +285,7 @@ spec:
                   --from-literal=secretAccessKey="$BK_SECRET" \
                   --from-literal=endpointURL="$GARAGE_BACKUP_ENDPOINT"
               fi
+              describe_secret garage-secret-backup "$GARAGE_BACKUP_ENDPOINT" garage "$TENANT_NAMESPACE"
 
               echo "Garage initialized successfully for $TENANT_NAMESPACE!"
       restartPolicy: OnFailure

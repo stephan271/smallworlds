@@ -87,6 +87,52 @@ gitea:
           name: database-app
           key: password
 
+    # --- Where the bucket lives ---
+    # Written next to the key by bases/garage-init-job (docs/adr/0053), so the
+    # same values serve an in-cluster Garage and an external provider. These
+    # override the [storage] literals above, which remain only as the
+    # documented Garage defaults.
+    - name: FORGEJO__STORAGE__MINIO_ENDPOINT
+      valueFrom:
+        secretKeyRef:
+          name: garage-secret
+          key: endpointHost
+    - name: GITEA__STORAGE__MINIO_ENDPOINT
+      valueFrom:
+        secretKeyRef:
+          name: garage-secret
+          key: endpointHost
+    - name: FORGEJO__STORAGE__MINIO_BUCKET
+      valueFrom:
+        secretKeyRef:
+          name: garage-secret
+          key: bucket
+    - name: GITEA__STORAGE__MINIO_BUCKET
+      valueFrom:
+        secretKeyRef:
+          name: garage-secret
+          key: bucket
+    - name: FORGEJO__STORAGE__MINIO_USE_SSL
+      valueFrom:
+        secretKeyRef:
+          name: garage-secret
+          key: useSSL
+    - name: GITEA__STORAGE__MINIO_USE_SSL
+      valueFrom:
+        secretKeyRef:
+          name: garage-secret
+          key: useSSL
+    - name: FORGEJO__STORAGE__MINIO_LOCATION
+      valueFrom:
+        secretKeyRef:
+          name: garage-secret
+          key: region
+    - name: GITEA__STORAGE__MINIO_LOCATION
+      valueFrom:
+        secretKeyRef:
+          name: garage-secret
+          key: region
+
     # --- Garage S3/MinIO Credentials ---
     - name: FORGEJO__STORAGE__MINIO_ACCESS_KEY_ID
       valueFrom:

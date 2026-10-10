@@ -36,14 +36,22 @@ spec:
               done
               ACCESS_KEY=$(kubectl get secret garage-secret -n plane -o jsonpath='{.data.accessKey}' | base64 -d)
               SECRET_KEY=$(kubectl get secret garage-secret -n plane -o jsonpath='{.data.secretKey}' | base64 -d)
+              # Endpoint, region and bucket sit next to the key (docs/adr/0053):
+              # an in-cluster Garage or an external provider, this job does not
+              # need to know which. The defaults cover a secret written before
+              # those keys existed.
+              field() { kubectl get secret garage-secret -n plane -o jsonpath="{.data.$1}" | base64 -d; }
+              ENDPOINT=$(field endpointURL); ENDPOINT="${ENDPOINT:-http://garage.garage-system.svc.cluster.local:3900}"
+              REGION=$(field region);        REGION="${REGION:-garage}"
+              BUCKET=$(field bucket);        BUCKET="${BUCKET:-plane}"
 
               echo "Creating/updating plane-doc-store secret..."
               kubectl create secret generic plane-doc-store -n plane \
                 --from-literal=USE_MINIO="0" \
                 --from-literal=FILE_SIZE_LIMIT="5242880" \
-                --from-literal=AWS_S3_BUCKET_NAME="plane" \
-                --from-literal=AWS_S3_ENDPOINT_URL="http://garage.garage-system.svc.cluster.local:3900" \
-                --from-literal=AWS_REGION="garage" \
+                --from-literal=AWS_S3_BUCKET_NAME="$BUCKET" \
+                --from-literal=AWS_S3_ENDPOINT_URL="$ENDPOINT" \
+                --from-literal=AWS_REGION="$REGION" \
                 --from-literal=AWS_ACCESS_KEY_ID="$ACCESS_KEY" \
                 --from-literal=AWS_SECRET_ACCESS_KEY="$SECRET_KEY" \
                 --dry-run=client -o yaml | kubectl apply -f -

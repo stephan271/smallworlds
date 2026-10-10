@@ -19,6 +19,53 @@ spec:
             - |
               set -e
 
+              # --- External object storage (docs/adr/0053) ---
+              # Same switch as bases/garage-init-job: the installer plants this Secret
+              # only when the operator chose an external S3 provider, and there is
+              # then no Garage to wait for.
+              EXTERNAL_SECRET=smallworlds-object-storage
+              ext() {
+                kubectl get secret "$EXTERNAL_SECRET" -n default -o jsonpath="{.data.$1}" 2>/dev/null | base64 -d
+              }
+              if kubectl get secret "$EXTERNAL_SECRET" -n default >/dev/null 2>&1; then
+                echo "Object storage: EXTERNAL (default/$EXTERNAL_SECRET is present) — Garage is not used."
+                # Recovery Points go to the backup side, which falls back to the
+                # primary account when no separate one was given.
+                ENDPOINT=$(ext backupEndpoint); ENDPOINT="${ENDPOINT:-$(ext endpoint)}"
+                REGION=$(ext backupRegion);     REGION="${REGION:-$(ext region)}"
+                ACCESS_KEY=$(ext backupAccessKeyId);     ACCESS_KEY="${ACCESS_KEY:-$(ext accessKeyId)}"
+                SECRET_KEY=$(ext backupSecretAccessKey); SECRET_KEY="${SECRET_KEY:-$(ext secretAccessKey)}"
+                PREFIX=$(ext bucketPrefix)
+                BUCKET="${PREFIX}-velero-backups"
+                if [[ -z "$ENDPOINT" || -z "$REGION" || -z "$ACCESS_KEY" || -z "$SECRET_KEY" || -z "$PREFIX" ]]; then
+                  echo "Error: default/$EXTERNAL_SECRET is incomplete."
+                  exit 1
+                fi
+                s3_status() {
+                  local args=(-sS -o /dev/null -w '%{http_code}' --max-time 30
+                              --aws-sigv4 "aws:amz:${REGION}:s3" --user "${ACCESS_KEY}:${SECRET_KEY}")
+                  [[ "$1" == HEAD ]] && args+=(--head) || args+=(-X "$1")
+                  curl "${args[@]}" "${ENDPOINT%/}/${BUCKET}" || true
+                }
+                CODE=$(s3_status HEAD)
+                if [[ "$CODE" != 200 ]]; then
+                  echo "Creating bucket $BUCKET at $ENDPOINT (HEAD said $CODE)..."
+                  s3_status PUT >/dev/null
+                  CODE=$(s3_status HEAD)
+                fi
+                if [[ "$CODE" != 200 ]]; then
+                  echo "Error: bucket $BUCKET at $ENDPOINT is not usable with the supplied key (HTTP $CODE)."
+                  echo "Create it by hand and give the key read/write on it, or allow the key to create buckets."
+                  exit 1
+                fi
+                printf '[default]\naws_access_key_id=%s\naws_secret_access_key=%s\n' "$ACCESS_KEY" "$SECRET_KEY" > /tmp/cloud-credentials
+                kubectl create secret generic velero-s3-creds -n velero --from-file=cloud=/tmp/cloud-credentials \
+                  --dry-run=client -o yaml | kubectl apply -f -
+                echo "Velero credentials initialized for external bucket $BUCKET."
+                exit 0
+              fi
+              echo "Object storage: in-cluster Garage (no default/$EXTERNAL_SECRET)."
+
               echo "Waiting for Garage pod to be ready..."
               until kubectl get pods -n garage-backup-system -l app.kubernetes.io/name=garage -o jsonpath='{.items[0].status.containerStatuses[0].ready}' 2>/dev/null | grep -q 'true'; do
                 echo "Garage is not ready yet, waiting..."
