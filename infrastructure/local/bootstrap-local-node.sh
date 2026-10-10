@@ -27,6 +27,13 @@
 #                     comes from the same Hetzner Cloud API token as
 #                     stalwart-dns-secrets/hetzner-dns-token, delivered via
 #                     SECRETS_MANIFEST.
+#   ACME_CHALLENGE    how Let's Encrypt is shown the domain is ours. "dns01"
+#                     (default) writes a TXT record through the Hetzner DNS
+#                     webhook and needs no inbound connection. "http01" needs
+#                     no DNS API at all — Let's Encrypt fetches a file from
+#                     port 80 — so it suits a machine on the internet whose DNS
+#                     the operator keeps by hand (docs/adr/0056). It cannot
+#                     work on a LAN-only cluster.
 #   MANAGE_DNS        "true" = deploy a DDNS CronJob that keeps the domain's
 #                     A records in Hetzner DNS pointed at this connection's
 #                     public IP (for internet-exposed deployments; the token
@@ -137,6 +144,7 @@ ENV_EXT="${ENV_EXT:-}"
 ROOT_APP_GIT_URL="${ROOT_APP_GIT_URL:-}"
 ROOT_APP_GIT_REVISION="${ROOT_APP_GIT_REVISION:-}"
 ACME_EMAIL="${ACME_EMAIL:-}"
+ACME_CHALLENGE="${ACME_CHALLENGE:-dns01}"
 MANAGE_DNS="${MANAGE_DNS:-}"
 DATA_DIR="${DATA_DIR:-/var/lib/smallworlds-data}"
 BACKUP_DIR="${BACKUP_DIR:-/var/lib/smallworlds-backup}"
@@ -603,7 +611,28 @@ mkdir -p /var/lib/rancher/k3s/server/manifests
 # cannot apply until cert-manager's CRDs exist — which happens much later, once
 # Argo CD has synced. The result was a permanent apply-fail-retry loop writing
 # events into etcd every few seconds. It is applied once, after the CRD is there.
-if [ -n "$ACME_EMAIL" ]; then
+if [ -n "$ACME_EMAIL" ] && [ "$ACME_CHALLENGE" = "http01" ]; then
+    # Same issuer name, different proof: cert-manager answers the challenge
+    # through a short-lived Ingress of its own. Traefik redirects port 80 to
+    # 443 for every host, which Let's Encrypt follows without judging the
+    # certificate it finds there — the one it is about to replace.
+    cat > "$MARKER_DIR/letsencrypt-prod.yaml" <<ISSUER
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: "${ACME_EMAIL}"
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+    - http01:
+        ingress:
+          ingressClassName: traefik
+ISSUER
+elif [ -n "$ACME_EMAIL" ]; then
     cat > "$MARKER_DIR/letsencrypt-prod.yaml" <<ISSUER
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer

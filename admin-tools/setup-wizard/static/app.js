@@ -110,6 +110,8 @@ function answers() {
     local_tls: rented ? "letsencrypt" : el("local_tls").value,
     local_public: rented ? "yes" : el("local_public").value,
     host_firewall: rented ? "yes" : "no",
+    local_dns: usingLocal && (rented || el("local_public").value === "yes")
+      ? el("local_dns").value : "hetzner",
     library_dir: el("library_dir").value.trim(),
     photo_backend: el("photo_backend").value,
     hcloud_token: usingLocal ? el("hcloud_token_local").value : el("hcloud_token").value,
@@ -200,7 +202,7 @@ function showInstalling() {
 const FIELD_PANEL = {
   domain: 0, admin_email: 0, env_ext: 0, onboarding_mode: 0,
   target: 1, ssh_target: 1, data_dir: 1, backup_dir: 1, hcloud_token: 1,
-  library_dir: 1, host_firewall: 1, photo_backend: 3,
+  library_dir: 1, host_firewall: 1, local_dns: 1, photo_backend: 3,
   object_storage: 1, s3_endpoint: 1, s3_region: 1, s3_bucket_prefix: 1,
   s3_access_key_id: 1, s3_secret_access_key: 1, s3_backup_endpoint: 1,
   s3_backup_region: 1, s3_backup_access_key_id: 1, s3_backup_secret_access_key: 1,
@@ -447,6 +449,27 @@ function applyTargetVisibility() {
   el("local-tls-field").hidden = rented;
   el("local-public-field").hidden = rented;
   el("vps-hint").hidden = !rented;
+  // Someone renting a server elsewhere most likely has no Hetzner account, so
+  // "by hand" is suggested there — unless this machine already answered.
+  if (rented && state && !state.local_dns_remembered && !dnsChosen) {
+    el("local_dns").value = "manual";
+  }
+  applyDnsVisibility();
+}
+
+/* Keeping DNS by hand is only possible for a machine on the internet, and it
+   makes the Hetzner token unnecessary. */
+let dnsChosen = false;
+function applyDnsVisibility() {
+  const target = document.querySelector('input[name="target"]:checked');
+  const rented = Boolean(target) && target.value === "vps";
+  const exposed = rented || el("local_public").value === "yes";
+  const manual = exposed && el("local_dns").value === "manual";
+  el("local-dns-field").hidden = !exposed;
+  el("manual-dns-hint").hidden = !manual;
+  el("hcloud-token-local-field").hidden = manual;
+  el("wildcard-name").textContent =
+    "*" + el("env_ext").value.trim() + "." + (el("domain").value.trim().toLowerCase() || "your-domain");
 }
 
 /* Which photo application is only a question once Photos is selected. */
@@ -518,6 +541,7 @@ function fill() {
     ? "vps" : state.target;
   const target = document.querySelector(`input[name="target"][value="${remembered}"]`);
   el("library_dir").value = state.library_dir;
+  el("local_dns").value = state.local_dns;
   el("photo_backend").value = state.photo_backend;
   if (target) target.checked = true;
   el("ssh_target").value = state.ssh_target;
@@ -605,7 +629,7 @@ const checkDomain = debounce(() => {
   const domain = el("domain").value.trim().toLowerCase();
   if (!domain.includes(".")) { showCheck("check-dns", null); return; }
   runCheck("check-dns", "Looking up the nameservers…",
-           () => api("/api/check/dns", { domain }));
+           () => api("/api/check/dns", { domain, manual: answers().local_dns === "manual" }));
 }, 700);
 
 const checkHetzner = debounce((fieldId, checkId) => {
@@ -648,6 +672,9 @@ function wire() {
   document.querySelectorAll('input[name="target"]').forEach((input) => {
     input.addEventListener("change", () => {
       applyTargetVisibility();
+      // Whether the domain's nameservers matter depends on who keeps DNS,
+      // which the kind of machine can change.
+      if (el("domain").value.trim()) checkDomain();
       if (input.value === "hetzner") {
         runCheck("check-tools", "Checking this machine…", async () => {
           const result = await api("/api/check/local", {});
@@ -662,6 +689,15 @@ function wire() {
   document.querySelectorAll('input[name="git_mode"]').forEach((input) => {
     input.addEventListener("change", () => { applyGitModeVisibility(); checkGit(); });
   });
+
+  el("local_dns").addEventListener("change", () => {
+    dnsChosen = true;
+    applyDnsVisibility();
+    checkDomain();
+  });
+  el("local_public").addEventListener("change", applyDnsVisibility);
+  el("domain").addEventListener("input", applyDnsVisibility);
+  el("env_ext").addEventListener("input", applyDnsVisibility);
 
   document.querySelectorAll('input[name="object_storage"]').forEach((input) => {
     input.addEventListener("change", () => { applyStorageVisibility(); checkS3(); });

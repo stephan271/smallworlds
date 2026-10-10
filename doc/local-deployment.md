@@ -91,17 +91,29 @@ internet exposure and yes to the host firewall.
 
 1. Order the server with Debian or Ubuntu and your SSH key. Check that
    `nft` is installed (`apt install nftables`); the bootstrap stops without it.
-2. Point the domain's nameservers at Hetzner DNS and create an API token there
-   — certificates and DNS records are managed through it wherever the server
-   is. No Hetzner server is involved.
+2. Sort out DNS, one of two ways (`docs/adr/0056`):
+   - **By hand, no Hetzner account:** create one wildcard A record,
+     `*.<domain>`, pointing at the server, at whatever DNS provider you use.
+     Certificates are then proven over HTTP. The installer checks the record
+     before it touches the machine.
+   - **Managed:** point the domain's nameservers at Hetzner DNS and create an
+     API token there. The installer then creates every record, including mail
+     records. No Hetzner server is involved.
 3. If you selected mail: set the reverse DNS (PTR) of the server's address to
    `mail.<domain>` in the provider's panel.
 4. For external object storage (`docs/adr/0053`): rent the storage and create a
    key.
 
-**The installer does:** k3s and Argo CD, the DNS records (the same in-cluster
-job as for a home connection; on a fixed address it simply never changes
-them), Let's Encrypt certificates, every application — and the firewall.
+**The installer does:** k3s and Argo CD, Let's Encrypt certificates, every
+application and the firewall — and, with managed DNS, the records (the same
+in-cluster job as for a home connection; on a fixed address it simply never
+changes them).
+
+With DNS by hand, two things stay yours: the mail records if you selected
+Stalwart (they are not created; see `doc/mail.md`), and the `admin.<domain>`
+record that `setup-vpn.sh` asks for, which must be explicit because the
+wildcard would otherwise answer for it. The choice is not available for a
+LAN-only machine, which cannot answer the HTTP proof.
 
 **The firewall.** `HOST_FIREWALL` makes the bootstrap write
 `/etc/smallworlds/firewall.nft` and a `smallworlds-firewall.service` that loads

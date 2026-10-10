@@ -125,6 +125,17 @@ if [ -z "$TAILNET_IP" ]; then
 fi
 echo "   Node's tailnet IP: $TAILNET_IP"
 
+if [ "${LOCAL_DNS:-hetzner}" = "manual" ] && [ -n "$RENTED" ]; then
+    # DNS is kept by hand for this cluster (docs/adr/0056), and a wildcard
+    # record would send admin.<domain> to the public address — exactly where
+    # SSH is about to stop answering. So this one record has to be explicit.
+    echo ""
+    echo "4. Create this DNS record yourself, at your DNS provider:"
+    echo "       $ADMIN_HOST   A   $TAILNET_IP"
+    echo "   It must be an explicit record: your wildcard would otherwise answer"
+    echo "   for it with the public address."
+    read -p "   Press Enter once it is created (it may take a while to be visible)... " _
+else
 echo ""
 echo "4. Pointing $ADMIN_HOST at the tailnet IP..."
 HCLOUD_TOKEN="${HCLOUD_TOKEN:?HCLOUD_TOKEN not set and not found in $CACHE_FILE}"
@@ -143,6 +154,7 @@ curl -sf -X POST -H "$AUTH" -H "Content-Type: application/json" \
     -d "{\"name\":\"$ADMIN_NAME\",\"type\":\"A\",\"ttl\":300,\"records\":[{\"value\":\"$TAILNET_IP\"}]}" \
     "$API/zones/$ZONE_ID/rrsets" >/dev/null
 echo "   $ADMIN_HOST -> $TAILNET_IP"
+fi
 
 echo ""
 echo "5. Adding tls-san for $ADMIN_HOST / $TAILNET_IP to the kube API cert..."

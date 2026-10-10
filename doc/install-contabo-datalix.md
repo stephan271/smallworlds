@@ -8,6 +8,7 @@ This guide covers one fixed setup and nothing else:
 | Storage | S3 object storage at Datalix, for files, photos and all backups |
 | Applications | Files (Nextcloud), Photos (Gallery), Meet (Jitsi), plus the always-installed sign-in and dashboard |
 | Backups | In separate buckets in the same Datalix account |
+| DNS | One wildcard record that you create at your own DNS provider |
 | Install route | The browser setup wizard |
 
 > **Status: untried.** Every part of this path passes its automated tests, but
@@ -42,8 +43,7 @@ Accounts, and what each is for:
 |---|---|
 | Contabo | The server |
 | Datalix | S3 object storage |
-| A domain registrar | A domain you own, for example `example.org` |
-| Hetzner Cloud (free to open) | DNS only. Certificates and DNS records are managed through Hetzner DNS wherever the server is. No Hetzner server is created. |
+| A domain registrar or DNS provider | A domain you own, for example `example.org`, where you can add a DNS record |
 | GitHub | A private repository that holds your cluster's settings |
 
 On your own computer (Linux or macOS): `git`, `python3`, `ssh`, `curl`,
@@ -88,25 +88,23 @@ Do not add a second disk. Nothing in this setup uses one.
    If your key is not allowed to create buckets, create these seven by hand
    first, with exactly those names after the prefix.
 
-## 4. Point the domain at Hetzner DNS
+## 4. Create the DNS record
 
-1. In the Hetzner Cloud Console, create a project and, under
-   **Security → API tokens**, a token with **read and write** access.
-2. At your domain registrar, set the domain's nameservers to:
+At your domain's DNS provider, add one record:
 
-   ```
-   helium.ns.hetzner.de
-   oxygen.ns.hetzner.com
-   hydrogen.ns.hetzner.com
-   ```
+| Type | Name | Value |
+|---|---|---|
+| A | `*` (a wildcard, i.e. `*.example.org`) | the server's IPv4 address from step 2 |
 
-3. Wait until the change is visible (minutes to a few hours):
+That single record covers every application. Wait until it is visible (a
+minute to an hour):
 
-   ```bash
-   dig +short NS example.org
-   ```
+```bash
+dig +short identity.example.org      # must print the server's address
+```
 
-You do not need to create the DNS zone or any records; the install does that.
+The install checks this first and stops, having changed nothing, if the name
+does not point at the server yet.
 
 ## 5. Create a GitHub token
 
@@ -134,6 +132,9 @@ A browser opens. Fill in the five panels as follows.
 | Your email address | your address |
 | Everything else | leave as offered |
 
+A note under the domain field about Hetzner nameservers can be ignored; it
+clears once you have chosen the kind of machine on the next panel.
+
 **Panel 2 — Where it runs**
 
 | Field | Enter |
@@ -142,7 +143,7 @@ A browser opens. Fill in the five panels as follows.
 | The machine | `root@<server-ip>` |
 | Data directory | leave as offered |
 | Photo library directory | leave empty |
-| Hetzner API token (DNS only) | the token from step 4 |
+| DNS records | **I create one record myself** (already selected) |
 | Where files and backups are kept | **At an S3 storage provider** |
 | S3 endpoint, Region, Access key ID, Secret access key | the four values from step 3 |
 | Bucket name prefix | leave as offered |
@@ -188,8 +189,8 @@ shows the admin passwords once. **Save them.**
    ssh root@<server-ip> smallworlds-firewall status
    ```
 
-2. **Wait for certificates.** DNS records appear within about five minutes and
-   certificates shortly after. Until then, browsers warn.
+2. **Wait for certificates.** Each application gets its certificate as it
+   starts, within a few minutes. Until then, browsers warn.
 3. **Open `https://dashboard.<your-domain>`** and sign in.
 4. **Look at Datalix.** The seven buckets should exist. After the first night,
    the `…-backup`, `…-postgres-backups` and `…-velero-backups` buckets should
@@ -213,8 +214,13 @@ other hand, are still open to the internet. One step fixes both:
 ```
 
 It joins the server to the tailnet, offers to install the Tailscale client on
-it, and prints how to join your own computer. When `ssh root@admin.<your-domain>`
-works from your computer, close the public admin ports:
+it, and prints how to join your own computer. Partway through it shows one more
+DNS record for you to create, `admin.<your-domain>` pointing at the server's
+tailnet address. It has to be its own record; the wildcard would otherwise
+answer for it with the public address.
+
+When `ssh root@admin.<your-domain>` works from your computer, close the public
+admin ports:
 
 ```bash
 ssh root@admin.<your-domain> smallworlds-firewall close
@@ -233,7 +239,8 @@ there.
 | Install stops at "Bootstrapping", mentions `nft` | `nftables` not installed | Step 2.5, then press Install again |
 | Apps never become healthy; `garage-init` jobs keep restarting | Datalix refused to create a bucket | `kubectl -n nextcloud logs job/garage-init` names the bucket. Create it by hand, or allow the key to create buckets. |
 | Photos does not start | Gallery on this setup is the least-tested part | `kubectl -n immich get pods` and the logs of `immich-server`. To fall back to Immich, re-run the wizard with **Photos runs: Immich**; photos then live on the VPS disk. |
-| Certificates stay pending | Nameservers not yet pointing at Hetzner | Re-check step 4.3 |
+| Install stops at once, saying the name does not point at the server | The wildcard record is missing, wrong, or not visible yet | Re-check step 4; run the install again when `dig` prints the server's address |
+| Certificates stay pending | Port 80 is not reachable from the internet, or the record changed | `smallworlds-firewall status` must list `tcp 80`; `kubectl get challenges -A` shows what Let's Encrypt saw |
 | Cannot SSH after the install | The firewall missed your SSH port | Contabo web console, then `smallworlds-firewall open`; report the port your `sshd` uses |
 | Video in Meet fails, chat works | UDP 10000 blocked | `smallworlds-firewall status` should list `udp 10000` |
 
@@ -259,4 +266,5 @@ be picked up.
 - Why object storage can be external: `docs/adr/0053`
 - Why Gallery, and what it changes: `docs/adr/0054`
 - Why a rented server uses this path, and how the firewall works: `docs/adr/0055`
+- Why no DNS provider account is needed: `docs/adr/0056`
 - Every other installation option: `README.md` and `doc/local-deployment.md`

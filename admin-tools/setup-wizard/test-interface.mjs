@@ -91,12 +91,24 @@ check("a rented server shows the machine fields without the LAN questions",
       !(await page.locator("#local-tls-field").isVisible()) &&
       !(await page.locator("#local-public-field").isVisible()) &&
       (await page.locator("#vps-hint").isVisible()));
+check("a rented server is offered DNS by hand, with no Hetzner token asked for",
+      (await page.inputValue("#local_dns")) === "manual" &&
+      !(await page.locator("#hcloud-token-local-field").isVisible()) &&
+      (await page.locator("#wildcard-name").textContent()) === "*.example.org",
+      await page.locator("#wildcard-name").textContent());
+await page.selectOption("#local_dns", "hetzner");
+await page.waitForTimeout(200);
+check("choosing managed DNS asks for the Hetzner token again",
+      await page.locator("#hcloud-token-local-field").isVisible());
+await page.selectOption("#local_dns", "manual");
 check("a rented server may put the photo library on another disk",
       await page.locator("#library_dir").isVisible());
 await page.check('input[name="target"][value="local"]');
 await page.waitForTimeout(250);
-check("a LAN machine gets its questions back",
+check("a LAN machine gets its questions back, and is not offered DNS by hand",
       (await page.locator("#local-tls-field").isVisible()) &&
+      !(await page.locator("#local-dns-field").isVisible()) &&
+      (await page.locator("#hcloud-token-local-field").isVisible()) &&
       !(await page.locator("#vps-hint").isVisible()));
 
 // docs/adr/0053: an external S3 provider replaces Garage and the second disk.

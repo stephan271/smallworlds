@@ -276,6 +276,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         )
 
     def _check_dns(self, body: dict) -> dict:
+        if body.get("manual"):
+            # Whose nameservers the domain uses is only a question when the
+            # installer is going to write records there (docs/adr/0056).
+            return checks.ok("You keep the DNS records yourself, so any DNS provider works.")
         return checks.check_domain_nameservers((body.get("domain") or "").strip().lower())
 
     def _check_git(self, body: dict) -> dict:

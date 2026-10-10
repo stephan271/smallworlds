@@ -971,9 +971,32 @@ else
     else
         LOCAL_FIREWALL="no"
     fi
-    # Both paths talk to the same Hetzner DNS API: DNS-01 to solve challenges,
-    # DDNS to maintain the A records.
-    if [[ "$LOCAL_TLS" == "letsencrypt" || "$LOCAL_PUBLIC" == "yes" ]]; then
+    # Who keeps the DNS records (docs/adr/0056). "hetzner": the installer does,
+    # through the Hetzner DNS API, which needs the domain delegated there and a
+    # token. "manual": you create one wildcard record at whatever DNS provider
+    # you already use, and certificates are proven over HTTP instead of DNS —
+    # no Hetzner account at all. Manual is only offered for an exposed machine:
+    # the HTTP proof is Let's Encrypt fetching a file from port 80, which a
+    # LAN-only cluster cannot answer.
+    if [[ "$LOCAL_PUBLIC" == "yes" ]]; then
+        if [[ -z "$LOCAL_DNS" ]]; then
+            LOCAL_DNS="hetzner"
+        fi
+        echo ""
+        echo -e "DNS records can be ${CYAN}managed for you${NC} through Hetzner DNS (needs the domain's"
+        echo -e "nameservers pointed at Hetzner and an API token), or kept ${CYAN}by hand${NC}: you create"
+        echo -e "one wildcard record ${CYAN}*${ENV_EXT}.${DOMAIN}${NC} pointing at the server, at any DNS provider."
+        ask_with_default "DNS records: hetzner (managed) or manual" "LOCAL_DNS" "false" "required"
+        case "$LOCAL_DNS" in
+            manual|m|hand) LOCAL_DNS="manual";;
+            *) LOCAL_DNS="hetzner";;
+        esac
+    else
+        LOCAL_DNS="hetzner"
+    fi
+    # Both managed paths talk to the same Hetzner DNS API: DNS-01 to solve
+    # challenges, DDNS to maintain the A records.
+    if [[ "$LOCAL_DNS" != "manual" && ( "$LOCAL_TLS" == "letsencrypt" || "$LOCAL_PUBLIC" == "yes" ) ]]; then
         ask_with_default "14. Paste your Hetzner API Token (used for DNS records only)" "HCLOUD_TOKEN" "true" "required"
     fi
 fi
@@ -1028,6 +1051,7 @@ BOOTSTRAP_RELEASE="${BOOTSTRAP_RELEASE}"
 LOCAL_PUBLIC="${LOCAL_PUBLIC}"
 LOCAL_TLS="${LOCAL_TLS}"
 LOCAL_FIREWALL="${LOCAL_FIREWALL}"
+LOCAL_DNS="${LOCAL_DNS}"
 LIBRARY_DIR="${LIBRARY_DIR}"
 DOMAIN="${DOMAIN}"
 ENV_EXT="${ENV_EXT}"
@@ -1076,6 +1100,11 @@ sed -i -E "s/value: \"(invitation|self-registration)\"/value: \"$ONBOARDING_MODE
 # future hetzner or internet-exposed runs.
 SECRETS_HCLOUD_TOKEN="$HCLOUD_TOKEN"
 if [[ "$DEPLOY_TARGET" == "local" && "$LOCAL_TLS" != "letsencrypt" && "$LOCAL_PUBLIC" != "yes" ]]; then
+    SECRETS_HCLOUD_TOKEN=""
+fi
+# With DNS kept by hand nothing in the cluster talks to Hetzner, whatever a
+# cache file from an earlier Hetzner install still holds.
+if [[ "$DEPLOY_TARGET" == "local" && "$LOCAL_DNS" == "manual" ]]; then
     SECRETS_HCLOUD_TOKEN=""
 fi
 
@@ -1484,6 +1513,40 @@ else
     # ==================================================================
     REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 
+    if [[ "$LOCAL_DNS" == "manual" ]]; then
+        # The one thing the operator had to do by hand, checked before any
+        # machine is touched. Let's Encrypt will ask this very name for a file
+        # on port 80; if it points elsewhere every certificate fails, and
+        # failed attempts count against a weekly limit.
+        sw_step dns-zone "Checking that your DNS record points at the server"
+        CHECK_HOST="identity${ENV_EXT}.${DOMAIN}"
+        if [[ "$LOCAL_SSH_TARGET" == "localhost" ]]; then
+            NODE_PUBLIC_IP=$(curl -4 -sf --max-time 10 https://api.ipify.org || true)
+        else
+            NODE_PUBLIC_IP=$(ssh $SSH_OPTS "$LOCAL_SSH_TARGET" \
+                "curl -4 -sf --max-time 10 https://api.ipify.org" 2>/dev/null || true)
+        fi
+        RESOLVED_IP=$(python3 -c 'import socket, sys
+try:
+    print(socket.gethostbyname(sys.argv[1]))
+except OSError:
+    pass' "$CHECK_HOST")
+        echo -e "  server's public address: ${CYAN}${NODE_PUBLIC_IP:-unknown}${NC}"
+        echo -e "  ${CHECK_HOST} resolves to: ${CYAN}${RESOLVED_IP:-nothing}${NC}"
+        if [[ "${SW_SKIP_DNS_CHECK:-}" == "1" ]]; then
+            echo -e "${YELLOW}SW_SKIP_DNS_CHECK=1 — not comparing them.${NC}"
+        elif [[ -z "$NODE_PUBLIC_IP" ]]; then
+            echo -e "${YELLOW}Could not ask the server for its public address; not comparing.${NC}"
+        elif [[ "$RESOLVED_IP" != "$NODE_PUBLIC_IP" ]]; then
+            sw_step_fail dns-zone "${CHECK_HOST} does not point at the server"
+            echo -e "${RED}${CHECK_HOST} does not point at ${NODE_PUBLIC_IP}.${NC}" >&2
+            sw_guidance "Create the DNS record" \
+                "At your DNS provider, add an A record named *${ENV_EXT} (a wildcard) for ${DOMAIN} with the value ${NODE_PUBLIC_IP}, wait until '${CHECK_HOST}' resolves to that address, then run the install again. A new record can take from a minute to an hour to be visible."
+            exit 1
+        fi
+        sw_step_ok dns-zone
+    fi
+
     command -v git >/dev/null 2>&1 || { echo -e "${RED}git is required to resolve the overlay commit.${NC}"; exit 1; }
 
     # The node is pointed at one exact overlay commit, not at a branch.
@@ -1514,7 +1577,11 @@ else
     #     apps, so it is opt-in rather than the LAN default.
     #   MANAGE_DNS -> the in-cluster DDNS CronJob maintains the A records, which
     #     only matters when the apps should be reachable from outside.
+    #
+    # With DNS kept by hand (docs/adr/0056) neither applies: the operator's
+    # wildcard record is the A records, and the challenge is HTTP-01.
     LOCAL_ACME_EMAIL=""
+    ACME_CHALLENGE="dns01"
     MANAGE_DNS=""
     if [[ "$LOCAL_TLS" == "letsencrypt" ]]; then
         LOCAL_ACME_EMAIL="$ADMIN_EMAIL"
@@ -1522,13 +1589,19 @@ else
     if [[ "$LOCAL_PUBLIC" == "yes" ]]; then
         MANAGE_DNS="true"
     fi
+    if [[ "$LOCAL_DNS" == "manual" ]]; then
+        ACME_CHALLENGE="http01"
+        MANAGE_DNS=""
+    fi
 
-    # Either path writes records into the zone, so it has to exist first.
-    if [[ -n "$LOCAL_ACME_EMAIL" || -n "$MANAGE_DNS" ]]; then
+    # Either managed path writes records into the zone, so it has to exist
+    # first. With DNS kept by hand there is no zone of ours to create; the
+    # record was checked at the very start of this branch.
+    if [[ "$LOCAL_DNS" != "manual" && ( -n "$LOCAL_ACME_EMAIL" || -n "$MANAGE_DNS" ) ]]; then
         ensure_dns_zone
     fi
 
-    if [[ "$LOCAL_PUBLIC" == "yes" ]]; then
+    if [[ "$LOCAL_PUBLIC" == "yes" && "$LOCAL_DNS" != "manual" ]]; then
         PUBLIC_IP=$(curl -4 -sf --max-time 10 https://api.ipify.org || true)
         echo -e "${CYAN}Detected public IP: ${PUBLIC_IP:-unknown}${NC}"
         if [[ "$LOCAL_FIREWALL" == "yes" ]]; then
@@ -1585,6 +1658,7 @@ ENV_EXT="${ENV_EXT}"
 ROOT_APP_GIT_URL="${GITOPS_REPO_URL}"
 ROOT_APP_GIT_REVISION="${ROOT_APP_GIT_REVISION}"
 ACME_EMAIL="${LOCAL_ACME_EMAIL}"
+ACME_CHALLENGE="${ACME_CHALLENGE}"
 MANAGE_DNS="${MANAGE_DNS}"
 DATA_DIR="${DATA_DIR}"
 BACKUP_DIR="${BACKUP_DIR}"
@@ -1686,9 +1760,21 @@ echo ""
 if [[ "$DEPLOY_TARGET" == "hetzner" ]]; then
     echo -e "Your applications will take a few minutes to boot up and fetch their SSL certificates."
 elif [[ "$LOCAL_PUBLIC" == "yes" && "$LOCAL_FIREWALL" == "yes" ]]; then
-    echo -e "Your applications will take a few minutes to boot up. An in-cluster job creates the"
-    echo -e "public DNS records on its first run (within ~5 minutes); Let's Encrypt certificates"
-    echo -e "are issued shortly after — expect certificate warnings until then."
+    if [[ "$LOCAL_DNS" == "manual" ]]; then
+        echo -e "Your applications will take a few minutes to boot up. Let's Encrypt certificates are"
+        echo -e "issued one by one as each application starts — expect certificate warnings until then."
+        echo ""
+        echo -e "${YELLOW}You keep the DNS records yourself:${NC} the wildcard ${CYAN}*${ENV_EXT}.${DOMAIN}${NC} covers every"
+        echo -e "application. If the server's address ever changes, change that record."
+        if selected_apps | grep -qx stalwart; then
+            echo -e "${YELLOW}Mail records (MX, SPF, DKIM, DMARC) were NOT created${NC} — see doc/mail.md for"
+            echo -e "what to enter at your DNS provider; mail will not be delivered without them."
+        fi
+    else
+        echo -e "Your applications will take a few minutes to boot up. An in-cluster job creates the"
+        echo -e "public DNS records on its first run (within ~5 minutes); Let's Encrypt certificates"
+        echo -e "are issued shortly after — expect certificate warnings until then."
+    fi
     echo ""
     echo -e "${YELLOW}Notes for a rented server:${NC}"
     echo -e " - The host firewall admits SSH, 80/tcp, 443/tcp, 6443/tcp and what the selected"

@@ -216,6 +216,11 @@ def initial_state() -> dict:
         # it as a third kind of machine; underneath it is the local target
         # with public exposure and a host firewall.
         "host_firewall": "yes" if cached.get("LOCAL_FIREWALL") == "yes" else "no",
+        # Who keeps the DNS records (docs/adr/0056). `local_dns_remembered`
+        # lets the page suggest "by hand" for a rented server without
+        # overriding an answer this machine already gave.
+        "local_dns": "manual" if cached.get("LOCAL_DNS") == "manual" else "hetzner",
+        "local_dns_remembered": bool(cached.get("LOCAL_DNS")),
         "library_dir": cached.get("LIBRARY_DIR", ""),
         "photo_backend": stored.get("STORED_PHOTO_BACKEND") or "immich",
 
@@ -353,8 +358,14 @@ def validate_answers(answers: dict) -> list[dict]:
                 problem("backup_dir", "The backup directory must be an absolute path.")
             if answers.get("data_dir") and answers.get("data_dir") == answers.get("backup_dir"):
                 problem("backup_dir", "Backups cannot live in the data directory (docs/adr/0048).")
-        needs_dns = (answers.get("local_tls") == "letsencrypt"
-                     or answers.get("local_public") == "yes")
+        manual_dns = answers.get("local_dns") == "manual"
+        if manual_dns and answers.get("local_public") != "yes":
+            problem("local_dns",
+                    "Keeping DNS by hand only works for a machine reachable from the "
+                    "internet: its certificates are proven by Let's Encrypt fetching a "
+                    "file from port 80.")
+        needs_dns = (not manual_dns) and (answers.get("local_tls") == "letsencrypt"
+                                          or answers.get("local_public") == "yes")
         if needs_dns and not answers.get("hcloud_token") and not answers.get("use_saved_hcloud_token"):
             problem(
                 "hcloud_token",
@@ -444,6 +455,8 @@ def build_plan(answers: dict) -> dict:
         storage_summary = "on the machine itself (Garage), with backups on its second disk"
 
     rented = target == "local" and answers.get("host_firewall") == "yes"
+    manual_dns = target == "local" and answers.get("local_dns") == "manual"
+    wildcard = f"*{env_ext}.{domain}"
     gallery = "immich" in apps and answers.get("photo_backend") == "gallery"
     library_dir = (answers.get("library_dir") or "").strip()
     if "immich" not in apps:
@@ -484,12 +497,17 @@ def build_plan(answers: dict) -> dict:
         reachable = "from the internet"
     else:
         certificates = (
+            "Let's Encrypt, proven over HTTP — no DNS provider account needed"
+            if answers.get("local_tls") == "letsencrypt" and manual_dns else
             "Let's Encrypt, over a DNS-01 challenge — no port forwarding and "
             "no public IP needed"
             if answers.get("local_tls") == "letsencrypt"
             else "self-signed, which breaks single sign-on between the applications"
         )
         reachable = (
+            f"from the internet, through the record {wildcard} that you keep yourself"
+            + (", behind a firewall the installer sets up" if rented else "")
+            if manual_dns else
             "from the internet, behind a firewall the installer sets up on the machine"
             if rented else
             "from the internet, with an in-cluster job maintaining the A records"
@@ -579,6 +597,19 @@ def build_plan(answers: dict) -> dict:
                 "the library disk, which Gallery does not use — the export is "
                 "switched off and nothing fills the pods."
             )
+    if manual_dns:
+        warnings.append(
+            f"Before installing, create one DNS record at your DNS provider: an A "
+            f"record named {wildcard} pointing at the server's public address. The "
+            "install checks it first and stops, having changed nothing, if it does "
+            "not resolve yet."
+        )
+        if "stalwart" in apps:
+            warnings.append(
+                "With DNS kept by hand the mail records (MX, SPF, DKIM, DMARC) are "
+                "not created for you. Mail is not delivered until you enter them "
+                "yourself — see doc/mail.md."
+            )
     if rented:
         warnings.append(
             "The installer will close every inbound port on the machine except "
@@ -592,7 +623,14 @@ def build_plan(answers: dict) -> dict:
                 "pointing at the mail hostname. Set it in your provider's control "
                 "panel — the installer can only do that at Hetzner."
             )
-    if target == "local" and answers.get("local_public") == "yes" and not rented:
+    if target == "local" and answers.get("local_public") == "yes" and not rented and manual_dns:
+        warnings.append(
+            "Internet exposure needs a fixed public IPv4 (no CGNAT) and these "
+            "forwards on your router to the machine: 80/tcp, 443/tcp and "
+            "10000/udp. With DNS kept by hand nothing updates the record if "
+            "your connection's address changes."
+        )
+    if target == "local" and answers.get("local_public") == "yes" and not rented and not manual_dns:
         warnings.append(
             "Internet exposure needs a public IPv4 (no CGNAT) and these forwards "
             "on your router to the machine: 80/tcp, 443/tcp and 10000/udp."

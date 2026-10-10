@@ -269,6 +269,24 @@ def test_plan_module():
     check("mail on a rented server is told about reverse DNS, not home connections",
           any("PTR" in warning for warning in rented_plan["warnings"])
           and not any("home connection" in warning for warning in rented_plan["warnings"]))
+    # docs/adr/0056: DNS kept by hand, so no Hetzner account at all.
+    by_hand = {**rented, "hcloud_token": "", "local_dns": "manual"}
+    check("a rented server with DNS kept by hand needs no Hetzner token",
+          fields(by_hand) == set())
+    check("the same server with managed DNS still does",
+          "hcloud_token" in fields({**rented, "hcloud_token": ""}))
+    check("DNS by hand is refused for a machine that is not on the internet",
+          "local_dns" in fields({**by_hand, "local_public": "no", "host_firewall": "no"}))
+    by_hand_plan = plan.build_plan({**complete, **by_hand, "env_ext": ".dev",
+                                    "apps": ["nextcloud", "stalwart"]})
+    check("the plan names the one record to create",
+          any("*.dev.example.org" in warning for warning in by_hand_plan["warnings"]))
+    check("the plan says certificates are proven over HTTP",
+          "HTTP" in by_hand_plan["summary"]["certificates"])
+    check("mail with DNS by hand warns that its records are not created",
+          any("MX" in warning for warning in by_hand_plan["warnings"]))
+    check("managed DNS is not told to create a record",
+          not any("create one DNS record" in warning for warning in rented_plan["warnings"]))
     check("the plan says where the photo library goes",
           "/mnt/big/photos" in rented_plan["summary"]["photos"])
 
@@ -715,6 +733,13 @@ def test_runner():
           (cached_rented["DEPLOY_TARGET"], cached_rented["LOCAL_PUBLIC"],
            cached_rented["LOCAL_FIREWALL"], cached_rented["LIBRARY_DIR"]) ==
           ("local", "yes", "yes", "/mnt/big/photos"))
+    check("managed DNS is what the installer is told unless chosen otherwise",
+          cached_rented["LOCAL_DNS"] == "hetzner")
+    by_hand_cache = os.path.join(directory, "by-hand-cache.env")
+    runner.write_installer_cache({**rented_answers, "local_dns": "manual"}, by_hand_cache,
+                                 {**external_tokens, "HCLOUD_TOKEN": ""})
+    check("DNS by hand reaches the installer",
+          plan_module()._read_shell_assignments(by_hand_cache)["LOCAL_DNS"] == "manual")
     check("a Hetzner install never asks for a host firewall",
           plan_module()._read_shell_assignments(external_cache)["LOCAL_FIREWALL"] == "no")
     check("without a backup endpoint no backup key is passed on",

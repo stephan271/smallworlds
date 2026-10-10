@@ -138,6 +138,8 @@ decided per install:
 
 **A VPS at another provider** is not a third target: it is `local` with internet exposure and `HOST_FIREWALL` (`docs/adr/0055`, `doc/local-deployment.md`). The bootstrap's nftables allow-list mirrors the `hcloud_firewall` rules in `main.tf` — a port opened in one needs opening in the other (`FIREWALL_TCP_PORTS`/`FIREWALL_UDP_PORTS` in `smallworlds-init.sh`).
 
+**DNS on an exposed `local` machine is `hetzner` or `manual`** (`LOCAL_DNS`, `docs/adr/0056`). Manual means one operator-kept wildcard record, `ACME_CHALLENGE=http01` in the bootstrap (same issuer name, different solver), no DDNS job, no zone creation and no Hetzner token in any Secret. Anything new that writes a DNS record must have a manual-mode answer — print the record, as `setup-vpn.sh` does for `admin.<domain>`.
+
 **Rebuilding a node:** `SMALLWORLDS_REPLACE_NODE=1 ./smallworlds-init.sh` passes
 `-replace=hcloud_server.smallworlds_pilot_node` to the apply (guarded on the resource
 actually being in state — `-replace` on a missing one aborts the whole apply). This is the

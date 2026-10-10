@@ -29,7 +29,7 @@ STAGE_LABELS = {
     "repo-apps": "Write the application overlays",
     "repo-commit": "Commit the configuration",
     "repo-push": "Push it to your Git host",
-    "dns-zone": "Prepare the DNS zone",
+    "dns-zone": "Prepare DNS",
     "ssh-key": "Register the admin SSH key",
     "primary-ip": "Reserve the public address",
     "terraform-apply": "Create the server",
@@ -150,6 +150,8 @@ def write_installer_cache(answers: dict, path: str, token_source: dict) -> None:
         "LOCAL_TLS": answers.get("local_tls", "letsencrypt"),
         "LOCAL_FIREWALL": "yes" if (answers.get("target") == "local"
                                     and answers.get("host_firewall") == "yes") else "no",
+        "LOCAL_DNS": "manual" if (answers.get("target") == "local"
+                                  and answers.get("local_dns") == "manual") else "hetzner",
         "LIBRARY_DIR": (answers.get("library_dir") or "").strip()
                        if answers.get("target") == "local" else "",
         "DOMAIN": answers["domain"],

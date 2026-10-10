@@ -147,6 +147,48 @@ check_absent "$output" "S3_BACKUP_ACCESS_KEY_ID" "no backup key asked for when b
 check_contains "$output" ">>> step:dns-zone" "reached provisioning, so every question was answered"
 
 # --------------------------------------------------------------------------
+echo "smallworlds-init.sh — DNS kept by hand (no Hetzner account)"
+# --------------------------------------------------------------------------
+# A rented server whose operator keeps one wildcard record themselves
+# (docs/adr/0056). The ssh stub answers the "what is your public address"
+# question; identity.example.org does not resolve to it, here or anywhere.
+write_rented_cache() {
+    write_init_cache
+    cat >> "$init_root/.smallworlds-cache.env" <<CACHE
+DEPLOY_TARGET="local"
+LOCAL_SSH_TARGET="root@203.0.113.9"
+LOCAL_TLS="letsencrypt"
+LOCAL_PUBLIC="yes"
+LOCAL_FIREWALL="yes"
+LOCAL_DNS="$1"
+HCLOUD_TOKEN=""
+CACHE
+}
+printf '#!/bin/sh\necho 203.0.113.9\n' > "$stub_bin/ssh"
+
+write_rented_cache hetzner
+output="$(run_init SMALLWORLDS_NONINTERACTIVE=1)"
+check_contains "$output" "!!! missing:HCLOUD_TOKEN" "managed DNS still requires the Hetzner token"
+
+write_rented_cache manual
+output="$(run_init SMALLWORLDS_NONINTERACTIVE=1)"
+status=$?
+check_contains "$output" "LOCAL_DNS: manual" "took DNS by hand"
+check_absent "$output" "!!! missing:HCLOUD_TOKEN" "DNS by hand asks for no Hetzner token"
+check_contains "$output" ">>> fail:dns-zone" "a record that does not point at the server stops the install"
+check_contains "$output" "A record named * (a wildcard) for example.org with the value 203.0.113.9" \
+    "and says exactly which record to create"
+check_absent "$output" ">>> step:bootstrap" "before the machine is touched"
+if [[ "$status" -eq 1 ]]; then pass "exited 1, not 78: nothing was missing"; else
+    fail "exited 1, not 78 — got $status"
+fi
+
+output="$(run_init SMALLWORLDS_NONINTERACTIVE=1 SW_SKIP_DNS_CHECK=1)"
+check_contains "$output" ">>> ok:dns-zone" "with the record in place the install goes on"
+check_absent "$output" "Ensuring the Hetzner DNS zone exists" "and never touches Hetzner DNS"
+printf '#!/bin/sh\nexit 0\n' > "$stub_bin/ssh"
+
+# --------------------------------------------------------------------------
 echo "smallworlds-init.sh — interactive is unchanged"
 # --------------------------------------------------------------------------
 # read -p only renders its prompt on a terminal, so this needs a real pty:

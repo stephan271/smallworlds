@@ -19,7 +19,7 @@ Watch the [SmallWorlds Lightning Talk](https://rawcdn.githack.com/stephan271/sma
 > **Prototype — not production-ready.** SmallWorlds is still in an early prototyping state. It is intended for experimentation and evaluation only, and is **not yet suitable for production environments**. Expect breaking changes, incomplete hardening, and no stability or upgrade guarantees. Use at your own risk.
 
 > [!IMPORTANT]
-> **Not Hetzner-only.** `smallworlds-init.sh` supports two deployment targets: **`hetzner`** (a Hetzner Cloud VM provisioned by Terraform) and **`local`** (an existing Linux machine in your LAN, bootstrapped in place over SSH — no cloud account needed). Hetzner is still required for **public DNS** — either via Terraform on the `hetzner` target, or via a free Hetzner DNS zone + API token on an **internet-exposed** `local` deployment. A LAN-only `local` deployment needs no Hetzner account, no domain registration, and no cloud resources at all. The `local` target also installs a **VPS rented from any other provider** (Contabo, OVH, …), with a firewall set up on the machine. See the "Deployment Instructions" section below and `doc/local-deployment.md` for details.
+> **Not Hetzner-only.** `smallworlds-init.sh` supports two deployment targets: **`hetzner`** (a Hetzner Cloud VM provisioned by Terraform) and **`local`** (an existing Linux machine in your LAN, bootstrapped in place over SSH — no cloud account needed). Hetzner DNS is what **manages public DNS for you** — via Terraform on the `hetzner` target, or via a free Hetzner DNS zone + API token on an **internet-exposed** `local` deployment — but it is optional there: an exposed `local` machine can instead use one wildcard record that you keep yourself, at any DNS provider, with no Hetzner account at all. A LAN-only `local` deployment needs no Hetzner account, no domain registration, and no cloud resources at all. The `local` target also installs a **VPS rented from any other provider** (Contabo, OVH, …), with a firewall set up on the machine. See the "Deployment Instructions" section below and `doc/local-deployment.md` for details.
 
 This document outlines the deployment process for a SmallWorlds GitOps cluster. The architecture relies on an upstream foundation repository and a private, user-controlled configuration repository.
 
@@ -69,20 +69,21 @@ SmallWorlds supports two deployment targets — you are asked which one you want
 - **`hetzner`** — a Hetzner Cloud VM provisioned by Terraform, with public DNS and Let's Encrypt certificates. The internet-facing default.
 - **`local`** — an existing Linux machine in your LAN (laptop, mini-PC, home server; 32 GB RAM recommended), bootstrapped in place over SSH without Terraform. By default LAN-only: no public DNS (you add router-DNS or `/etc/hosts` entries). Optionally **internet-exposed**: with a registered domain, a Hetzner DNS token and router port forwards (80/tcp, 443/tcp, 10000/udp), an in-cluster DDNS job keeps the DNS records pointed at your home IP. See [`doc/local-deployment.md`](doc/local-deployment.md) for requirements and limitations before you start.
 
-A **server rented from another provider** is the `local` target too: answer yes to internet exposure and yes to the host firewall (in the wizard: "A server you rent elsewhere"). You order the machine and delegate the domain to Hetzner DNS; the installer does the rest. See ["A rented server (VPS)"](doc/local-deployment.md#a-rented-server-vps--docsadr0055).
+A **server rented from another provider** is the `local` target too: answer yes to internet exposure and yes to the host firewall (in the wizard: "A server you rent elsewhere"). You order the machine and create one DNS record; the installer does the rest. See ["A rented server (VPS)"](doc/local-deployment.md#a-rented-server-vps--docsadr0055).
 
 For that case with S3 storage at Datalix there is a single start-to-finish guide: [`doc/install-contabo-datalix.md`](doc/install-contabo-datalix.md).
 
-Three further choices are made at install time, each recorded in a decision record:
+Four further choices are made at install time, each recorded in a decision record:
 
 | Choice | Options | Default | See |
 |---|---|---|---|
 | Where files and backups are kept | The in-cluster Garage (needs a second disk for backups), or an external S3 provider (one disk is enough; the provider can read what is stored) | Garage | [`docs/adr/0053`](docs/adr/0053-object-storage-is-in-house-or-external.md) |
 | What Photos runs | Immich (photos on the machine's disk), or Gallery (photos in S3) | Immich | [`docs/adr/0054`](docs/adr/0054-gallery-is-a-variant-of-the-immich-tenant.md) |
 | Host firewall | Only for a machine directly on the internet | off | [`docs/adr/0055`](docs/adr/0055-a-rented-server-is-the-local-target-with-its-own-firewall.md) |
+| DNS records (exposed `local` machine) | Managed through Hetzner DNS, or one wildcard record you create yourself — no Hetzner account | Managed | [`docs/adr/0056`](docs/adr/0056-dns-can-be-kept-by-hand.md) |
 
 > [!NOTE]
-> These three are new and have passed their automated tests, but **none has been installed against a real S3 provider, a real rented server or a running Gallery yet**. Treat a first install as a trial, on a domain and a bucket you can throw away.
+> These four are new and have passed their automated tests, but **none has been installed against a real S3 provider, a real rented server or a running Gallery yet, and no certificate has been issued over HTTP**. Treat a first install as a trial, on a domain and a bucket you can throw away.
 
 There are two ways to install, and they do the same thing — **the wizard runs the scripts**, so there is one install code path, not two.
 

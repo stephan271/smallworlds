@@ -114,9 +114,8 @@
                placeholder="root@192.168.1.50, or localhost for this machine">
         <p class="hint">Needs a systemd Linux, SSH key access and sudo rights.</p>
         <p class="hint" id="vps-hint" hidden>For a rented server: order it with
-          Debian or Ubuntu, add your SSH key, and point your domain's nameservers
-          at Hetzner DNS — certificates and DNS records are managed there
-          wherever the server is.</p>
+          Debian or Ubuntu and add your SSH key. For DNS, see below — one record
+          you create yourself is enough.</p>
       </div>
       <details class="advanced" open>
         <summary>Storage and certificates</summary>
@@ -157,7 +156,18 @@
           <p class="hint">Needs a public IPv4 without CGNAT and these forwards on
             your router: 80/tcp, 443/tcp, 10000/udp.</p>
         </div>
-        <div class="field">
+        <div class="field" id="local-dns-field">
+          <label for="local_dns">DNS records</label>
+          <select id="local_dns">
+            <option value="manual">I create one record myself — no Hetzner account needed</option>
+            <option value="hetzner">Managed for me through Hetzner DNS</option>
+          </select>
+          <p class="hint" id="manual-dns-hint">At your DNS provider, create an A
+            record named <strong id="wildcard-name">*</strong> pointing at the
+            server's public address, before you install. Certificates are then
+            proven over HTTP.</p>
+        </div>
+        <div class="field" id="hcloud-token-local-field">
           <label for="hcloud_token_local">Hetzner API token (DNS only)</label>
           <input id="hcloud_token_local" type="password" autocomplete="off">
           <p class="hint">Both Let's Encrypt and internet exposure write records
