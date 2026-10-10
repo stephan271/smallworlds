@@ -890,6 +890,16 @@ else
         DATA_DIR="/var/lib/smallworlds-data"
     fi
     ask_with_default "10. Enter the data directory on the server (all user data lives here)" "DATA_DIR" "false" "required"
+    # Only plain Immich keeps photos on the node (Gallery keeps them in S3,
+    # docs/adr/0054), and the library is the one thing that outgrows a small
+    # fast disk — so it alone may be pointed at another one.
+    if selected_apps | grep -qx immich && [[ "$(community_setting STORED_PHOTO_BACKEND)" != "gallery" ]]; then
+        echo -e "The photo library can live on a ${CYAN}second, larger disk${NC}. Leave empty to keep it"
+        echo -e "inside the data directory."
+        ask_with_default "Photo library directory (optional)" "LIBRARY_DIR" "false"
+    else
+        LIBRARY_DIR=""
+    fi
     if [[ -z "$BACKUP_DIR" ]]; then
         BACKUP_DIR="/var/lib/smallworlds-backup"
     fi
@@ -941,6 +951,26 @@ else
         y|Y|yes|Yes|YES) LOCAL_PUBLIC="yes";;
         *) LOCAL_PUBLIC="no";;
     esac
+    # A rented server has no router in front of it, so nothing closes the
+    # Kubernetes ports unless the machine does it itself (docs/adr/0055). Asked
+    # only for an exposed machine, and never assumed: behind a router this
+    # would add nothing, and a wrong guess about the SSH port locks one out.
+    if [[ "$LOCAL_PUBLIC" == "yes" ]]; then
+        if [[ -z "$LOCAL_FIREWALL" ]]; then
+            LOCAL_FIREWALL="no"
+        fi
+        echo ""
+        echo -e "If this machine is ${CYAN}directly on the internet${NC} — a rented VPS with a public"
+        echo -e "address and no router in front — the installer should close every inbound"
+        echo -e "port except SSH, the web ports and those the selected apps need."
+        ask_with_default "Set up a host firewall on the machine? (yes/no)" "LOCAL_FIREWALL" "false" "required"
+        case "$LOCAL_FIREWALL" in
+            y|Y|yes|Yes|YES) LOCAL_FIREWALL="yes";;
+            *) LOCAL_FIREWALL="no";;
+        esac
+    else
+        LOCAL_FIREWALL="no"
+    fi
     # Both paths talk to the same Hetzner DNS API: DNS-01 to solve challenges,
     # DDNS to maintain the A records.
     if [[ "$LOCAL_TLS" == "letsencrypt" || "$LOCAL_PUBLIC" == "yes" ]]; then
@@ -997,6 +1027,8 @@ PROFILE_ID="${PROFILE_ID}"
 BOOTSTRAP_RELEASE="${BOOTSTRAP_RELEASE}"
 LOCAL_PUBLIC="${LOCAL_PUBLIC}"
 LOCAL_TLS="${LOCAL_TLS}"
+LOCAL_FIREWALL="${LOCAL_FIREWALL}"
+LIBRARY_DIR="${LIBRARY_DIR}"
 DOMAIN="${DOMAIN}"
 ENV_EXT="${ENV_EXT}"
 ADMIN_EMAIL="${ADMIN_EMAIL}"
@@ -1499,9 +1531,13 @@ else
     if [[ "$LOCAL_PUBLIC" == "yes" ]]; then
         PUBLIC_IP=$(curl -4 -sf --max-time 10 https://api.ipify.org || true)
         echo -e "${CYAN}Detected public IP: ${PUBLIC_IP:-unknown}${NC}"
-        echo -e "${YELLOW}Reminder: forward 80/tcp, 443/tcp and 10000/udp on your router to the server,${NC}"
-        echo -e "${YELLOW}or the apps will not be reachable from the internet.${NC}"
-        echo -e "${YELLOW}(Certificates do not depend on this — DNS-01 needs no inbound connection.)${NC}"
+        if [[ "$LOCAL_FIREWALL" == "yes" ]]; then
+            echo -e "${CYAN}The machine is directly on the internet; the bootstrap sets up its firewall.${NC}"
+        else
+            echo -e "${YELLOW}Reminder: forward 80/tcp, 443/tcp and 10000/udp on your router to the server,${NC}"
+            echo -e "${YELLOW}or the apps will not be reachable from the internet.${NC}"
+            echo -e "${YELLOW}(Certificates do not depend on this — DNS-01 needs no inbound connection.)${NC}"
+        fi
 
         # The DDNS CronJob (created by the bootstrap) reads the token from
         # this secret; the A records appear within its first run (~5 min).
@@ -1523,6 +1559,24 @@ stringData:
 EOF
     fi
 
+    # The host firewall's allow-list, for a machine directly on the internet.
+    # It mirrors the Hetzner target's cloud firewall (infrastructure/terraform/
+    # main.tf) so the two targets expose the same things: web, the Kubernetes
+    # API the kubeconfig points at, and what the selected apps listen on. SSH
+    # is added by the bootstrap itself, from the port sshd actually uses.
+    HOST_FIREWALL=""
+    FIREWALL_TCP_PORTS="80 443 6443"
+    FIREWALL_UDP_PORTS=""
+    if [[ "$LOCAL_FIREWALL" == "yes" ]]; then
+        HOST_FIREWALL="true"
+        if selected_apps | grep -qx stalwart; then
+            FIREWALL_TCP_PORTS="$FIREWALL_TCP_PORTS 25 587 993"
+        fi
+        if selected_apps | grep -qx jitsi; then
+            FIREWALL_UDP_PORTS="10000"
+        fi
+    fi
+
     # Config consumed by the bootstrap script on the target machine.
     LOCAL_ENV_FILE="/tmp/smallworlds-${DOMAIN}-local.env"
     cat <<EOF > "$LOCAL_ENV_FILE"
@@ -1535,6 +1589,10 @@ MANAGE_DNS="${MANAGE_DNS}"
 DATA_DIR="${DATA_DIR}"
 BACKUP_DIR="${BACKUP_DIR}"
 OBJECT_STORAGE="${OBJECT_STORAGE}"
+LIBRARY_DIR="${LIBRARY_DIR}"
+HOST_FIREWALL="${HOST_FIREWALL}"
+FIREWALL_TCP_PORTS="${FIREWALL_TCP_PORTS}"
+FIREWALL_UDP_PORTS="${FIREWALL_UDP_PORTS}"
 NODE_NAME="smallworlds-local-node"
 PROFILE_ID="${PROFILE_ID}"
 BOOTSTRAP_RUN_ID="${BOOTSTRAP_RUN_ID}"
@@ -1627,6 +1685,20 @@ echo -e "${GREEN}======================================================${NC}"
 echo ""
 if [[ "$DEPLOY_TARGET" == "hetzner" ]]; then
     echo -e "Your applications will take a few minutes to boot up and fetch their SSL certificates."
+elif [[ "$LOCAL_PUBLIC" == "yes" && "$LOCAL_FIREWALL" == "yes" ]]; then
+    echo -e "Your applications will take a few minutes to boot up. An in-cluster job creates the"
+    echo -e "public DNS records on its first run (within ~5 minutes); Let's Encrypt certificates"
+    echo -e "are issued shortly after — expect certificate warnings until then."
+    echo ""
+    echo -e "${YELLOW}Notes for a rented server:${NC}"
+    echo -e " - The host firewall admits SSH, 80/tcp, 443/tcp, 6443/tcp and what the selected"
+    echo -e "   apps listen on; everything else arriving from the internet is dropped."
+    echo -e "   Rules: ${CYAN}/etc/smallworlds/firewall.nft${NC} on the server."
+    if selected_apps | grep -qx stalwart; then
+        echo -e " - Mail: set the reverse DNS (PTR) of ${CYAN}${SERVER_IP}${NC} to ${CYAN}mail${ENV_EXT}.${DOMAIN}${NC}"
+        echo -e "   in your provider's control panel — the installer cannot do that outside"
+        echo -e "   Hetzner, and most receivers reject mail from an address without it."
+    fi
 elif [[ "$LOCAL_PUBLIC" == "yes" ]]; then
     echo -e "Your applications will take a few minutes to boot up. The in-cluster DDNS job creates"
     echo -e "the public DNS records on its first run (within ~5 minutes); Let's Encrypt certificates"

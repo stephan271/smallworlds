@@ -176,6 +176,53 @@ class RenderTest(unittest.TestCase):
         self.assertEqual(location["config"]["region"], "fra1")
         self.assertEqual(location["config"]["s3Url"], "https://backup.other.example:8443")
 
+    def test_gallery_is_immich_with_other_images_and_s3(self):
+        """docs/adr/0054: the Gallery variant, in both storage modes."""
+        immich = _render(K8S / "tenants" / "immich")
+        gallery = _render(K8S / "tenants" / "gallery")
+
+        def container(docs, name):
+            return _find(docs, "Deployment", name)["spec"]["template"]["spec"]["containers"][0]
+
+        self.assertTrue(container(gallery, "immich-server")["image"]
+                        .startswith("ghcr.io/open-noodle/gallery-server:v"))
+        self.assertTrue(container(gallery, "immich-machine-learning")["image"]
+                        .startswith("ghcr.io/open-noodle/gallery-ml:v"))
+        self.assertTrue(container(immich, "immich-server")["image"]
+                        .startswith("ghcr.io/immich-app/immich-server:"), "the Immich tenant must not move")
+
+        env = {e["name"]: e for e in container(gallery, "immich-server")["env"]}
+        self.assertEqual(env["IMMICH_STORAGE_BACKEND"]["value"], "s3")
+        # Every coordinate comes from the Secret, so this manifest is the same
+        # for Garage and for a provider and names neither.
+        for name, key in (("IMMICH_S3_BUCKET", "bucket"), ("IMMICH_S3_REGION", "region"),
+                          ("IMMICH_S3_ENDPOINT", "endpointURL"),
+                          ("IMMICH_S3_ACCESS_KEY_ID", "accessKeyId"),
+                          ("IMMICH_S3_SECRET_ACCESS_KEY", "secretAccessKey")):
+            self.assertEqual(env[name]["valueFrom"]["secretKeyRef"],
+                             {"name": "garage-secret", "key": key}, name)
+        self.assertIn("DB_HOSTNAME", env, "the chart's own environment must survive the patch")
+        self.assertNotIn("IMMICH_STORAGE_BACKEND",
+                         {e["name"] for e in container(immich, "immich-server")["env"]})
+
+        # The Recovery Point follows the photos from the PVC to the bucket.
+        self.assertIsNone(_find(gallery, "CronJob", "pv-backup"))
+        self.assertIsNone(_find(gallery, "CronJob", "immich-pod-export"))
+        backup = _find(gallery, "CronJob", "immich-originals-backup")
+        self.assertEqual(backup["metadata"]["namespace"], "immich")
+        self.assertIsNotNone(_find(immich, "CronJob", "pv-backup"))
+
+        # Everything else is the Immich tenant, resource for resource.
+        def names(docs):
+            return {(d["kind"], d["metadata"]["name"]) for d in docs
+                    if d["kind"] not in ("CronJob", "ConfigMap")}
+        self.assertEqual(names(gallery), names(immich))
+
+    def test_gallery_takes_the_same_storage_patches_as_immich(self):
+        docs = _render(self.overlay("immich", K8S / "tenants" / "gallery"))
+        spec = _find(docs, "ObjectStore", "postgres-backups")["spec"]
+        self.assertEqual(spec["configuration"]["destinationPath"], "s3://sw-demo-postgres-backups/")
+
     def test_base_without_patches_still_names_garage(self):
         # The default must not move: an overlay that says nothing gets Garage.
         docs = _render(K8S)

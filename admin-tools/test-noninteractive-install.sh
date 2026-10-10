@@ -381,6 +381,48 @@ else
 fi
 
 # --------------------------------------------------------------------------
+echo "prepare-community-repo.sh — Immich or Gallery"
+# --------------------------------------------------------------------------
+tenant_line() { grep -o 'kubernetes/tenants/[a-z-]*?ref=[^ ]*' "$overlay/immich/kustomization.yaml"; }
+set_stored STORED_APP_immich y
+sed -i '/^STORED_APP_immich=n$/d' "$stub_home/.config/smallworlds/community-setup.conf"
+output="$(run_prepare)"
+check_contains "$output" "PHOTO_BACKEND: immich" "Immich is the photo application unless told otherwise"
+check_contains "$(tenant_line)" "tenants/immich?ref=v1.2.43" "the overlay follows the Immich tenant"
+
+set_stored STORED_PHOTO_BACKEND gallery
+run_prepare >/dev/null
+check_contains "$(tenant_line)" "tenants/gallery?ref=v1.2.43" "choosing Gallery repoints the same overlay directory"
+if [[ ! -d "$overlay/gallery" ]] && ! grep -q "apps/gallery.yaml" "$overlay/kustomization.yaml" \
+   && grep -q "/apps/immich.yaml" "$overlay/kustomization.yaml"; then
+    pass "Gallery is not a second application: one directory, one Application"
+else
+    fail "Gallery is not a second application: one directory, one Application"
+fi
+if grep -q "value: photos.example.org" "$overlay/immich/kustomization.yaml"; then
+    pass "the domain patches are untouched by the switch"
+else
+    fail "the domain patches are untouched by the switch"
+fi
+
+set_stored STORED_PHOTO_BACKEND immich
+run_prepare >/dev/null
+check_contains "$(tenant_line)" "tenants/immich?ref=v1.2.43" "choosing Immich again repoints it back"
+if [[ "$(grep -c 'kubernetes/tenants/' "$overlay/immich/kustomization.yaml")" -eq 1 ]]; then
+    pass "the resource line is rewritten, not duplicated"
+else
+    fail "the resource line is rewritten, not duplicated"
+fi
+
+set_stored STORED_PHOTO_BACKEND picasa
+output="$(run_prepare)"
+status=$?
+check_contains "$output" "immich, gallery" "an unknown photo application is refused"
+if [[ "$status" -ne 0 ]]; then pass "and the script stops"; else fail "and the script stops"; fi
+set_stored STORED_PHOTO_BACKEND immich
+set_stored STORED_APP_immich n
+
+# --------------------------------------------------------------------------
 echo "prepare-community-repo.sh — a missing required value"
 # --------------------------------------------------------------------------
 rm -rf "$overlay"; mkdir -p "$overlay"

@@ -70,11 +70,17 @@ disk: the bootstrap skips the Garage directories and the two-disk check.
 | Pod archive | `pod-gateway` on `garage-backup` | `<prefix>-pod-gateway` at the backup endpoint |
 | Offsite leg | `backup-replicator` (§4 row 5) | not deployed — Recovery Points are already offsite |
 | Immich library | static PV on the data volume | unchanged: still on the node's disk |
+| Photos with Gallery (`docs/adr/0054`) | `immich` bucket on `garage`; copy with versions in `immich` on `garage-backup` | `<prefix>-immich` at the primary endpoint; copy with versions in `<prefix>-immich-backup` |
 
 The backup endpoint is the primary one unless a second was given. Paths below
 the bucket are identical in both modes, so the restore procedures in §7 apply
 with the bucket and endpoint substituted; credentials, endpoint, region and
 bucket name are all in the tenant's `garage-secret*` Secrets either way.
+
+With Gallery in place of Immich the library PVC holds only uploads in flight,
+`pv-backup` for it and the pod export are not deployed, and §7.4 does not
+apply: the photos are restored like Nextcloud's files (§7.3), bucket and
+database together.
 
 Not yet done for this mode: provider-side versioning and lifecycle rules (set
 them at the provider by hand, as §8 describes for the offsite bucket), and a

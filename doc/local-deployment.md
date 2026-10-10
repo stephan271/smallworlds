@@ -80,6 +80,45 @@ The self-signed issuer is published under the name `letsencrypt-prod`, so the
 `cluster-issuer` annotations on all Ingresses work unchanged (the same trick
 the staging pipeline uses).
 
+## A rented server (VPS) — `docs/adr/0055`
+
+A VPS from any provider that gives you a Linux machine, a public address and
+SSH is installed through this same target. In the wizard it is the choice
+"A server you rent elsewhere"; in the terminal it is `local`, answering yes to
+internet exposure and yes to the host firewall.
+
+**You do, by hand:**
+
+1. Order the server with Debian or Ubuntu and your SSH key. Check that
+   `nft` is installed (`apt install nftables`); the bootstrap stops without it.
+2. Point the domain's nameservers at Hetzner DNS and create an API token there
+   — certificates and DNS records are managed through it wherever the server
+   is. No Hetzner server is involved.
+3. If you selected mail: set the reverse DNS (PTR) of the server's address to
+   `mail.<domain>` in the provider's panel.
+4. For external object storage (`docs/adr/0053`): rent the storage and create a
+   key.
+
+**The installer does:** k3s and Argo CD, the DNS records (the same in-cluster
+job as for a home connection; on a fixed address it simply never changes
+them), Let's Encrypt certificates, every application — and the firewall.
+
+**The firewall.** `HOST_FIREWALL` makes the bootstrap write
+`/etc/smallworlds/firewall.nft` and a `smallworlds-firewall.service` that loads
+it at boot. Inbound traffic on the public interface is dropped except SSH (on
+whatever port your `sshd` uses, plus 22), 80, 443, 6443, and 25/587/993 with
+Stalwart or 10000/udp with Jitsi. It filters before NAT, so NodePorts are
+closed too. Before closing your first SSH session after the install, open a
+second one to confirm you can still get in. `--uninstall` removes it.
+
+**Disks.** With external object storage one disk is enough. If Photos runs
+Immich (not Gallery, `docs/adr/0054`), `LIBRARY_DIR` can put the photo library
+alone on a second, larger disk; the bootstrap links it into the data directory
+and refuses to touch a library that already exists there.
+
+Rebuilding the node is a reinstall in the provider's panel followed by a
+re-run of the installer — there is no `SMALLWORLDS_REPLACE_NODE` here.
+
 ## LAN name resolution (LAN-only mode)
 
 In LAN-only mode nothing manages DNS. Two layers are involved:

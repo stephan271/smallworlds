@@ -21,6 +21,27 @@ Immich does not support declarative configuration files for OIDC; it must be con
 - **Persistent Storage**: Allocates a large PersistentVolumeClaim (`immich-library-pvc`) where the actual user photos, videos, and machine learning models are stored. This relies on the foundational storage classes provisioned in sync-wave `-10`.
 - **Node-affinity gotcha**: the backing PersistentVolume (`apps/persistent-storage.yaml`) pins `kubernetes.io/hostname` to the node name. It originally listed only the Hetzner name (`cc-pilot-node-01`), so on a local-server deployment `immich-server` could never schedule (`FailedScheduling: node didn't match PersistentVolume's node affinity`); `098aa6e` added `smallworlds-local-node` so both provisioning targets bind.
 
+## The Gallery variant (`tenants/gallery`, `docs/adr/0054`)
+
+A community may run Gallery, a fork of Immich with an S3 storage backend, in
+place of Immich. `tenants/gallery/kustomization.yaml` includes this tenant and
+patches it; everything on this page still applies except:
+
+- the server and machine-learning images are Gallery's, pinned to a Gallery
+  release — bump both together and read its release notes, since a release can
+  migrate the database beyond what plain Immich reads;
+- originals, thumbnails and transcodes go to the tenant bucket. The coordinates
+  come from `garage-secret`, so there is no Garage or provider address in the
+  manifest. `IMMICH_S3_SERVE_MODE` is `proxy`; `redirect` needs a
+  browser-reachable endpoint and bucket CORS, set up by the operator;
+- `pv-backup` is replaced by `immich-originals-backup` (`bases/backup-job`),
+  and `immich-pod-export` is not deployed;
+- the library PVC remains, as scratch space for uploads and transcoding.
+
+Any change to this tenant changes Gallery as well. Render both
+(`kubectl kustomize --enable-helm infrastructure/kubernetes/tenants/gallery`);
+`admin-tools/test-object-storage.py` asserts they differ only as listed.
+
 ## Notable changes per file (from git history)
 
 ### `admin-init-job.yaml` & `admin-config.yaml`

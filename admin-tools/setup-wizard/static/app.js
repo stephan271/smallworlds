@@ -92,7 +92,10 @@ function debounce(fn, delay) {
 function answers() {
   const target = document.querySelector('input[name="target"]:checked');
   const gitMode = document.querySelector('input[name="git_mode"]:checked');
-  const usingLocal = target && target.value === "local";
+  // "A server you rent elsewhere" is the local target with a fixed posture:
+  // on the internet, real certificates, and its own firewall.
+  const rented = Boolean(target) && target.value === "vps";
+  const usingLocal = Boolean(target) && (target.value === "local" || rented);
   const storage = document.querySelector('input[name="object_storage"]:checked');
   return {
     domain: el("domain").value.trim().toLowerCase(),
@@ -100,12 +103,15 @@ function answers() {
     env_ext: el("env_ext").value.trim(),
     onboarding_mode: el("onboarding_mode").value,
 
-    target: target ? target.value : "",
+    target: rented ? "local" : (target ? target.value : ""),
     ssh_target: el("ssh_target").value.trim(),
     data_dir: el("data_dir").value.trim(),
     backup_dir: el("backup_dir").value.trim(),
-    local_tls: el("local_tls").value,
-    local_public: el("local_public").value,
+    local_tls: rented ? "letsencrypt" : el("local_tls").value,
+    local_public: rented ? "yes" : el("local_public").value,
+    host_firewall: rented ? "yes" : "no",
+    library_dir: el("library_dir").value.trim(),
+    photo_backend: el("photo_backend").value,
     hcloud_token: usingLocal ? el("hcloud_token_local").value : el("hcloud_token").value,
     use_saved_hcloud_token: state ? state.has_saved_hcloud_token : false,
 
@@ -194,6 +200,7 @@ function showInstalling() {
 const FIELD_PANEL = {
   domain: 0, admin_email: 0, env_ext: 0, onboarding_mode: 0,
   target: 1, ssh_target: 1, data_dir: 1, backup_dir: 1, hcloud_token: 1,
+  library_dir: 1, host_firewall: 1, photo_backend: 3,
   object_storage: 1, s3_endpoint: 1, s3_region: 1, s3_bucket_prefix: 1,
   s3_access_key_id: 1, s3_secret_access_key: 1, s3_backup_endpoint: 1,
   s3_backup_region: 1, s3_backup_access_key_id: 1, s3_backup_secret_access_key: 1,
@@ -348,6 +355,7 @@ function renderPlan(target, result) {
     ["Certificates", result.summary.certificates],
     ["Reachable", result.summary.reachable],
     ["Files and backups", result.summary.storage],
+    ["Photos", result.summary.photos],
     ["Members join", result.summary.onboarding === "invitation"
       ? "by invitation" : "by signing up themselves"],
     ["Settings repo", result.summary.repository],
@@ -431,8 +439,20 @@ function section(title) {
 function applyTargetVisibility() {
   const target = document.querySelector('input[name="target"]:checked');
   const value = target ? target.value : "";
+  const rented = value === "vps";
   el("hetzner-fields").hidden = value !== "hetzner";
-  el("local-fields").hidden = value !== "local";
+  el("local-fields").hidden = value !== "local" && !rented;
+  // A rented server is always public with real certificates, so those two
+  // questions are answered by the choice itself.
+  el("local-tls-field").hidden = rented;
+  el("local-public-field").hidden = rented;
+  el("vps-hint").hidden = !rented;
+}
+
+/* Which photo application is only a question once Photos is selected. */
+function applyPhotoBackendVisibility() {
+  const immich = document.querySelector('.app input[value="immich"]');
+  el("photo-backend-field").hidden = !(immich && immich.checked);
 }
 
 /* With a provider there is no backup directory to ask for: every backup goes
@@ -494,7 +514,11 @@ function fill() {
   el("env_ext").value = state.env_ext;
   el("onboarding_mode").value = state.onboarding_mode;
 
-  const target = document.querySelector(`input[name="target"][value="${state.target}"]`);
+  const remembered = state.target === "local" && state.host_firewall === "yes"
+    ? "vps" : state.target;
+  const target = document.querySelector(`input[name="target"][value="${remembered}"]`);
+  el("library_dir").value = state.library_dir;
+  el("photo_backend").value = state.photo_backend;
   if (target) target.checked = true;
   el("ssh_target").value = state.ssh_target;
   el("data_dir").value = state.data_dir;
@@ -547,6 +571,10 @@ function fill() {
   applyStorageVisibility();
   applyGitModeVisibility();
   renderApps();
+  applyPhotoBackendVisibility();
+  // The app list is rebuilt on some changes, so this listens where the boxes
+  // live rather than on the boxes themselves.
+  el("app-grid").addEventListener("change", applyPhotoBackendVisibility);
 }
 
 /* One checker for both keys: the primary provider's and, when backups go

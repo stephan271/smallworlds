@@ -60,6 +60,10 @@ Shared, reusable resources consumed by tenants via Kustomize, mostly ArgoCD sync
 
 Init job images are pinned to `alpine/k8s:<version>` (not `bitnami/kubectl:latest`, which Bitnami stopped maintaining).
 
+## Photos: Immich or Gallery (`tenants/gallery`)
+
+`tenants/gallery` is **not a second application** — it is `tenants/immich` plus patches (Gallery's images, S3 storage read from `garage-secret`, a bucket copy instead of `pv-backup`, no pod export), in the same `immich` namespace and Application (`docs/adr/0054`). An overlay selects it by pointing its `immich/` directory at that path; `prepare-community-repo.sh` rewrites the one resource line. A change to `tenants/immich` therefore changes Gallery too — render both. Do not add `gallery` to `OPTIONAL_APPS`, the DNS maps or the wizard catalog.
+
 ## The two Python agents (Hermes and Remediation)
 
 Both live under `infrastructure/kubernetes/tenants/{hermes,remediation}/src/` and share an unusual deployment pattern: **pure Python 3.14 stdlib, no third-party deps, no Dockerfile** — source runs straight from a ConfigMap-mounted volume (`kustomize configMapGenerator`) inside a stock `python:3.14-slim` image via `python -u /app/main.py`, with `PYTHONPATH=/app` set explicitly (ConfigMap volumes symlink through a timestamped `..data` dir, which breaks default import resolution otherwise). This means editing a handler is just editing the `.py` file and letting Kustomize regenerate the ConfigMap — no image build/push step, and the pod starts offline/deterministically.
@@ -131,6 +135,8 @@ decided per install:
   change all three. The PTR follows too: no Stalwart means no `mail.<domain>` to point at.
   `var.apps` defaults to every optional app, so a `terraform apply` that does not pass it
   keeps the zone it had.
+
+**A VPS at another provider** is not a third target: it is `local` with internet exposure and `HOST_FIREWALL` (`docs/adr/0055`, `doc/local-deployment.md`). The bootstrap's nftables allow-list mirrors the `hcloud_firewall` rules in `main.tf` — a port opened in one needs opening in the other (`FIREWALL_TCP_PORTS`/`FIREWALL_UDP_PORTS` in `smallworlds-init.sh`).
 
 **Rebuilding a node:** `SMALLWORLDS_REPLACE_NODE=1 ./smallworlds-init.sh` passes
 `-replace=hcloud_server.smallworlds_pilot_node` to the apply (guarded on the resource

@@ -212,6 +212,12 @@ def initial_state() -> dict:
         "backup_dir": cached.get("BACKUP_DIR") or "/var/lib/smallworlds-backup",
         "local_tls": cached.get("LOCAL_TLS") or "letsencrypt",
         "local_public": cached.get("LOCAL_PUBLIC") or "no",
+        # A machine directly on the internet (docs/adr/0055). The page offers
+        # it as a third kind of machine; underneath it is the local target
+        # with public exposure and a host firewall.
+        "host_firewall": "yes" if cached.get("LOCAL_FIREWALL") == "yes" else "no",
+        "library_dir": cached.get("LIBRARY_DIR", ""),
+        "photo_backend": stored.get("STORED_PHOTO_BACKEND") or "immich",
 
         # The overlay's record wins, as it does in smallworlds-init.sh: the
         # overlay is what was actually written for one mode or the other.
@@ -333,6 +339,13 @@ def validate_answers(answers: dict) -> list[dict]:
             problem("ssh_target", "Enter the machine's SSH target, or localhost to use this one.")
         if not (answers.get("data_dir") or "").startswith("/"):
             problem("data_dir", "The data directory must be an absolute path.")
+        library_dir = (answers.get("library_dir") or "").strip()
+        if library_dir and not library_dir.startswith("/"):
+            problem("library_dir", "The photo library directory must be an absolute path.")
+        if answers.get("host_firewall") == "yes" and answers.get("local_public") != "yes":
+            problem("host_firewall",
+                    "A host firewall is for a machine directly on the internet — "
+                    "it only applies when the apps are reachable from there.")
         # With an external provider there is no backup directory at all
         # (docs/adr/0053), so nothing about it can be wrong.
         if not external:
@@ -360,6 +373,9 @@ def validate_answers(answers: dict) -> list[dict]:
         problem("repo_name", "Give the new repository a name.")
     if not (answers.get("version") or "").strip():
         problem("version", "Choose which upstream release to pin.")
+
+    if (answers.get("photo_backend") or "immich") not in ("immich", "gallery"):
+        problem("photo_backend", "Photos runs either Immich or Gallery.")
 
     apps = list(answers.get("apps") or [])
     known_apps = {app["name"] for app in OPTIONAL_APPS}
@@ -427,6 +443,18 @@ def build_plan(answers: dict) -> dict:
     else:
         storage_summary = "on the machine itself (Garage), with backups on its second disk"
 
+    rented = target == "local" and answers.get("host_firewall") == "yes"
+    gallery = "immich" in apps and answers.get("photo_backend") == "gallery"
+    library_dir = (answers.get("library_dir") or "").strip()
+    if "immich" not in apps:
+        photos_summary = "not installed"
+    elif gallery:
+        photos_summary = "Gallery, with the photos in S3 (" + (
+            "at the provider" if external else "the in-cluster Garage") + ")"
+    else:
+        photos_summary = "Immich, with the photos on the machine" + (
+            f" in {library_dir}" if library_dir and target == "local" else "")
+
     if answers.get("git_mode") == "create":
         repository = f"a new private repository named {answers['repo_name']}"
     else:
@@ -462,6 +490,8 @@ def build_plan(answers: dict) -> dict:
             else "self-signed, which breaks single sign-on between the applications"
         )
         reachable = (
+            "from the internet, behind a firewall the installer sets up on the machine"
+            if rented else
             "from the internet, with an in-cluster job maintaining the A records"
             if answers.get("local_public") == "yes"
             else "from your LAN only, resolved through your router's DNS or /etc/hosts"
@@ -536,12 +566,38 @@ def build_plan(answers: dict) -> dict:
             "trust store with no override, so Files, Photos and Meet cannot "
             "complete OIDC discovery. Choose this only for a throwaway cluster."
         )
-    if target == "local" and answers.get("local_public") == "yes":
+    if gallery:
+        warnings.append(
+            "Gallery is a community fork of Immich. Its releases can change the "
+            "database in ways plain Immich cannot read back, so moving to "
+            "Immich later is a migration, not a setting. Its storage layer has "
+            "not been restore-drilled here the way Immich's has."
+        )
+        if "pod-gateway" in apps:
+            warnings.append(
+                "The nightly export of members' photos into their pods reads "
+                "the library disk, which Gallery does not use — the export is "
+                "switched off and nothing fills the pods."
+            )
+    if rented:
+        warnings.append(
+            "The installer will close every inbound port on the machine except "
+            "SSH, 80, 443, 6443 and what the selected applications listen on. "
+            "It keeps the port your SSH server uses open; check that you can "
+            "still open a second SSH session before closing the first."
+        )
+        if "stalwart" in apps:
+            warnings.append(
+                "Mail needs a reverse DNS (PTR) record for the server's address "
+                "pointing at the mail hostname. Set it in your provider's control "
+                "panel — the installer can only do that at Hetzner."
+            )
+    if target == "local" and answers.get("local_public") == "yes" and not rented:
         warnings.append(
             "Internet exposure needs a public IPv4 (no CGNAT) and these forwards "
             "on your router to the machine: 80/tcp, 443/tcp and 10000/udp."
         )
-    if "stalwart" in apps and target == "local":
+    if "stalwart" in apps and target == "local" and not rented:
         warnings.append(
             "Mail delivery from a home connection is unreliable — ISPs block "
             "port 25, there is no PTR record, and home addresses sit on "
@@ -553,7 +609,10 @@ def build_plan(answers: dict) -> dict:
         "summary": {
             "domain": domain,
             "environment": "production" if not env_ext else env_ext.lstrip("."),
-            "target": "a Hetzner Cloud VM" if target == "hetzner" else answers["ssh_target"],
+            "target": ("a Hetzner Cloud VM" if target == "hetzner" else
+                       f"the rented server {answers['ssh_target']}" if rented
+                       else answers["ssh_target"]),
+            "photos": photos_summary,
             "certificates": certificates,
             "reachable": reachable,
             "storage": storage_summary,

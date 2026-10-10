@@ -77,6 +77,15 @@
         </span>
       </label>
       <label class="choice">
+        <input type="radio" name="target" value="vps">
+        <span class="choice-body">
+          <span class="choice-title">A server you rent elsewhere</span>
+          <span class="choice-detail">Any Linux VPS with a public address that you
+            can reach over SSH — Contabo, OVH and the like. You order it; the
+            installer does the rest, including its firewall.</span>
+        </span>
+      </label>
+      <label class="choice">
         <input type="radio" name="target" value="local">
         <span class="choice-body">
           <span class="choice-title">A machine you already have</span>
@@ -104,12 +113,23 @@
         <input id="ssh_target" type="text" autocomplete="off"
                placeholder="root@192.168.1.50, or localhost for this machine">
         <p class="hint">Needs a systemd Linux, SSH key access and sudo rights.</p>
+        <p class="hint" id="vps-hint" hidden>For a rented server: order it with
+          Debian or Ubuntu, add your SSH key, and point your domain's nameservers
+          at Hetzner DNS — certificates and DNS records are managed there
+          wherever the server is.</p>
       </div>
       <details class="advanced" open>
         <summary>Storage and certificates</summary>
         <div class="field">
           <label for="data_dir">Data directory</label>
           <input id="data_dir" type="text" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="library_dir">Photo library directory (optional)</label>
+          <input id="library_dir" type="text" autocomplete="off"
+                 placeholder="empty = inside the data directory">
+          <p class="hint">Only for Immich: its photos can sit on a second, larger
+            disk. Gallery keeps photos in S3 and ignores this.</p>
         </div>
         <div class="field" id="backup-dir-field">
           <label for="backup_dir">Backup directory</label>
@@ -118,7 +138,7 @@
             Backups have to survive losing the operational disk, so the installer
             refuses a single device.</p>
         </div>
-        <div class="field">
+        <div class="field" id="local-tls-field">
           <label for="local_tls">Certificates</label>
           <select id="local_tls">
             <option value="letsencrypt">Let's Encrypt — real certificates, works on a LAN</option>
@@ -128,7 +148,7 @@
             needs no port forwarding and no public IP — a LAN-only cluster gets
             publicly trusted certificates too.</p>
         </div>
-        <div class="field">
+        <div class="field" id="local-public-field">
           <label for="local_public">Reachable from the internet</label>
           <select id="local_public">
             <option value="no">No — LAN only</option>
@@ -325,6 +345,16 @@
     </div>
     <div class="always" id="always-installed"></div>
     <div class="app-grid" id="app-grid"></div>
+    <div class="field" id="photo-backend-field" hidden>
+      <label for="photo_backend">Photos runs</label>
+      <select id="photo_backend">
+        <option value="immich">Immich — photos on the machine's disk</option>
+        <option value="gallery">Gallery — a fork of Immich that keeps photos in S3</option>
+      </select>
+      <p class="hint">Gallery needs no large disk: with an S3 provider chosen for
+        storage, the photos go there. It is a community fork, so it trails and
+        sometimes diverges from Immich.</p>
+    </div>
     <div class="check" id="check-apps"></div>
   </section>
 

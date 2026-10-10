@@ -83,6 +83,22 @@ check("choosing a LAN machine swaps the fields in",
 check("the two directories are defaulted apart",
       (await page.inputValue("#data_dir")) !== (await page.inputValue("#backup_dir")));
 
+// docs/adr/0055: a server rented elsewhere is offered as its own kind of machine.
+await page.check('input[name="target"][value="vps"]');
+await page.waitForTimeout(250);
+check("a rented server shows the machine fields without the LAN questions",
+      (await page.locator("#local-fields").isVisible()) &&
+      !(await page.locator("#local-tls-field").isVisible()) &&
+      !(await page.locator("#local-public-field").isVisible()) &&
+      (await page.locator("#vps-hint").isVisible()));
+check("a rented server may put the photo library on another disk",
+      await page.locator("#library_dir").isVisible());
+await page.check('input[name="target"][value="local"]');
+await page.waitForTimeout(250);
+check("a LAN machine gets its questions back",
+      (await page.locator("#local-tls-field").isVisible()) &&
+      !(await page.locator("#vps-hint").isVisible()));
+
 // docs/adr/0053: an external S3 provider replaces Garage and the second disk.
 check("storage on the machine itself is the default",
       (await page.locator('input[name="object_storage"][value="garage"]').isChecked()) &&
@@ -169,6 +185,16 @@ check("choosing an Office editor also selects Nextcloud",
       await page.locator('.app input[value="nextcloud"]').isChecked());
 await page.locator('input[name="app-choice-office"][value=""]').check();
 // docs/adr/0049 — mail is opt-in.
+// docs/adr/0054: which photo application is asked only while Photos is ticked.
+check("the photo application is offered while Photos is selected, Immich first",
+      (await page.locator("#photo-backend-field").isVisible()) &&
+      (await page.inputValue("#photo_backend")) === "immich");
+await page.uncheck('.app input[value="immich"]');
+await page.waitForTimeout(200);
+check("and withdrawn when Photos is not",
+      !(await page.locator("#photo-backend-field").isVisible()));
+await page.check('.app input[value="immich"]');
+await page.waitForTimeout(200);
 check("mail is not ticked", !(await page.locator('.app input[value="stalwart"]').isChecked()));
 
 await page.locator('.app input[value="bulwark"]').check();
@@ -185,7 +211,7 @@ await page.click("#next");
 await page.waitForSelector(".plan-summary");
 check("the plan is rendered", (await openPanel()) === "review");
 check("the plan summarises every decision",
-      (await page.locator(".plan-summary dt").count()) === 10);
+      (await page.locator(".plan-summary dt").count()) === 11);
 check("the plan lists what will happen", (await page.locator(".plan-step").count()) === 4);
 const hostnames = await page.locator(".hostname").allTextContents();
 check("the plan lists the addresses members will use",

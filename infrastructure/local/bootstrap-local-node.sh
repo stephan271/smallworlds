@@ -44,6 +44,20 @@
 #                     data and Recovery Points live at an S3 provider
 #                     (docs/adr/0053): BACKUP_DIR is then not used at all, and
 #                     the machine may have a single disk.
+#   LIBRARY_DIR       where the Immich photo library lives, when it should not
+#                     be inside DATA_DIR — typically a second, larger disk on a
+#                     machine whose own disk is small and fast. Empty (default)
+#                     keeps it at DATA_DIR/immich-library. Not used by Gallery,
+#                     which keeps photos in S3 (docs/adr/0054).
+#   HOST_FIREWALL     "true" = this machine sits directly on the internet (a
+#                     rented VPS, no router in front), so the bootstrap closes
+#                     every inbound port except SSH and the ones below. Never
+#                     set it for a machine behind a router: the router already
+#                     is that firewall. See docs/adr/0055.
+#   FIREWALL_TCP_PORTS / FIREWALL_UDP_PORTS
+#                     space-separated ports to leave open besides SSH, e.g.
+#                     "80 443 6443" and "10000". The installer derives them
+#                     from the selected applications.
 #   ETCD_DIR          where the cluster datastore lives (default
 #                     /var/lib/smallworlds-etcd, on the machine's own disk).
 #                     Must be fast storage — see the relocation below.
@@ -78,6 +92,15 @@ if [ "${1:-}" = "--uninstall" ]; then
     # k3s-uninstall.sh removes /var/lib/rancher/k3s; if it was our symlink the
     # data dir target survives — clean up the dangling link either way.
     [ -L /var/lib/rancher/k3s ] && rm -f /var/lib/rancher/k3s
+    # The host firewall (HOST_FIREWALL) is part of the installation, so it goes
+    # with it; a machine that never had one is unaffected.
+    if [ -f /etc/systemd/system/smallworlds-firewall.service ]; then
+        systemctl disable --now smallworlds-firewall.service >/dev/null 2>&1 || true
+        nft delete table inet smallworlds >/dev/null 2>&1 || true
+        rm -f /etc/systemd/system/smallworlds-firewall.service /etc/smallworlds/firewall.nft
+        systemctl daemon-reload >/dev/null 2>&1 || true
+        echo -e "${GREEN}Host firewall removed.${NC}"
+    fi
     if [ "${2:-}" = "--purge-data" ]; then
         for d in /mnt/smallworlds-data /var/lib/smallworlds-data; do
             if [ -e "$d" ]; then
@@ -114,6 +137,10 @@ MANAGE_DNS="${MANAGE_DNS:-}"
 DATA_DIR="${DATA_DIR:-/var/lib/smallworlds-data}"
 BACKUP_DIR="${BACKUP_DIR:-/var/lib/smallworlds-backup}"
 OBJECT_STORAGE="${OBJECT_STORAGE:-garage}"
+LIBRARY_DIR="${LIBRARY_DIR:-}"
+HOST_FIREWALL="${HOST_FIREWALL:-}"
+FIREWALL_TCP_PORTS="${FIREWALL_TCP_PORTS:-80 443 6443}"
+FIREWALL_UDP_PORTS="${FIREWALL_UDP_PORTS:-}"
 ETCD_DIR="${ETCD_DIR:-/var/lib/smallworlds-etcd}"
 NODE_NAME="${NODE_NAME:-smallworlds-local-node}"
 PROFILE_ID="${PROFILE_ID:?PROFILE_ID must be set in $CONFIG_FILE}"
@@ -224,6 +251,98 @@ fi
 echo -e "${CYAN}Bootstrapping SmallWorlds on this machine (node IP: ${NODE_IP}, data dir: ${DATA_DIR})...${NC}"
 
 # ------------------------------------------------------------------
+# 0. Host firewall — only for a machine directly on the internet
+#
+# The Hetzner target gets a cloud firewall from Terraform; a VPS rented
+# anywhere else has nothing in front of it, and k3s then publishes the kubelet,
+# every NodePort and whatever a hostNetwork pod binds to the whole internet.
+# This is the same allow-list, enforced on the machine itself (docs/adr/0055).
+#
+# The rules sit in a prerouting chain that runs before destination NAT, and
+# look only at packets arriving on the public interface. That is what makes it
+# behave like a firewall in front of the machine: a port is judged by the
+# number the outside world dialled, before kube-proxy or the CNI rewrites it,
+# so NodePorts are closed too — an input-hook filter would never see them.
+# Traffic between pods, and anything the machine itself started, is untouched.
+# ------------------------------------------------------------------
+if [ "$HOST_FIREWALL" = "true" ]; then
+    PUBLIC_IF=$(ip -o route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="dev") print $(i+1)}' | head -1)
+    if ! command -v nft >/dev/null 2>&1; then
+        echo -e "${RED}HOST_FIREWALL is set but nft is not installed.${NC}" >&2
+        echo "Install the nftables package (apt install nftables / dnf install nftables) and re-run." >&2
+        echo "Continuing without a firewall would leave the Kubernetes ports open to the internet." >&2
+        exit 1
+    fi
+    if [ -z "$PUBLIC_IF" ]; then
+        echo -e "${RED}Could not determine the public network interface for the firewall.${NC}" >&2
+        exit 1
+    fi
+
+    # Every port sshd might be answering on. Getting this wrong locks the
+    # operator out of a machine they can only reach over SSH, so it is taken
+    # from three independent places and 22 is kept regardless.
+    SSH_PORTS="22"
+    SSH_PORTS="$SSH_PORTS $(sshd -T 2>/dev/null | awk '$1=="port"{print $2}' | tr '\n' ' ')"
+    SSH_PORTS="$SSH_PORTS $(printf '%s' "${SSH_CONNECTION:-}" | awk '{print $4}')"
+    SSH_PORTS="$SSH_PORTS $(ss -H -tlnp 2>/dev/null | awk '/"sshd"/{n=split($4,a,":"); print a[n]}' | tr '\n' ' ')"
+
+    port_set() {
+        # Space-separated words -> "a, b, c", numbers only, de-duplicated.
+        printf '%s\n' $1 | grep -E '^[0-9]{1,5}$' | sort -un | paste -sd, - | sed 's/,/, /g'
+    }
+    TCP_SET=$(port_set "$SSH_PORTS $FIREWALL_TCP_PORTS")
+    UDP_SET=$(port_set "$FIREWALL_UDP_PORTS")
+
+    mkdir -p /etc/smallworlds
+    {
+        echo "# Written by bootstrap-local-node.sh (HOST_FIREWALL). Re-running the"
+        echo "# installer rewrites this file; edit the installer's answers instead."
+        echo "table inet smallworlds"
+        echo "delete table inet smallworlds"
+        echo "table inet smallworlds {"
+        echo "    chain perimeter {"
+        echo "        type filter hook prerouting priority -150; policy accept;"
+        echo "        iifname != \"$PUBLIC_IF\" accept"
+        echo "        ct state established,related accept"
+        echo "        meta l4proto { icmp, ipv6-icmp } accept"
+        echo "        udp dport 68 accept"
+        echo "        tcp dport { $TCP_SET } accept"
+        [ -n "$UDP_SET" ] && echo "        udp dport { $UDP_SET } accept"
+        echo "        counter drop"
+        echo "    }"
+        echo "}"
+    } > /etc/smallworlds/firewall.nft
+
+    # Checked before it is loaded: a file nft rejects must not end up in a
+    # unit that then fails at every boot.
+    if ! nft -c -f /etc/smallworlds/firewall.nft; then
+        echo -e "${RED}The generated firewall rules were rejected by nft; nothing was changed.${NC}" >&2
+        exit 1
+    fi
+    cat > /etc/systemd/system/smallworlds-firewall.service <<'UNIT'
+[Unit]
+Description=SmallWorlds host firewall (inbound allow-list)
+Wants=network-pre.target
+Before=network-pre.target k3s.service
+DefaultDependencies=no
+After=systemd-modules-load.service local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/env nft -f /etc/smallworlds/firewall.nft
+ExecStop=/usr/bin/env nft delete table inet smallworlds
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+    systemctl daemon-reload
+    systemctl enable smallworlds-firewall.service >/dev/null 2>&1
+    nft -f /etc/smallworlds/firewall.nft
+    echo -e "${GREEN}Host firewall active on $PUBLIC_IF — open: tcp ${TCP_SET}${UDP_SET:+, udp $UDP_SET}.${NC}"
+fi
+
+# ------------------------------------------------------------------
 # 1. Kernel limits (same values as the cloud-init template)
 # ------------------------------------------------------------------
 cat > /etc/sysctl.d/99-kubernetes-cri.conf <<'SYSCTL'
@@ -237,7 +356,28 @@ sysctl --system >/dev/null
 #    (see infrastructure/kubernetes/apps/persistent-storage.yaml), so the
 #    configurable DATA_DIR is exposed there via a symlink.
 # ------------------------------------------------------------------
-mkdir -p "$DATA_DIR/immich-library" "$DATA_DIR/k3s"
+mkdir -p "$DATA_DIR/k3s"
+LIBRARY_LINK="$DATA_DIR/immich-library"
+if [ -n "$LIBRARY_DIR" ] && [ "$LIBRARY_DIR" != "$LIBRARY_LINK" ]; then
+    # The photo library is the one thing that outgrows a small fast disk, so it
+    # may live on another one. The manifests keep their fixed path; this link
+    # is what points it elsewhere. An existing library is never moved for the
+    # operator: a directory that already holds photos stops the install.
+    mkdir -p "$LIBRARY_DIR"
+    if [ -d "$LIBRARY_LINK" ] && [ ! -L "$LIBRARY_LINK" ]; then
+        if [ -n "$(ls -A "$LIBRARY_LINK" 2>/dev/null)" ]; then
+            echo -e "${RED}$LIBRARY_LINK already holds a photo library.${NC}" >&2
+            echo "Move its contents to $LIBRARY_DIR yourself and remove the empty" >&2
+            echo "directory, or leave LIBRARY_DIR unset to keep the library where it is." >&2
+            exit 1
+        fi
+        rmdir "$LIBRARY_LINK"
+    fi
+    ln -sfn "$LIBRARY_DIR" "$LIBRARY_LINK"
+    echo -e "${CYAN}Photo library: $LIBRARY_DIR (linked from $LIBRARY_LINK).${NC}"
+else
+    mkdir -p "$LIBRARY_LINK"
+fi
 if [ "$DATA_DIR" != "/mnt/smallworlds-data" ]; then
     ln -sfn "$DATA_DIR" /mnt/smallworlds-data
 fi
@@ -395,7 +535,7 @@ COREDNS
 if [ "$MANAGE_DNS" = "true" ]; then
     RECORD_NAMES=""
     if [ -z "$ENV_EXT" ]; then RECORD_NAMES="@"; fi
-    for sub in identity dashboard files photos git mail webmail monitoring whiteboard meet office plan deploy pod; do
+    for sub in identity dashboard files photos git mail webmail monitoring whiteboard meet office plan deploy pod vpn; do
         RECORD_NAMES="${RECORD_NAMES:+$RECORD_NAMES }${sub}${ENV_EXT}"
     done
 

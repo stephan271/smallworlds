@@ -1,0 +1,132 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: immich
+
+# Gallery (github.com/open-noodle/gallery) in place of Immich — docs/adr/0054.
+#
+# Gallery is a fork of Immich that keeps its database schema, its container
+# layout and its IMMICH_* configuration, and adds an S3 storage backend. So it
+# is not a second application here but a variant of the immich tenant: the same
+# namespace, the same Application, the same Secrets, the same hostname. An
+# overlay selects it by pointing its `immich/` directory at this path instead
+# of ../immich (admin-tools/prepare-community-repo.sh does that), and switching
+# back is the same one-line change — though moving the photos between disk and
+# bucket is a migration, run from Gallery's own admin UI, not a setting.
+#
+# What differs from ../immich, and only this:
+#   - the two images;
+#   - originals, thumbnails and transcodes go to the tenant's S3 bucket;
+#   - the Recovery Point is therefore a bucket copy, not a copy of the PVC;
+#   - the pod export is off, because it reads originals from the library
+#     directory and they are no longer there.
+resources:
+  - ../immich
+  - ../../bases/backup-job
+
+images:
+  # Gallery versions are its own; v5.7.1 is built on Immich v3.2.4. Bump both
+  # together, and read the release notes first: a Gallery release can migrate
+  # the database in ways plain Immich cannot read back.
+  - name: ghcr.io/immich-app/immich-server
+    newName: ghcr.io/open-noodle/gallery-server
+    newTag: v5.7.1
+  - name: ghcr.io/immich-app/immich-machine-learning
+    newName: ghcr.io/open-noodle/gallery-ml
+    newTag: v5.7.1
+
+patches:
+  # Everything about the bucket comes from garage-secret, next to the key
+  # (docs/adr/0053) — so this is the same manifest for an in-cluster Garage and
+  # for an external provider, and holds no address of either.
+  - target:
+      kind: Deployment
+      name: immich-server
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: immich-server
+      spec:
+        template:
+          spec:
+            containers:
+              - name: main
+                env:
+                  - name: IMMICH_STORAGE_BACKEND
+                    value: s3
+                  # "proxy": the server streams every object itself. "redirect"
+                  # is faster — the browser fetches from the bucket directly —
+                  # but needs the endpoint reachable from members' browsers and
+                  # CORS configured on the bucket, neither of which holds for
+                  # an in-cluster Garage and neither of which the install sets
+                  # up at a provider. An operator who has done both patches
+                  # this to "redirect" in the overlay.
+                  - name: IMMICH_S3_SERVE_MODE
+                    value: proxy
+                  - name: IMMICH_S3_BUCKET
+                    valueFrom:
+                      secretKeyRef:
+                        name: garage-secret
+                        key: bucket
+                  - name: IMMICH_S3_REGION
+                    valueFrom:
+                      secretKeyRef:
+                        name: garage-secret
+                        key: region
+                  - name: IMMICH_S3_ENDPOINT
+                    valueFrom:
+                      secretKeyRef:
+                        name: garage-secret
+                        key: endpointURL
+                  - name: IMMICH_S3_ACCESS_KEY_ID
+                    valueFrom:
+                      secretKeyRef:
+                        name: garage-secret
+                        key: accessKeyId
+                  - name: IMMICH_S3_SECRET_ACCESS_KEY
+                    valueFrom:
+                      secretKeyRef:
+                        name: garage-secret
+                        key: secretAccessKey
+  # The library PVC stays mounted — uploads are staged there and ffmpeg and
+  # exiftool work on local files — but it now holds only what is in flight.
+  # Mirroring it would back up temp files and present that as the photos.
+  - target:
+      kind: CronJob
+      name: pv-backup
+    patch: |-
+      $patch: delete
+      apiVersion: batch/v1
+      kind: CronJob
+      metadata:
+        name: pv-backup
+  # The Recovery Point for the photos: bucket to backup bucket, with deleted
+  # and superseded objects kept under versions/<date> (bases/backup-job). Like
+  # the library mirror it replaces, it is restorable only together with the
+  # database — the keys are asset UUIDs.
+  - target:
+      kind: CronJob
+      name: rclone-backup
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: immich-originals-backup
+      - op: replace
+        path: /spec/schedule
+        value: "30 0 * * *"
+      - op: replace
+        path: /spec/jobTemplate/spec/template/spec/containers/0/env/0/value
+        value: "immich"
+  # export.py resolves each asset to a file under the library mount. With S3
+  # the database holds bucket keys instead of paths, so the job would report
+  # every member's every photo as missing, nightly. Its database role and
+  # Secret are left in place — CNPG reconciles the role from them.
+  - target:
+      kind: CronJob
+      name: immich-pod-export
+    patch: |-
+      $patch: delete
+      apiVersion: batch/v1
+      kind: CronJob
+      metadata:
+        name: immich-pod-export

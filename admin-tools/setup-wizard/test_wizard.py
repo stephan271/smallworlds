@@ -223,6 +223,55 @@ def test_plan_module():
     check("the default bucket prefix matches the script's",
           plan.default_bucket_prefix("Example.org", ".dev") == "sw-example-org-dev")
 
+    # docs/adr/0054: Gallery is a choice within Photos, not another application.
+    check("an unknown photo application is caught",
+          "photo_backend" in fields({"photo_backend": "picasa"}))
+    immich_plan = plan.build_plan(complete)
+    check("Immich is what Photos runs unless told otherwise",
+          immich_plan["summary"]["photos"].startswith("Immich"))
+    gallery_plan = plan.build_plan({**complete, **external, "photo_backend": "gallery"})
+    check("the plan says Gallery keeps the photos at the provider",
+          "Gallery" in gallery_plan["summary"]["photos"]
+          and "provider" in gallery_plan["summary"]["photos"])
+    check("Gallery does not change which hostnames exist",
+          [h["host"] for h in gallery_plan["hostnames"]] ==
+          [h["host"] for h in plan.build_plan({**complete, **external})["hostnames"]])
+    check("depending on a fork is warned about",
+          any("fork" in warning for warning in gallery_plan["warnings"]))
+    check("Gallery with the pod archive warns that nothing fills the pods",
+          any("nothing fills the pods" in warning for warning in plan.build_plan(
+              {**complete, "photo_backend": "gallery",
+               "apps": ["immich", "pod-gateway"]})["warnings"]))
+    check("Gallery without Photos selected is not mentioned at all",
+          plan.build_plan({**complete, "photo_backend": "gallery", "apps": ["nextcloud"]}
+                          )["summary"]["photos"] == "not installed")
+
+    # docs/adr/0055: a rented server is the local target, on the internet,
+    # with a firewall the installer sets up.
+    rented = {
+        "target": "local", "ssh_target": "root@203.0.113.9", "hcloud_token": "x",
+        "data_dir": "/var/lib/smallworlds-data", "backup_dir": "/mnt/backup",
+        "local_tls": "letsencrypt", "local_public": "yes", "host_firewall": "yes",
+    }
+    check("a rented server validates", fields(rented) == set())
+    check("a firewall without internet exposure is refused",
+          "host_firewall" in fields({**rented, "local_public": "no"}))
+    check("a relative photo library directory is caught",
+          "library_dir" in fields({**rented, "library_dir": "photos"}))
+    rented_plan = plan.build_plan({**complete, **rented, "apps": ["immich", "stalwart"],
+                                   "library_dir": "/mnt/big/photos"})
+    check("the plan calls it a rented server",
+          "rented server" in rented_plan["summary"]["target"])
+    check("the plan announces the firewall",
+          any("inbound port" in warning for warning in rented_plan["warnings"]))
+    check("a rented server is not told to configure a router",
+          not any("router" in warning for warning in rented_plan["warnings"]))
+    check("mail on a rented server is told about reverse DNS, not home connections",
+          any("PTR" in warning for warning in rented_plan["warnings"])
+          and not any("home connection" in warning for warning in rented_plan["warnings"]))
+    check("the plan says where the photo library goes",
+          "/mnt/big/photos" in rented_plan["summary"]["photos"])
+
 
 # ---------------------------------------------------------------------------
 # Offline: the DNS resolver
@@ -648,6 +697,26 @@ def test_runner():
     check("the S3 key reaches the installer",
           (cached_external["OBJECT_STORAGE"], cached_external["S3_ACCESS_KEY_ID"],
            cached_external["S3_SECRET_ACCESS_KEY"]) == ("external", "AKID", "s3-secret"))
+    check("Immich is recorded as the photo application by default",
+          written["STORED_PHOTO_BACKEND"] == "immich" and cached["LOCAL_FIREWALL"] == "no")
+    rented_answers = {
+        **external_answers, "target": "local", "ssh_target": "root@203.0.113.9",
+        "local_public": "yes", "local_tls": "letsencrypt", "host_firewall": "yes",
+        "library_dir": "/mnt/big/photos", "photo_backend": "gallery",
+    }
+    runner.write_repository_config(rented_answers, repository_config, answers["apps"])
+    check("the photo application reaches the repository script",
+          plan_module()._read_shell_assignments(repository_config)["STORED_PHOTO_BACKEND"]
+          == "gallery")
+    rented_cache = os.path.join(directory, "rented-cache.env")
+    runner.write_installer_cache(rented_answers, rented_cache, external_tokens)
+    cached_rented = plan_module()._read_shell_assignments(rented_cache)
+    check("a rented server reaches the installer as an exposed machine with a firewall",
+          (cached_rented["DEPLOY_TARGET"], cached_rented["LOCAL_PUBLIC"],
+           cached_rented["LOCAL_FIREWALL"], cached_rented["LIBRARY_DIR"]) ==
+          ("local", "yes", "yes", "/mnt/big/photos"))
+    check("a Hetzner install never asks for a host firewall",
+          plan_module()._read_shell_assignments(external_cache)["LOCAL_FIREWALL"] == "no")
     check("without a backup endpoint no backup key is passed on",
           cached_external["S3_BACKUP_REGION"] == "" and
           cached_external["S3_BACKUP_ACCESS_KEY_ID"] == "" and

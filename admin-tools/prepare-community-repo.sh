@@ -240,6 +240,30 @@ if [[ " ${SELECTED_APPS[*]} " == *" bulwark "* && " ${SELECTED_APPS[*]} " != *" 
     echo ""
 fi
 
+# Photos runs Immich, or Gallery — a fork that stores the photos in S3 instead of
+# on the node's disk (docs/adr/0054). It is one application either way: the
+# same namespace, hostname and database, so this is a choice within "immich",
+# asked only when it was selected.
+PHOTO_BACKEND="immich"
+if [[ " ${SELECTED_APPS[*]} " == *" immich "* ]]; then
+    ask_prefilled "Which application should Photos run? (immich/gallery): " PHOTO_BACKEND "${STORED_PHOTO_BACKEND:-immich}" required
+    case "$PHOTO_BACKEND" in
+        immich|gallery) ;;
+        *)
+            echo -e "${RED}Choose exactly one of: immich, gallery.${NC}" >&2
+            exit 1
+            ;;
+    esac
+    if [[ "$PHOTO_BACKEND" == "gallery" && " ${SELECTED_APPS[*]} " == *" pod-gateway "* ]]; then
+        echo ""
+        echo -e "${YELLOW}Note: gallery selected together with pod-gateway.${NC}"
+        echo -e "The nightly export of members' photos into their pods reads originals from"
+        echo -e "the library disk, and Gallery keeps them in S3 — so the export is switched"
+        echo -e "off. The gateway still deploys, but nothing fills the pods."
+        echo ""
+    fi
+fi
+
 # Object storage: the in-cluster Garage, or an external S3 provider that
 # replaces it (docs/adr/0053). Only the coordinates are asked for here — they
 # are not secret and belong in the overlay. The access key is asked for by
@@ -334,6 +358,14 @@ EOF
             patch_args+=(--office-backend "$OFFICE_BACKEND")
         fi
         python3 "$SCRIPT_DIR/generate_domain_patches.py" "${patch_args[@]}"
+    fi
+    if [ "$app" = "immich" ]; then
+        # Immich and Gallery are two upstream directories behind one overlay
+        # directory. Rewritten on every run, in both directions, so a re-run
+        # is how the choice is changed; the operator's own patches below the
+        # resource line are left alone.
+        sed -i -E "s#(/infrastructure/kubernetes/tenants/)(immich|gallery)(\?ref=)#\1${PHOTO_BACKEND}\3#" \
+            "$ABS_REPO_PATH/$app/kustomization.yaml"
     fi
     apply_storage_patches "$app" "$ABS_REPO_PATH/$app/kustomization.yaml"
 done
@@ -510,6 +542,7 @@ STORED_TARGET_DOMAIN="${TARGET_DOMAIN}"
 STORED_ENV_EXT="${ENV_EXT}"
 STORED_CREATE_REPO="${CREATE_REPO}"
 STORED_PUSH_CHOICE="${PUSH_CHOICE}"
+STORED_PHOTO_BACKEND="${PHOTO_BACKEND}"
 STORED_OBJECT_STORAGE="${OBJECT_STORAGE}"
 STORED_S3_ENDPOINT="${S3_ENDPOINT}"
 STORED_S3_REGION="${S3_REGION}"

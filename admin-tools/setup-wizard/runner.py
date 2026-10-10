@@ -107,6 +107,8 @@ def write_repository_config(answers: dict, path: str, apps: list[str]) -> None:
     # through the installer cache below and never reaches the repository.
     external = answers.get("object_storage") == "external"
     lines.append(f"STORED_OBJECT_STORAGE={_shell_quote('external' if external else 'garage')}")
+    lines.append("STORED_PHOTO_BACKEND=" + _shell_quote(
+        "gallery" if answers.get("photo_backend") == "gallery" else "immich"))
     for stored, field in (("STORED_S3_ENDPOINT", "s3_endpoint"),
                           ("STORED_S3_REGION", "s3_region"),
                           ("STORED_S3_BUCKET_PREFIX", "s3_bucket_prefix"),
@@ -146,6 +148,10 @@ def write_installer_cache(answers: dict, path: str, token_source: dict) -> None:
         "HETZNER_SERVER_TYPE": existing.get("HETZNER_SERVER_TYPE", ""),
         "LOCAL_PUBLIC": answers.get("local_public", "no"),
         "LOCAL_TLS": answers.get("local_tls", "letsencrypt"),
+        "LOCAL_FIREWALL": "yes" if (answers.get("target") == "local"
+                                    and answers.get("host_firewall") == "yes") else "no",
+        "LIBRARY_DIR": (answers.get("library_dir") or "").strip()
+                       if answers.get("target") == "local" else "",
         "DOMAIN": answers["domain"],
         "ENV_EXT": answers.get("env_ext", ""),
         "ADMIN_EMAIL": answers["admin_email"],
