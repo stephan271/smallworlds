@@ -19,7 +19,7 @@ Watch the [SmallWorlds Lightning Talk](https://rawcdn.githack.com/stephan271/sma
 > **Prototype — not production-ready.** SmallWorlds is still in an early prototyping state. It is intended for experimentation and evaluation only, and is **not yet suitable for production environments**. Expect breaking changes, incomplete hardening, and no stability or upgrade guarantees. Use at your own risk.
 
 > [!IMPORTANT]
-> **Not Hetzner-only.** `smallworlds-init.sh` supports two deployment targets: **`hetzner`** (a Hetzner Cloud VM provisioned by Terraform) and **`local`** (an existing Linux machine in your LAN, bootstrapped in place over SSH — no cloud account needed). Hetzner is still required for **public DNS** — either via Terraform on the `hetzner` target, or via a free Hetzner DNS zone + API token on an **internet-exposed** `local` deployment. A LAN-only `local` deployment needs no Hetzner account, no domain registration, and no cloud resources at all. See the "Deployment Instructions" section below and `doc/local-deployment.md` for details.
+> **Not Hetzner-only.** `smallworlds-init.sh` supports two deployment targets: **`hetzner`** (a Hetzner Cloud VM provisioned by Terraform) and **`local`** (an existing Linux machine in your LAN, bootstrapped in place over SSH — no cloud account needed). Hetzner is still required for **public DNS** — either via Terraform on the `hetzner` target, or via a free Hetzner DNS zone + API token on an **internet-exposed** `local` deployment. A LAN-only `local` deployment needs no Hetzner account, no domain registration, and no cloud resources at all. The `local` target also installs a **VPS rented from any other provider** (Contabo, OVH, …), with a firewall set up on the machine. See the "Deployment Instructions" section below and `doc/local-deployment.md` for details.
 
 This document outlines the deployment process for a SmallWorlds GitOps cluster. The architecture relies on an upstream foundation repository and a private, user-controlled configuration repository.
 
@@ -37,7 +37,7 @@ This project is built upon several foundational open-source technologies, core i
 | **Velero** | [velero.io](https://velero.io/) | Cluster backup and disaster recovery solution. |
 | **Grafana** | [grafana.com](https://grafana.com/) | Operational dashboard for cluster monitoring and observability. |
 | **CloudNativePG** | [cloudnative-pg.io](https://cloudnative-pg.io/) | High-availability PostgreSQL database clustering. |
-| **Garage** | [garagehq.deuxfleurs.fr](https://garagehq.deuxfleurs.fr/) | S3-compatible object storage backend. |
+| **Garage** | [garagehq.deuxfleurs.fr](https://garagehq.deuxfleurs.fr/) | S3-compatible object storage backend. Not deployed when an external S3 provider is chosen at install time. |
 | **Homepage** | [gethomepage.dev](https://gethomepage.dev/) | Application dashboard automatically configured and accessible at `dashboard.<domain>`. |
 | **Keycloak** | [keycloak.org](https://www.keycloak.org/) | Identity Provider (IdP) for Single Sign-On (SSO) and WebAuthn/Passkey management. |
 | **Traefik** | [traefik.io](https://traefik.io/) | Ingress routing and reverse proxy for handling incoming requests. |
@@ -53,7 +53,7 @@ This project is built upon several foundational open-source technologies, core i
 | **Euro-Office** | [euro-office.com](https://www.euro-office.com/) | European collaborative editor for Office and OpenDocument formats. The setup can install it instead of Collabora. |
 | **Excalidraw** | [excalidraw.com](https://excalidraw.com/) | Virtual collaborative whiteboard tool. |
 | **Forgejo** | [forgejo.org](https://forgejo.org/) | Git repository management and software collaboration. |
-| **Immich** | [immich.app](https://immich.app/) | High performance photo and video backup. |
+| **Immich** | [immich.app](https://immich.app/) | High performance photo and video backup. Photos can run [Gallery](https://github.com/open-noodle/gallery) instead, a fork that keeps the photos in S3. |
 | **Jitsi Meet** | [jitsi.org](https://jitsi.org/) | Secure video conferencing and communication platform. |
 | **Nextcloud** | [nextcloud.com](https://nextcloud.com/) | File synchronization and collaboration. |
 | **Plane** | [plane.so](https://plane.so/) | Open-source project management tool. |
@@ -68,6 +68,19 @@ SmallWorlds supports two deployment targets — you are asked which one you want
 
 - **`hetzner`** — a Hetzner Cloud VM provisioned by Terraform, with public DNS and Let's Encrypt certificates. The internet-facing default.
 - **`local`** — an existing Linux machine in your LAN (laptop, mini-PC, home server; 32 GB RAM recommended), bootstrapped in place over SSH without Terraform. By default LAN-only: no public DNS (you add router-DNS or `/etc/hosts` entries). Optionally **internet-exposed**: with a registered domain, a Hetzner DNS token and router port forwards (80/tcp, 443/tcp, 10000/udp), an in-cluster DDNS job keeps the DNS records pointed at your home IP. See [`doc/local-deployment.md`](doc/local-deployment.md) for requirements and limitations before you start.
+
+A **server rented from another provider** is the `local` target too: answer yes to internet exposure and yes to the host firewall (in the wizard: "A server you rent elsewhere"). You order the machine and delegate the domain to Hetzner DNS; the installer does the rest. See ["A rented server (VPS)"](doc/local-deployment.md#a-rented-server-vps--docsadr0055).
+
+Three further choices are made at install time, each recorded in a decision record:
+
+| Choice | Options | Default | See |
+|---|---|---|---|
+| Where files and backups are kept | The in-cluster Garage (needs a second disk for backups), or an external S3 provider (one disk is enough; the provider can read what is stored) | Garage | [`docs/adr/0053`](docs/adr/0053-object-storage-is-in-house-or-external.md) |
+| What Photos runs | Immich (photos on the machine's disk), or Gallery (photos in S3) | Immich | [`docs/adr/0054`](docs/adr/0054-gallery-is-a-variant-of-the-immich-tenant.md) |
+| Host firewall | Only for a machine directly on the internet | off | [`docs/adr/0055`](docs/adr/0055-a-rented-server-is-the-local-target-with-its-own-firewall.md) |
+
+> [!NOTE]
+> These three are new and have passed their automated tests, but **none has been installed against a real S3 provider, a real rented server or a running Gallery yet**. Treat a first install as a trial, on a domain and a bucket you can throw away.
 
 There are two ways to install, and they do the same thing — **the wizard runs the scripts**, so there is one install code path, not two.
 
@@ -98,7 +111,7 @@ available, app selection remains usable with a text notice.
 
 A browser opens on `127.0.0.1`. Five panels ask for your domain, your email address, where the cluster should run, a Git access token, and which applications your community gets; everything else is defaulted and sits behind *Advanced settings*. It creates the private settings repository for you, checks your answers against the real APIs before anything is created, shows you exactly what it will do, then installs and hands you the credentials.
 
-The checks are the part worth having: whether your registrar actually delegates the domain to Hetzner DNS (get this wrong and every certificate stays pending with nothing saying why), whether the tokens work, and whether your data and backup directories are on different physical disks. Each of those otherwise fails minutes into an install.
+The checks are the part worth having: whether your registrar actually delegates the domain to Hetzner DNS (get this wrong and every certificate stays pending with nothing saying why), whether the tokens work, whether an S3 provider accepts your key, and whether your data and backup directories are on different physical disks (not required with an external S3 provider). Each of those otherwise fails minutes into an install.
 
 Prerequisites are the same as the scripted route below, minus the manual steps the wizard does for you (creating the settings repository, creating the DNS zone, uploading the SSH key). You still need to **register the domain yourself** and point its nameservers at Hetzner — see step 1.
 
@@ -134,7 +147,7 @@ This script handles:
 - Initialization of the local Git repository and automatic push to your remote repository.
 
 ### 3. Infrastructure Provider Setup (hetzner target only)
-For the **local** target, skip this section — instead make sure the target machine meets the requirements in `doc/local-deployment.md` (systemd Linux, SSH + sudo access, firewalld disabled or configured for k3s, 100 GB+ free disk).
+For the **local** target, skip this section — instead make sure the target machine meets the requirements in `doc/local-deployment.md` (systemd Linux, SSH + sudo access, firewalld disabled or configured for k3s, 100 GB+ free disk, and a second disk for backups unless you chose an external S3 provider).
 
 For the **hetzner** target, these steps are required:
 1. Create a Hetzner Cloud account and a new project.
@@ -212,10 +225,17 @@ The restore script waits for the new cluster's API, then applies the saved certi
 ### Backups & Storage
 
 Storage layout, the backup chain, restore procedures and scaling paths are all
-documented in [`doc/storage-and-backup.md`](doc/storage-and-backup.md). The chain is
+documented in [`doc/storage-and-backup.md`](doc/storage-and-backup.md). With the default storage mode the chain is
 Garage-first: databases (CloudNativePG/barman), Velero's cluster-state dumps and
 nightly PV copies all land in the in-cluster Garage S3, and a single replicator
 CronJob mirrors every bucket offsite at 04:00.
+
+With an **external S3 provider** (`docs/adr/0053`) there is no Garage and no
+replicator: the same producers write straight to buckets at the provider, named
+`<prefix>-…`, so backups are off the machine from the start. Set up versioning
+and an expiry rule on those buckets at the provider yourself — the install does
+not — and consider a second provider for the backup side, which both setup
+routes offer. The notice below applies to the Garage mode only.
 
 > [!IMPORTANT]
 > **The offsite leg requires one-time operator setup** — an S3 target (recommended:
@@ -286,6 +306,8 @@ The `admin-tools/` directory contains helper scripts to automate common operatio
 
 ### Setup
 - **`setup-wizard/`**: The browser setup wizard behind `./smallworlds-setup` — five panels with live validation, driving the two setup scripts rather than reimplementing them. Python standard library only, no dependencies and no build step. See [`docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md`](docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md) for why it replaced the Operator Console.
+- **`generate_storage_patches.py`**: Writes the overlay patches that point a cluster at an external S3 provider instead of Garage, and removes them again. Called by `prepare-community-repo.sh`; see [`docs/adr/0053`](docs/adr/0053-object-storage-is-in-house-or-external.md).
+- **`test-object-storage.py`**: Tests the storage choice and the Gallery variant: renders the patched overlays against the real manifests and runs the bucket-provisioning job scripts against stub `kubectl` and `curl`.
 - **`test-setup-wizard.sh`**: Tests the wizard's server, defaults and plan, then walks its five panels in a real browser using the Playwright installed for `e2e-tests/` (skipped when absent).
 - **`test-noninteractive-install.sh`**: Asserts that both setup scripts run with no tty under `SMALLWORLDS_NONINTERACTIVE=1`, that a missing required value exits 78 naming it, and — over a pty — that interactive mode is unchanged.
 

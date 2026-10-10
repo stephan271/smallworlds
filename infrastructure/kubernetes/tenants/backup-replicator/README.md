@@ -7,6 +7,11 @@ hop: `garage-backup` is already on a separate volume, but runs
 `replicationFactor: 1`, so offsite storage protects against loss of the node or
 provider account (see `doc/storage-and-backup.md` §3/§8).
 
+> **Not deployed with external object storage.** A cluster installed with an
+> external S3 provider (`docs/adr/0053`) has no `garage-backup` to replicate and
+> writes its Recovery Points to the provider directly; the overlay removes this
+> Application, and nothing below applies.
+
 Everything below is **operator setup**: the base repo deliberately ships no
 credentials, and the `replicator-config-secret` is mounted `optional: true`, so
 until you complete these steps the nightly Job simply fails (which the stock
