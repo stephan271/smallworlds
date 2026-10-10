@@ -111,6 +111,24 @@ Stalwart or 10000/udp with Jitsi. It filters before NAT, so NodePorts are
 closed too. Before closing your first SSH session after the install, open a
 second one to confirm you can still get in. `--uninstall` removes it.
 
+**Closing SSH and the Kubernetes API.** Both stay open to the internet after
+an install, because nothing else reaches the machine yet. Once the node and
+your own device are on the tailnet (`admin-tools/setup-vpn.sh`, which handles a
+rented server too and offers to install the Tailscale client on it):
+
+```bash
+ssh root@admin.<domain> smallworlds-firewall close    # over the tailnet
+ssh root@admin.<domain> smallworlds-firewall status
+```
+
+`close` refuses unless the machine is on the tailnet *and* the session calling
+it arrived over the tailnet — that session is the proof the way in survives.
+`--force` skips the check. Tailnet traffic arrives on its own interface and is
+never filtered, so SSH and `kubectl` (with the kubeconfig naming
+`admin.<domain>`) keep working. `smallworlds-firewall open` reverses it; after
+a lockout, run that from the provider's web console. Re-running the installer
+keeps whichever state you chose.
+
 **Disks.** With external object storage one disk is enough. If Photos runs
 Immich (not Gallery, `docs/adr/0054`), `LIBRARY_DIR` can put the photo library
 alone on a second, larger disk; the bootstrap links it into the data directory

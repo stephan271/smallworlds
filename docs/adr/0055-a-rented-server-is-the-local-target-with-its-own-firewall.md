@@ -63,14 +63,20 @@ behalf.
 - The wizard offers three kinds of machine, but there are still two deployment
   targets; "a server you rent elsewhere" is the local target with public
   exposure, Let's Encrypt and the firewall preselected.
-- 6443 and SSH are open to the internet, as they are by default on Hetzner.
-  Closing them once the tailnet works means editing the allow-list by hand;
-  there is no equivalent of `public_admin_ports = false` yet.
+- 6443 and SSH are open to the internet after an install, as they are by
+  default on Hetzner. The equivalent of `public_admin_ports = false` is
+  `smallworlds-firewall close` on the node: the administrative ports are a
+  switch of their own in the allow-list, tailnet traffic is never filtered, and
+  the tool refuses to close them unless it is called from a session that came
+  in over the tailnet. The installer preserves the chosen state on a re-run,
+  and `setup-vpn.sh` covers a rented server.
 - IPv6 is filtered by the same rules, but the DNS job publishes only A records.
 
 ## Verification
 
 The generated ruleset was loaded in a container and shown to admit a listed
-port, drop an unlisted one, and leave outbound and loopback traffic alone. It
-has not been run on a node with k3s, so the NodePort claim rests on where the
-chain is hooked rather than on a test.
+port, drop an unlisted one, and leave outbound and loopback traffic alone. The
+open/close switch was exercised the same way, including each refusal. Neither
+has been run on a node with k3s or a real tailnet, so the NodePort claim rests
+on where the chain is hooked, and the tailnet path on Tailscale's interface
+name, rather than on a test.

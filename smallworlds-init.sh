@@ -1693,7 +1693,9 @@ elif [[ "$LOCAL_PUBLIC" == "yes" && "$LOCAL_FIREWALL" == "yes" ]]; then
     echo -e "${YELLOW}Notes for a rented server:${NC}"
     echo -e " - The host firewall admits SSH, 80/tcp, 443/tcp, 6443/tcp and what the selected"
     echo -e "   apps listen on; everything else arriving from the internet is dropped."
-    echo -e "   Rules: ${CYAN}/etc/smallworlds/firewall.nft${NC} on the server."
+    echo -e "   Check it on the server with ${CYAN}smallworlds-firewall status${NC}."
+    echo -e " - SSH and 6443 are still open to the internet. Once the node is on your tailnet"
+    echo -e "   (${CYAN}admin-tools/setup-vpn.sh${NC}), close them with ${CYAN}smallworlds-firewall close${NC}."
     if selected_apps | grep -qx stalwart; then
         echo -e " - Mail: set the reverse DNS (PTR) of ${CYAN}${SERVER_IP}${NC} to ${CYAN}mail${ENV_EXT}.${DOMAIN}${NC}"
         echo -e "   in your provider's control panel — the installer cannot do that outside"

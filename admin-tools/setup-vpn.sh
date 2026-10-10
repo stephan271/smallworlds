@@ -10,11 +10,13 @@ set -e
 # preauth key that only exists after ArgoCD has deployed Headscale, so it has
 # to be a separate, deliberate step run after the cluster is already up.
 #
-# Phase 1 is Hetzner/production-only (see plans-and-walkthroughs/
-# implementation_plan-private-overlay-phase0-1.md — local-target installs
-# don't expose 22/6443 to the internet in the first place, so there's nothing
-# for this to lock down there). This script assumes a Hetzner-provisioned
-# node: root@<ip> SSH and the Hetzner DNS API for the admin.<domain> record.
+# Phase 1 covers every node that is directly on the internet: a Hetzner node,
+# and a server rented elsewhere that was installed with the host firewall
+# (docs/adr/0055). A LAN machine behind a router does not expose 22/6443 in the
+# first place, so there is nothing for this to lock down there (see
+# plans-and-walkthroughs/implementation_plan-private-overlay-phase0-1.md).
+# It needs root SSH to the node and the Hetzner DNS API for the admin.<domain>
+# record — the zone is at Hetzner wherever the server is.
 #
 # Prerequisites:
 #   - The `headscale` ArgoCD Application must already be Synced + Healthy.
@@ -32,12 +34,24 @@ source "$SCRIPT_DIR/lib/cluster-env.sh"
 
 CACHE_FILE="$SCRIPT_DIR/../.smallworlds-cache.env"
 [ -f "$CACHE_FILE" ] && source "$CACHE_FILE"
+CACHED_DOMAIN="${DOMAIN:-}"
 
 CUR_ENV_EXT=$(detect_env_ext)
 CLUSTER=$(cluster_label "$CUR_ENV_EXT")
 DOMAIN=$(detect_domain)
 
-if [ "${DEPLOY_TARGET:-hetzner}" = "local" ]; then
+RENTED=""
+if [ "${DEPLOY_TARGET:-hetzner}" = "local" ] && [ "${LOCAL_FIREWALL:-no}" = "yes" ]; then
+    RENTED="yes"
+    # cluster-env.sh reads the Hetzner tfvars, which a rented server never had.
+    # Its domain and kubeconfig are the ones the installer cached and wrote
+    # (KUBECONFIG_LABEL in smallworlds-init.sh).
+    DOMAIN="${CACHED_DOMAIN:?DOMAIN not found in $CACHE_FILE}"
+    CLUSTER="local"
+    [ -n "$CUR_ENV_EXT" ] && CLUSTER="local-${CUR_ENV_EXT#.}"
+fi
+
+if [ "${DEPLOY_TARGET:-hetzner}" = "local" ] && [ -z "$RENTED" ]; then
     echo "Warning: DEPLOY_TARGET is 'local'. Phase 1 is intended for Hetzner/production"
     echo "only — a local-target node doesn't expose 22/6443 to the internet by default,"
     echo "so there's normally nothing here to lock down. Re-check the plan doc before"
@@ -47,7 +61,21 @@ if [ "${DEPLOY_TARGET:-hetzner}" = "local" ]; then
 fi
 
 export KUBECONFIG="${KUBECONFIG:-$(kubeconfig_path "$CLUSTER")}"
-SERVER_IP=$(detect_server_ip "$CUR_ENV_EXT")
+if [ -n "$RENTED" ]; then
+    # A rented server is reached the way the installer reached it. Everything
+    # below runs as root on the node, so a sudo-only login is not enough here.
+    case "${LOCAL_SSH_TARGET:-}" in
+        root@*) SERVER_IP="${LOCAL_SSH_TARGET#root@}" ;;
+        *)
+            echo "Error: this needs root SSH to the node, and the installer used '${LOCAL_SSH_TARGET:-<none>}'."
+            echo "Allow root login with your key for this step, set LOCAL_SSH_TARGET=root@<host>"
+            echo "in .smallworlds-cache.env, and re-run."
+            exit 1
+            ;;
+    esac
+else
+    SERVER_IP=$(detect_server_ip "$CUR_ENV_EXT")
+fi
 VPN_HOST="vpn${CUR_ENV_EXT}.${DOMAIN}"
 ADMIN_HOST="admin${CUR_ENV_EXT}.${DOMAIN}"
 
@@ -69,6 +97,21 @@ AUTH_KEY=$(kubectl -n headscale exec deploy/headscale -- headscale preauthkeys c
 if [ -z "$AUTH_KEY" ]; then
     echo "Error: could not create a headscale preauth key."
     exit 1
+fi
+
+if ! ssh $SSH_OPTS "root@$SERVER_IP" "command -v tailscale >/dev/null 2>&1"; then
+    # The Hetzner cloud-init installs the client; the local bootstrap runs only
+    # what came in its verified archive, so on a rented server it is missing
+    # until someone decides to fetch it. That decision is made here, in view.
+    echo ""
+    echo "   The Tailscale client is not installed on $SERVER_IP. It is installed with"
+    echo "   Tailscale's own script (https://tailscale.com/install.sh), run as root."
+    read -p "   Install it now? (y/N): " confirm
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+        echo "Stopped. Install the tailscale package on the node and re-run this script."
+        exit 1
+    fi
+    ssh $SSH_OPTS "root@$SERVER_IP" "curl -fsSL https://tailscale.com/install.sh | sh"
 fi
 
 echo ""
@@ -135,11 +178,22 @@ echo "   (step 5 added $ADMIN_HOST to the API server certificate, so the"
 echo "   kubeconfig must name that host rather than the public IP.)"
 echo ""
 echo "8. Only once BOTH work, close the public administrative ports:"
-echo "     terraform apply -var 'public_admin_ports=false'"
-echo "   SSH and kubectl keep working over the tailnet: that traffic arrives"
-echo "   inside the WireGuard tunnel and never passes the Hetzner firewall."
-echo "   Do not do this before step 7 — it is how you lock yourself out."
-echo ""
-echo "   Way back in after a lockout: re-apply with public_admin_ports=true,"
-echo "   or edit the firewall directly in the Hetzner Cloud console, which"
-echo "   needs no access to the server at all."
+if [ -n "$RENTED" ]; then
+    echo "     ssh root@$ADMIN_HOST smallworlds-firewall close"
+    echo "   Run it over the tailnet, as written: the tool refuses unless the session"
+    echo "   it is called from came in that way, because that session is the proof"
+    echo "   the way in still works. SSH and kubectl then answer on the tailnet only."
+    echo ""
+    echo "   Way back in after a lockout: your provider's web console, and there"
+    echo "     smallworlds-firewall open"
+    echo "   Re-running the installer does not reopen the ports."
+else
+    echo "     terraform apply -var 'public_admin_ports=false'"
+    echo "   SSH and kubectl keep working over the tailnet: that traffic arrives"
+    echo "   inside the WireGuard tunnel and never passes the Hetzner firewall."
+    echo "   Do not do this before step 7 — it is how you lock yourself out."
+    echo ""
+    echo "   Way back in after a lockout: re-apply with public_admin_ports=true,"
+    echo "   or edit the firewall directly in the Hetzner Cloud console, which"
+    echo "   needs no access to the server at all."
+fi
