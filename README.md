@@ -71,6 +71,8 @@ SmallWorlds supports two deployment targets — you are asked which one you want
 
 A **server rented from another provider** is the `local` target too: answer yes to internet exposure and yes to the host firewall (in the wizard: "A server you rent elsewhere"). You order the machine and delegate the domain to Hetzner DNS; the installer does the rest. See ["A rented server (VPS)"](doc/local-deployment.md#a-rented-server-vps--docsadr0055).
 
+For that case with S3 storage at Datalix there is a single start-to-finish guide: [`doc/install-contabo-datalix.md`](doc/install-contabo-datalix.md).
+
 Three further choices are made at install time, each recorded in a decision record:
 
 | Choice | Options | Default | See |
