@@ -4,6 +4,10 @@ status: accepted
 
 # Acquire separately signed bootstrap assets from official GitHub Releases
 
+> Superseded by ADR 0057: bootstrap inputs are now pins in the repository, and
+> no archive is built or published. The text below is kept as the record of the
+> launcher-era decision.
+
 Bootstrap assets will be distributed as separately signed, release-specific
 archives rather than embedded in each Bootstrap Launcher binary. For the first
 release, the only online source is an attachment on the matching official

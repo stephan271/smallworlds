@@ -140,7 +140,6 @@ def write_installer_cache(answers: dict, path: str, token_source: dict) -> None:
         "DATA_DIR": answers.get("data_dir", ""),
         "BACKUP_DIR": answers.get("backup_dir", ""),
         "PROFILE_ID": existing.get("PROFILE_ID", ""),
-        "BOOTSTRAP_RELEASE": existing.get("BOOTSTRAP_RELEASE", ""),
         # Not asked for in the browser, but the installer resolves and caches
         # it — from the node that is already running, if there is one. Dropping
         # it here would send the next run back to the built-in default and

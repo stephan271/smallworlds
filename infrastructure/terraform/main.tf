@@ -269,6 +269,18 @@ data "hcloud_image" "golden" {
 }
 
 # Provision the actual VM
+# What a new node installs before Argo CD takes over — the K3s version, the K3s
+# install script and the Argo CD manifest, each with its SHA-256 — is read from
+# the one file every bootstrap path shares (docs/adr/0057). Parsed here rather
+# than passed in, so a bare `terraform apply` installs the same thing.
+locals {
+  bootstrap_pins = {
+    for line in split("\n", file("${path.module}/../bootstrap-pins.env")) :
+    regex("^([A-Z0-9_]+)=(.*)$", trimspace(line))[0] => regex("^([A-Z0-9_]+)=(.*)$", trimspace(line))[1]
+    if can(regex("^[A-Z0-9_]+=", trimspace(line)))
+  }
+}
+
 resource "hcloud_server" "smallworlds_pilot_node" {
   name        = "cc-pilot-node-01${local.env_slug}"
   image       = var.use_golden_image ? tostring(data.hcloud_image.golden[0].id) : "ubuntu-24.04"
@@ -279,15 +291,20 @@ resource "hcloud_server" "smallworlds_pilot_node" {
   firewall_ids = [hcloud_firewall.k8s_firewall.id]
 
   user_data = templatefile("${path.module}/../cloud-init/k3s-node.yaml.tpl", {
-    golden_image      = var.use_golden_image
-    node_name         = "cc-pilot-node-01"
-    server_ip         = data.hcloud_primary_ip.main_ip.ip_address
-    domain_name       = var.domain_name
-    env_ext           = var.env_ext
-    acme_email        = var.admin_email
-    hcloud_token      = var.hcloud_token
-    root_app_git_url  = var.git_url
-    persistent_volume = true
+    k3s_version            = local.bootstrap_pins["K3S_VERSION"]
+    k3s_installer_url      = local.bootstrap_pins["K3S_INSTALLER_URL"]
+    k3s_installer_sha256   = local.bootstrap_pins["K3S_INSTALLER_SHA256"]
+    argocd_manifest_url    = local.bootstrap_pins["ARGOCD_MANIFEST_URL"]
+    argocd_manifest_sha256 = local.bootstrap_pins["ARGOCD_MANIFEST_SHA256"]
+    golden_image           = var.use_golden_image
+    node_name              = "cc-pilot-node-01"
+    server_ip              = data.hcloud_primary_ip.main_ip.ip_address
+    domain_name            = var.domain_name
+    env_ext                = var.env_ext
+    acme_email             = var.admin_email
+    hcloud_token           = var.hcloud_token
+    root_app_git_url       = var.git_url
+    persistent_volume      = true
     # Stable /dev/disk/by-id paths — see the automount comment on the attachments.
     data_volume_device   = hcloud_volume.smallworlds_data.linux_device
     backup_volume_device = hcloud_volume.smallworlds_backup.linux_device

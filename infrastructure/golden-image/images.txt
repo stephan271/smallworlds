@@ -27,7 +27,7 @@ ghcr.io/tensorchord/cloudnative-vectorchord:16.13-1.1.1
 mirror.gcr.io/aquasec/trivy:0.71.1
 mirror.gcr.io/aquasec/trivy-operator:0.31.2
 public.ecr.aws/docker/library/redis:8.2.3-alpine
-quay.io/argoproj/argocd:v3.4.4
+quay.io/argoproj/argocd:v3.5.4
 quay.io/jetstack/cert-manager-cainjector:v1.20.3
 quay.io/jetstack/cert-manager-controller:v1.20.3
 quay.io/jetstack/cert-manager-webhook:v1.20.3

@@ -7,6 +7,9 @@
 # Hetzner VM. It is normally invoked by smallworlds-init.sh over SSH, but can
 # also be run manually on the target machine as root.
 #
+# It needs infrastructure/bootstrap-pins.env beside it (or one directory up, as
+# in a checkout): the K3s and Argo CD versions it installs, with checksums.
+#
 # Usage:
 #   bootstrap-local-node.sh <config.env>     install and bootstrap the cluster
 #   bootstrap-local-node.sh --uninstall      remove k3s (keeps the data dir)
@@ -159,28 +162,55 @@ PROFILE_ID="${PROFILE_ID:?PROFILE_ID must be set in $CONFIG_FILE}"
 BOOTSTRAP_RUN_ID="${BOOTSTRAP_RUN_ID:?BOOTSTRAP_RUN_ID must be set in $CONFIG_FILE}"
 SECRETS_MANIFEST="${SECRETS_MANIFEST:-}"
 
-# This script is an execution payload, not an ambient-upstream installer. The
-# Launcher obtains this directory from a signed release archive before opening
-# SSH, so all executable and manifest inputs are already verified.
-BOOTSTRAP_ASSET_DIR="${SMALLWORLDS_BOOTSTRAP_ASSET_DIR:-}"
-if [ -z "$BOOTSTRAP_ASSET_DIR" ]; then
-    echo -e "${RED}This bootstrap must be run from a verified SmallWorlds release archive.${NC}" >&2
+# What gets installed is pinned, not "whatever upstream serves today": the K3s
+# version, the K3s install script and the Argo CD manifest come from
+# bootstrap-pins.env, which travels with this script, and each download is
+# checked against its SHA-256 before it is used (docs/adr/0057).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PINS_FILE="${SMALLWORLDS_BOOTSTRAP_PINS:-}"
+if [ -z "$PINS_FILE" ]; then
+    # Next to the script when it was copied to a node, one level up in a checkout.
+    for candidate in "$SCRIPT_DIR/bootstrap-pins.env" "$SCRIPT_DIR/../bootstrap-pins.env"; do
+        if [ -r "$candidate" ]; then PINS_FILE="$candidate"; break; fi
+    done
+fi
+if [ -z "$PINS_FILE" ] || [ ! -r "$PINS_FILE" ]; then
+    echo -e "${RED}bootstrap-pins.env not found next to $0.${NC}" >&2
+    echo "Copy infrastructure/bootstrap-pins.env from the SmallWorlds checkout alongside this script." >&2
     exit 1
 fi
-K3S_INSTALLER="$BOOTSTRAP_ASSET_DIR/third-party/k3s-install.sh"
-K3S_VERSION_FILE="$BOOTSTRAP_ASSET_DIR/third-party/k3s-version"
-ARGOCD_MANIFEST="$BOOTSTRAP_ASSET_DIR/third-party/argocd-install.yaml"
-for asset in "$K3S_INSTALLER" "$K3S_VERSION_FILE" "$ARGOCD_MANIFEST"; do
-    if [ ! -r "$asset" ]; then
-        echo -e "${RED}Verified bootstrap archive is incomplete: $asset${NC}" >&2
+# shellcheck disable=SC1090
+source "$PINS_FILE"
+for pin in K3S_VERSION K3S_INSTALLER_URL K3S_INSTALLER_SHA256 ARGOCD_MANIFEST_URL ARGOCD_MANIFEST_SHA256; do
+    if [ -z "${!pin:-}" ]; then
+        echo -e "${RED}$PINS_FILE does not set $pin.${NC}" >&2
         exit 1
     fi
 done
-K3S_VERSION="$(tr -d '\r\n' < "$K3S_VERSION_FILE")"
 if ! [[ "$K3S_VERSION" =~ ^[A-Za-z0-9][A-Za-z0-9._+~-]*$ ]]; then
-    echo -e "${RED}Verified bootstrap archive has an invalid k3s version.${NC}" >&2
+    echo -e "${RED}$PINS_FILE has an invalid K3S_VERSION.${NC}" >&2
     exit 1
 fi
+
+# fetch_verified <url> <sha256> <destination>: download, and keep the file only
+# if it is byte for byte what was pinned.
+fetch_verified() {
+    local url="$1" expected="$2" destination="$3" actual
+    if ! curl -fsSL --retry 3 --max-time 120 -o "$destination" "$url"; then
+        echo -e "${RED}Could not download $url.${NC}" >&2
+        exit 1
+    fi
+    actual="$(sha256sum "$destination" | cut -d' ' -f1)"
+    if [ "$actual" != "$expected" ]; then
+        rm -f "$destination"
+        echo -e "${RED}Checksum mismatch for $url${NC}" >&2
+        echo "  expected $expected" >&2
+        echo "  got      $actual" >&2
+        echo "The file is not the one that was reviewed, so nothing was installed. If upstream" >&2
+        echo "moved it, update the pin in infrastructure/bootstrap-pins.env." >&2
+        exit 1
+    fi
+}
 
 MARKER_DIR=/etc/smallworlds
 EXISTING_PROFILE_ID=""
@@ -249,9 +279,19 @@ if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: a
     echo -e "${YELLOW}and that pod/service CIDRs are permitted (see https://docs.k3s.io/installation/requirements).${NC}"
 fi
 
-for tool in curl; do
+for tool in curl sha256sum; do
     command -v "$tool" >/dev/null 2>&1 || { echo -e "${RED}Missing required tool: $tool${NC}" >&2; exit 1; }
 done
+
+# Both downloads happen here, before the firewall, the disks or k3s are touched,
+# so a pin that no longer matches stops the bootstrap with nothing installed.
+FETCH_DIR="$(mktemp -d)"
+trap 'rm -rf "$FETCH_DIR"' EXIT
+K3S_INSTALLER="$FETCH_DIR/k3s-install.sh"
+ARGOCD_MANIFEST="$FETCH_DIR/argocd-install.yaml"
+echo -e "${CYAN}Fetching the pinned K3s installer and Argo CD manifest...${NC}"
+fetch_verified "$K3S_INSTALLER_URL" "$K3S_INSTALLER_SHA256" "$K3S_INSTALLER"
+fetch_verified "$ARGOCD_MANIFEST_URL" "$ARGOCD_MANIFEST_SHA256" "$ARGOCD_MANIFEST"
 
 # Primary LAN IP: the address this machine uses to reach the outside world.
 NODE_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}' | head -1)

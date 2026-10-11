@@ -303,7 +303,12 @@ runcmd:
   # regenerate the systemd unit with node-specific args and start
   - INSTALL_K3S_SKIP_DOWNLOAD=true /usr/local/lib/k3s-install.sh server --cluster-init --node-ip=$NODE_IP --node-name=${node_name} --disable traefik --kubelet-arg=registry-qps=50 --kubelet-arg=registry-burst=100
 %{ else ~}
-  - curl -sfL https://get.k3s.io | sh -s - server --cluster-init --node-ip=$NODE_IP --node-name=${node_name} --disable traefik --kubelet-arg=registry-qps=50 --kubelet-arg=registry-burst=100
+  # Pinned and checked, not "whatever upstream serves today": the version and
+  # the checksum come from infrastructure/bootstrap-pins.env (docs/adr/0057).
+  # A mismatch stops here, before k3s exists; cloud-init then reports an error.
+  - curl -fsSL --retry 3 -o /usr/local/lib/k3s-install.sh "${k3s_installer_url}"
+  - echo "${k3s_installer_sha256}  /usr/local/lib/k3s-install.sh" | sha256sum -c - || { rm -f /usr/local/lib/k3s-install.sh; echo "K3s installer checksum mismatch - see infrastructure/bootstrap-pins.env" >&2; exit 1; }
+  - INSTALL_K3S_VERSION="${k3s_version}" sh /usr/local/lib/k3s-install.sh server --cluster-init --node-ip=$NODE_IP --node-name=${node_name} --disable traefik --kubelet-arg=registry-qps=50 --kubelet-arg=registry-burst=100
 %{ endif ~}
   - export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
   - until kubectl get nodes | grep -v NotReady | grep -q Ready; do sleep 5; done
@@ -315,7 +320,9 @@ runcmd:
 
   # 3. Install ArgoCD
   - kubectl create namespace argocd || true
-  - kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml --server-side --force-conflicts
+  - curl -fsSL --retry 3 -o /root/argocd-install.yaml "${argocd_manifest_url}"
+  - echo "${argocd_manifest_sha256}  /root/argocd-install.yaml" | sha256sum -c - || { rm -f /root/argocd-install.yaml; echo "Argo CD manifest checksum mismatch - see infrastructure/bootstrap-pins.env" >&2; exit 1; }
+  - kubectl apply -n argocd -f /root/argocd-install.yaml --server-side --force-conflicts
   - |
     cat << 'EOF' > /tmp/argocd-cm-patch.yaml
     data:

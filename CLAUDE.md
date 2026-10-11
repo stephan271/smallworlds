@@ -19,6 +19,7 @@ infrastructure/
                         not constants)
   terraform-staging/    Ephemeral staging VM used by admin-tools/test-pr-locally.sh
   cloud-init/           Shared k3s+ArgoCD bootstrap template used by both terraform roots
+  bootstrap-pins.env    K3s + Argo CD versions, URLs and SHA-256s every bootstrap path installs
   local/                LAN-server bootstrap (shell counterpart of cloud-init, no Terraform)
   kubernetes/
     kustomization.yaml  The master base — root list of ArgoCD Applications + core tenants
@@ -148,6 +149,27 @@ and the server has `ignore_changes = [user_data]`. It must go through Terraform,
 Console: Hetzner refuses to delete a server with volumes attached, and Terraform already
 orders the detach/delete/create/re-attach. Volumes (`prevent_destroy`) and the Primary IP
 (not Terraform-managed) survive.
+
+## What a node installs: `infrastructure/bootstrap-pins.env`
+
+The K3s version, the K3s install script and the Argo CD manifest are pinned in one file,
+each with an immutable URL and a SHA-256 (`docs/adr/0057`). Every bootstrap path reads it
+and verifies the downloads **on the node**: `bootstrap-local-node.sh` sources it (it is
+copied to the machine beside the script), both Terraform roots parse it into
+`local.bootstrap_pins` for the cloud-init template, and `build-golden-image.sh` sources it.
+There is no bootstrap archive, lock file per release, or signing step any more — a release
+is a tag.
+
+- **Never fetch `https://get.k3s.io` or a branch URL in a bootstrap path.** A moving
+  address under a fixed digest is what stopped every install from `v1.2.43` when upstream
+  edited the script. `admin-tools/test-bootstrap-pins.sh` rejects one; `--online` re-checks
+  both digests against upstream and belongs before a tag.
+- The file is plain `KEY=value` only (no quotes, no expansion) because Terraform parses it
+  with a regex. Change version, URL and digest together.
+- A pin change reaches **new and rebuilt nodes only**. Never lower the K3s pin below what
+  running clusters have: a rebuilt Hetzner node re-attaches the existing etcd data.
+- `admin-tools/lab/lab-node-bootstrap.sh` and the unused `terraform/modules/worker-node`
+  template still fetch `get.k3s.io` unverified; they are outside the install paths.
 
 ## Waiting for a Hetzner node (`smallworlds-init.sh`)
 

@@ -27,6 +27,10 @@ _Avoid_: Admin dashboard, Homepage
 The single-use local web wizard that collects a cluster's settings and runs the setup scripts, then stops. It replaces the Bootstrap Launcher's role and has none after the cluster exists.
 _Avoid_: Console, installer UI, launcher
 
+**Bootstrap Pins**:
+The K3s version, K3s install script and Argo CD manifest a new Cluster Node installs before Argo CD takes over, each named with an immutable URL and a SHA-256 in `infrastructure/bootstrap-pins.env`. Every bootstrap path reads them and verifies the downloads on the node.
+_Avoid_: Bootstrap assets, bootstrap archive, input lock
+
 **Bootstrap Launcher** *(console; deactivated)*:
 The locally executed product that made the Operator Console available before the SmallWorlds cluster existed. Superseded by the Setup Wizard.
 _Avoid_: Desktop app, installer script

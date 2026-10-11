@@ -345,7 +345,8 @@ the lines that caused it to be **deployed** are commented out:
 The two publish workflows are `workflow_dispatch`-only and the contracts
 workflow only fires on `operator-console/**` paths, so **no CI change was
 needed** — they simply stop being dispatched. Step 1b of the release checklist
-becomes optional; the 4 bootstrap assets are still required.
+becomes optional; the 4 bootstrap assets are still required (no longer —
+`docs/adr/0057` replaced them with pins in the repository).
 
 > **Effect on a running cluster:** adopting a release with this commented out
 > **prunes** the console — the root app removes the Application, whose

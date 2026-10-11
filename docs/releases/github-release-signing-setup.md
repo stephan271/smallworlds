@@ -1,7 +1,10 @@
 # One-time GitHub Release signing setup
 
-Do this once, only when the release workflow and an initial reviewed input lock
-are ready. It is not needed to run the Operator Console or create a cluster.
+> Only the deactivated Bootstrap Launcher's publishing workflow signs anything.
+> A SmallWorlds release is a tag and needs no signing key (`docs/adr/0057`);
+> skip this document unless you are reviving the launcher.
+
+Do this once, only when the launcher's release workflow is to be run. It is not needed to run the Operator Console or create a cluster.
 
 ## 1. Create and protect the signing material
 
@@ -50,8 +53,8 @@ archive that was not signed by your private key.
 
 ## 4. First safe workflow run
 
-When a reviewed input lock and matching Git tag exist, open **Actions** →
-**Publish Bootstrap Assets** → **Run workflow**. Enter the tag, leave
+When a matching Git tag exists, open **Actions** →
+**Publish Bootstrap Launcher** → **Run workflow**. Enter the tag, leave
 **publish** unchecked, and run it. This builds and signs a temporary validation
 package but makes no GitHub Release changes. Only after that run succeeds should
 you repeat it with **publish** checked.

@@ -32,7 +32,9 @@ set -euo pipefail
 #     | xargs -r -n1 hcloud image delete
 # ============================================================================
 
-K3S_VERSION="v1.36.2+k3s1"
+# The same K3s a node without a golden image installs (docs/adr/0057).
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "$0")/.." && pwd)/infrastructure/bootstrap-pins.env"
 BUILD_SERVER_TYPE="cx23"   # 40GB disk: snapshot stays usable on any >=40GB server
 LOCATION="nbg1"
 SNAPSHOT_LABEL="smallworlds-golden=true"
@@ -101,7 +103,9 @@ SYSCTL
 
 # Keep the install script for node-specific re-runs at first boot
 # (INSTALL_K3S_SKIP_DOWNLOAD=true regenerates the systemd unit without network)
-curl -sfL https://get.k3s.io -o /usr/local/lib/k3s-install.sh
+curl -fsSL --retry 3 "$K3S_INSTALLER_URL" -o /usr/local/lib/k3s-install.sh
+echo "$K3S_INSTALLER_SHA256  /usr/local/lib/k3s-install.sh" | sha256sum -c - \\
+  || { echo "K3s installer checksum mismatch - see infrastructure/bootstrap-pins.env" >&2; exit 1; }
 chmod +x /usr/local/lib/k3s-install.sh
 # Disable every addon: this k3s only exists to warm the containerd image
 # store, nothing it deploys may leak into the snapshot

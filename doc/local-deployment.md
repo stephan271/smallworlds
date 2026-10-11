@@ -32,6 +32,10 @@ on Hetzner works locally and vice versa.
   already has its first commit: the node is pinned to one exact overlay
   revision, which the installer resolves with `git ls-remote` before touching
   anything.
+- `curl`, `sha256sum` and outbound HTTPS on the machine itself. The bootstrap
+  downloads the K3s installer and the Argo CD manifest named in
+  `infrastructure/bootstrap-pins.env` and stops, with nothing installed, if
+  either does not match its pinned checksum (`docs/adr/0057`).
 - SSH access from the machine running the installer, with root login or a
   sudo-capable user (`ssh -t` is used, so an interactive sudo password prompt
   works). Use the literal target `localhost` to install on the machine you are

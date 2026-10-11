@@ -718,66 +718,6 @@ ASKPASS
     printf '%s' "$revision"
 }
 
-# Build (or reuse) the release-pinned bootstrap payload the local bootstrap
-# refuses to run without. It is deliberately not an installer that fetches
-# "latest" from the network: every k3s installer and Argo CD manifest is
-# downloaded once, verified against the SHA-256 declared in
-# docs/releases/bootstrap-inputs/, and shipped to the node together with the
-# bootstrap script that consumes it. Sets $ASSET_ARCHIVE.
-build_bootstrap_assets() {
-    local inputs_dir="$REPO_ROOT/docs/releases/bootstrap-inputs"
-    local bootstrap_script="$REPO_ROOT/infrastructure/local/bootstrap-local-node.sh"
-
-    if [[ -z "$BOOTSTRAP_RELEASE" ]]; then
-        BOOTSTRAP_RELEASE=$(find "$inputs_dir" -maxdepth 1 -name 'v[0-9]*.json' -printf '%f\n' 2>/dev/null \
-            | sed 's/\.json$//' | sort -V | tail -1)
-    fi
-    local inputs="$inputs_dir/${BOOTSTRAP_RELEASE}.json"
-    if [[ -z "$BOOTSTRAP_RELEASE" || ! -f "$inputs" ]]; then
-        echo -e "${RED}No bootstrap inputs found for release '${BOOTSTRAP_RELEASE:-<none>}' in $inputs_dir.${NC}" >&2
-        exit 1
-    fi
-
-    local cache="$HOME/.smallworlds/bootstrap-assets"
-    ASSET_ARCHIVE="$cache/smallworlds-bootstrap-${BOOTSTRAP_RELEASE}-linux-amd64.tar.gz"
-
-    # Rebuild when the bootstrap script has moved on: the archive carries a copy
-    # of it, so a cached payload would otherwise ship a stale script alongside
-    # current manifests.
-    if [[ -f "$ASSET_ARCHIVE" && ! "$bootstrap_script" -nt "$ASSET_ARCHIVE" ]]; then
-        echo -e "${GREEN}Using cached bootstrap assets for ${BOOTSTRAP_RELEASE}.${NC}"
-        return
-    fi
-
-    echo -e "${CYAN}Building bootstrap assets for ${BOOTSTRAP_RELEASE} (verified downloads)...${NC}"
-    mkdir -p "$cache"
-    local k3s_version k3s_url k3s_sha argocd_version argocd_url argocd_sha
-    eval "$(python3 - "$inputs" <<'PY'
-import json, shlex, sys
-document = json.load(open(sys.argv[1]))
-values = {
-    "k3s_version": document["k3s"]["version"],
-    "k3s_url": document["k3s"]["installerUrl"],
-    "k3s_sha": document["k3s"]["installerSHA256"],
-    "argocd_version": document["argocd"]["version"],
-    "argocd_url": document["argocd"]["manifestUrl"],
-    "argocd_sha": document["argocd"]["manifestSHA256"],
-}
-for key, value in values.items():
-    print(f"{key}={shlex.quote(value)}")
-PY
-)"
-    "$REPO_ROOT/admin-tools/build-bootstrap-assets.sh" \
-        --release "$BOOTSTRAP_RELEASE" \
-        --k3s-version "$k3s_version" \
-        --k3s-installer-url "$k3s_url" \
-        --k3s-installer-sha256 "$k3s_sha" \
-        --argocd-version "$argocd_version" \
-        --argocd-manifest-url "$argocd_url" \
-        --argocd-manifest-sha256 "$argocd_sha" \
-        --output-directory "$cache" >/dev/null
-}
-
 echo -e "${YELLOW}Gathering Configuration...${NC}"
 echo -e "Deployment targets:"
 echo -e "  ${CYAN}hetzner${NC} — provision a Hetzner Cloud VM + DNS via Terraform (public, internet-facing)"
@@ -1047,7 +987,6 @@ LOCAL_SSH_TARGET="${LOCAL_SSH_TARGET}"
 DATA_DIR="${DATA_DIR}"
 BACKUP_DIR="${BACKUP_DIR}"
 PROFILE_ID="${PROFILE_ID}"
-BOOTSTRAP_RELEASE="${BOOTSTRAP_RELEASE}"
 LOCAL_PUBLIC="${LOCAL_PUBLIC}"
 LOCAL_TLS="${LOCAL_TLS}"
 LOCAL_FIREWALL="${LOCAL_FIREWALL}"
@@ -1560,7 +1499,13 @@ except OSError:
     fi
     echo -e "${GREEN}Overlay pinned to commit ${ROOT_APP_GIT_REVISION}.${NC}"
 
-    build_bootstrap_assets
+    # The node installs the K3s and Argo CD that bootstrap-pins.env names, and
+    # checks both downloads itself; the script and its pins travel together.
+    BOOTSTRAP_SCRIPT="$REPO_ROOT/infrastructure/local/bootstrap-local-node.sh"
+    BOOTSTRAP_PINS="$REPO_ROOT/infrastructure/bootstrap-pins.env"
+    for required in "$BOOTSTRAP_SCRIPT" "$BOOTSTRAP_PINS"; do
+        [[ -f "$required" ]] || { echo -e "${RED}Missing $required — is this checkout complete?${NC}" >&2; exit 1; }
+    done
 
     # Identifies this attempt in the durable checkpoints the bootstrap leaves on
     # the node, so an install interrupted by a dropped SSH session resumes at a
@@ -1683,8 +1628,8 @@ EOF
     if [[ "$LOCAL_SSH_TARGET" == "localhost" ]]; then
         echo -e "${CYAN}Bootstrapping THIS machine (sudo password may be requested)...${NC}"
         rm -rf "$RUN_DIR" && mkdir -p "$RUN_DIR"
-        tar xzf "$ASSET_ARCHIVE" -C "$RUN_DIR"
-        sudo bash "$RUN_DIR/run-local-node-bootstrap.sh" "$LOCAL_ENV_FILE"
+        cp "$BOOTSTRAP_SCRIPT" "$BOOTSTRAP_PINS" "$RUN_DIR/"
+        sudo bash "$RUN_DIR/bootstrap-local-node.sh" "$LOCAL_ENV_FILE"
         rm -rf "$RUN_DIR"
         KUBECONFIG_FETCH() { cp "$REMOTE_KUBECONFIG" "$1" && rm -f "$REMOTE_KUBECONFIG"; }
     else
@@ -1692,19 +1637,19 @@ EOF
         SUDO_PREFIX="sudo "
         if [[ "$LOCAL_SSH_TARGET" == root@* ]]; then SUDO_PREFIX=""; fi
 
-        echo -e "${CYAN}Copying the bootstrap payload to ${LOCAL_SSH_TARGET}...${NC}"
-        scp $SSH_OPTS "$ASSET_ARCHIVE" "$LOCAL_SSH_TARGET:${RUN_DIR}.tar.gz" >/dev/null
+        echo -e "${CYAN}Copying the bootstrap script to ${LOCAL_SSH_TARGET}...${NC}"
+        ssh $SSH_OPTS "$LOCAL_SSH_TARGET" "rm -rf $RUN_DIR && mkdir -p $RUN_DIR"
+        scp $SSH_OPTS "$BOOTSTRAP_SCRIPT" "$BOOTSTRAP_PINS" "$LOCAL_SSH_TARGET:$RUN_DIR/" >/dev/null
         scp $SSH_OPTS "$LOCAL_ENV_FILE" "$LOCAL_SSH_TARGET:$LOCAL_ENV_FILE" >/dev/null
         scp $SSH_OPTS "$SECRETS_FILE" "$LOCAL_SSH_TARGET:$SECRETS_FILE" >/dev/null
 
         echo -e "${CYAN}Bootstrapping ${LOCAL_SSH_TARGET} (sudo password may be requested)...${NC}"
         # -t: allocate a TTY so sudo can prompt for a password if needed.
-        # The payload is removed whether the bootstrap succeeded or not, and its
+        # The script is removed whether the bootstrap succeeded or not, and its
         # exit status is what this script sees.
         ssh -t $SSH_OPTS "$LOCAL_SSH_TARGET" \
-            "rm -rf $RUN_DIR && mkdir -p $RUN_DIR && tar xzf ${RUN_DIR}.tar.gz -C $RUN_DIR || exit 1; \
-             ${SUDO_PREFIX}bash $RUN_DIR/run-local-node-bootstrap.sh $LOCAL_ENV_FILE; \
-             status=\$?; rm -rf $RUN_DIR ${RUN_DIR}.tar.gz; exit \$status"
+            "${SUDO_PREFIX}bash $RUN_DIR/bootstrap-local-node.sh $LOCAL_ENV_FILE; \
+             status=\$?; rm -rf $RUN_DIR; exit \$status"
         KUBECONFIG_FETCH() {
             scp $SSH_OPTS "$LOCAL_SSH_TARGET:$REMOTE_KUBECONFIG" "$1" >/dev/null
             ssh $SSH_OPTS "$LOCAL_SSH_TARGET" "rm -f $REMOTE_KUBECONFIG" 2>/dev/null || true

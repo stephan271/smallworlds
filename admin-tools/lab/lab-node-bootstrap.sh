@@ -31,8 +31,9 @@ ENV_EXT="${ENV_EXT:-}"
 DATA_DIR="${DATA_DIR:-/var/lib/smallworlds-data}"
 ETCD_DIR="${ETCD_DIR:-/var/lib/smallworlds-etcd}"
 NODE_NAME="${NODE_NAME:-smallworlds-local-node}"
-# Same pin as the current release inputs (docs/releases/bootstrap-inputs/v1.2.34.json).
-K3S_VERSION="${K3S_VERSION:-v1.36.2+k3s1}"
+# Keep in step with K3S_VERSION in infrastructure/bootstrap-pins.env; this script
+# runs standalone on the lab machine, so it cannot read that file.
+K3S_VERSION="${K3S_VERSION:-v1.36.5+k3s1}"
 LAB_DIR=/etc/smallworlds-lab
 
 if [ "$(id -u)" -ne 0 ]; then
