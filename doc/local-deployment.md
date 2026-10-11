@@ -136,6 +136,13 @@ Stalwart or 10000/udp with Jitsi. It filters before NAT, so NodePorts are
 closed too. Before closing your first SSH session after the install, open a
 second one to confirm you can still get in. `--uninstall` removes it.
 
+**After the install, the order of the remaining steps matters** — join the
+server to the tailnet, join your own computer, verify access, close the ports,
+and only then create member accounts, because the invite tool needs the
+tailnet once the operator pages are private. `doc/install-contabo-datalix.md`
+steps 7 to 14 walk through all of it, with the commands; they apply to any
+rented server, not only that provider's.
+
 **Closing SSH and the Kubernetes API.** Both stay open to the internet after
 an install, because nothing else reaches the machine yet. Once the node and
 your own device are on the tailnet (`admin-tools/setup-vpn.sh`, which handles a
