@@ -124,11 +124,26 @@ fi
 echo ""
 echo "2. Creating (or reusing) the 'infra' headscale user and a one-time preauth key..."
 kubectl -n headscale exec deploy/headscale -- headscale users create infra >/dev/null 2>&1 || true
-AUTH_KEY=$(kubectl -n headscale exec deploy/headscale -- headscale preauthkeys create --user infra --expiration 1h --reusable=false 2>/dev/null | tr -d '[:space:]')
+# Current Headscale (seen with 0.29.2) identifies the user of a preauth key by
+# its numeric id, and rejects the name ("invalid argument \"infra\" for --user"). Older
+# releases take the name, which is the fallback when no id can be read.
+INFRA_USER=$(kubectl -n headscale exec deploy/headscale -- headscale users list -o json 2>/dev/null \
+    | python3 -c 'import json, sys
+try:
+    users = json.load(sys.stdin)
+except ValueError:
+    users = []
+print(next((str(u["id"]) for u in users or [] if u.get("name") == "infra"), ""))' 2>/dev/null || true)
+[ -n "$INFRA_USER" ] || INFRA_USER="infra"
+KEY_ERROR=$(mktemp)
+AUTH_KEY=$(kubectl -n headscale exec deploy/headscale -- headscale preauthkeys create --user "$INFRA_USER" --expiration 1h --reusable=false 2>"$KEY_ERROR" | tr -d '[:space:]')
 if [ -z "$AUTH_KEY" ]; then
-    echo "Error: could not create a headscale preauth key."
+    echo "Error: could not create a headscale preauth key. Headscale said:"
+    sed 's/^/    /' "$KEY_ERROR"
+    rm -f "$KEY_ERROR"
     exit 1
 fi
+rm -f "$KEY_ERROR"
 
 if ! node_run "command -v tailscale >/dev/null 2>&1"; then
     # The Hetzner cloud-init installs the client; the local bootstrap runs only
@@ -211,8 +226,10 @@ echo "✅ Server-side setup complete."
 echo ""
 echo "6. To enroll THIS machine (optional, for direct tailnet SSH/kubectl access):"
 echo "     tailscale up --login-server=https://$VPN_HOST"
-echo "   That prints a machine key. Approve it from the server:"
-echo "     ssh $NODE_SSH '${SUDO_HINT}k3s kubectl -n headscale exec deploy/headscale -- headscale nodes register --user infra --key <machine-key>'"
+echo "   That prints a link ending in an id. Approve it from the server:"
+echo "     ssh $NODE_SSH '${SUDO_HINT}k3s kubectl -n headscale exec deploy/headscale -- headscale auth register --auth-id <id> --user infra'"
+echo "   (the page behind the link shows the same command with the id filled in;"
+echo "   older Headscale releases use: headscale nodes register --user infra --key <id>)"
 echo ""
 echo "7. Verify tailnet access from the enrolled device BEFORE closing anything:"
 echo "     ssh ${PORT_FLAG}${NODE_USER}@$ADMIN_HOST"
