@@ -85,5 +85,13 @@ else
     fail "the check runs before k3s is installed"
 fi
 
+echo "local bootstrap — the DNS job addresses the apex record as the API expects"
+# Hetzner's API answers 404 to rrsets/%40/A and 200 to rrsets/@/A. Encoding the
+# name left the old apex record in place, so the job never moved any record.
+if grep -q 'rrsets/\$encoded' "$local_bootstrap"; then fail "the apex name is not percent-encoded"
+else pass "the apex name is not percent-encoded"; fi
+if grep -q 'rrsets/\$name/A' "$local_bootstrap"; then pass "the existing record is deleted by its literal name"
+else fail "the existing record is deleted by its literal name"; fi
+
 echo
 if [[ "$failures" -eq 0 ]]; then echo "All checks passed."; else echo "$failures check(s) failed."; exit 1; fi

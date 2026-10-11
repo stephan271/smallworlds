@@ -830,6 +830,7 @@ DDNSHEAD
       done
     )
 
+    FAILED=""
     for name in $RECORD_NAMES; do
       current=$(printf '%s\n' "$EXISTING" | sed -n "s/^$name=//p" | head -1)
       if [ "$current" = "$IP" ]; then
@@ -837,15 +838,22 @@ DDNSHEAD
       fi
       if [ -n "$current" ]; then
         echo "Updating $name: $current -> $IP"
-        encoded=$(printf '%s' "$name" | sed 's/@/%40/')
-        curl -sf -X DELETE -H "$AUTH" "$API/zones/$ZONE_ID/rrsets/$encoded/A" >/dev/null || true
+        # The apex is addressed as a literal "@": the API answers 404 to "%40",
+        # which left the old record in place and made the POST below a conflict,
+        # so the job stopped at the first name and never moved any record.
+        curl -sf -X DELETE -H "$AUTH" "$API/zones/$ZONE_ID/rrsets/$name/A" >/dev/null \
+          || echo "  could not delete the existing $name record" >&2
       else
         echo "Creating $name -> $IP"
       fi
       curl -sf -X POST -H "$AUTH" -H "Content-Type: application/json" \
         -d "{\"name\":\"$name\",\"type\":\"A\",\"ttl\":300,\"records\":[{\"value\":\"$IP\"}]}" \
-        "$API/zones/$ZONE_ID/rrsets" >/dev/null
+        "$API/zones/$ZONE_ID/rrsets" >/dev/null \
+        || { echo "  Hetzner DNS refused the $name record; the others are still attempted" >&2; FAILED="$FAILED $name"; }
     done
+    if [ -n "$FAILED" ]; then
+      echo "DDNS could not set:$FAILED" >&2; exit 1
+    fi
     echo "DDNS check complete (public IP: $IP)"
 DDNSSCRIPT
     cat >> /var/lib/rancher/k3s/server/manifests/ddns.yaml <<DDNSTAIL
