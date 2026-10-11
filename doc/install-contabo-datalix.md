@@ -71,6 +71,24 @@ to install.
 
 Do not add a second disk. Nothing in this setup uses one.
 
+### If SSH is not on port 22
+
+The wizard has no field for an SSH port, and `root@<server-ip>:2222` does not
+work. Give the server a name in `~/.ssh/config` on your own computer instead:
+
+```
+Host sw-node
+    HostName <server-ip>
+    Port 2222
+```
+
+Check it with `ssh root@sw-node`, and from here on use `root@sw-node` wherever
+this guide says `root@<server-ip>`, including in the wizard. Keep the `root@`
+in front: the installer uses `sudo` for any target that does not start with it.
+
+The firewall the install sets up keeps the port open that your SSH server
+listens on, whichever it is.
+
 ## 3. Rent the storage at Datalix
 
 1. Order S3-compatible object storage.
@@ -140,14 +158,27 @@ clears once you have chosen the kind of machine on the next panel.
 | Field | Enter |
 |---|---|
 | Kind of machine | **A server you rent elsewhere** |
-| The machine | `root@<server-ip>` |
+| The machine | `root@<server-ip>` (or `root@sw-node`, see step 2, if SSH is not on port 22) |
 | Data directory | leave as offered |
 | Photo library directory | leave empty |
+| Backup directory | ignore it — it disappears with the storage choice below |
 | DNS records | **I create one record myself** (already selected) |
+
+Then scroll down past the **Check this machine** button. **Where files and
+backups are kept** is a section of its own at the bottom of the panel, with two
+large choices, not a field in the list above:
+
+| Field | Enter |
+|---|---|
 | Where files and backups are kept | **At an S3 storage provider** |
 | S3 endpoint, Region, Access key ID, Secret access key | the four values from step 3 |
 | Bucket name prefix | leave as offered |
 | Send backups to a different provider | leave closed |
+
+Choosing the provider removes the Backup directory field and shows the S3
+fields. If the panel has no such section at all, your checkout predates it:
+run `git pull` in the `smallworlds` directory and start `./smallworlds-setup`
+again.
 
 Press **Check this machine**. Wait for the storage check under the secret key
 to turn green before you continue; a red result means the endpoint, region or
