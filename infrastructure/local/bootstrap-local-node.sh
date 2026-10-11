@@ -80,6 +80,9 @@
 #                     different profile.
 #   BOOTSTRAP_RUN_ID  Launcher-generated identifier recorded in durable
 #                     checkpoints (required).
+#   SKIP_FIREWALL_CHECK "true" = do not stop when a firewall this script did
+#                     not write would drop traffic from the pod network (set by
+#                     SW_SKIP_FIREWALL_CHECK=1 on the installer)
 #   SECRETS_MANIFEST  optional path to a pre-generated secrets manifest that
 #                     is moved into the k3s auto-apply manifests dir
 set -euo pipefail
@@ -277,6 +280,59 @@ fi
 if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
     echo -e "${YELLOW}ufw is active. Make sure 80/tcp, 443/tcp, 6443/tcp and 10000/udp are allowed,${NC}"
     echo -e "${YELLOW}and that pod/service CIDRs are permitted (see https://docs.k3s.io/installation/requirements).${NC}"
+fi
+
+# A firewall this script did not write, whose input chain drops by default and
+# lets nothing in from the pod network, is fatal rather than a warning: pods
+# reach the Kubernetes API on this machine's own address, so the node comes up
+# Ready while every controller times out, Argo CD never starts, and the run ends
+# 15 minutes later waiting for cert-manager. That is how it was first met, on a
+# server whose /etc/nftables.conf admitted only its web and SSH ports.
+#
+# foreign_input_firewalls reads `nft list ruleset` on stdin and prints
+# "<family> <table> <chain>" for each such chain.
+foreign_input_firewalls() {
+    awk '
+        $1 == "table" && $NF == "{" { family = $2; table = $3; next }
+        $1 == "chain" && $NF == "{" { chain = $2; body = ""; inside = 1; next }
+        inside && $1 == "}" {
+            if (body ~ /hook input/ && body ~ /policy drop/ && table != "smallworlds" \
+                && body !~ /cni0|10\.42\.0\.0\/16/)
+                print family, table, chain
+            inside = 0; next
+        }
+        inside { body = body "\n" $0 }
+    '
+}
+if [ "${SKIP_FIREWALL_CHECK:-}" != "true" ]; then
+    BLOCKING_CHAINS=""
+    if command -v nft >/dev/null 2>&1; then
+        BLOCKING_CHAINS="$(nft list ruleset 2>/dev/null | foreign_input_firewalls || true)"
+    elif command -v iptables >/dev/null 2>&1; then
+        INPUT_RULES="$(iptables -S INPUT 2>/dev/null || true)"
+        if printf '%s\n' "$INPUT_RULES" | grep -q '^-P INPUT DROP' \
+           && ! printf '%s\n' "$INPUT_RULES" | grep -qE 'cni0|10\.42\.0\.0/16'; then
+            BLOCKING_CHAINS="ip filter INPUT"
+        fi
+    fi
+    if [ -n "$BLOCKING_CHAINS" ]; then
+        echo -e "${RED}This machine's own firewall would block the cluster's internal traffic.${NC}" >&2
+        echo "These input chains drop by default and admit nothing from the pod network:" >&2
+        printf '%s\n' "$BLOCKING_CHAINS" | while read -r family table chain; do
+            echo "    table $family $table, chain $chain" >&2
+        done
+        echo "Pods reach the Kubernetes API on this machine's own address, so nothing in the" >&2
+        echo "cluster would start. Add this rule to each chain, and to the file that loads it at" >&2
+        echo "boot (usually /etc/nftables.conf), then run the install again:" >&2
+        echo >&2
+        echo '    iifname { "cni0", "flannel.1" } accept' >&2
+        echo >&2
+        echo "To try it at once:  nft add rule <family> <table> <chain> 'iifname { \"cni0\", \"flannel.1\" } accept'" >&2
+        echo "The same chains must also admit what should be reachable from outside:" >&2
+        echo "    tcp ${FIREWALL_TCP_PORTS// /, }${FIREWALL_UDP_PORTS:+   udp ${FIREWALL_UDP_PORTS// /, }}" >&2
+        echo "This run has installed nothing. (SW_SKIP_FIREWALL_CHECK=1 skips this check.)" >&2
+        exit 1
+    fi
 fi
 
 for tool in curl sha256sum; do

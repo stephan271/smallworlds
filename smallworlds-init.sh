@@ -1615,6 +1615,7 @@ FIREWALL_UDP_PORTS="${FIREWALL_UDP_PORTS}"
 NODE_NAME="smallworlds-local-node"
 PROFILE_ID="${PROFILE_ID}"
 BOOTSTRAP_RUN_ID="${BOOTSTRAP_RUN_ID}"
+SKIP_FIREWALL_CHECK="$([[ "${SW_SKIP_FIREWALL_CHECK:-}" == "1" ]] && echo true)"
 SECRETS_MANIFEST="/tmp/smallworlds-${DOMAIN}-secrets.yaml"
 EOF
     chmod 600 "$LOCAL_ENV_FILE"

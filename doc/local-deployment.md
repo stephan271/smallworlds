@@ -32,6 +32,15 @@ on Hetzner works locally and vice versa.
   already has its first commit: the node is pinned to one exact overlay
   revision, which the installer resolves with `git ls-remote` before touching
   anything.
+- No firewall of the machine's own that cuts the pod network off. If an
+  nftables or iptables input chain drops by default and admits nothing from
+  `cni0`/`flannel.1` (or `10.42.0.0/16`), the bootstrap names the chain and
+  stops before installing anything: pods reach the Kubernetes API on the
+  machine's own address, so otherwise the node reports Ready while nothing in
+  the cluster starts. Add `iifname { "cni0", "flannel.1" } accept` to that chain
+  and to the file that loads it at boot. `SW_SKIP_FIREWALL_CHECK=1` skips the
+  check. This is separate from `HOST_FIREWALL`, which only adds the bootstrap's
+  own table and cannot open what another table drops.
 - `curl`, `sha256sum` and outbound HTTPS on the machine itself. The bootstrap
   downloads the K3s installer and the Argo CD manifest named in
   `infrastructure/bootstrap-pins.env` and stops, with nothing installed, if
