@@ -33,6 +33,14 @@ spec:
               enabled: true
         service:
           type: LoadBalancer
+          # Keep the visitor's address. With the default (Cluster), kube-proxy
+          # rewrites the source of everything arriving from outside to a
+          # cluster address, so Traefik saw every visitor as 10.42.x: the
+          # ipAllowList on the operator interfaces (which admits private
+          # ranges) let the whole internet in, and the per-source rate limit
+          # was one limit shared by everybody. See doc/hardening.md.
+          spec:
+            externalTrafficPolicy: Local
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: traefik-system

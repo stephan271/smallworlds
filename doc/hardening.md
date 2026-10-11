@@ -22,6 +22,31 @@ Operator interfaces are the opposite: nobody outside the operator ever needs
 them, so they carry an `ipAllowList` restricting them to the Headscale tailnet,
 private LAN ranges and loopback.
 
+**The allow-list only means something because Traefik sees the visitor's real
+address.** Its Service sets `externalTrafficPolicy: Local` for that reason
+(`apps/traefik.yaml`). With the default, kube-proxy rewrites the source of
+everything arriving from outside to a cluster address, Traefik sees every
+visitor as `10.42.x`, and the allow-list — which admits private ranges — lets
+the whole internet in. That is how it was found on 2026-10-11: Argo CD, Grafana
+and the Keycloak admin console all answered from a public address until the
+Service was changed, and `403` afterwards. The per-source rate limit of §2 was
+one limit shared by everybody for the same reason.
+
+Two consequences to keep in mind:
+
+- **Check it from outside after any change to Traefik's Service**, from a
+  machine that is on neither the tailnet nor the node's LAN:
+  `curl -s -o /dev/null -w '%{http_code}' https://deploy.<domain>/` must print
+  `403`. Requests from the node itself still pass, as loopback and cluster
+  sources do by design.
+- **Only the load-balancer address is covered.** Anything that reaches Traefik
+  by another address of the node arrives through the service load balancer's
+  own pod and so carries a cluster source, which the allow-list admits. That is
+  what is expected to let a tailnet device in through the node's tailnet
+  address (not yet observed on a cluster with this setting) — and it
+  would equally admit a second public address, were the node given one that
+  answers on 443. Today the node's IPv6 address does not.
+
 | Public | Restricted |
 |---|---|
 | Nextcloud, Immich, Collabora, Forgejo, Plane, Excalidraw, Bulwark, dashboard, Jitsi, pod-gateway, Headscale, `identity/realms/smallworlds` | Operator Console, ArgoCD, Grafana, `identity/admin`, `identity/realms/master` |
