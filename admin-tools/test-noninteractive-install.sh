@@ -465,6 +465,22 @@ set_stored STORED_PHOTO_BACKEND immich
 set_stored STORED_APP_immich n
 
 # --------------------------------------------------------------------------
+echo "prepare-community-repo.sh — a push the remote refuses"
+# --------------------------------------------------------------------------
+# A remote that cannot be reached without touching the network. Headless, the
+# installer runs next and would only fail on the empty repository.
+set_stored STORED_REMOTE_URL "$stub_home/no-such-remote.git"
+set_stored STORED_PUSH_CHOICE y
+output="$(run_prepare)"
+status=$?
+check_contains "$output" ">>> fail:repo-push" "the refused push is reported"
+check_contains "$output" "Check the Git access token" "with advice on what to do"
+if [[ "$status" -ne 0 ]]; then pass "and the script stops instead of handing over an empty repository"
+else fail "and the script stops instead of handing over an empty repository"; fi
+set_stored STORED_REMOTE_URL "https://github.com/example/my-community-config.git"
+set_stored STORED_PUSH_CHOICE n
+
+# --------------------------------------------------------------------------
 echo "prepare-community-repo.sh — a missing required value"
 # --------------------------------------------------------------------------
 rm -rf "$overlay"; mkdir -p "$overlay"

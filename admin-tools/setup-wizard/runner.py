@@ -399,6 +399,14 @@ class Run:
             environment["GIT_ASKPASS"] = self._askpass_helper()
             environment["GIT_USERNAME"] = self.answers.get("git_username") or "x-access-token"
             environment["GIT_PASSWORD"] = self.secrets["GITOPS_REPO_TOKEN"]
+            # git asks its credential helpers before GIT_ASKPASS, so a login
+            # saved for the same host (another account's, or an expired one)
+            # would be sent instead of this token and the push refused as
+            # "Repository not found". An empty value clears the helper list.
+            index = int(environment.get("GIT_CONFIG_COUNT") or 0)
+            environment["GIT_CONFIG_COUNT"] = str(index + 1)
+            environment[f"GIT_CONFIG_KEY_{index}"] = "credential.helper"
+            environment[f"GIT_CONFIG_VALUE_{index}"] = ""
         return environment
 
     def _askpass_helper(self) -> str:

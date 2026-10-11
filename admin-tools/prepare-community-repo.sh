@@ -541,7 +541,7 @@ STORED_VERSION="${SMALLWORLDS_VERSION}"
 STORED_TARGET_DOMAIN="${TARGET_DOMAIN}"
 STORED_ENV_EXT="${ENV_EXT}"
 STORED_CREATE_REPO="${CREATE_REPO}"
-STORED_PUSH_CHOICE="${PUSH_CHOICE}"
+STORED_PUSH_CHOICE="${PUSH_CHOICE:-${STORED_PUSH_CHOICE:-}}"
 STORED_PHOTO_BACKEND="${PHOTO_BACKEND}"
 STORED_OBJECT_STORAGE="${OBJECT_STORAGE}"
 STORED_S3_ENDPOINT="${S3_ENDPOINT}"
@@ -638,6 +638,15 @@ if [[ "$PUSH_CHOICE" =~ ^[Yy]$ ]]; then
         echo -e "${RED}Warning: Failed to push to remote repository.${NC}"
         echo -e "Please ensure your repository exists on the host and your SSH keys / access credentials are set up correctly."
         echo -e "You can try pushing manually later using: ${CYAN}git push -u origin main${NC}"
+        # At a terminal this stays a warning: the operator reads it and pushes
+        # by hand. Headless, the installer runs straight after and can only fail
+        # later on an empty repository, with a message that no longer names the
+        # push.
+        if sw_noninteractive; then
+            sw_guidance "Check the Git access token" \
+                "The settings were written to ${ABS_REPO_PATH} but ${REMOTE_URL} did not accept them. Make sure the repository exists, that the token may write to it (classic token: the repo scope), and that the username belongs to the token. Then start the install again."
+            exit 1
+        fi
     fi
 fi
 

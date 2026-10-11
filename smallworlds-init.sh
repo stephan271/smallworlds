@@ -713,7 +713,7 @@ ASKPASS
     chmod 700 "$askpass"
     revision=$(GIT_ASKPASS="$askpass" GIT_TERMINAL_PROMPT=0 \
         GIT_USERNAME="$GITOPS_REPO_USER" GIT_PASSWORD="$GITOPS_REPO_TOKEN" \
-        git ls-remote "$url" HEAD 2>/dev/null | awk 'NR==1 {print $1}')
+        git -c credential.helper= ls-remote "$url" HEAD 2>/dev/null | awk 'NR==1 {print $1}')
     rm -f "$askpass"
     printf '%s' "$revision"
 }
