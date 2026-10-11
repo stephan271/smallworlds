@@ -146,6 +146,12 @@ ssh root@admin.<domain> smallworlds-firewall close    # over the tailnet
 ssh root@admin.<domain> smallworlds-firewall status
 ```
 
+`setup-vpn.sh` reaches the server with the login the installer used, so a user
+with passwordless sudo works as well as root, and it prints these commands for
+that login. For a sudo user the close command is
+`ssh <user>@admin.<domain> sudo --preserve-env=SSH_CONNECTION smallworlds-firewall close`:
+sudo otherwise hides where the session came from, and the tool refuses.
+
 `close` refuses unless the machine is on the tailnet *and* the session calling
 it arrived over the tailnet — that session is the proof the way in survives.
 `--force` skips the check. Tailnet traffic arrives on its own interface and is

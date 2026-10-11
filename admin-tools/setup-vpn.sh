@@ -15,13 +15,14 @@ set -e
 # (docs/adr/0055). A LAN machine behind a router does not expose 22/6443 in the
 # first place, so there is nothing for this to lock down there (see
 # plans-and-walkthroughs/implementation_plan-private-overlay-phase0-1.md).
-# It needs root SSH to the node and the Hetzner DNS API for the admin.<domain>
-# record — the zone is at Hetzner wherever the server is.
+# It needs SSH to the node as root or as a user with passwordless sudo, and the
+# Hetzner DNS API for the admin.<domain> record — the zone is at Hetzner
+# wherever the server is.
 #
 # Prerequisites:
 #   - The `headscale` ArgoCD Application must already be Synced + Healthy.
 #   - HCLOUD_TOKEN available (env var, or cached in .smallworlds-cache.env).
-#   - SSH access to the node as root.
+#   - SSH access to the node as root, or as a user with passwordless sudo.
 #
 # Usage:
 #   ./admin-tools/setup-vpn.sh                 # production
@@ -62,20 +63,50 @@ fi
 
 export KUBECONFIG="${KUBECONFIG:-$(kubeconfig_path "$CLUSTER")}"
 if [ -n "$RENTED" ]; then
-    # A rented server is reached the way the installer reached it. Everything
-    # below runs as root on the node, so a sudo-only login is not enough here.
-    case "${LOCAL_SSH_TARGET:-}" in
-        root@*) SERVER_IP="${LOCAL_SSH_TARGET#root@}" ;;
-        *)
-            echo "Error: this needs root SSH to the node, and the installer used '${LOCAL_SSH_TARGET:-<none>}'."
-            echo "Allow root login with your key for this step, set LOCAL_SSH_TARGET=root@<host>"
-            echo "in .smallworlds-cache.env, and re-run."
-            exit 1
-            ;;
-    esac
+    # A rented server is reached the way the installer reached it: the same
+    # login, which may be root or a user with sudo, and through the same
+    # ~/.ssh/config entry if it used one (a non-default port, for instance).
+    NODE_SSH="${LOCAL_SSH_TARGET:?LOCAL_SSH_TARGET not found in $CACHE_FILE}"
+    SERVER_IP="${NODE_SSH#*@}"
 else
     SERVER_IP=$(detect_server_ip "$CUR_ENV_EXT")
+    NODE_SSH="root@$SERVER_IP"
 fi
+
+# Everything on the node runs as root. A login that is not root goes through
+# sudo, which has to work without a password: there is no terminal on these
+# connections to type one into.
+NODE_USER="${NODE_SSH%%@*}"
+[ "$NODE_USER" = "$NODE_SSH" ] && NODE_USER="$(id -un)"
+AS_ROOT=""        # prefix for commands this script runs
+SUDO_HINT=""      # the same, for commands it prints for the operator
+if [ "$NODE_USER" != "root" ]; then AS_ROOT="sudo -n "; SUDO_HINT="sudo "; fi
+
+# node_run <shell command>: run it on the node as root. The command is one
+# single-quoted word on the far side, so pipes and redirections in it happen
+# there, as root, and not in the login shell.
+node_run() {
+    local quoted
+    quoted="'$(printf '%s' "$1" | sed "s/'/'\\\\''/g")'"
+    ssh $SSH_OPTS "$NODE_SSH" "${AS_ROOT}sh -c $quoted"
+}
+
+if ! node_run true 2>/dev/null; then
+    echo "Error: cannot run commands as root on the node through '$NODE_SSH'."
+    if [ -n "$AS_ROOT" ]; then
+        echo "'$NODE_USER' needs sudo without a password for this (check with: ssh $NODE_SSH sudo -n true)."
+    else
+        echo "Check that 'ssh $NODE_SSH' works with your key."
+    fi
+    exit 1
+fi
+
+# What to type to reach the node by another name: ssh may be on a port that
+# only ~/.ssh/config knows for the name the installer used.
+NODE_PORT="$(ssh -G "$NODE_SSH" 2>/dev/null | awk '$1 == "port" { print $2 }')"
+PORT_FLAG=""
+if [ -n "$NODE_PORT" ] && [ "$NODE_PORT" != "22" ]; then PORT_FLAG="-p $NODE_PORT "; fi
+
 VPN_HOST="vpn${CUR_ENV_EXT}.${DOMAIN}"
 ADMIN_HOST="admin${CUR_ENV_EXT}.${DOMAIN}"
 
@@ -99,7 +130,7 @@ if [ -z "$AUTH_KEY" ]; then
     exit 1
 fi
 
-if ! ssh $SSH_OPTS "root@$SERVER_IP" "command -v tailscale >/dev/null 2>&1"; then
+if ! node_run "command -v tailscale >/dev/null 2>&1"; then
     # The Hetzner cloud-init installs the client; the local bootstrap runs only
     # what came in its verified archive, so on a rented server it is missing
     # until someone decides to fetch it. That decision is made here, in view.
@@ -111,14 +142,14 @@ if ! ssh $SSH_OPTS "root@$SERVER_IP" "command -v tailscale >/dev/null 2>&1"; the
         echo "Stopped. Install the tailscale package on the node and re-run this script."
         exit 1
     fi
-    ssh $SSH_OPTS "root@$SERVER_IP" "curl -fsSL https://tailscale.com/install.sh | sh"
+    node_run "curl -fsSL https://tailscale.com/install.sh | sh"
 fi
 
 echo ""
 echo "3. Joining $SERVER_IP to the tailnet ($VPN_HOST)..."
-ssh $SSH_OPTS "root@$SERVER_IP" "tailscale up --login-server=https://$VPN_HOST --auth-key=$AUTH_KEY"
+node_run "tailscale up --login-server=https://$VPN_HOST --auth-key=$AUTH_KEY"
 
-TAILNET_IP=$(ssh $SSH_OPTS "root@$SERVER_IP" "tailscale ip -4" | tr -d '[:space:]')
+TAILNET_IP=$(node_run "tailscale ip -4" | tr -d '[:space:]')
 if [ -z "$TAILNET_IP" ]; then
     echo "Error: node joined but did not report a tailnet IPv4 address."
     exit 1
@@ -165,14 +196,14 @@ if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
     echo "Skipped. Steps 1-4 already applied — re-run this script to finish."
     exit 0
 fi
-ssh $SSH_OPTS "root@$SERVER_IP" "cat > /etc/rancher/k3s/config.yaml" <<K3SCONF
+node_run "cat > /etc/rancher/k3s/config.yaml" <<K3SCONF
 tls-san:
   - "$ADMIN_HOST"
   - "$TAILNET_IP"
 K3SCONF
-ssh $SSH_OPTS "root@$SERVER_IP" "systemctl restart k3s"
+node_run "systemctl restart k3s"
 echo "   Restarted. Waiting for the API server to come back..."
-until ssh $SSH_OPTS "root@$SERVER_IP" "kubectl get nodes >/dev/null 2>&1"; do sleep 3; done
+until node_run "k3s kubectl get nodes >/dev/null 2>&1"; do sleep 3; done
 echo "   Back up."
 
 echo ""
@@ -181,17 +212,23 @@ echo ""
 echo "6. To enroll THIS machine (optional, for direct tailnet SSH/kubectl access):"
 echo "     tailscale up --login-server=https://$VPN_HOST"
 echo "   That prints a machine key. Approve it from the server:"
-echo "     ssh root@$SERVER_IP 'kubectl -n headscale exec deploy/headscale -- headscale nodes register --user infra --key <machine-key>'"
+echo "     ssh $NODE_SSH '${SUDO_HINT}k3s kubectl -n headscale exec deploy/headscale -- headscale nodes register --user infra --key <machine-key>'"
 echo ""
 echo "7. Verify tailnet access from the enrolled device BEFORE closing anything:"
-echo "     ssh root@$ADMIN_HOST"
+echo "     ssh ${PORT_FLAG}${NODE_USER}@$ADMIN_HOST"
 echo "     kubectl get nodes      # against the tailnet-rewritten kubeconfig"
 echo "   (step 5 added $ADMIN_HOST to the API server certificate, so the"
 echo "   kubeconfig must name that host rather than the public IP.)"
 echo ""
 echo "8. Only once BOTH work, close the public administrative ports:"
 if [ -n "$RENTED" ]; then
-    echo "     ssh root@$ADMIN_HOST smallworlds-firewall close"
+    if [ -n "$SUDO_HINT" ]; then
+        # sudo drops SSH_CONNECTION, which is how the tool sees where the
+        # session came from; without it a tailnet login reads as a local one.
+        echo "     ssh ${PORT_FLAG}${NODE_USER}@$ADMIN_HOST sudo --preserve-env=SSH_CONNECTION smallworlds-firewall close"
+    else
+        echo "     ssh ${PORT_FLAG}root@$ADMIN_HOST smallworlds-firewall close"
+    fi
     echo "   Run it over the tailnet, as written: the tool refuses unless the session"
     echo "   it is called from came in that way, because that session is the proof"
     echo "   the way in still works. SSH and kubectl then answer on the tailnet only."
