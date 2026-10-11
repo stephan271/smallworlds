@@ -11,14 +11,16 @@ This guide covers one fixed setup and nothing else:
 | DNS | One wildcard record that you create at your own DNS provider |
 | Install route | The browser setup wizard |
 
-> **Status: untried.** Every part of this path passes its automated tests, but
-> nobody has yet completed this install against a real Contabo server and a real
-> Datalix account. Use a domain and a storage account you can throw away for
-> the first run, and expect to report what breaks.
+> **Status: this exact combination is untried.** Nobody has yet completed it
+> against a real Contabo server and a real Datalix account, or with a DNS
+> record kept by hand. Use a domain and a storage account you can throw away
+> for the first run, and expect to report what breaks.
 >
-> The install itself has since been completed on a rented server at another
-> provider (2026-10-11). The steps after it, 9 to 13 in particular, have not
-> been run from start to finish as written here.
+> The same path was completed once on a rented server at another provider, with
+> an S3 provider, Gallery and DNS managed through Hetzner (2026-10-11),
+> including joining the private network and closing the admin ports. Steps 9
+> to 12 and 14 follow that run; step 13 is written from the tool, not from a
+> confirmed run.
 
 Allow about two hours: one for the install, most of it waiting, and one for the
 steps after it.

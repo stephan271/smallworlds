@@ -83,7 +83,7 @@ Four further choices are made at install time, each recorded in a decision recor
 | DNS records (exposed `local` machine) | Managed through Hetzner DNS, or one wildcard record you create yourself — no Hetzner account | Managed | [`docs/adr/0056`](docs/adr/0056-dns-can-be-kept-by-hand.md) |
 
 > [!NOTE]
-> These four are new and have passed their automated tests, but **none has been installed against a real S3 provider, a real rented server or a running Gallery yet, and no certificate has been issued over HTTP**. Treat a first install as a trial, on a domain and a bucket you can throw away.
+> These four are new. Three of them — an external S3 provider, Gallery and the host firewall — were installed together for real once, on a rented server on 2026-10-11, with DNS managed through Hetzner. The cluster came up with every application healthy; that is one install, not a track record. **DNS kept by hand has not been used on a real install, so no certificate has been issued over HTTP yet.** Treat a first install as a trial.
 
 There are two ways to install, and they do the same thing — **the wizard runs the scripts**, so there is one install code path, not two.
 
@@ -115,6 +115,10 @@ available, app selection remains usable with a text notice.
 A browser opens on `127.0.0.1`. Five panels ask for your domain, your email address, where the cluster should run, a Git access token, and which applications your community gets; everything else is defaulted and sits behind *Advanced settings*. It creates the private settings repository for you, checks your answers against the real APIs before anything is created, shows you exactly what it will do, then installs and hands you the credentials.
 
 The checks are the part worth having: whether your registrar actually delegates the domain to Hetzner DNS (get this wrong and every certificate stays pending with nothing saying why), whether the tokens work, whether an S3 provider accepts your key, and whether your data and backup directories are on different physical disks (not required with an external S3 provider). Each of those otherwise fails minutes into an install.
+
+If the install stops, the page says what to do about it; fix that and press **Install again** on the same page. It carries on from where it got to.
+
+**The install is not the last step.** A fresh cluster has no member accounts, and on an internet-facing machine SSH and the Kubernetes API are still open. What remains — joining the cluster's private network, closing those ports, inviting members — has an order that matters; see "After the install" below.
 
 Prerequisites are the same as the scripted route below, minus the manual steps the wizard does for you (creating the settings repository, creating the DNS zone, uploading the SSH key). You still need to **register the domain yourself** and point its nameservers at Hetzner — see step 1.
 
@@ -182,8 +186,21 @@ When prompted for Git credentials, provide:
 - **Username**: Your Git platform username.
 - **Access Token**: A Personal Access Token (PAT) with read-only access to repository contents.
 
-### 5. Authentication Configuration
-By default, registration is invitation-only. To enable self-registration, patch the Keycloak configuration via your `kustomization.yaml`:
+### 5. After the install
+
+The cluster is running, but not ready to use: nobody has an account yet, and on an internet-facing machine SSH and the Kubernetes API are still open. Do the rest in this order — [`doc/install-contabo-datalix.md`](doc/install-contabo-datalix.md) steps 7 to 14 give every command for a rented server. On the `hetzner` target only the command that closes the ports differs, and `setup-vpn.sh` prints it.
+
+1. **Save the admin passwords** the installer showed. `admin` and `operator` are Keycloak's own administrators: they work at `identity.<domain>/admin/` only and cannot sign in to the dashboard or any application.
+2. **Join the node to the cluster's private network** with `./admin-tools/setup-vpn.sh`. The operator interfaces — Argo CD at `deploy.<domain>`, Grafana at `monitoring.<domain>`, Keycloak administration — answer only to devices on it, and `403` to everyone else ([`doc/hardening.md`](doc/hardening.md)).
+3. **Join your own computer**, and check that SSH, `kubectl` and the operator interfaces work over that network.
+4. **Close SSH and the Kubernetes API to the internet** — only after step 3, which is your proof that the other way in works.
+5. **Invite the members** with `admin-tools/bulk-invite.py`. Each gets a one-time link, registers a passkey and writes down recovery codes; nobody has a password and no mail is sent. The tool uses Keycloak's administration interface, so it runs from a computer on the private network — which is why it comes after step 3.
+6. **Check from outside** that the operator interfaces answer `403`.
+
+A LAN-only machine behind a router skips steps 2 to 4 and 6: nothing of it faces the internet.
+
+### 6. Authentication Configuration
+By default, registration is invitation-only (step 5 above). To enable self-registration, patch the Keycloak configuration via your `kustomization.yaml`:
 
 ```yaml
 patches:
@@ -197,7 +214,7 @@ patches:
         value: "self-registration"
 ```
 
-### 6. Custom Application Deployment
+### 7. Custom Application Deployment
 To deploy external applications, add standard Kubernetes manifests to your configuration repository and declare them in your `kustomization.yaml`. ArgoCD will synchronize the state.
 
 ---
@@ -312,6 +329,9 @@ The `admin-tools/` directory contains helper scripts to automate common operatio
 - **`generate_storage_patches.py`**: Writes the overlay patches that point a cluster at an external S3 provider instead of Garage, and removes them again. Called by `prepare-community-repo.sh`; see [`docs/adr/0053`](docs/adr/0053-object-storage-is-in-house-or-external.md).
 - **`test-object-storage.py`**: Tests the storage choice and the Gallery variant: renders the patched overlays against the real manifests and runs the bucket-provisioning job scripts against stub `kubectl` and `curl`.
 - **`test-setup-wizard.sh`**: Tests the wizard's server, defaults and plan, then walks its five panels in a real browser using the Playwright installed for `e2e-tests/` (skipped when absent).
+- **`setup-vpn.sh`**: Joins an internet-facing node to the cluster's own private network (Headscale), creates `admin.<domain>` and prints how to join your computer and close the public admin ports. Logs in the way the installer did, as root or as a user with passwordless sudo.
+- **`test-bootstrap-pins.sh`**: Checks `infrastructure/bootstrap-pins.env` — the K3s and Argo CD a new node installs — and that every bootstrap path uses it; `--online` re-checks the pinned checksums against upstream.
+- **`test-local-bootstrap-preflight.sh`**: Tests the local bootstrap's check for a firewall that would cut pods off from the Kubernetes API.
 - **`test-noninteractive-install.sh`**: Asserts that both setup scripts run with no tty under `SMALLWORLDS_NONINTERACTIVE=1`, that a missing required value exits 78 naming it, and — over a pty — that interactive mode is unchanged.
 
 ### Repository & Version Management
@@ -322,7 +342,8 @@ The `admin-tools/` directory contains helper scripts to automate common operatio
 ### Utilities
 - **`test-pr-locally.sh`**: Deploys a local testing environment to validate pull requests.
 - **`generate_domain_patches.py`**: Automatically generates Kustomize domain patches for all applications when a non-default domain or environment extension (e.g., `.dev`) is used.
-- **`bulk-invite.py` & `update_realm_json.py`**: Python utilities for Keycloak realm manipulation and user invitations.
+- **`bulk-invite.py`**: Creates member accounts from a CSV and writes one-time passkey invitation links (optionally QR codes). Needs the private network, because it uses Keycloak's administration interface.
+- **`update_realm_json.py`**: Python utility for Keycloak realm manipulation.
 
 ---
 

@@ -42,8 +42,9 @@ Two consequences to keep in mind:
 - **Only the load-balancer address is covered.** Anything that reaches Traefik
   by another address of the node arrives through the service load balancer's
   own pod and so carries a cluster source, which the allow-list admits. That is
-  what is expected to let a tailnet device in through the node's tailnet
-  address (not yet observed on a cluster with this setting) — and it
+  what lets a tailnet device in through the node's tailnet address (observed
+  on 2026-10-11: `200` through the tailnet address, `403` through the public
+  one) — and it
   would equally admit a second public address, were the node given one that
   answers on 443. Today the node's IPv6 address does not.
 
