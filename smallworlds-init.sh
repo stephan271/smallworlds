@@ -667,6 +667,40 @@ PYEOF
     printf '%s\n' "$answered"
 }
 
+# The subdomains that get an A record on a `local` install whose DNS the cluster
+# keeps itself (the DDNS job): the ones every cluster has, plus one per selected
+# application — the same set the hetzner target creates through Terraform, for
+# the same reason. One name per line, no duplicates (both Office editors answer
+# on "office").
+#
+# The map is the fourth copy of the one in infrastructure/terraform/main.tf
+# (local.app_subdomains, local.core_subdomains),
+# admin-tools/generate_domain_patches.py and the wizard's plan.py: change one,
+# change all four. admin-tools/test-local-bootstrap-preflight.sh compares this
+# one with Terraform's.
+dns_subdomains() {
+    local app sub
+    {
+        printf '%s\n' identity dashboard monitoring deploy vpn
+        while IFS= read -r app; do
+            case "$app" in
+                nextcloud)             sub=files ;;
+                immich)                sub=photos ;;
+                forgejo)               sub=git ;;
+                excalidraw)            sub=whiteboard ;;
+                jitsi)                 sub=meet ;;
+                collabora|euro-office) sub=office ;;
+                plane)                 sub=plan ;;
+                stalwart)              sub=mail ;;
+                bulwark)               sub=webmail ;;
+                pod-gateway)           sub=pod ;;
+                *)                     continue ;;
+            esac
+            printf '%s\n' "$sub"
+        done < <(selected_apps)
+    } | awk '!seen[$0]++'
+}
+
 # One recorded answer from the overlay preference file, e.g.
 # `community_setting STORED_OBJECT_STORAGE`. Parsed, never sourced, for the same
 # reason as selected_apps above. Prints nothing when the file or the key is
@@ -1605,6 +1639,7 @@ ROOT_APP_GIT_REVISION="${ROOT_APP_GIT_REVISION}"
 ACME_EMAIL="${LOCAL_ACME_EMAIL}"
 ACME_CHALLENGE="${ACME_CHALLENGE}"
 MANAGE_DNS="${MANAGE_DNS}"
+DNS_SUBDOMAINS="$(dns_subdomains | paste -sd' ' -)"
 DATA_DIR="${DATA_DIR}"
 BACKUP_DIR="${BACKUP_DIR}"
 OBJECT_STORAGE="${OBJECT_STORAGE}"

@@ -136,8 +136,9 @@ decided per install:
 - **Which DNS records exist.** `var.apps` carries the selected applications; `main.tf`'s
   `local.app_subdomains` maps them to subdomains and only those get an A record, alongside
   `local.core_subdomains` (always deployed) and the apex on production. The map mirrors
-  `admin-tools/generate_domain_patches.py` and `plan.py`'s `_SUBDOMAIN_BY_APP` — change one,
-  change all three. The PTR follows too: no Stalwart means no `mail.<domain>` to point at.
+  `admin-tools/generate_domain_patches.py`, `plan.py`'s `_SUBDOMAIN_BY_APP` and
+  `dns_subdomains()` in `smallworlds-init.sh` (which feeds the `local` target's DDNS job its
+  `DNS_SUBDOMAINS`) — change one, change all four. The PTR follows too: no Stalwart means no `mail.<domain>` to point at.
   `var.apps` defaults to every optional app, so a `terraform apply` that does not pass it
   keeps the zone it had.
 

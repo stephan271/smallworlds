@@ -93,5 +93,42 @@ else pass "the apex name is not percent-encoded"; fi
 if grep -q 'rrsets/\$name/A' "$local_bootstrap"; then pass "the existing record is deleted by its literal name"
 else fail "the existing record is deleted by its literal name"; fi
 
+echo "local bootstrap — DNS records follow the selected applications"
+installer="$repository_root/smallworlds-init.sh"
+{ sed -n '/^selected_apps() {$/,/^}$/p' "$installer"
+  sed -n '/^dns_subdomains() {$/,/^}$/p' "$installer"; } > "$work/dns.sh"
+names_for() {   # names_for <app=y|n ...>  ->  the subdomains, space-separated
+    : > "$work/community.conf"
+    local pair
+    for pair in "$@"; do
+        printf 'STORED_APP_%s=%s\n' "$(printf '%s' "${pair%%=*}" | tr -c 'A-Za-z0-9_\n' '_')" "${pair#*=}" \
+            >> "$work/community.conf"
+    done
+    ( SMALLWORLDS_COMMUNITY_CONFIG="$work/community.conf"; source "$work/dns.sh"
+      dns_subdomains | paste -sd' ' - )
+}
+expect "no application selected leaves only the names every cluster has" \
+    "$(names_for nextcloud=n immich=n)" "identity dashboard monitoring deploy vpn"
+expect "each selected application adds its own name" \
+    "$(names_for nextcloud=y immich=y jitsi=y forgejo=n stalwart=n)" \
+    "identity dashboard monitoring deploy vpn photos files meet"
+expect "an Office editor adds 'office' once" \
+    "$(names_for nextcloud=y euro-office=y collabora=n)" \
+    "identity dashboard monitoring deploy vpn files office"
+
+# The same map exists in Terraform for the hetzner target; they must agree.
+terraform_map="$(sed -n '/app_subdomains = {/,/}/p' "$repository_root/infrastructure/terraform/main.tf" \
+    | sed -n 's/^ *"\([^"]*\)" *= *"\([^"]*\)".*/\1=\2/p' | sort)"
+installer_map="$(for app in $(printf '%s\n' "$terraform_map" | cut -d= -f1); do
+    printf '%s=%s\n' "$app" "$(names_for "$app=y" | awk '{print $NF}')"; done | sort)"
+expect "the installer maps applications to names as Terraform does" "$installer_map" "$terraform_map"
+if [[ -n "$terraform_map" ]]; then pass "Terraform's map could be read"; else fail "Terraform's map could be read"; fi
+if grep -q '^DNS_SUBDOMAINS="\$(dns_subdomains' "$installer" \
+   && grep -q 'for sub in \${DNS_SUBDOMAINS:-' "$local_bootstrap"; then
+    pass "the list reaches the DNS job"
+else
+    fail "the list reaches the DNS job"
+fi
+
 echo
 if [[ "$failures" -eq 0 ]]; then echo "All checks passed."; else echo "$failures check(s) failed."; exit 1; fi

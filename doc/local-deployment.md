@@ -311,11 +311,19 @@ What the installer then does differently:
    cluster is exposed.)
 3. Deploys a **DDNS CronJob** (namespace `ddns`, written by the bootstrap as a
    k3s auto-apply manifest, token via the `hetzner-dns-token` secret): every
-   5 minutes it compares the zone's A records (`@`, `identity`, `dashboard`,
-   ..., matching the Terraform record set) against the connection's current
-   public IP and upserts them at TTL 300. This both creates the records on
+   5 minutes it compares the zone's A records against the connection's current
+   public IP and upserts them at TTL 300. The records are the apex, the names
+   every cluster has (`identity`, `dashboard`, `monitoring`, `deploy`, `vpn`)
+   and one per application you selected — the same set Terraform creates on
+   the `hetzner` target, and no others. This both creates the records on
    first run and keeps them correct when your home IP changes. Check it with
    `kubectl -n ddns get jobs` / `kubectl -n ddns logs -l job-name=<name>`.
+
+   The job never deletes a record. If you remove an application later, or
+   installed before 2026-10-11 (when the job still kept a record for every
+   application there is), delete the leftover A records by hand — after
+   running the installer again, or the old job puts them back within five
+   minutes.
 
 Expected timeline after install: DNS records appear on the CronJob's first
 run (≤5 min), Let's Encrypt certificates a few minutes after that; expect

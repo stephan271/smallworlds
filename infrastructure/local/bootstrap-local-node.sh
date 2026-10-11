@@ -42,6 +42,11 @@
 #                     public IP (for internet-exposed deployments; the token
 #                     comes from the hetzner-dns-token secret in the ddns
 #                     namespace, delivered via SECRETS_MANIFEST)
+#   DNS_SUBDOMAINS    with MANAGE_DNS: the subdomains that job keeps a record
+#                     for, space-separated ("identity dashboard files ...").
+#                     The installer sets it to the always-present names plus
+#                     one per selected application. Empty = every name any
+#                     application could use.
 #   DATA_DIR          where all persistent data lives (default
 #                     /var/lib/smallworlds-data); symlinked to
 #                     /mnt/smallworlds-data, which the manifests expect
@@ -152,6 +157,7 @@ ROOT_APP_GIT_REVISION="${ROOT_APP_GIT_REVISION:-}"
 ACME_EMAIL="${ACME_EMAIL:-}"
 ACME_CHALLENGE="${ACME_CHALLENGE:-dns01}"
 MANAGE_DNS="${MANAGE_DNS:-}"
+DNS_SUBDOMAINS="${DNS_SUBDOMAINS:-}"
 DATA_DIR="${DATA_DIR:-/var/lib/smallworlds-data}"
 BACKUP_DIR="${BACKUP_DIR:-/var/lib/smallworlds-backup}"
 OBJECT_STORAGE="${OBJECT_STORAGE:-garage}"
@@ -789,7 +795,14 @@ COREDNS
 if [ "$MANAGE_DNS" = "true" ]; then
     RECORD_NAMES=""
     if [ -z "$ENV_EXT" ]; then RECORD_NAMES="@"; fi
-    for sub in identity dashboard files photos git mail webmail monitoring whiteboard meet office plan deploy pod vpn; do
+    # One record per installed application and no others: a name with nothing
+    # behind it sends people to a certificate error and makes the zone read as
+    # though the application were there. The installer passes the list
+    # (DNS_SUBDOMAINS); only a config file written without it gets every name
+    # this cluster could ever serve, which is what such a file always meant.
+    # The job creates and updates records and never deletes one, so a record
+    # for an application that is later removed has to be deleted by hand.
+    for sub in ${DNS_SUBDOMAINS:-identity dashboard files photos git mail webmail monitoring whiteboard meet office plan deploy pod vpn}; do
         RECORD_NAMES="${RECORD_NAMES:+$RECORD_NAMES }${sub}${ENV_EXT}"
     done
 
