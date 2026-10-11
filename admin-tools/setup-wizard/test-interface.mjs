@@ -287,6 +287,27 @@ async function walkFailure() {
         (await page.locator("#guidance-list p").first().textContent()).length > 10);
   check("no credentials are handed over for an install that failed",
         !(await page.locator("#handover").isVisible()));
+
+  // Fixing the cause and installing again is the normal way forward, so it has
+  // to be possible from this screen — not only by restarting the wizard.
+  check("installing again is offered", await page.locator("#retry").isVisible());
+  check("so is changing the answers", await page.locator("#change-answers").isVisible());
+  await page.locator("#change-answers").click();
+  check("changing the answers returns to the plan",
+        await page.locator('[data-panel="review"]').isVisible());
+  check("with the Install button back", /install/i.test(await page.locator("#next").textContent())
+        && await page.locator("#next").isEnabled());
+  await page.locator("#next").click();
+  await page.waitForSelector('[data-panel="install"]:not([hidden])', { timeout: 20000 });
+  await page.waitForSelector('#install-outcome[data-status="error"]', { timeout: 90000 });
+  check("a second install runs from there", await page.locator("#retry").isVisible());
+
+  await page.locator("#retry").click();
+  await page.waitForFunction(() => document.getElementById("retry").hidden, null, { timeout: 20000 });
+  check("Install again starts a new run", true);
+  await page.waitForSelector('#install-outcome[data-status="error"]', { timeout: 90000 });
+  check("and it is offered again when that run stops too",
+        await page.locator("#retry").isVisible() && await page.locator("#retry").isEnabled());
   check("the page logged no errors", problems.length === 0, problems.join(" | "));
 }
 

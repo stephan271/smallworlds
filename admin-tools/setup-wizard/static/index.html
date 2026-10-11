@@ -435,6 +435,11 @@
       <button type="button" class="secondary" id="cancel">Stop the install</button>
       <a class="primary-link" id="open-dashboard" hidden target="_blank" rel="noreferrer">
         Open your dashboard</a>
+      <!-- Offered whenever an install has ended, however it ended: fixing what
+           stopped it and installing again is the normal way forward, and it
+           must not require restarting the wizard from the terminal. -->
+      <button type="button" id="retry" hidden>Install again</button>
+      <button type="button" class="secondary" id="change-answers" hidden>Change my answers</button>
       <button type="button" class="secondary" id="shutdown" hidden>Close the wizard</button>
     </div>
   </section>

@@ -841,7 +841,14 @@ function applyStatus(snapshot) {
   const heading = el("install-heading");
   const lede = el("install-lede");
   const outcome = el("install-outcome");
-  el("cancel").hidden = status !== "running" && status !== "starting";
+  const working = status === "running" || status === "starting";
+  el("cancel").hidden = !working;
+  // An install that has ended can be started again from here, with the same
+  // answers or after changing them. The scripts carry on from where they got to.
+  const ended = status === "failed" || status === "cancelled" || status === "succeeded";
+  el("retry").hidden = !ended;
+  el("retry").disabled = false;
+  el("change-answers").hidden = !ended;
   // Advice belongs to a stop, not to a working install: an operator watching a
   // healthy rollout should not be reading about what to do when it breaks.
   renderGuidance(null, status === "failed" || status === "cancelled");
@@ -872,7 +879,7 @@ function applyStatus(snapshot) {
   } else if (status === "failed") {
     heading.textContent = "The install stopped";
     lede.textContent = "Nothing was rolled back. Fix what the message describes and " +
-      "run the wizard again — it carries on from where it got to.";
+      "press Install again below — it carries on from where it got to.";
     showCheck("install-outcome", { status: "error", summary: snapshot.error ||
       "The installer failed. The log below has the details." });
     el("log-panel").open = true;
@@ -1032,6 +1039,54 @@ function watch() {
   // resuming mid-sentence.
   events.onerror = () => {};
 }
+
+/* A second attempt starts from a clean view: the previous run's stages, log,
+   advice and credentials describe an install that is no longer the current one. */
+function resetInstallView() {
+  el("install-heading").textContent = "Installing";
+  el("install-lede").textContent = "This takes five to fifteen minutes. You can " +
+    "close this tab and come back — the install carries on without the browser.";
+  el("log").textContent = "";
+  el("log-panel").open = false;
+  el("handover").hidden = true;
+  el("open-dashboard").hidden = true;
+  el("shutdown").hidden = true;
+  el("progress").hidden = true;
+  el("cancel").disabled = false;
+  lastResult = {};
+  lastGuidance = [];
+  showCheck("install-outcome", null);
+  renderGuidance(null, false);
+}
+
+el("retry").addEventListener("click", () => {
+  el("retry").disabled = true;
+  api("/api/install", { answers: answers() }).then((result) => {
+    if (!result.started) {
+      el("retry").disabled = false;
+      showCheck("install-outcome", { status: "error", summary: result.message ||
+        (result.problems ? result.problems[0].message : "Could not start.") });
+      return;
+    }
+    resetInstallView();
+    el("retry").hidden = true;
+    el("change-answers").hidden = true;
+    el("cancel").hidden = false;
+    renderStages(result.stages || []);
+    watch();
+  }).catch((error) => {
+    el("retry").disabled = false;
+    showCheck("install-outcome", { status: "error", summary: String(error) });
+  });
+});
+
+/* Back to the last panel, with every earlier one reachable from the step rail. */
+el("change-answers").addEventListener("click", () => {
+  if (events) { events.close(); events = null; }
+  document.querySelector(".actions").hidden = false;
+  furthest = PANELS.length - 1;
+  go(PANELS.length - 1);
+});
 
 el("cancel").addEventListener("click", () => {
   el("cancel").disabled = true;
