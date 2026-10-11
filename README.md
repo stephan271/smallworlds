@@ -413,8 +413,10 @@ Two things must be committed **before** tagging, because the publishing workflow
 ```bash
 cp docs/releases/bootstrap-inputs/v1.2.28.json docs/releases/bootstrap-inputs/v1.2.29.json
 # edit "release", then independently re-verify each digest:
-curl -sS https://get.k3s.io | sha256sum
+curl -sS "$(jq -r .k3s.installerUrl docs/releases/bootstrap-inputs/v1.2.29.json)" | sha256sum
 ```
+
+Pin the K3s installer by **commit**, not as `https://get.k3s.io`: that address serves whatever `install.sh` is on K3s's main branch today, so the digest stops matching the next time upstream edits the script, and every install from that release then fails its checksum. Use `https://raw.githubusercontent.com/k3s-io/k3s/<commit>/install.sh`, with the commit from `https://github.com/k3s-io/k3s/commits/master/install.sh`.
 
 See [`docs/releases/bootstrap-inputs/README.md`](docs/releases/bootstrap-inputs/README.md).
 
