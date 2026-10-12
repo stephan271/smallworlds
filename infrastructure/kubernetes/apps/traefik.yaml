@@ -24,6 +24,15 @@ spec:
           websecure:
             tls:
               enabled: true
+            # Traefik v3 gives a request 60s to arrive in full, body included,
+            # and answers 504 after that. A video of a few hundred MB does not
+            # fit through a home uplink in a minute, so every large upload to
+            # Photos or Nextcloud failed at exactly 1m0s while small ones went
+            # through. The price is that a slow client may hold a connection
+            # for this long; the per-source rate limit still applies.
+            transport:
+              respondingTimeouts:
+                readTimeout: 30m
         ingressRoute:
           dashboard:
             enabled: false
