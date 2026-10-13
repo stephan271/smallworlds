@@ -300,7 +300,7 @@ def generate_patches(app_name, domain, ext):
                       - name: setup
                         env:
                           - name: REDIRECT_URIS
-                            value: '["https://{subdomains['photos']}/auth/login", "https://{subdomains['photos']}/user-settings", "app.immich:///"]'
+                            value: '["https://{subdomains['photos']}/auth/login", "https://{subdomains['photos']}/user-settings", "app.immich:///oauth-callback"]'
           - target:
               kind: Ingress
               name: immich-server

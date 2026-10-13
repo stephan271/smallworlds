@@ -61,7 +61,7 @@ patches:
         path: /spec/template/spec/containers/0/env
         value:
           - name: REDIRECT_URIS
-            value: '["https://photos.smallworlds.network/auth/login", "https://photos.smallworlds.network/user-settings", "app.immich:///"]'
+            value: '["https://photos.smallworlds.network/auth/login", "https://photos.smallworlds.network/user-settings", "app.immich:///oauth-callback"]'
   - target:
       kind: Cluster
       name: database
