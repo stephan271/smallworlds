@@ -24,15 +24,15 @@ resources:
   - ../../bases/backup-job
 
 images:
-  # Gallery versions are its own; v5.7.1 is built on Immich v3.2.4. Bump both
+  # Gallery versions are its own; v5.8.0 is built on Immich v3.3.1. Bump both
   # together, and read the release notes first: a Gallery release can migrate
   # the database in ways plain Immich cannot read back.
   - name: ghcr.io/immich-app/immich-server
     newName: ghcr.io/open-noodle/gallery-server
-    newTag: v5.7.1
+    newTag: v5.8.0
   - name: ghcr.io/immich-app/immich-machine-learning
     newName: ghcr.io/open-noodle/gallery-ml
-    newTag: v5.7.1
+    newTag: v5.8.0
 
 patches:
   # Everything about the bucket comes from garage-secret, next to the key
