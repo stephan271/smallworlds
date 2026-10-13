@@ -49,9 +49,18 @@ spec:
                   # multipart upload, and --fast-list holds the whole listing.
                   # At 16 the job was OOM-killed once a bucket held a real
                   # library, and failed all its retries the same way.
+                  # Two buckets at one service under one key: let the service
+                  # copy between them, so the objects never pass through this
+                  # pod. Anything else has to be streamed.
+                  ACROSS=""
+                  if [ "$RCLONE_CONFIG_SRC_ENDPOINT" = "$RCLONE_CONFIG_DST_ENDPOINT" ] &&
+                     [ "$RCLONE_CONFIG_SRC_ACCESS_KEY_ID" = "$RCLONE_CONFIG_DST_ACCESS_KEY_ID" ]; then
+                    ACROSS="--server-side-across-configs"
+                    echo "Same service and key on both sides: copying server-side."
+                  fi
                   rclone sync "src:${SRC}" "dst:${DST}/current" \
                     --backup-dir "dst:${DST}/versions/${STAMP}" \
-                    --fast-list --transfers 4 --checkers 32 \
+                    --fast-list --transfers 4 --checkers 32 $ACROSS \
                     -v --stats-one-line
                   echo "Backup completed successfully."
               env:
