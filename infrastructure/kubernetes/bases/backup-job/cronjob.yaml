@@ -45,9 +45,13 @@ spec:
                   echo "Backing up src:${SRC} -> dst:${DST}/current"
                   # --backup-dir must sit outside the destination path, or the
                   # next run would try to sync the retained versions too.
+                  # Memory is what bounds --transfers: each one buffers a
+                  # multipart upload, and --fast-list holds the whole listing.
+                  # At 16 the job was OOM-killed once a bucket held a real
+                  # library, and failed all its retries the same way.
                   rclone sync "src:${SRC}" "dst:${DST}/current" \
                     --backup-dir "dst:${DST}/versions/${STAMP}" \
-                    --fast-list --transfers 16 --checkers 32 \
+                    --fast-list --transfers 4 --checkers 32 \
                     -v --stats-one-line
                   echo "Backup completed successfully."
               env:
@@ -124,4 +128,4 @@ spec:
                   cpu: 50m
                   memory: 128Mi
                 limits:
-                  memory: 512Mi
+                  memory: 1Gi
