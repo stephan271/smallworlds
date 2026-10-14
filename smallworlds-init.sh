@@ -681,7 +681,7 @@ PYEOF
 dns_subdomains() {
     local app sub
     {
-        printf '%s\n' identity dashboard monitoring deploy vpn
+        printf '%s\n' identity dashboard monitoring deploy vpn join
         while IFS= read -r app; do
             case "$app" in
                 nextcloud)             sub=files ;;
@@ -1306,7 +1306,7 @@ apps              = [${TF_APPS_LIST}]
 
 EOF
     _SELECTED_LIST="$(selected_apps | paste -sd, - | sed 's/,/, /g')"
-    echo -e "${CYAN}DNS records: identity, dashboard, monitoring, deploy, vpn${_SELECTED_LIST:+, and one for each of: }${_SELECTED_LIST}${NC}"
+    echo -e "${CYAN}DNS records: identity, dashboard, monitoring, deploy, vpn, join${_SELECTED_LIST:+, and one for each of: }${_SELECTED_LIST}${NC}"
 
     # 3. Execute Terraform
     sw_step terraform-apply "Provisioning the Hetzner VM and DNS records"
@@ -1726,7 +1726,7 @@ EOF
     HOSTS_SNIPPET="$HOME/.smallworlds/hosts-${KUBECONFIG_LABEL}.txt"
     {
         printf '%s' "$SERVER_IP"
-        for sub in identity dashboard files photos git mail webmail monitoring whiteboard meet office plan pod; do
+        for sub in identity dashboard files photos git mail webmail monitoring whiteboard meet office plan pod join; do
             printf ' %s%s.%s' "$sub" "$ENV_EXT" "$DOMAIN"
         done
         printf '\n'

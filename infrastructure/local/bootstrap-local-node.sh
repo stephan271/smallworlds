@@ -781,7 +781,7 @@ data:
   smallworlds.server: |
     ${DOMAIN}:53 {
       hosts {
-        $NODE_IP identity${ENV_EXT}.${DOMAIN} files${ENV_EXT}.${DOMAIN} photos${ENV_EXT}.${DOMAIN} git${ENV_EXT}.${DOMAIN} mail${ENV_EXT}.${DOMAIN} meet${ENV_EXT}.${DOMAIN} webmail${ENV_EXT}.${DOMAIN} whiteboard${ENV_EXT}.${DOMAIN} office${ENV_EXT}.${DOMAIN} dashboard${ENV_EXT}.${DOMAIN} monitoring${ENV_EXT}.${DOMAIN} pod${ENV_EXT}.${DOMAIN}
+        $NODE_IP identity${ENV_EXT}.${DOMAIN} files${ENV_EXT}.${DOMAIN} photos${ENV_EXT}.${DOMAIN} git${ENV_EXT}.${DOMAIN} mail${ENV_EXT}.${DOMAIN} meet${ENV_EXT}.${DOMAIN} webmail${ENV_EXT}.${DOMAIN} whiteboard${ENV_EXT}.${DOMAIN} office${ENV_EXT}.${DOMAIN} dashboard${ENV_EXT}.${DOMAIN} monitoring${ENV_EXT}.${DOMAIN} pod${ENV_EXT}.${DOMAIN} join${ENV_EXT}.${DOMAIN}
         fallthrough
       }
       forward . /etc/resolv.conf
@@ -802,7 +802,7 @@ if [ "$MANAGE_DNS" = "true" ]; then
     # this cluster could ever serve, which is what such a file always meant.
     # The job creates and updates records and never deletes one, so a record
     # for an application that is later removed has to be deleted by hand.
-    for sub in ${DNS_SUBDOMAINS:-identity dashboard files photos git mail webmail monitoring whiteboard meet office plan deploy pod vpn}; do
+    for sub in ${DNS_SUBDOMAINS:-identity dashboard files photos git mail webmail monitoring whiteboard meet office plan deploy pod vpn join}; do
         RECORD_NAMES="${RECORD_NAMES:+$RECORD_NAMES }${sub}${ENV_EXT}"
     done
 

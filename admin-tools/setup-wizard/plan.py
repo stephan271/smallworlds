@@ -423,7 +423,7 @@ _SUBDOMAIN_BY_APP = {
 
 
 def _hostnames(domain: str, env_ext: str, apps: list[str]) -> list[dict]:
-    pairs = [("identity", "Identity"), ("dashboard", "Dashboard")]
+    pairs = [("identity", "Identity"), ("dashboard", "Dashboard"), ("join", "Invitations")]
     labels = {app["name"]: app["label"] for app in OPTIONAL_APPS}
     for app in apps:
         if app in _SUBDOMAIN_BY_APP:

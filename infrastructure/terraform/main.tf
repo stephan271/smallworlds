@@ -191,9 +191,9 @@ locals {
 locals {
   # Deployed by infrastructure/kubernetes/kustomization.yaml for every
   # community, so their records are unconditional: identity (Keycloak),
-  # dashboard, monitoring (kube-prometheus-stack), deploy (argocd-ingress) and
-  # vpn (headscale).
-  core_subdomains = ["identity", "dashboard", "monitoring", "deploy", "vpn"]
+  # dashboard, monitoring (kube-prometheus-stack), deploy (argocd-ingress),
+  # vpn (headscale) and join (Member Invitations, docs/adr/0058).
+  core_subdomains = ["identity", "dashboard", "monitoring", "deploy", "vpn", "join"]
 
   # The subdomain each optional application answers on. Mirrors the map in
   # admin-tools/generate_domain_patches.py, which writes the Ingress hosts

@@ -2,7 +2,7 @@
 
     kubectl -n join exec deploy/join -- python /app/manage.py create --locale de --label "Anna"
     kubectl -n join exec deploy/join -- python /app/manage.py list
-    kubectl -n join exec deploy/join -- python /app/manage.py revoke 7
+    kubectl -n join exec deploy/join -- python /app/manage.py revoke 7 [--delete-account]
 
 Runs inside the pod, against the same database the join page uses. The code is
 printed once and is not stored; treat the output like a password until the
@@ -14,6 +14,7 @@ import sys
 
 import codes
 import config
+import desk
 import store
 
 
@@ -35,6 +36,8 @@ def main(argv=None) -> int:
     commands.add_parser("list", help="every invitation and its state")
     revoke = commands.add_parser("revoke", help="revoke an invitation that is not done")
     revoke.add_argument("id", type=int)
+    revoke.add_argument("--delete-account", action="store_true",
+                        help="also delete the account it started, if that has no passkey")
     args = parser.parse_args(argv)
 
     store.init()
@@ -54,8 +57,11 @@ def main(argv=None) -> int:
                   f"{invitation.locale:4}  {_when(invitation.expires_at):17}  "
                   f"{invitation.username or '-':20}  {invitation.label}")
     elif args.command == "revoke":
-        if not store.revoke(args.id):
-            print(f"Invitation {args.id} does not exist, or is done or revoked already.", file=sys.stderr)
+        # The Desk's own rule: an account goes only if this invitation created
+        # it and it holds no passkey.
+        status, answer = desk.revoke(args.id, {"deleteAccount": args.delete_account})
+        if status != 200:
+            print(f"Invitation {args.id} not revoked: {answer.get('error')}.", file=sys.stderr)
             return 1
         print(f"Invitation {args.id} revoked.")
     return 0

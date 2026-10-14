@@ -30,11 +30,14 @@ server itself), `doc/tenant-hermes.md` (one of the senders).
 
 A cluster with no mail server is normal.
 
-**Onboarding does not require mail.** `admin-tools/bulk-invite.py` defaults to
-minting each member's action token through the `action-token-link` SPI and
-writing the URLs to a file for the Operator to distribute out of band; `--email`
-selects the old `execute-actions-email` path for clusters that do have a relay.
-Nor is there a password-reset dependency: `bulk-invite.py` sets no password
+**Onboarding does not require mail.** Members are invited through `join`
+(`doc/tenant-join.md`, `docs/adr/0058`): the Operator hands each a short code
+out of band — a message, a QR code or a printed card — and `join` mints the
+action token through the `action-token-link` SPI only when the member starts.
+`admin-tools/bulk-invite.py` is the terminal route to the same SPI, writing the
+links to a file; its `--email` selects the old `execute-actions-email` path for
+clusters that do have a relay.
+Nor is there a password-reset dependency: neither sets a password
 credential, and the realm has `resetPasswordAllowed: false`, so no "Forgot
 password?" link exists and Keycloak never sends a reset mail. (The bound browser
 flow does still offer a password form as an alternative to the passkey — it
@@ -284,9 +287,9 @@ Therefore:
   currently sent to `blackhole` in `apps/alertmanager-config.yaml`, which means
   **nothing detects total cluster loss today** — Alertmanager cannot report its
   own death. This is independent of the mail decision.
-- No test covers the onboarding link path. `bulk-invite.py`'s SPI call is
-  exercised only against a stub; a live cluster has never run it, and neither
-  path has an `e2e-tests/` assertion.
+- `bulk-invite.py`'s SPI call is exercised only against a stub. The `join`
+  path is covered by `e2e-tests/tests/10-join.spec.ts` up to Keycloak's
+  passkey step.
 - `tenants/mail-relay/` — the null-client MTA and the `smtp-relay` Service,
   plus the `ExternalName` variant shipped from the Stalwart tenant. Sync wave
   `-5` or `0`; nothing needs it at sync time, only at runtime.

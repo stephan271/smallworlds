@@ -1,9 +1,7 @@
 # Member Invitations — docs/adr/0058, plans-and-walkthroughs/design-member-invitations.md.
 #
-# Phases 1–3: the Keycloak clients, the join page and the Invitation Desk. No
-# Application points here yet, so nothing in this directory is deployed; the
-# namespace, the Application, the NetworkPolicy and the domain patches arrive
-# with phase 4 (design §12).
+# Deployed by apps/join.yaml on every cluster. Hosts follow the operator's
+# domain through admin-tools/generate_domain_patches.py (the `join` block).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: join
@@ -19,6 +17,7 @@ resources:
   - join-service.yaml
   - join-ingress.yaml
   - join-desk-ingress.yaml
+  - join-networkpolicy.yaml
 
 configMapGenerator:
   # Flat on purpose: ConfigMap keys cannot contain "/". tests/ is not shipped.

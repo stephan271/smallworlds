@@ -34,6 +34,7 @@ Identity, management, observability, and cluster utilities all deploy together i
 
 ### Wave 1 (End-User Tenant Applications)
 * **`nextcloud.yaml`**, **`collabora.yaml`**, **`forgejo.yaml`**, **`immich.yaml`**, **`jitsi.yaml`**, **`bulwark.yaml`**, **`excalidraw.yaml`**, **`plane.yaml`**, **`stalwart.yaml`**. Collabora is mutually exclusive with the wave-0 Euro-Office Application.
+* **`join.yaml`** (Member Invitations, `doc/tenant-join.md`) is always deployed, not optional, but sits here for the same reason: its client job needs Keycloak answering.
 * These are the final workloads. They rely on the foundational layers (CNPG for DBs, Garage for S3, Keycloak for SSO, Traefik for Ingress) being operational. **Stalwart stays in this wave** despite being "infrastructure" because it depends on Keycloak's OIDC/directory integration.
 * **`alertmanager-config.yaml`** also sits at wave 1 — unlike its neighbours it is not an `Application` but a raw `AlertmanagerConfig` CR applied directly by the root app, and its CRD only arrives with `kube-prometheus-stack` at wave 0. The root app's `SkipDryRunOnMissingResource=true` sync option exists largely for this resource (see the bootstrap section below).
 

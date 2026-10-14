@@ -391,7 +391,7 @@ Do not skip this: step 12 closes the way you have been using so far.
    step 9 for them instead, by adding this line to `/etc/hosts`:
 
    ```
-   <tailnet-address>  deploy.<your-domain> monitoring.<your-domain> identity.<your-domain>
+   <tailnet-address>  deploy.<your-domain> monitoring.<your-domain> identity.<your-domain> join.<your-domain>
    ```
 
    Then open `https://deploy.<your-domain>` and sign in as `admin` with the
@@ -423,41 +423,34 @@ computer is on the cluster's network. To undo it: `smallworlds-firewall open`.
 If you do get locked out, use the web console in the Contabo panel and run that
 command there.
 
-## 13. Create the member accounts
+## 13. Invite the members
 
-Members are invited: each gets a one-time link, registers a passkey with it,
-and never has a password. No mail is sent. Your computer must be on the
-cluster's network with the `/etc/hosts` line from step 11 in place, because the
-tool uses Keycloak's administration interface.
+Members are invited: each gets a one-time code, registers a passkey with it,
+and never has a password. No mail is sent. You issue the invitations on the
+Invitation Desk, which, like the other operator pages, answers only while your
+computer is on the cluster's network with the `/etc/hosts` line from step 11
+in place.
 
-1. Write a list, one line per member, outside the checkout — for example
-   `~/members.csv`. Only the username is required:
+1. Open `https://join.<your-domain>/desk` and sign in as `operator`.
+2. Invite yourself first: enter your name, choose the language, and press
+   **Create invitation**. Open the link it shows, choose your username, and
+   register a passkey (fingerprint, phone or security key). Write down the
+   recovery codes. They are the way back in when the passkey device is lost;
+   without them only you can help, with **New passkey for a member** on the
+   Desk.
+3. Invite everybody else the same way. Each invitation is shown once, with
+   three ways to hand it over:
+   - **Copy message**, to paste into a chat with that one person
+   - the **QR code**, to show in person
+   - **Print card**
 
-   ```
-   username,phone,email
-   anna,,anna@example.org
-   ben,,
-   ```
-
-2. Create the accounts and their links:
-
-   ```bash
-   KEYCLOAK_URL="https://identity.<your-domain>" \
-   KEYCLOAK_CLIENT_SECRET="$(grep '^INVITE_SECRET=' .smallworlds-cache.env | cut -d'"' -f2)" \
-     python3 admin-tools/bulk-invite.py ~/members.csv -o ~/invite-links.csv
-   ```
-
-   The links are in `~/invite-links.csv`, and the tool says how long they are
-   valid. `--qr` also writes a QR code per member, for phones. Treat the file
-   like a list of passwords until the links have been used.
-
-3. Give each member their link, yourself included. Opening it asks for three
-   things: confirm the profile, register a passkey (fingerprint, phone or
-   security key), and write down the recovery codes. The codes are the way back
-   in when the passkey device is lost; without them only you can help, by
-   issuing a new link.
-
+   For a group, choose **Several**, paste one name per line, and print all the
+   cards at once. Invitations stay valid for 14 days. The Desk lists which ones
+   have been used.
 4. Sign in at `https://dashboard.<your-domain>` with your passkey.
+
+Each member opens their invitation on any phone or computer, chooses their own
+username, and is done in about three minutes, in German or English.
 
 Members need nothing installed and are never on the private network: the
 dashboard and the applications are public by design.
@@ -471,10 +464,12 @@ will do, or your computer after switching networks:
 curl -s -o /dev/null -w '%{http_code}\n' https://deploy.<your-domain>/
 curl -s -o /dev/null -w '%{http_code}\n' https://monitoring.<your-domain>/
 curl -s -o /dev/null -w '%{http_code}\n' https://identity.<your-domain>/admin/
+curl -s -o /dev/null -w '%{http_code}\n' https://join.<your-domain>/desk/
 curl -s -o /dev/null -w '%{http_code}\n' https://dashboard.<your-domain>/
+curl -s -o /dev/null -w '%{http_code}\n' https://join.<your-domain>/
 ```
 
-The first three must print `403` and the last `200`. `ssh root@<server-ip>`
+The first four must print `403` and the last two `200`. `ssh root@<server-ip>`
 must no longer connect. If an operator page answers anything but `403`, stop
 and read `doc/hardening.md` §1 before inviting anyone.
 
@@ -497,7 +492,8 @@ Your community's cloud is now ready to use.
 | The browser gets no answer at all for an address | Your computer remembers an older address for the name | `sudo resolvectl flush-caches`, restart the browser (step 8.3) |
 | "Invalid username or email" at every sign-in | No member accounts exist yet; `admin` and `operator` are not members | Step 13 |
 | An operator page answers `403` from your own computer | You are not on the cluster's network, or the `/etc/hosts` line is missing | Steps 10 and 11.3 |
-| The invite tool fails with `403` or cannot authenticate | Same cause: it uses Keycloak's administration interface | Steps 10 and 11.3 |
+| The Invitation Desk answers `403` | Same cause: it is an operator page | Steps 10 and 11.3 |
+| A member's invitation says it has expired or was used | Invitations last 14 days and work once | On the Desk, **New code** for that row, and send it again |
 | `setup-vpn.sh` says it cannot run commands as root | Your login needs `sudo` without a password | "If you log in as another user than root" in step 2 |
 | `smallworlds-firewall close` refuses | The session did not come over the private network, or `sudo` hid that | Step 12 |
 | Video in Meet fails, chat works | UDP 10000 blocked | `smallworlds-firewall status` should list `udp 10000` |

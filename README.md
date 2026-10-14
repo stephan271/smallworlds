@@ -194,7 +194,7 @@ The cluster is running, but not ready to use: nobody has an account yet, and on 
 2. **Join the node to the cluster's private network** with `./admin-tools/setup-vpn.sh`. The operator interfaces — Argo CD at `deploy.<domain>`, Grafana at `monitoring.<domain>`, Keycloak administration — answer only to devices on it, and `403` to everyone else ([`doc/hardening.md`](doc/hardening.md)).
 3. **Join your own computer**, and check that SSH, `kubectl` and the operator interfaces work over that network.
 4. **Close SSH and the Kubernetes API to the internet** — only after step 3, which is your proof that the other way in works.
-5. **Invite the members** with `admin-tools/bulk-invite.py`. Each gets a one-time link, registers a passkey and writes down recovery codes; nobody has a password and no mail is sent. The tool uses Keycloak's administration interface, so it runs from a computer on the private network — which is why it comes after step 3.
+5. **Invite the members** on the Invitation Desk at `join.<domain>/desk` ([`doc/tenant-join.md`](doc/tenant-join.md)). Each member gets a one-time code (a message, a QR code or a printed card), chooses their own username, registers a passkey and writes down recovery codes; nobody has a password and no mail is sent. The Desk is an operator page, so it answers only on the private network — which is why it comes after step 3.
 6. **Check from outside** that the operator interfaces answer `403`.
 
 A LAN-only machine behind a router skips steps 2 to 4 and 6: nothing of it faces the internet.
@@ -342,7 +342,7 @@ The `admin-tools/` directory contains helper scripts to automate common operatio
 ### Utilities
 - **`test-pr-locally.sh`**: Deploys a local testing environment to validate pull requests.
 - **`generate_domain_patches.py`**: Automatically generates Kustomize domain patches for all applications when a non-default domain or environment extension (e.g., `.dev`) is used.
-- **`bulk-invite.py`**: Creates member accounts from a CSV and writes one-time passkey invitation links (optionally QR codes). Needs the private network, because it uses Keycloak's administration interface.
+- **`bulk-invite.py`**: The terminal route for inviting members — creates accounts from a CSV and writes one-time passkey links (optionally QR codes). The Invitation Desk (`join.<domain>/desk`, [`doc/tenant-join.md`](doc/tenant-join.md)) is the everyday route. Needs the private network, because it uses Keycloak's administration interface.
 - **`update_realm_json.py`**: Python utility for Keycloak realm manipulation.
 
 ---

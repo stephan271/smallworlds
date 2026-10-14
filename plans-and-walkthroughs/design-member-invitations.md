@@ -1,6 +1,6 @@
 # Member Invitations (`join.<domain>`) — Design
 
-**Status:** accepted; phases 1–3 (Keycloak groundwork, join page, Invitation Desk) implemented, phase 4 (wiring) open
+**Status:** accepted and implemented (phases 1–4); first deployment: smallworlds.network
 **Date:** 2026-10-14
 **Decision record:** `docs/adr/0058-members-are-invited-through-a-join-page.md`
 **Replaces, for everyday use:** step 13 of `doc/install-contabo-datalix.md`
@@ -463,10 +463,14 @@ Keycloak's Service and DNS only.
 
   During development the printed cards were also rendered to PDF, and all four
   QR codes on a sheet decoded (OpenCV) to their links.
-- **Staging.** A new `e2e-tests` spec creates an invitation through a
-  port-forward to 8081 (staging is not on the tailnet), opens it, submits the form,
-  and asserts the redirect into Keycloak's passkey step. The shallow e2e depth
-  stops there.
+- **Live cluster.** `e2e-tests/tests/10-join.spec.ts` issues an invitation
+  with `manage.py` through `kubectl exec`; the Desk's sign-in needs the
+  Operator's TOTP, so the Desk is only checked for never answering `200`
+  without a session. The spec then:
+  - opens the invitation in German and submits the form
+  - asserts that Keycloak accepted the link and renders in German
+  - checks that reopening the invitation resumes the same account
+  - deletes the account again (`manage.py revoke --delete-account`)
   - The full passkey roundtrip uses Chromium's virtual authenticator. It runs
     only on the lab cluster, because Chrome disables WebAuthn on a page with a
     certificate error, so staging cannot do it.
@@ -506,13 +510,23 @@ Keycloak's Service and DNS only.
    - both languages
    - `join-desk-ingress.yaml` with the allow-list, and the `desk` Service port
    - `join-desk` registers `/desk/signed-out` for Keycloak's sign-out
-4. **Wiring and documentation:**
-   - DNS in all four places, the hosts line, the Application, the NetworkPolicy
-   - `doc/tenant-join.md`
-   - rewrite step 13 of `install-contabo-datalix.md`
-   - `doc/mail.md` §1, the table in `doc/hardening.md` §1
-   - the e2e spec
-   - the CLAUDE.md entry
+4. **Wiring and documentation — done:**
+   - `apps/join.yaml` (wave 1) in the master kustomization, the namespace
+   - `join-networkpolicy.yaml`: in from Traefik only, out to DNS and Keycloak only
+   - `join` as a core subdomain in all four maps, both CoreDNS host lists, the
+     DDNS default and the hosts snippet
+   - the `join` block in `generate_domain_patches.py`
+   - `prepare-community-repo.sh` treats `join` like `dashboard`, and on re-run
+     adds the routing an older overlay lacks
+   - `doc/tenant-join.md`; step 13 of `install-contabo-datalix.md` now uses the
+     Desk; README, `mail.md`, `hardening.md`, `tenant-keycloak.md`,
+     `local-deployment.md`, `argocd-apps.md` and `CLAUDE.md`
+   - `e2e-tests/tests/10-join.spec.ts`
+
+   An existing cluster does not get the DNS record by itself on the `local`
+   target: the DDNS job's names were fixed at install. There, `join` is added
+   to `RECORD_NAMES` in `/var/lib/rancher/k3s/server/manifests/ddns.yaml` on
+   the node. The `hetzner` target gets it from the next `terraform apply`.
 
 ## 13. Not decided here
 

@@ -47,6 +47,7 @@ def generate_patches(app_name, domain, ext):
         'deploy': f"deploy{ext}.{domain}",
         'vpn': f"vpn{ext}.{domain}",
         'console': f"console{ext}.{domain}",
+        'join': f"join{ext}.{domain}",
         'pod': f"pod{ext}.{domain}"
     }
 
@@ -170,6 +171,60 @@ def generate_patches(app_name, domain, ext):
               - op: replace
                 path: /spec/headers/accessControlAllowOriginList/0
                 value: "https://{subdomains['webmail']}"
+        """), "  ")
+
+    elif app_name == "join":
+        # Both Ingresses share one host and one certificate; the ConfigMap names
+        # the hosts the join page links to and the issuer every minted link
+        # must carry; the two Jobs register the redirects Keycloak checks.
+        patches += textwrap.indent(textwrap.dedent(f"""\
+          - target:
+              kind: Ingress
+              name: join
+            patch: |-
+              - op: replace
+                path: /spec/rules/0/host
+                value: {subdomains['join']}
+              - op: replace
+                path: /spec/tls/0/hosts/0
+                value: {subdomains['join']}
+          - target:
+              kind: Ingress
+              name: join-desk
+            patch: |-
+              - op: replace
+                path: /spec/rules/0/host
+                value: {subdomains['join']}
+              - op: replace
+                path: /spec/tls/0/hosts/0
+                value: {subdomains['join']}
+          - target:
+              kind: ConfigMap
+              name: join-config
+            patch: |-
+              - op: replace
+                path: /data/PUBLIC_IDENTITY_URL
+                value: https://{subdomains['identity']}
+              - op: replace
+                path: /data/JOIN_URL
+                value: https://{subdomains['join']}
+              - op: replace
+                path: /data/DASHBOARD_URL
+                value: https://{subdomains['dashboard']}
+          - target:
+              kind: Job
+              name: keycloak-client-init
+            patch: |-
+              - op: replace
+                path: /spec/template/spec/containers/0/env/0/value
+                value: '["https://{subdomains['join']}/*"]'
+          - target:
+              kind: Job
+              name: join-keycloak-setup
+            patch: |-
+              - op: replace
+                path: /spec/template/spec/containers/0/env/0/value
+                value: {subdomains['join']}
         """), "  ")
 
     elif app_name == "bulwark":

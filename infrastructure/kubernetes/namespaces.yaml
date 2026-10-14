@@ -36,6 +36,11 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
+  name: join
+---
+apiVersion: v1
+kind: Namespace
+metadata:
   name: bulwark
 ---
 apiVersion: v1

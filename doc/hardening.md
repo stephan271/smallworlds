@@ -50,7 +50,14 @@ Two consequences to keep in mind:
 
 | Public | Restricted |
 |---|---|
-| Nextcloud, Immich, Collabora, Forgejo, Plane, Excalidraw, Bulwark, dashboard, Jitsi, pod-gateway, Headscale, `identity/realms/smallworlds` | Operator Console, ArgoCD, Grafana, `identity/admin`, `identity/realms/master` |
+| Nextcloud, Immich, Collabora, Forgejo, Plane, Excalidraw, Bulwark, dashboard, Jitsi, pod-gateway, Headscale, `identity/realms/smallworlds`, `join` (the join page) | Operator Console, ArgoCD, Grafana, `identity/admin`, `identity/realms/master`, `join/desk` (the Invitation Desk) |
+
+The Invitation Desk is the one restricted interface that shares a host with a
+public one. It is served on a port of its own that the public Ingress never
+routes to, so a dropped private router fails closed (a `404` from the join
+page) rather than falling through. It also requires a master-realm sign-in with
+the `admin` role, because the allow-list admits the node's LAN and cluster
+addresses too (`doc/tenant-join.md`).
 
 The accepted cost is a larger attack surface, paid for by the layers below and
 by keeping versions current (Renovate, Trivy).
@@ -109,7 +116,12 @@ with it). Keycloak's database additionally accepts the `stalwart` namespace,
 which is the one legitimate cross-namespace database dependency in the cluster —
 `mail-provisioner` reads Keycloak's database directly to discover new users.
 
-This restricts **ingress to database pods only**. A namespace-wide default-deny
+`join` is the exception that goes further (`tenants/join/join-networkpolicy.yaml`):
+it holds a service account that can create members and mint their links, and
+its public half faces the internet, so its pod admits only Traefik and reaches
+only cluster DNS and Keycloak.
+
+Elsewhere this restricts **ingress to database pods only**. A namespace-wide default-deny
 needs per-application egress knowledge that does not exist in this repo yet, and
 a wrong rule there fails in ways that are tedious to diagnose. Here the blast
 radius is one database, the symptom is unambiguous, and deleting the policy

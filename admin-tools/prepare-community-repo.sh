@@ -329,7 +329,7 @@ echo -e "${YELLOW}Creating application subdirectories...${NC}"
 # back in this list; the console has to be listed, not merely routed to, since
 # it is told its own address and would otherwise name somebody else in its OIDC
 # redirect.
-APPS=("dashboard" "keycloak" "${SELECTED_APPS[@]}")
+APPS=("dashboard" "keycloak" "join" "${SELECTED_APPS[@]}")
 
 for app in "${APPS[@]}"; do
     if [ ! -d "$app" ]; then
@@ -392,6 +392,30 @@ if [ -f "kustomization.yaml" ]; then
             if ! grep -q "^patches:" kustomization.yaml; then
                 echo "" >> kustomization.yaml
                 echo "patches:" >> kustomization.yaml
+            fi
+            cat <<EOF >> kustomization.yaml
+  - target:
+      group: argoproj.io
+      kind: Application
+      name: $app
+    patch: |-
+      - op: replace
+        path: /spec/source/repoURL
+        value: $REMOTE_URL
+      - op: replace
+        path: /spec/source/path
+        value: $app
+EOF
+        fi
+    done
+    # An always-installed application that a later release added (join, in
+    # docs/adr/0058) comes from the base's own Application, so only the routing
+    # to this overlay's directory — and with it the domain patches — is missing.
+    for app in "${APPS[@]}"; do
+        if ! grep -qE "^      name: ${app}\$" kustomization.yaml; then
+            echo -e "Routing $app to this overlay..."
+            if ! grep -q "^patches:" kustomization.yaml; then
+                printf '\npatches:\n' >> kustomization.yaml
             fi
             cat <<EOF >> kustomization.yaml
   - target:

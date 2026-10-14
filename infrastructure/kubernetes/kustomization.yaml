@@ -36,6 +36,7 @@ resources:
   # 2. Core Frontend Services
   - apps/dashboard.yaml
   - apps/keycloak.yaml
+  - apps/join.yaml
   # Stalwart is NOT here: mail is an opt-in capability (docs/adr/0049). Nothing
   # in the cluster requires it — onboarding hands out action-token links out of
   # band and alerting pushes over HTTP — so a community that does not want to

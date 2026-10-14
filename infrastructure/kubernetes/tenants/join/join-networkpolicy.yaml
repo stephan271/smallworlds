@@ -1,0 +1,57 @@
+# join holds a Keycloak service account that can create members and mint their
+# onboarding links, and its public half faces the internet. So unlike most
+# tenants (doc/hardening.md §4) it gets both directions:
+#
+# - in:  Traefik only, on the two ports it routes to. The kubelet's probes come
+#        from the node itself, which kube-router always admits.
+# - out: cluster DNS and Keycloak's HTTP port, and nothing else — a compromised
+#        join cannot reach any other workload or the internet.
+#
+# A missing allowance shows up at once as a join page that cannot reach
+# Keycloak ("The service cannot be reached right now"); deleting this policy
+# restores the previous behaviour.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: join
+spec:
+  podSelector:
+    matchLabels:
+      app: join
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik-system
+      ports:
+        - port: 8080
+          protocol: TCP
+        - port: 8081
+          protocol: TCP
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # The Service listens on 80, but policy is evaluated on the pod's port.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: keycloak
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: keycloakx
+      ports:
+        - port: 8080
+          protocol: TCP

@@ -108,13 +108,13 @@ names_for() {   # names_for <app=y|n ...>  ->  the subdomains, space-separated
       dns_subdomains | paste -sd' ' - )
 }
 expect "no application selected leaves only the names every cluster has" \
-    "$(names_for nextcloud=n immich=n)" "identity dashboard monitoring deploy vpn"
+    "$(names_for nextcloud=n immich=n)" "identity dashboard monitoring deploy vpn join"
 expect "each selected application adds its own name" \
     "$(names_for nextcloud=y immich=y jitsi=y forgejo=n stalwart=n)" \
-    "identity dashboard monitoring deploy vpn photos files meet"
+    "identity dashboard monitoring deploy vpn join photos files meet"
 expect "an Office editor adds 'office' once" \
     "$(names_for nextcloud=y euro-office=y collabora=n)" \
-    "identity dashboard monitoring deploy vpn files office"
+    "identity dashboard monitoring deploy vpn join files office"
 
 # The same map exists in Terraform for the hetzner target; they must agree.
 terraform_map="$(sed -n '/app_subdomains = {/,/}/p' "$repository_root/infrastructure/terraform/main.tf" \

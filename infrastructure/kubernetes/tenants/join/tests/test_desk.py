@@ -304,6 +304,31 @@ class Recovery(Desk):
         self.assertEqual(self.post("/desk/api/recovery", {"userId": robot})[0], 404)
 
 
+class Shell(Fresh):
+    """manage.py, the shell route — the e2e spec cleans up with it."""
+
+    def run_manage(self, *args):
+        import contextlib
+        import io
+        import manage
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = manage.main(list(args))
+        return code, out.getvalue() + err.getvalue()
+
+    def test_create_list_and_revoke_with_the_account(self):
+        code, output = self.run_manage("create", "--locale", "en", "--label", "Zoe")
+        self.assertEqual(code, 0)
+        issued = output.split("Code: ")[1].split()[0]
+        invitation_id = int(output.split("Invitation ")[1].split(",")[0])
+        api("/api/redeem", {"code": issued, "username": "zoe", "firstName": "Z",
+                            "lastName": "Y", "email": "z@example.org"})
+        self.assertIn("started", self.run_manage("list")[1])
+        self.assertEqual(self.run_manage("revoke", str(invitation_id), "--delete-account")[0], 0)
+        self.assertIsNone(FAKE.user_by_name("zoe"))
+        self.assertEqual(self.run_manage("revoke", str(invitation_id))[0], 1)
+
+
 class Shipping(unittest.TestCase):
     def test_every_source_and_static_file_is_in_the_configmaps(self):
         """A file missing from configMapGenerator is an import error in the pod,

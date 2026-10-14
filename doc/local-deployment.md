@@ -138,8 +138,8 @@ second one to confirm you can still get in. `--uninstall` removes it.
 
 **After the install, the order of the remaining steps matters** — join the
 server to the tailnet, join your own computer, verify access, close the ports,
-and only then create member accounts, because the invite tool needs the
-tailnet once the operator pages are private. `doc/install-contabo-datalix.md`
+and only then invite members, because the Invitation Desk is an operator page
+and needs the tailnet once those are private. `doc/install-contabo-datalix.md`
 steps 7 to 14 walk through all of it, with the commands; they apply to any
 rented server, not only that provider's.
 
@@ -203,7 +203,8 @@ Keycloak's certificate against its own trust store with no override and no
 insecure switch, so OIDC discovery fails and no app can complete a login —
 Immich reports only `Error in OAuth discovery: TypeError: fetch failed`, which
 names neither TLS nor Keycloak. Nextcloud and Jitsi hit the same wall, and
-`bulk-invite.py` cannot reach the admin API either. Devices that pin a
+members cannot even register a passkey: browsers refuse WebAuthn on a page
+with a certificate error, so no invitation can be completed. Devices that pin a
 certificate (the pod archive, `doc/pod-archive.md`) must additionally be
 re-pinned at every renewal, on every member's hardware.
 
