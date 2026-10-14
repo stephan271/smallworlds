@@ -1,0 +1,91 @@
+# The two Keycloak clients `join` needs beyond the one bases/keycloak-client-job
+# creates (docs/adr/0058, plans-and-walkthroughs/design-member-invitations.md §9):
+#
+# - `join` (smallworlds realm) gets a service account, so the join page can
+#   create the invited member's account and mint their action token while no
+#   Operator is present. It holds manage-users, view-users and query-users and
+#   nothing else — exactly what the action-token-link SPI checks for — instead
+#   of the realm-admin that `bulk-invite` holds.
+# - `join-desk` (master realm, public, PKCE) is what the Invitation Desk signs
+#   the Operator in with: the master-realm `operator` account, password + TOTP.
+#   Master rather than smallworlds because `operator` is not a member, and the
+#   Desk can hand any member a new passkey, so it wants the same identity that
+#   already administers Keycloak.
+#
+# Runs after keycloak-client-init (wave -1), which creates the `join` client and
+# its keycloak-secret. Every step is safe to repeat; redirect URIs are reconciled
+# on each sync so a changed JOIN_HOST takes effect.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: join-keycloak-setup
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  ttlSecondsAfterFinished: 60
+  backoffLimit: 10
+  template:
+    spec:
+      serviceAccountName: setup-sa
+      restartPolicy: OnFailure
+      containers:
+        - name: setup
+          image: docker.io/alpine/k8s:1.36.2
+          env:
+            # Public host of the join page. Overridden per environment by the
+            # overlay's domain patches, like every other tenant's host.
+            - name: JOIN_HOST
+              value: "join.smallworlds.network"
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+
+              POD=keycloak-keycloakx-0
+              CFG=/tmp/kcadm-join.config
+              kc() { kubectl exec -n keycloak $POD -- /opt/keycloak/bin/kcadm.sh "$@" --config $CFG; }
+              client_uuid() { kc get clients -r "$1" -q clientId="$2" --fields id | grep '"id"' | cut -d'"' -f4; }
+
+              echo "Waiting for Keycloak pod to be fully ready..."
+              while ! kubectl get pods -n keycloak $POD -o jsonpath='{.status.containerStatuses[0].ready}' 2>/dev/null | grep -q 'true'; do
+                echo "Keycloak is not ready yet, waiting..."
+                sleep 5
+              done
+
+              PASSWORD=$(kubectl get secret keycloak-admin-creds -n keycloak -o jsonpath="{.data.admin-password}" | base64 -d)
+              kubectl exec -n keycloak $POD -- /opt/keycloak/bin/kcadm.sh config credentials --server http://localhost:8080 --realm master --user admin --password "$PASSWORD" --config $CFG
+
+              JOIN_UUID=$(client_uuid smallworlds join)
+              if [[ -z "$JOIN_UUID" ]]; then
+                echo "Error: the smallworlds client 'join' does not exist yet — keycloak-client-init creates it." >&2
+                exit 1
+              fi
+
+              echo "Enabling the service account of 'join'..."
+              kc update clients/$JOIN_UUID -r smallworlds -s serviceAccountsEnabled=true
+
+              # Adding a role that is already mapped is a no-op in Keycloak.
+              echo "Granting manage-users, view-users and query-users to service-account-join..."
+              kc add-roles -r smallworlds --uusername service-account-join --cclientid realm-management \
+                --rolename manage-users --rolename view-users --rolename query-users
+
+              DESK_REDIRECT="https://$JOIN_HOST/desk/callback"
+              DESK_UUID=$(client_uuid master join-desk)
+              if [[ -z "$DESK_UUID" ]]; then
+                echo "Creating master-realm client 'join-desk' (redirect $DESK_REDIRECT)..."
+                kc create clients -r master \
+                  -s clientId=join-desk -s enabled=true -s publicClient=true \
+                  -s standardFlowEnabled=true -s directAccessGrantsEnabled=false -s implicitFlowEnabled=false \
+                  -s "redirectUris=[\"$DESK_REDIRECT\"]" \
+                  -s 'attributes."pkce.code.challenge.method"=S256'
+              else
+                echo "Client 'join-desk' exists — reconciling its redirect URI to $DESK_REDIRECT..."
+                kc update clients/$DESK_UUID -r master \
+                  -s "redirectUris=[\"$DESK_REDIRECT\"]" \
+                  -s 'attributes."pkce.code.challenge.method"=S256'
+              fi
+
+              echo "Keycloak setup for join complete."

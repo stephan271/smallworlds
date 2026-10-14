@@ -1,0 +1,33 @@
+# Member Invitations — docs/adr/0058, plans-and-walkthroughs/design-member-invitations.md.
+#
+# Phase 1 only: the Keycloak clients. No Application points here yet, so
+# nothing in this directory is deployed; the namespace, the Application and the
+# domain patches arrive with the join page itself (design §12).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: join
+
+resources:
+  - ../../bases/setup-rbac
+  - ../../bases/keycloak-client-job
+  - join-keycloak-setup-job.yaml
+
+patches:
+  - target:
+      kind: ClusterRoleBinding
+      name: setup-binding
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: setup-binding-join
+  # Keycloak validates an action token's redirect against these when the
+  # member finishes, so /done must be covered (design §6).
+  - target:
+      kind: Job
+      name: keycloak-client-init
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env
+        value:
+          - name: REDIRECT_URIS
+            value: '["https://join.smallworlds.network/*"]'

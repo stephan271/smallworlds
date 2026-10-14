@@ -93,6 +93,20 @@ spec:
                 exit 1
               fi
 
+              # German and English, so that the passkey and recovery-code pages
+              # a Member Invitation leads to follow the language the member
+              # chose on the join page — `join` writes it to the user's `locale`
+              # attribute, which Keycloak only honours with this switched on
+              # (docs/adr/0058). The import above leaves an existing realm
+              # alone, so the realm JSON alone would reach new clusters only.
+              # Side effect: every sign-in page gains a language selector.
+              echo "Enabling German and English on the smallworlds realm..."
+              /opt/keycloak/bin/kcadm.sh update realms/smallworlds \
+                -s internationalizationEnabled=true \
+                -s 'supportedLocales=["de","en"]' \
+                -s defaultLocale=en \
+                || echo "WARNING: could not enable German and English on the smallworlds realm."
+
               echo "Setting onboarding mode to $ONBOARDING_MODE..."
               if [ "$ONBOARDING_MODE" = "self-registration" ]; then
                 /opt/keycloak/bin/kcadm.sh update realms/smallworlds -s registrationAllowed=true -s verifyEmail=true
