@@ -66,7 +66,7 @@ window.JOIN_TEXT = {
     "conflict": "Diese Einladung wird gerade schon verwendet.",
 
     "done.title": "Geschafft!",
-    "done.text": "Dein Konto ist fertig. Ab jetzt meldest du dich überall mit deinem Passkey an.",
+    "done.text": "Dein Konto ist fertig, und du bist schon angemeldet. Ab jetzt meldest du dich überall mit deinem Passkey an.",
     "done.codes": "Bewahre deine Wiederherstellungs-Codes an einem sicheren Ort auf – nicht nur auf diesem Gerät.",
     "done.dashboard": "Zu deinem Dashboard",
   },
@@ -134,7 +134,7 @@ window.JOIN_TEXT = {
     "conflict": "This invitation is being used right now.",
 
     "done.title": "All done!",
-    "done.text": "Your account is ready. From now on you sign in everywhere with your passkey.",
+    "done.text": "Your account is ready, and you are signed in already. From now on you sign in everywhere with your passkey.",
     "done.codes": "Keep your recovery codes somewhere safe – not only on this device.",
     "done.dashboard": "To your dashboard",
   },

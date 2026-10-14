@@ -330,6 +330,19 @@ class Shell(Fresh):
 
 
 class Shipping(unittest.TestCase):
+    def test_keycloak_restarts_for_a_new_extension_jar(self):
+        """The jar's ConfigMap keeps its name, so only the pod annotation that
+        build.sh writes gets a rebuilt jar into Keycloak (docs/adr/0059)."""
+        import hashlib
+        import os
+        from harness import TENANT
+        keycloak = os.path.join(os.path.dirname(TENANT), "keycloak")
+        with open(os.path.join(keycloak, "action-token-generator.jar"), "rb") as handle:
+            digest = hashlib.sha256(handle.read()).hexdigest()
+        with open(os.path.join(keycloak, "values.yaml")) as handle:
+            self.assertIn(f'smallworlds/keycloak-extension-sha256: "{digest}"', handle.read(),
+                          "run infrastructure/keycloak-spi/action-token-generator/build.sh")
+
     def test_every_source_and_static_file_is_in_the_configmaps(self):
         """A file missing from configMapGenerator is an import error in the pod,
         found only after a deploy. ConfigMap keys are flat, so neither may nest."""

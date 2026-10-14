@@ -1,0 +1,8 @@
+{
+  "themes": [
+    {
+      "name": "smallworlds",
+      "types": ["login"]
+    }
+  ]
+}

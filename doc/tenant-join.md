@@ -25,35 +25,46 @@ Both halves are served by one pod: Python standard library, source from the
 `join-data` claim, which is deliberately not backed up. Losing it loses open
 invitations, never a member.
 
-## What the member sees in Keycloak
+## What the member sees
 
-After **Continue** on the join page, the member goes through four Keycloak pages,
-in the language they chose. The screenshots are from smallworlds.network, in
-German.
+Five screens, two of them Keycloak's, all in the language the member chose. The
+two Keycloak pages use the `smallworlds` login theme and the action token
+handler from `infrastructure/keycloak-spi/action-token-generator`
+(`docs/adr/0059`). The screenshots were taken by `tests/live-keycloak.sh`
+against a local Keycloak; the recovery codes are from that throwaway instance.
 
-1. **A confirmation page** listing the two actions, with a link to carry on.
-   Keycloak shows it for every link an administrator issued; it cannot be
-   skipped.
+1. **Welcome**, on the join page: what is about to happen, and a hint if the
+   device has no built-in passkey.
 
-   ![Keycloak lists the two actions and asks to continue](../docs/passkey-screenshot-1.png)
+   <img src="../docs/join-flow-de-1-welcome.png" alt="The join page's welcome" width="320">
 
-2. **Register the passkey.** The browser first asks for a name for the passkey,
-   then shows its own passkey dialog (fingerprint, face, PIN, phone or security
-   key).
+2. **About you**: username (checked live), name and email address.
 
-   ![The passkey registration page](../docs/passkey-screenshot-2.png)
-   ![The browser asks for a name for the passkey](../docs/passkey-screenshot-3.png)
+   <img src="../docs/join-flow-de-2-form.png" alt="The join page's form" width="320">
 
-3. **Recovery codes.** Twelve codes, shown once, with print, download and copy.
-   The member must tick that they stored them before **Finish** is enabled.
+3. **Passkey**, in Keycloak: names the account and says what the device will
+   ask. One button, then the device's own dialog. Nothing else is asked.
 
-   ![The recovery codes page (codes blacked out)](../docs/passkey-screenshot-4.png)
+   <img src="../docs/join-flow-de-3-passkey.png" alt="Keycloak's passkey page in the smallworlds theme" width="320">
+   <img src="../docs/join-flow-en-3-passkey-dark.png" alt="The same page in English and dark mode" width="320">
 
-4. **Account updated.** Keycloak does not move on by itself: the member clicks
-   **Back to application**, which leads to the join page's `/done/<lang>` and
-   from there to the dashboard.
+4. **Recovery codes**, in Keycloak: twelve numbered codes to print, download
+   or copy. **Done** unlocks once the member ticks that the codes are stored.
 
-   ![Keycloak confirms the account was updated](../docs/passkey-screenshot-5.png)
+   <img src="../docs/join-flow-de-4-codes.png" alt="Keycloak's recovery codes page in the smallworlds theme" width="320">
+
+5. **Done**, back on the join page. The member is already signed in, so the
+   dashboard and every application open without another passkey prompt.
+
+   <img src="../docs/join-flow-de-5-done.png" alt="The join page's done page" width="320">
+
+Every later sign-in uses the same theme:
+
+<img src="../docs/join-signin-de.png" alt="The sign-in page in the smallworlds theme" width="640">
+
+Before `docs/adr/0059` the same invitation took four Keycloak pages, among them
+a confirmation page, a pop-up asking for the passkey's name, and a final
+"account updated" page (`docs/passkey-screenshot-1.png` to `-5.png`).
 
 ## Everyday use
 
@@ -99,6 +110,15 @@ noticed the next time the invitation is opened or the Desk lists it.
 
 ## Keycloak wiring
 
+The Keycloak side has two parts: the clients below, and the provider jar
+`tenants/keycloak/action-token-generator.jar`, built from
+`infrastructure/keycloak-spi/action-token-generator` by its `build.sh`. The jar
+carries the link endpoint, join's token type `smallworlds-join` with its
+handler, and the `smallworlds` login theme. `build.sh` also writes the jar's
+checksum into `tenants/keycloak/values.yaml`; Keycloak loads providers only at
+start-up, and the changed annotation is what restarts it.
+
+
 | Client | Realm | Created by | Used for |
 | :--- | :--- | :--- | :--- |
 | `join` | smallworlds | `bases/keycloak-client-job` (secret `keycloak-secret`) | service account (`manage-users`, `view-users`, `query-users`); redirect `https://join.<domain>/*` |
@@ -111,6 +131,12 @@ noticed the next time the invitation is opened or the Desk lists it.
 - Links carry `kc_locale`, and the account carries a `locale` attribute, so
   Keycloak's passkey pages are in the member's language. This needs the realm
   to support `de` and `en`; `realm-config-job` sets that.
+
+**Token:** `join` asks for `tokenType: smallworlds-join`. Its handler skips
+Keycloak's confirmation page and ends with a sign-in and a redirect to
+`/done/<lang>` instead of an "account updated" page. The token is single-use.
+An older jar ignores the field and mints Keycloak's own execute-actions token,
+which still works, with the extra pages.
 
 **Required actions:** `webauthn-register-passwordless`, then
 `CONFIGURE_RECOVERY_AUTHN_CODES`. There is no `UPDATE_PROFILE`: the join page
@@ -167,3 +193,8 @@ commit does not see a change here on its own:
 - server tests for both listeners, against `tests/fake_keycloak.py`
 - a browser walk of the join page
 - a browser walk of the Desk, on a routed `https://` origin
+
+`tests/live-keycloak.sh` walks whole invitations against a real Keycloak in
+Docker. It uses the version from `values.yaml`, this repository's realm and
+the jar, and a virtual passkey. Run it after changing the extension or the
+theme, and on every Keycloak upgrade.

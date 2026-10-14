@@ -78,7 +78,10 @@ the code is short enough to print, read aloud or type.
      verifies it, and nothing is sent to it.
 
    **Continue** creates the account and redirects at once.
-4. **Keycloak.** Keycloak runs two required actions, `webauthn-register-passwordless`
+4. **Keycloak.** (Since `docs/adr/0059` this step runs through join's own
+   action token handler and the `smallworlds` login theme: no confirmation
+   page, no prompt for the passkey's name, and step 5 is reached signed in
+   without an extra click.) Keycloak runs two required actions, `webauthn-register-passwordless`
    and `CONFIGURE_RECOVERY_AUTHN_CODES`. Its pages are in the same language,
    because `join` set the member's `locale` attribute (§8). `UPDATE_PROFILE` is no
    longer needed: step 3 already collected everything it would ask for.

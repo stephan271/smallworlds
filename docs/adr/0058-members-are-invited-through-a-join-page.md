@@ -117,4 +117,6 @@ recovery codes. Every Keycloak page appeared in German, and `join` recorded the
 invitation as done when it saw the passkey. The member reached
 `/done/de` through Keycloak's **Back to application** link: Keycloak does not
 redirect by itself. It also shows a confirmation page before the first action.
-Screenshots are in `doc/tenant-join.md`.
+Those extra pages, and a pop-up asking for the passkey's name, led to
+`docs/adr/0059`: the Keycloak half now runs through a token handler and a
+login theme of our own.

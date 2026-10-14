@@ -100,12 +100,18 @@ spec:
               # (docs/adr/0058). The import above leaves an existing realm
               # alone, so the realm JSON alone would reach new clusters only.
               # Side effect: every sign-in page gains a language selector.
-              echo "Enabling German and English on the smallworlds realm..."
+              #
+              # The login theme ships in the same provider jar as join's action
+              # token handler (docs/adr/0059). Keycloak falls back to its
+              # built-in theme if the jar is missing, so this cannot lock
+              # anyone out.
+              echo "Enabling German and English and the smallworlds login theme..."
               /opt/keycloak/bin/kcadm.sh update realms/smallworlds \
                 -s internationalizationEnabled=true \
                 -s 'supportedLocales=["de","en"]' \
                 -s defaultLocale=en \
-                || echo "WARNING: could not enable German and English on the smallworlds realm."
+                -s loginTheme=smallworlds \
+                || echo "WARNING: could not set the languages and login theme of the smallworlds realm."
 
               echo "Setting onboarding mode to $ONBOARDING_MODE..."
               if [ "$ONBOARDING_MODE" = "self-registration" ]; then

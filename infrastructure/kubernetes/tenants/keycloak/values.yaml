@@ -98,6 +98,13 @@ ingress:
         - identity.smallworlds.network
       secretName: keycloak-tls
 
+# Keycloak loads providers only at start-up, and the jar's ConfigMap
+# (keycloak-spi-config) keeps its name, so a new jar alone never reaches the
+# running pod. infrastructure/keycloak-spi/action-token-generator/build.sh
+# writes the jar's checksum here; a changed annotation rolls the pod.
+podAnnotations:
+  smallworlds/keycloak-extension-sha256: "bff56aebd35abc5377f9782546aad0c9cb1453eefb0ef7fd1eeadf40a41004bb"
+
 extraVolumes: |
   - name: realm-config
     configMap:

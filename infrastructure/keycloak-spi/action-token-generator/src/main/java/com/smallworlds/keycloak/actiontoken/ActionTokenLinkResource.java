@@ -1,5 +1,6 @@
 package com.smallworlds.keycloak.actiontoken;
 
+import org.keycloak.authentication.actiontoken.DefaultActionToken;
 import org.keycloak.authentication.actiontoken.execactions.ExecuteActionsActionToken;
 import org.keycloak.common.util.Time;
 import org.keycloak.models.KeycloakSession;
@@ -67,7 +68,12 @@ public class ActionTokenLinkResource {
         int lifespan = realm.getActionTokenGeneratedByAdminLifespan();
         int expiration = Time.currentTime() + lifespan;
 
-        ExecuteActionsActionToken token = new ExecuteActionsActionToken(user.getId(), expiration, actions, redirectUri, clientId);
+        // "smallworlds-join" is join's own token (JoinActionTokenHandler: no
+        // confirmation page, signs the member in at the end). Anything else —
+        // bulk-invite.py sends no type — keeps Keycloak's execute-actions token.
+        DefaultActionToken token = JoinActionToken.TOKEN_TYPE.equals(requestBody.get("tokenType"))
+            ? new JoinActionToken(user.getId(), expiration, actions, redirectUri, clientId)
+            : new ExecuteActionsActionToken(user.getId(), expiration, actions, redirectUri, clientId);
 
         UriInfo uriInfo = session.getContext().getUri();
         UriBuilder builder = Urls.actionTokenBuilder(uriInfo.getBaseUri(), token.serialize(session, realm, uriInfo), clientId, "", "");

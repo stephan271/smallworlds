@@ -9,8 +9,10 @@ import { randomBytes } from 'crypto';
  * pod), walks the join page in German, and follows the minted link into
  * Keycloak. It stops at Keycloak's passkey step: registering a passkey needs an
  * authenticator, and on staging also a certificate the browser trusts. What it
- * proves is everything before that — the code, the account, the link's issuer,
- * the redirect it carries, and that Keycloak speaks the member's language.
+ * proves is everything before that — the code, the account, join's own token
+ * and its handler, the theme, and that Keycloak speaks the member's language.
+ * The rest of the path is covered against a local Keycloak by
+ * infrastructure/kubernetes/tenants/join/tests/live-keycloak.sh.
  *
  * The started account is deleted again afterwards.
  *
@@ -84,9 +86,12 @@ test.describe('Member Invitations', () => {
     const landed = new URL(page.url());
     expect(landed.searchParams.get('kc_locale')).toBe('de');
 
-    // Keycloak has accepted the token (no "invalid link" page) and renders in
-    // German — the passkey registration step.
+    // Keycloak has accepted join's own token and goes straight to the passkey
+    // step — no confirmation page (docs/adr/0059) — in German, in the
+    // smallworlds theme, naming the account the passkey is for.
     await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+    await expect(page.locator('#registerWebAuthn')).toBeVisible();
+    await expect(page.locator('.sw-account-name')).toHaveText(USERNAME);
     await expect(page.locator('body')).not.toContainText(/ungültig|abgelaufen|invalid|expired/i);
   });
 

@@ -220,7 +220,8 @@ def mint_link(user_id: str, locale: str) -> str:
 
     Minted by the action-token-link SPI (infrastructure/keycloak-spi/), with the
     realm's admin lifespan of 12 hours — which no longer matters, because a
-    fresh one is minted whenever the member opens their invitation.
+    fresh one is minted whenever the member opens their invitation. The token
+    is single-use: Keycloak invalidates it once the actions are done.
     """
     status, _, raw = _request(
         "POST", f"{config.KEYCLOAK_URL}/realms/{config.REALM}/action-token-link/generate-link",
@@ -233,6 +234,10 @@ def mint_link(user_id: str, locale: str) -> str:
             # path segment rather than a query so the match against
             # https://join.<domain>/* never depends on query handling.
             "redirectUri": f"{config.JOIN_URL}/done/{locale}",
+            # join's own token type (docs/adr/0059): no confirmation page, and
+            # the member is signed in at the end. An older extension ignores
+            # the field and mints Keycloak's execute-actions token instead.
+            "tokenType": "smallworlds-join",
         },
         token=_service_token())
     link = _json_or_raise(status, raw).get("link", "")

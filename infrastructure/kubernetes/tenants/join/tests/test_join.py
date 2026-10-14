@@ -214,6 +214,8 @@ class Redeem(Fresh):
         self.assertEqual(minted["redirectUri"], "https://join.example.test/done/en")
         self.assertEqual(minted["actions"], ["webauthn-register-passwordless",
                                              "CONFIGURE_RECOVERY_AUTHN_CODES"])
+        # join's own token (docs/adr/0059): no confirmation page, signed in at the end.
+        self.assertEqual(minted["tokenType"], "smallworlds-join")
 
         stored = store.by_id(invitation.id)
         self.assertEqual(stored.state(), "started")

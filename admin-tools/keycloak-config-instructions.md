@@ -23,15 +23,17 @@ tenant as a `configMapGenerator` entry
 (`infrastructure/kubernetes/tenants/keycloak/kustomization.yaml`) and is mounted at
 `/opt/keycloak/providers/action-token-generator.jar` (`values.yaml`). Nothing to do.
 
-Rebuild and re-commit the jar only after changing the SPI source, or when pointing
-the script at a Keycloak that this repo did not deploy:
+The same jar also carries join's action token handler and the `smallworlds`
+login theme (`docs/adr/0059`). Rebuild it only after changing its source:
 
 ```bash
-cd ../infrastructure/keycloak-spi/action-token-generator
-./build.sh
-# then copy target/action-token-generator-1.0.0-SNAPSHOT.jar into the tenant
-# directory as action-token-generator.jar, or into that Keycloak's providers/
+../infrastructure/keycloak-spi/action-token-generator/build.sh
+../infrastructure/kubernetes/tenants/join/tests/live-keycloak.sh
 ```
+
+`build.sh` runs Maven in Docker, installs the jar into the Keycloak tenant
+directory, and updates the pod annotation that makes Keycloak restart with it.
+The second command checks it against a real Keycloak.
 
 Authorization: the endpoint requires the realm role `admin` or `manage-users` on
 `realm-management`. The `bulk-invite` service-account client created by

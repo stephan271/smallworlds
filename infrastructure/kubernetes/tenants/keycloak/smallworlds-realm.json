@@ -1372,7 +1372,7 @@
     "user": "admin",
     "password": "${env.STALWART_PASSWORD}"
   },
-  "loginTheme": "keycloak",
+  "loginTheme": "smallworlds",
   "eventsEnabled": false,
   "eventsListeners": [
     "jboss-logging"
