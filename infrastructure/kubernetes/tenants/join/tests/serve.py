@@ -1,6 +1,6 @@
-"""Start join against a fake Keycloak, for the browser test.
+"""Start join (both listeners) against a fake Keycloak, for the browser tests.
 
-Prints one JSON line — the page's URL and a code per scenario — then serves
+Prints one JSON line — the URLs and a code per scenario — then serves
 until killed. Used by admin-tools/test-join.sh; handy for looking at the page
 by hand too:  python3 infrastructure/kubernetes/tenants/join/tests/serve.py
 """
@@ -48,10 +48,16 @@ dora = fake.add_user("dora", email="dora@example.org", passkey_at=time.time() - 
 _, recovery = store.create("recovery", "en", user_id=dora, username="dora")
 expired, expired_code = store.create("new", "de", now=time.time() - 15 * 86400)
 
+fake.add_user("dorian", email="dorian@example.org", passkey_at=time.time() - 3 * 86400)
+
 server = main.serve_public(int(sys.argv[1]) if len(sys.argv) > 1 else 0)
-threading.Thread(target=server.serve_forever, daemon=True).start()
+desk_server = main.serve_desk(int(sys.argv[2]) if len(sys.argv) > 2 else 0)
+for listener in (server, desk_server):
+    threading.Thread(target=listener.serve_forever, daemon=True).start()
 print(json.dumps({
     "url": f"http://127.0.0.1:{server.server_port}",
+    "deskUrl": f"http://127.0.0.1:{desk_server.server_port}",
+    "fakeUrl": fake.url,
     "codes": {name: codes.display(code) for name, code in {
         "open_de": open_de, "open_en": open_en, "started": started_code,
         "recovery": recovery, "expired": expired_code}.items()},

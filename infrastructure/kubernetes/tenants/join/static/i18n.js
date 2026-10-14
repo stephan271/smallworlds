@@ -157,13 +157,18 @@ window.joinI18n = (() => {
       .find((l) => l in text) || "en";
   let lang = chosen || fromBrowser();
 
-  const t = (key) =>
-    (text[lang][key] ?? text.en[key] ?? key).replace(/\{(\w+)\}/g, (_, name) => vars[name] ?? "");
+  // `extra` fills placeholders for one call; an element can carry its own in
+  // data-t-vars (JSON), so a language switch re-renders it with them.
+  const t = (key, extra = {}) =>
+    (text[lang][key] ?? text.en[key] ?? key)
+      .replace(/\{(\w+)\}/g, (_, name) => extra[name] ?? vars[name] ?? "");
 
   const apply = () => {
     document.documentElement.lang = lang;
     document.title = `${t("page.title")} · ${vars.host}`;
-    document.querySelectorAll("[data-t]").forEach((el) => { el.textContent = t(el.dataset.t); });
+    document.querySelectorAll("[data-t]").forEach((el) => {
+      el.textContent = t(el.dataset.t, el.dataset.tVars ? JSON.parse(el.dataset.tVars) : {});
+    });
     document.querySelectorAll("[data-t-placeholder]").forEach((el) => {
       el.placeholder = t(el.dataset.tPlaceholder);
     });

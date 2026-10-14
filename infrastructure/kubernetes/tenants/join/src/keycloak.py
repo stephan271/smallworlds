@@ -164,16 +164,51 @@ def delete_user(user_id: str) -> None:
         raise KeycloakError(status, raw.decode(errors="replace"))
 
 
+def search_users(query: str, limit: int = 20) -> list[dict]:
+    """Members whose username, name or address contains `query`."""
+    status, _, raw = _admin("GET", "/users", params={"search": query, "max": str(limit),
+                                                     "briefRepresentation": "true"})
+    return [u for u in _json_or_raise(status, raw)
+            if not u.get("username", "").startswith("service-account-")]
+
+
+def credentials(user_id: str) -> list[dict]:
+    status, _, raw = _admin("GET", f"/users/{urllib.parse.quote(user_id, safe='')}/credentials")
+    if status == 404:
+        return []
+    return _json_or_raise(status, raw)
+
+
+def remove_passkeys(user_id: str) -> int:
+    """Delete every passkey of the account, and end its sessions.
+
+    For a member whose device is lost — and may be in someone else's hands, so
+    a session that device still holds must not outlive the passkey. Returns how
+    many passkeys were removed.
+    """
+    quoted = urllib.parse.quote(user_id, safe="")
+    removed = 0
+    for credential in credentials(user_id):
+        if credential.get("type") != config.PASSKEY_CREDENTIAL_TYPE:
+            continue
+        status, _, raw = _admin("DELETE", f"/users/{quoted}/credentials/"
+                                          f"{urllib.parse.quote(credential['id'], safe='')}")
+        if status not in (204, 404):
+            raise KeycloakError(status, raw.decode(errors="replace"))
+        removed += 1
+    status, _, raw = _admin("POST", f"/users/{quoted}/logout")
+    if status not in (204, 404):
+        raise KeycloakError(status, raw.decode(errors="replace"))
+    return removed
+
+
 def has_passkey_since(user_id: str, since: int) -> bool:
     """Whether the account holds a passkey registered at or after `since` (epoch s).
 
     The cut-off is what lets a recovery invitation count as done only once a
     *new* passkey exists, while an old one has not been removed yet.
     """
-    status, _, raw = _admin("GET", f"/users/{urllib.parse.quote(user_id, safe='')}/credentials")
-    if status == 404:
-        return False
-    for credential in _json_or_raise(status, raw):
+    for credential in credentials(user_id):
         if credential.get("type") == config.PASSKEY_CREDENTIAL_TYPE \
                 and int(credential.get("createdDate", 0)) >= since * 1000:
             return True
@@ -209,3 +244,17 @@ def mint_link(user_id: str, locale: str) -> str:
     # kc_locale wins over every other source in Keycloak's locale selector, so
     # the passkey pages are right on the very first visit (design §8).
     return f"{link}{'&' if '?' in link else '?'}kc_locale={locale}"
+
+
+def exchange_desk_code(code: str, verifier: str) -> dict:
+    """Trade the Desk's authorization code for the Operator's tokens (design §9).
+
+    Straight from the master realm's token endpoint over the Service, so the
+    answer is trusted without a signature check — the same trust every init job
+    places in that channel. The caller still checks issuer, client and role.
+    """
+    status, _, raw = _request(
+        "POST", f"{config.KEYCLOAK_URL}/realms/{config.DESK_REALM}/protocol/openid-connect/token",
+        form={"grant_type": "authorization_code", "code": code, "code_verifier": verifier,
+              "client_id": config.DESK_CLIENT_ID, "redirect_uri": config.desk_redirect_uri()})
+    return _json_or_raise(status, raw)

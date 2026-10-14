@@ -73,6 +73,7 @@ spec:
                 --rolename manage-users --rolename view-users --rolename query-users
 
               DESK_REDIRECT="https://$JOIN_HOST/desk/callback"
+              DESK_SIGNED_OUT="https://$JOIN_HOST/desk/signed-out"
               DESK_UUID=$(client_uuid master join-desk)
               if [[ -z "$DESK_UUID" ]]; then
                 echo "Creating master-realm client 'join-desk' (redirect $DESK_REDIRECT)..."
@@ -80,12 +81,14 @@ spec:
                   -s clientId=join-desk -s enabled=true -s publicClient=true \
                   -s standardFlowEnabled=true -s directAccessGrantsEnabled=false -s implicitFlowEnabled=false \
                   -s "redirectUris=[\"$DESK_REDIRECT\"]" \
-                  -s 'attributes."pkce.code.challenge.method"=S256'
+                  -s 'attributes."pkce.code.challenge.method"=S256' \
+                  -s "attributes.\"post.logout.redirect.uris\"=$DESK_SIGNED_OUT"
               else
                 echo "Client 'join-desk' exists — reconciling its redirect URI to $DESK_REDIRECT..."
                 kc update clients/$DESK_UUID -r master \
                   -s "redirectUris=[\"$DESK_REDIRECT\"]" \
-                  -s 'attributes."pkce.code.challenge.method"=S256'
+                  -s 'attributes."pkce.code.challenge.method"=S256' \
+                  -s "attributes.\"post.logout.redirect.uris\"=$DESK_SIGNED_OUT"
               fi
 
               echo "Keycloak setup for join complete."

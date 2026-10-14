@@ -9,96 +9,18 @@ member-facing routes exists on the public port.
 """
 import json
 import os
-import sys
-import tempfile
-import threading
 import time
 import unittest
-import urllib.error
-import urllib.request
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-TENANT = os.path.dirname(HERE)
-sys.path.insert(0, HERE)
-sys.path.insert(0, os.path.join(TENANT, "src"))
-
-from fake_keycloak import FakeKeycloak  # noqa: E402
-
-FAKE = FakeKeycloak()
-SCRATCH = tempfile.mkdtemp(prefix="join-test-")
-os.environ.update({
-    "KEYCLOAK_URL": FAKE.url,
-    "KEYCLOAK_CLIENT_SECRET": "test-secret",
-    "PUBLIC_IDENTITY_URL": "https://identity.example.test",
-    "JOIN_URL": "https://join.example.test",
-    "DASHBOARD_URL": "https://dashboard.example.test",
-    "DB_PATH": os.path.join(SCRATCH, "invitations.db"),
-    "STATIC_DIR": os.path.join(TENANT, "static"),
-    "BIND": "127.0.0.1",
-})
-
-import logging  # noqa: E402
+from harness import FAKE, Fresh, api, call  # noqa: E402  (sets up the environment first)
 
 import codes  # noqa: E402
 import config  # noqa: E402
-import main  # noqa: E402
-import member  # noqa: E402
 import store  # noqa: E402
 import usernames  # noqa: E402
 
-logging.disable(logging.CRITICAL)  # the server's request log is noise here
-store.init()
-SERVER = main.serve_public(0)
-threading.Thread(target=SERVER.serve_forever, daemon=True).start()
-BASE = f"http://127.0.0.1:{SERVER.server_port}"
-
-
-def call(method, path, body=None, headers=None, raw=None):
-    data = raw if raw is not None else (json.dumps(body).encode() if body is not None else None)
-    request = urllib.request.Request(BASE + path, data=data, method=method)
-    if body is not None or raw is not None:
-        request.add_header("Content-Type", "application/json")
-    for name, value in (headers or {}).items():
-        request.add_header(name, value)
-    try:
-        with urllib.request.urlopen(request) as response:
-            return response.status, dict(response.headers), response.read()
-    except urllib.error.HTTPError as error:
-        with error:
-            return error.code, dict(error.headers), error.read()
-
-
-def api(path, body, headers=None):
-    status, _, raw = call("POST", path, body, headers)
-    return status, json.loads(raw or b"{}")
-
 
 PROFILE = {"firstName": "Anna", "lastName": "Muster", "email": "anna@example.org"}
-
-
-class Fresh(unittest.TestCase):
-    """Each test gets an empty Keycloak, an empty database and fresh limits."""
-
-    def setUp(self):
-        with FAKE.lock:
-            FAKE.users.clear()
-            FAKE.credentials.clear()
-            FAKE.minted.clear()
-            FAKE.issuer = "https://identity.example.test"
-            FAKE.down = False
-        if os.path.exists(config.DB_PATH):
-            os.remove(config.DB_PATH)
-        for suffix in ("-wal", "-shm"):
-            if os.path.exists(config.DB_PATH + suffix):
-                os.remove(config.DB_PATH + suffix)
-        store.init()
-        member.failed_lookups = member.Limiter(5, 3600)
-        member.username_checks = member.Limiter(120, 600)
-
-    def invite(self, **kwargs):
-        kwargs.setdefault("kind", "new")
-        kwargs.setdefault("locale", "de")
-        return store.create(**kwargs)
 
 
 class Codes(unittest.TestCase):

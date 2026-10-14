@@ -14,4 +14,6 @@ data:
   JOIN_URL: "https://join.smallworlds.network"
   DASHBOARD_URL: "https://dashboard.smallworlds.network"
   DB_PATH: "/data/invitations.db"
+  PUBLIC_PORT: "8080"
+  DESK_PORT: "8081"
   STATIC_DIR: "/static"

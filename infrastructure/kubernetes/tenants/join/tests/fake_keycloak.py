@@ -5,6 +5,8 @@ Behaves like Keycloak where join depends on it: exact username/email lookups,
 with millisecond `createdDate`, and links built on a configurable issuer so a
 wrong one can be simulated.
 """
+import base64
+import hashlib
 import json
 import threading
 import time
@@ -23,6 +25,11 @@ class FakeKeycloak:
         self.credentials: dict[str, list] = {}
         self.minted: list[dict] = []
         self.down = False
+        self.logouts: list[str] = []
+        # Who signs in at the master realm's authorization endpoint, and the
+        # codes it has handed out (code -> PKCE challenge, redirect, client).
+        self.login_as = {"username": "operator", "roles": ["admin", "offline_access"]}
+        self.codes: dict[str, dict] = {}
         self.lock = threading.Lock()
         fake = self
 
@@ -60,6 +67,35 @@ class FakeKeycloak:
                 path = url.path
                 base = f"/admin/realms/{REALM}/users"
                 with fake.lock:
+                    if method == "GET" and path == "/realms/master/protocol/openid-connect/auth":
+                        code = uuid.uuid4().hex
+                        fake.codes[code] = {"challenge": query.get("code_challenge"),
+                                            "redirect_uri": query.get("redirect_uri"),
+                                            "client_id": query.get("client_id"),
+                                            "ui_locales": query.get("ui_locales")}
+                        target = query["redirect_uri"] + "?" + urllib.parse.urlencode(
+                            {"state": query.get("state", ""), "code": code})
+                        self._send(302, None, {"Location": target})
+                        return
+                    if method == "POST" and path == "/realms/master/protocol/openid-connect/token":
+                        form = self._body()
+                        issued = fake.codes.pop(form.get("code"), None)
+                        verifier = form.get("code_verifier", "")
+                        challenge = base64.urlsafe_b64encode(
+                            hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
+                        if not issued or issued["challenge"] != challenge \
+                                or issued["redirect_uri"] != form.get("redirect_uri") \
+                                or issued["client_id"] != form.get("client_id"):
+                            self._send(400, {"error": "invalid_grant"})
+                            return
+                        claims = {"iss": f"{fake.issuer}/realms/master", "azp": form["client_id"],
+                                  "exp": int(time.time()) + 300,
+                                  "preferred_username": fake.login_as["username"],
+                                  "realm_access": {"roles": fake.login_as["roles"]}}
+                        encode = lambda d: base64.urlsafe_b64encode(json.dumps(d).encode()).rstrip(b"=").decode()
+                        self._send(200, {"access_token": f"{encode({'alg': 'RS256'})}.{encode(claims)}.sig",
+                                         "token_type": "Bearer"})
+                        return
                     if method == "POST" and path == f"/realms/{REALM}/protocol/openid-connect/token":
                         form = self._body()
                         if form.get("client_id") == "join" and form.get("client_secret") == fake.client_secret:
@@ -84,6 +120,10 @@ class FakeKeycloak:
                         found = list(fake.users.values())
                         if "username" in query:
                             found = [u for u in found if u["username"] == query["username"].lower()]
+                        if "search" in query:
+                            needle = query["search"].lower()
+                            found = [u for u in found if any(needle in str(u.get(k, "")).lower() for k in
+                                                             ("username", "firstName", "lastName", "email"))]
                         if "email" in query:
                             found = [u for u in found if u.get("email", "").lower() == query["email"].lower()]
                         self._send(200, found)
@@ -124,6 +164,15 @@ class FakeKeycloak:
                         if rest[1:] == ["credentials"] and method == "GET":
                             self._send(200, fake.credentials[user_id])
                             return
+                        if len(rest) == 3 and rest[1] == "credentials" and method == "DELETE":
+                            fake.credentials[user_id] = [c for c in fake.credentials[user_id]
+                                                         if c["id"] != rest[2]]
+                            self._send(204)
+                            return
+                        if rest[1:] == ["logout"] and method == "POST":
+                            fake.logouts.append(user_id)
+                            self._send(204)
+                            return
                     self._send(404, {"error": "Unable to find matching target resource method"})
 
             def do_GET(self):
@@ -148,6 +197,7 @@ class FakeKeycloak:
         with self.lock:
             user_id = str(uuid.uuid4())
             self.users[user_id] = {"id": user_id, "username": username, "email": email or "",
+                                   "firstName": username.capitalize(), "lastName": "Test",
                                    "attributes": {}}
             self.credentials[user_id] = []
         if passkey_at is not None:

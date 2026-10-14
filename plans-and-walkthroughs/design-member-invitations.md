@@ -1,6 +1,6 @@
 # Member Invitations (`join.<domain>`) — Design
 
-**Status:** accepted; phases 1 (Keycloak groundwork) and 2 (join page) implemented, 3–4 open
+**Status:** accepted; phases 1–3 (Keycloak groundwork, join page, Invitation Desk) implemented, phase 4 (wiring) open
 **Date:** 2026-10-14
 **Decision record:** `docs/adr/0058-members-are-invited-through-a-join-page.md`
 **Replaces, for everyday use:** step 13 of `doc/install-contabo-datalix.md`
@@ -103,32 +103,47 @@ Private Network and requires sign-in as the master-realm `operator` account
   - how long it is valid (default 14 days, at most 30)
   - an optional private note
 
-  Three ways to hand it out follow:
-  - **Copy message.** A ready-to-paste text in the invitation's language, with the
-    link, for Signal, WhatsApp or SMS.
+  The Desk then shows the code, the link and a QR code, **once**. Only the
+  code's hash is stored, so the Desk cannot show it again later; "new code"
+  (below) replaces it instead. Ways to hand it out:
+  - **Copy message.** A ready-to-paste text in the invitation's language
+    (whatever language the Desk itself is in), with the link and a reminder
+    not to forward it, for Signal, WhatsApp or SMS. **Share** opens the
+    system's share sheet where the browser offers one.
   - **Show QR code**, for handing over in person.
-  - **Print card.** A6, with QR code, the typed code and three lines of
-    instructions in both languages.
-- **Several at once.** Paste a list of names (one per line) to get one invitation
-  each and a printable A4 sheet of cards. This replaces `--qr` and the CSV.
-- **List.** One row per invitation, with these states:
+  - **Print card.** A6, four to an A4 sheet with cut lines. Each card carries
+    the name, QR code, the typed code, the address of the join page, short
+    instructions in both languages and the expiry date.
+- **Several at once.** Paste a list of names (one per line, at most 100) to get
+  one invitation each, a message to copy per name, and a sheet of cards. This
+  replaces `--qr` and the CSV.
+- **List.** One row per invitation, newest first, with these states:
 
   | State | Meaning | Actions |
   | :--- | :--- | :--- |
-  | open | not opened yet | revoke, show again |
-  | started | account created, no passkey yet | revoke (offers to delete the account), show again |
+  | open | not opened yet | new code, withdraw |
+  | started | account created, no passkey yet | new code (same account), withdraw (offers to delete the account) |
   | done | passkey registered | — |
-  | expired | validity passed | renew (new code, same record) |
-  | revoked | revoked by the Operator | — |
+  | expired | validity passed | new code; withdraw if it started an account (offers to delete it) |
+  | revoked | withdrawn by the Operator | — |
+
+  "New code" issues a fresh code and validity on the same record, and the old
+  code stops working at once. An account is deleted only if this invitation
+  created it and it holds no passkey at all; if a passkey has appeared, the
+  Desk refuses and records the invitation as done.
 
 - **New passkey for a member.** For a member who has lost their device *and* their
   recovery codes:
   1. The Operator picks the member by username search and gets a **recovery
      invitation**.
   2. "Remove the existing passkeys now" is checked by default, because a lost
-     device may be a stolen one.
-  3. The member's page skips the form, greets them by username, and runs the same
-     two Keycloak actions. This also produces new recovery codes.
+     device may be a stolen one. It also ends every session the account has,
+     so the lost device is signed out as well.
+  3. Any earlier live recovery invitation for the same member is withdrawn, so
+     only one code can reach that account at a time.
+  4. The member's page skips the form, greets them by username, and runs the same
+     two Keycloak actions. This also produces new recovery codes. It counts as
+     done only once a passkey registered *after* the invitation exists.
 
 The Operator's own member account is invited in the same way. It is the first
 invitation on every new cluster.
@@ -168,14 +183,15 @@ infrastructure/kubernetes/tenants/join/
   kustomization.yaml          configMapGenerator for src/ and static/ (flat), keycloak-client-job base
   join-config.yaml            hosts, Keycloak Service, DB path
   join-deployment.yaml        python:3.14-slim, python -u /app/main.py, read-only root, uid 10001
-  join-service.yaml           8080 (public); 8081 (desk) arrives in phase 3
-  join-ingress.yaml           public Ingress → 8080, edge-protection middlewares
-  join-desk-ingress.yaml      phase 3: private Ingress /desk → 8081, ipAllowList, priority 1000
+  join-service.yaml           8080 `http` (public) and 8081 `desk`
+  join-ingress.yaml           public Ingress → http, edge-protection middlewares
+  join-desk-ingress.yaml      private Ingress /desk → desk, ipAllowList, priority 1000
   join-pvc.yaml               64 Mi local-path, holds invitations.db
   join-keycloak-setup-job.yaml  service account + master-realm desk client (§9)
   join-networkpolicy.yaml     phase 4
   src/
-    main.py                   http.server; the desk gets a second listener in phase 3
+    main.py                   the two http.server listeners
+    web.py                    what both share: headers, responses, static files, JSON
     config.py                 settings from the environment
     codes.py                  Crockford base32 codes, normalization, hashing
     usernames.py              rules and reserved names (§7)
@@ -183,12 +199,14 @@ infrastructure/kubernetes/tenants/join/
     keycloak.py               admin REST + action-token-link SPI, urllib only
     member.py                 the public API: lookup, username check, redeem
     manage.py                 create/list/revoke from a shell, inside the pod
-    desk.py                   phase 3: desk handlers + OIDC login
+    desk.py                   the Desk: OIDC sign-in, sessions, its API
   static/
     index.html  done.html     the join page and the page Keycloak returns to
     i18n.js                   every string, de and en, and the language switch
     join.js  done.js  style.css
-    desk.html  card.html  desk.js  qrcode.js   phase 3
+    desk.html  desk.css       the Desk, and the print view of its cards
+    desk-text.js  desk.js     the Desk's strings (merged into i18n.js's) and logic
+    qrcode.js                 vendored qrcode-generator 2.0.4, MIT, unmodified
   tests/                      not shipped: fake Keycloak, unittest, Playwright walk
 infrastructure/kubernetes/apps/join.yaml   sync-wave 1
 ```
@@ -333,8 +351,17 @@ the Keycloak admin console, plus one layer more.
      for tokens received over TLS from the token endpoint. Here the channel is
      the Service in plain HTTP, which is the same trust every init job already
      places in it, narrowed by the NetworkPolicy below.
-4. **Session.** `HttpOnly; Secure; SameSite=Strict` cookie, 8 hours. State-changing
-   requests are JSON POSTs that need a custom header, as CSRF protection.
+4. **Session.** `HttpOnly; Secure; SameSite=Strict` cookie on `/desk`, 8 hours,
+   held in memory, so a restart signs the Operator out. State-changing requests
+   are JSON POSTs that need the header `X-Join-Desk: 1`, as CSRF protection.
+   - The callback answers with a page that moves on to `/desk/` by itself, not
+     with a redirect. A redirect chain that began at Keycloak would not carry a
+     `Strict` cookie on its next request in every browser.
+   - The login state and PKCE verifier are kept server-side for ten minutes;
+     the browser holds only the state, in a `Lax` cookie scoped to
+     `/desk/callback`.
+   - Sign-out ends the session here and at Keycloak, which returns to
+     `/desk/signed-out` (registered on `join-desk`).
 
 **The join page.**
 
@@ -402,7 +429,17 @@ Keycloak's Service and DNS only.
   - the rule that the public half never accepts an account ID
   - issuer checking of minted links
   - the 404 for `/desk` on the public port
-  - Desk login rejecting a token without the `admin` role
+- **`tests/test_desk.py`**, against the same fake, which also plays the master
+  realm's authorization and token endpoints (PKCE checked). It covers:
+  - sign-in: state cookie, single-use code, foreign issuer, and refusal of an
+    account without the `admin` role
+  - every API needing a session and the CSRF header; sign-out
+  - that neither listener serves any route of the other
+  - issuing, bulk, new code, withdrawing, and never deleting an account that
+    holds a passkey
+  - member search, recovery with passkey removal and session sign-out, and one
+    live recovery code per member
+  - that every file under `src/` and `static/` is listed in the ConfigMaps
 - **Browser.** `tests/test-interface.mjs` walks the join page against
   `tests/serve.py` in both languages:
   - language switching and live username feedback
@@ -411,6 +448,21 @@ Keycloak's Service and DNS only.
   - the resumed, recovery and failed cases, and the done page
   - no horizontal scrolling at 320 px
   - no console errors, which is how a CSP violation would show
+
+  `tests/test-desk.mjs` walks the Desk on `https://join.example.test`, with
+  every request to that origin handed to the local listeners. That way
+  `Secure` and `SameSite` cookies and the clipboard behave as in production. It
+  covers:
+  - sign-in through the fake Keycloak, and the session cookie's attributes
+  - issuing one invitation: QR code, message, copy to the clipboard, and that
+    the code opens the member's page
+  - several at once, and their cards in the print area
+  - withdrawing, and the language switch
+  - recovery
+  - 360 px width, and sign-out
+
+  During development the printed cards were also rendered to PDF, and all four
+  QR codes on a sheet decoded (OpenCV) to their links.
 - **Staging.** A new `e2e-tests` spec creates an invitation through a
   port-forward to 8081 (staging is not on the tailnet), opens it, submits the form,
   and asserts the redirect into Keycloak's passkey step. The shallow e2e depth
@@ -442,12 +494,18 @@ Keycloak's Service and DNS only.
    - tests, and a check of the real image under the pod's restrictions
      (read-only root, uid 10001)
 
-   Until the Desk exists, invitations are issued with `src/manage.py`
-   (`create`, `list`, `revoke`), run inside the pod with `kubectl exec`. It
-   stays afterwards as the shell route, as `bulk-invite.py` does for the
-   terminal.
-3. **The Desk:** login, create/list/revoke/renew, message/QR/card, bulk sheet,
-   recovery invitations.
+   `src/manage.py` (`create`, `list`, `revoke`), run inside the pod with
+   `kubectl exec`, issues invitations from a shell. It stayed after phase 3 as
+   the shell route, as `bulk-invite.py` does for the terminal.
+3. **The Invitation Desk — done:**
+   - sign-in, sessions and its API on port 8081 (`desk.py`); `web.py` shared by
+     both listeners
+   - create, bulk, list, new code, withdraw (with account deletion), recovery
+     (with passkey removal and session sign-out)
+   - message, share, QR code and printed cards
+   - both languages
+   - `join-desk-ingress.yaml` with the allow-list, and the `desk` Service port
+   - `join-desk` registers `/desk/signed-out` for Keycloak's sign-out
 4. **Wiring and documentation:**
    - DNS in all four places, the hosts line, the Application, the NetworkPolicy
    - `doc/tenant-join.md`

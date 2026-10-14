@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Tests for join, the Member Invitation page (docs/adr/0058).
 #
-#   1. Its server, against a fake Keycloak            — always run
-#   2. Its page, walked in a real browser            — run when Playwright is
+#   1. Both listeners, against a fake Keycloak         — always run
+#   2. The join page and the Invitation Desk, walked in a real browser
+#                                                       — run when Playwright is
 #      installed for e2e-tests/, skipped otherwise
 #
 # Neither touches a cluster.
@@ -13,11 +14,12 @@ tests="$repository_root/infrastructure/kubernetes/tenants/join/tests"
 status=0
 
 python3 "$tests/test_join.py" || status=1
+python3 "$tests/test_desk.py" || status=1
 
 playwright="$repository_root/e2e-tests/node_modules/playwright"
 if [[ ! -d "$playwright" ]]; then
     echo ""
-    echo "page — skipped (Playwright not installed; run 'npm ci' in e2e-tests/)"
+    echo "browser — skipped (Playwright not installed; run 'npm ci' in e2e-tests/)"
     exit "$status"
 fi
 
@@ -45,4 +47,6 @@ fi
 
 echo ""
 PLAYWRIGHT_MODULE="$playwright/index.mjs" node "$tests/test-interface.mjs" "$started" || status=1
+echo ""
+PLAYWRIGHT_MODULE="$playwright/index.mjs" node "$tests/test-desk.mjs" "$started" || status=1
 exit "$status"

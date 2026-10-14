@@ -8,8 +8,12 @@ spec:
   selector:
     app: join
   ports:
-    # The join page only. The Invitation Desk will get a port of its own that
-    # the public Ingress never names (design §9).
+    # The join page only; join-ingress.yaml.
     - name: http
       port: 8080
       targetPort: http
+    # The Invitation Desk; join-desk-ingress.yaml, behind the Private Network.
+    # The public Ingress never names this port (design §9).
+    - name: desk
+      port: 8081
+      targetPort: desk

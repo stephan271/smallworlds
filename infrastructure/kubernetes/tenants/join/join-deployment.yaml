@@ -5,8 +5,9 @@ metadata:
   labels:
     app: join
 spec:
-  # One replica, replaced rather than rolled: SQLite has one writer, and the
-  # redeem path holds an in-process lock across its Keycloak calls.
+  # One replica, replaced rather than rolled: SQLite has one writer, the redeem
+  # path holds an in-process lock across its Keycloak calls, and Desk sessions
+  # live in memory.
   replicas: 1
   strategy:
     type: Recreate
@@ -35,6 +36,8 @@ spec:
           ports:
             - name: http
               containerPort: 8080
+            - name: desk
+              containerPort: 8081
           env:
             # ConfigMap volumes symlink through a timestamped ..data dir; put
             # /app on the path explicitly so imports resolve.

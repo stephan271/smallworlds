@@ -59,7 +59,7 @@ failed_lookups = Limiter(config.FAILED_LOOKUPS_PER_HOUR, 3600)
 username_checks = Limiter(config.USERNAME_CHECKS_PER_10_MIN, 600)
 
 
-def _refresh(invitation: store.Invitation) -> store.Invitation:
+def refresh(invitation: store.Invitation) -> store.Invitation:
     """Notice a passkey registered since the invitation was issued (design §5).
 
     Observed rather than reported, so an invitation is recorded as done even if
@@ -85,7 +85,7 @@ def _resolve(code_text, source: str) -> tuple[store.Invitation | None, tuple[int
     if invitation is None:
         failed_lookups.hit(source)
         return None, (404, {"error": "unknown"})
-    invitation = _refresh(invitation)
+    invitation = refresh(invitation)
     state = invitation.state()
     if state in ("done", "expired", "revoked"):
         return None, (410, {"error": "used" if state == "done" else state})

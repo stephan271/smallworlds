@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex">
+  <title>Invitations</title>
+  <link rel="stylesheet" href="/desk/static/style.css">
+  <link rel="stylesheet" href="/desk/static/desk.css">
+  <script src="/desk/static/i18n.js" defer></script>
+  <script src="/desk/static/desk-text.js" defer></script>
+  <script src="/desk/static/qrcode.js" defer></script>
+  <script src="/desk/static/desk.js" defer></script>
+</head>
+<body class="desk">
+  <header class="bar wide">
+    <div class="who">
+      <strong data-t="desk.title"></strong>
+      <span class="host" id="host"></span>
+    </div>
+    <div class="tools">
+      <span class="quiet-inline"><span data-t="desk.signed_in_as"></span> <span id="me"></span></span>
+      <a href="/desk/logout" class="link" data-t="desk.logout"></a>
+      <div class="langs" role="group" aria-label="Language">
+        <button type="button" data-lang="de" aria-pressed="false">DE</button>
+        <button type="button" data-lang="en" aria-pressed="false">EN</button>
+      </div>
+    </div>
+  </header>
+
+  <p class="toast" id="toast" role="status" aria-live="polite" hidden></p>
+
+  <main class="desk-grid">
+    <section class="card" id="new">
+      <h2 data-t="new.title"></h2>
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" id="tab-one" aria-selected="true" data-t="new.one"></button>
+        <button type="button" role="tab" id="tab-many" aria-selected="false" data-t="new.many"></button>
+      </div>
+      <form id="new-form" novalidate>
+        <div class="field" id="field-label">
+          <label for="label" data-t="new.label"></label>
+          <input id="label" name="label" maxlength="80" autocomplete="off">
+          <p class="hint" data-t="new.label_hint"></p>
+        </div>
+        <div class="field" id="field-labels" hidden>
+          <label for="labels" data-t="new.labels"></label>
+          <textarea id="labels" name="labels" rows="6"></textarea>
+        </div>
+        <div class="row">
+          <fieldset class="field">
+            <legend data-t="new.language"></legend>
+            <label class="choice"><input type="radio" name="locale" value="de" checked> Deutsch</label>
+            <label class="choice"><input type="radio" name="locale" value="en"> English</label>
+          </fieldset>
+          <div class="field">
+            <label for="days" data-t="new.days"></label>
+            <input id="days" name="days" type="number" min="1" max="30" value="14" required>
+          </div>
+        </div>
+        <div class="field">
+          <label for="note" data-t="new.note"></label>
+          <input id="note" name="note" maxlength="500" autocomplete="off">
+        </div>
+        <button type="submit" class="primary" id="new-submit" data-t="new.submit"></button>
+      </form>
+    </section>
+
+    <section class="card issued" id="issued" hidden tabindex="-1">
+      <div class="issued-head">
+        <h2 id="issued-title"></h2>
+        <button type="button" class="link" id="issued-close" data-t="issued.close"></button>
+      </div>
+      <p class="notice" data-t="issued.once"></p>
+      <p class="notice" id="issued-removed" hidden></p>
+      <div id="issued-one">
+        <div class="issued-body">
+          <div class="qr" id="issued-qr" aria-hidden="true"></div>
+          <div class="issued-facts">
+            <p class="label-small" data-t="issued.code"></p>
+            <p class="code" id="issued-code"></p>
+            <p class="label-small" data-t="issued.link"></p>
+            <p class="linktext" id="issued-link"></p>
+            <p class="hint" id="issued-until"></p>
+          </div>
+        </div>
+        <label for="issued-message" class="label-small" data-t="issued.message"></label>
+        <textarea id="issued-message" rows="7" readonly></textarea>
+        <p class="hint" data-t="issued.personal"></p>
+        <div class="actions-row">
+          <button type="button" class="primary" id="copy-message" data-t="issued.copy_message"></button>
+          <button type="button" id="share" data-t="issued.share" hidden></button>
+          <button type="button" id="copy-link" data-t="issued.copy_link"></button>
+          <button type="button" id="print-one" data-t="issued.print"></button>
+        </div>
+      </div>
+      <div id="issued-many" hidden>
+        <ul class="issued-list" id="issued-list"></ul>
+        <div class="actions-row">
+          <button type="button" class="primary" id="print-all" data-t="issued.print_all"></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card wide-card" id="list">
+      <div class="issued-head">
+        <h2 data-t="list.title"></h2>
+        <button type="button" class="link" id="refresh" data-t="list.refresh"></button>
+      </div>
+      <p class="quiet" id="list-empty" data-t="list.empty" hidden></p>
+      <table class="invitations" id="invitations" hidden>
+        <thead>
+          <tr>
+            <th data-t="list.name"></th>
+            <th data-t="list.username"></th>
+            <th data-t="list.state"></th>
+            <th data-t="list.until"></th>
+            <th data-t="list.actions"></th>
+          </tr>
+        </thead>
+        <tbody id="invitation-rows"></tbody>
+      </table>
+    </section>
+
+    <section class="card" id="recovery">
+      <h2 data-t="recovery.desk_title"></h2>
+      <p data-t="recovery.desk_text"></p>
+      <div class="field">
+        <label for="member-search" data-t="recovery.search"></label>
+        <input id="member-search" type="search" autocomplete="off" spellcheck="false">
+        <p class="hint" data-t="recovery.search_hint"></p>
+      </div>
+      <ul class="members" id="members"></ul>
+      <p class="quiet" id="members-none" data-t="recovery.none" hidden></p>
+      <form id="recovery-form" hidden novalidate>
+        <p class="selected" id="recovery-selected"></p>
+        <fieldset class="field">
+          <legend data-t="new.language"></legend>
+          <label class="choice"><input type="radio" name="recovery-locale" value="de" checked> Deutsch</label>
+          <label class="choice"><input type="radio" name="recovery-locale" value="en"> English</label>
+        </fieldset>
+        <label class="choice check"><input type="checkbox" id="remove-passkeys" checked> <span data-t="recovery.remove"></span></label>
+        <button type="submit" class="primary" id="recovery-submit" data-t="recovery.submit"></button>
+      </form>
+    </section>
+  </main>
+
+  <dialog id="revoke-dialog">
+    <form method="dialog">
+      <h2 data-t="revoke.title"></h2>
+      <p data-t="revoke.text"></p>
+      <label class="choice check" id="revoke-delete-row"><input type="checkbox" id="revoke-delete" checked> <span id="revoke-delete-text"></span></label>
+      <div class="actions-row">
+        <button value="confirm" class="primary danger" data-t="revoke.confirm"></button>
+        <button value="cancel" data-t="revoke.cancel"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="print-area" aria-hidden="true"></div>
+</body>
+</html>

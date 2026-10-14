@@ -183,3 +183,22 @@ def revoke(invitation_id: int, now: float | None = None) -> bool:
     return _update(
         "UPDATE invitations SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL"
         " AND completed_at IS NULL", (now, invitation_id))
+
+
+def renew(invitation_id: int, days: int = config.DEFAULT_DAYS,
+          now: float | None = None) -> tuple[Invitation, str] | None:
+    """A new code and validity for an invitation that is not done or revoked.
+
+    The old code stops working. A started invitation keeps its account, so the
+    member carries on with the same name. None if the invitation cannot be renewed.
+    """
+    if not 1 <= days <= config.MAX_DAYS:
+        raise ValueError(f"validity must be 1 to {config.MAX_DAYS} days")
+    now = int(time.time() if now is None else now)
+    code = codes.new_code()
+    with lock:
+        renewed = _update(
+            "UPDATE invitations SET code_hash = ?, expires_at = ? WHERE id = ?"
+            " AND revoked_at IS NULL AND completed_at IS NULL",
+            (codes.digest(code), now + days * 86400, invitation_id))
+        return (by_id(invitation_id), code) if renewed else None

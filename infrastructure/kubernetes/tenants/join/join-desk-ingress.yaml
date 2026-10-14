@@ -1,0 +1,57 @@
+# The Invitation Desk is an operator interface (ADR 0038, docs/adr/0058): it can
+# create accounts and give any member a new passkey, so it is reachable from the
+# Private Network only, like identity/admin and Argo CD — and on top of that it
+# requires the master-realm `operator` sign-in, because this allow-list also
+# admits the node's LAN and every cluster address (doc/hardening.md §1).
+#
+# It routes to the Service's `desk` port, which the public Ingress never names.
+# Traefik drops a router whose middleware is missing; were that to happen here,
+# /desk would fall through to the public route and meet a 404 on port 8080
+# instead of the Desk (design §9).
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: join-desk-private
+spec:
+  ipAllowList:
+    sourceRange:
+      # Enrolled Operator Devices on the Headscale tailnet.
+      - 100.64.0.0/10
+      # The Cluster Node's own LAN, for a Local Deployment Mode. 10.0.0.0/8 also
+      # covers the pod and service networks (10.42/10.43).
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+      # In-cluster traffic.
+      - 127.0.0.0/8
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: join-desk
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: join-join-desk-private@kubernetescrd
+    # Must outrank the public `/` route for this host.
+    traefik.ingress.kubernetes.io/router.priority: "1000"
+    gethomepage.dev/enabled: "false"
+spec:
+  ingressClassName: traefik
+  tls:
+    # Same secret as the public Ingress, and deliberately no cluster-issuer
+    # annotation: cert-manager manages the certificate from that Ingress, and a
+    # second annotated Ingress for the same host would race it.
+    - hosts:
+        - join.smallworlds.network
+      secretName: join-tls
+  rules:
+    - host: join.smallworlds.network
+      http:
+        paths:
+          - path: /desk
+            pathType: Prefix
+            backend:
+              service:
+                name: join
+                port:
+                  name: desk

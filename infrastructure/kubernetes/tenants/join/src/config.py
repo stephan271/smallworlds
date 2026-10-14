@@ -20,6 +20,9 @@ DASHBOARD_URL = os.getenv("DASHBOARD_URL", "https://dashboard.smallworlds.networ
 DB_PATH = os.getenv("DB_PATH", "/data/invitations.db")
 STATIC_DIR = os.getenv("STATIC_DIR", "/static")
 PUBLIC_PORT = int(os.getenv("PUBLIC_PORT", "8080"))
+# The Invitation Desk's own port. The public Ingress never names it, so a broken
+# private route fails closed instead of exposing /desk (design §9).
+DESK_PORT = int(os.getenv("DESK_PORT", "8081"))
 BIND = os.getenv("BIND", "0.0.0.0")
 
 LOCALES = ("de", "en")
@@ -37,3 +40,16 @@ USERNAME_CHECKS_PER_10_MIN = int(os.getenv("USERNAME_CHECKS_PER_10_MIN", "120"))
 # Provider ids, not display names — see the note in admin-tools/bulk-invite.py.
 REQUIRED_ACTIONS = ["webauthn-register-passwordless", "CONFIGURE_RECOVERY_AUTHN_CODES"]
 PASSKEY_CREDENTIAL_TYPE = "webauthn-passwordless"
+
+# The Desk signs the Operator in as the master-realm `operator` account (password
+# + TOTP) through the public `join-desk` client, and accepts only a token that
+# carries this master realm role.
+DESK_REALM = "master"
+DESK_CLIENT_ID = os.getenv("DESK_CLIENT_ID", "join-desk")
+DESK_REQUIRED_ROLE = "admin"
+DESK_SESSION_SECONDS = int(os.getenv("DESK_SESSION_SECONDS", str(8 * 3600)))
+MAX_BULK = 100
+
+
+def desk_redirect_uri() -> str:
+    return f"{JOIN_URL}/desk/callback"
