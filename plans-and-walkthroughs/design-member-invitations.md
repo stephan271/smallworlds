@@ -82,7 +82,11 @@ the code is short enough to print, read aloud or type.
    and `CONFIGURE_RECOVERY_AUTHN_CODES`. Its pages are in the same language,
    because `join` set the member's `locale` attribute (§8). `UPDATE_PROFILE` is no
    longer needed: step 3 already collected everything it would ask for.
-5. **Done.** Keycloak returns to `https://join.<domain>/done/<lang>`. This page
+5. **Done.** Keycloak ends on its own "account updated" page, whose
+   **Back to application** link leads to `https://join.<domain>/done/<lang>`
+   (observed: Keycloak does not redirect by itself, and it also shows a
+   confirmation page before the first action — `doc/tenant-join.md` has
+   screenshots). The done page
    congratulates the member, reminds them to keep the recovery codes somewhere
    safe, and has one button: **To your dashboard**.
 

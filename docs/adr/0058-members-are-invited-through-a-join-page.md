@@ -111,10 +111,10 @@ Deployed to smallworlds.network on 2026-10-14. Observed there:
   join page `200`.
 - The realm offers German and English on its sign-in page.
 
-**Not yet observed:**
-
-- a passkey registered through an invitation
-- Keycloak's return to `/done/<lang>` afterwards
-- an Operator sign-in at the Desk, which needs the `operator` account's TOTP
-
-The first real invitation will show all three.
+The same day, the first real invitation completed. The Operator signed in at the
+Desk as `operator`, invited a member, and the member registered a passkey and
+recovery codes. Every Keycloak page appeared in German, and `join` recorded the
+invitation as done when it saw the passkey. The member reached
+`/done/de` through Keycloak's **Back to application** link: Keycloak does not
+redirect by itself. It also shows a confirmation page before the first action.
+Screenshots are in `doc/tenant-join.md`.

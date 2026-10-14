@@ -25,6 +25,36 @@ Both halves are served by one pod: Python standard library, source from the
 `join-data` claim, which is deliberately not backed up. Losing it loses open
 invitations, never a member.
 
+## What the member sees in Keycloak
+
+After **Continue** on the join page, the member goes through four Keycloak pages,
+in the language they chose. The screenshots are from smallworlds.network, in
+German.
+
+1. **A confirmation page** listing the two actions, with a link to carry on.
+   Keycloak shows it for every link an administrator issued; it cannot be
+   skipped.
+
+   ![Keycloak lists the two actions and asks to continue](../docs/passkey-screenshot-1.png)
+
+2. **Register the passkey.** The browser first asks for a name for the passkey,
+   then shows its own passkey dialog (fingerprint, face, PIN, phone or security
+   key).
+
+   ![The passkey registration page](../docs/passkey-screenshot-2.png)
+   ![The browser asks for a name for the passkey](../docs/passkey-screenshot-3.png)
+
+3. **Recovery codes.** Twelve codes, shown once, with print, download and copy.
+   The member must tick that they stored them before **Finish** is enabled.
+
+   ![The recovery codes page (codes blacked out)](../docs/passkey-screenshot-4.png)
+
+4. **Account updated.** Keycloak does not move on by itself: the member clicks
+   **Back to application**, which leads to the join page's `/done/<lang>` and
+   from there to the dashboard.
+
+   ![Keycloak confirms the account was updated](../docs/passkey-screenshot-5.png)
+
 ## Everyday use
 
 **Inviting.** Open `https://join.<domain>/desk` from a device on the tailnet. It

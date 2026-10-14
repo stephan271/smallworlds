@@ -451,6 +451,8 @@ in place.
 
 Each member opens their invitation on any phone or computer, chooses their own
 username, and is done in about three minutes, in German or English.
+`doc/tenant-join.md` shows the Keycloak pages they go through, in case someone
+asks what to expect.
 
 Members need nothing installed and are never on the private network: the
 dashboard and the applications are public by design.
