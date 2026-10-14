@@ -125,6 +125,14 @@ _Avoid_: Audit log, console log
 The existing low-privilege Homepage interface that lets community members discover and open applications.
 _Avoid_: Operator Console, admin dashboard
 
+**Member Invitation**:
+A short, single-use code the Operator issues so that one person can become a community member, or so that an existing member can register a new passkey after losing theirs. It is redeemed on the join page and is used up when a passkey exists, not when it is opened. It is not the Keycloak action token, which is minted only at that moment (`docs/adr/0058-members-are-invited-through-a-join-page.md`).
+_Avoid_: Invite link, onboarding link, Enrollment Invitation (that one admits an Operator Device to the Private Network)
+
+**Invitation Desk**:
+The Operator-only half of `join`, reachable from the Private Network, where Member Invitations are created, handed out, followed and revoked.
+_Avoid_: Invite admin, admin page, console
+
 **GitOps Overlay**:
 The community-owned private repository that declares cluster-specific configuration while referencing a pinned SmallWorlds base release.
 _Avoid_: Community repo, private overlay
