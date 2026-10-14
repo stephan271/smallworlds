@@ -100,17 +100,21 @@ left as it is, as a separate follow-up.
 
 ## Verification
 
-The Keycloak groundwork is in place: the realm's two languages, and the
-`join` and `join-desk` clients. The join page and the Desk are not built yet.
+Deployed to smallworlds.network on 2026-10-14. Observed there:
 
-**Observed:** Keycloak names its public issuer even when it is asked through the
-in-cluster Service. That was seen on smallworlds.network on 2026-10-14, through
-the discovery document. Links minted by `join` will therefore be valid when a
-member opens them.
+- `e2e-tests/tests/10-join.spec.ts` issued a real invitation and walked it in
+  German. Keycloak accepted the link that `join` minted over the in-cluster
+  Service with its narrowed service account, and rendered its next page in
+  German (`kc_locale`). Reopening the invitation resumed the same account, and
+  the account was deleted afterwards.
+- The Desk answers `403` from outside the Private Network on every path, and the
+  join page `200`.
+- The realm offers German and English on its sign-in page.
 
-**Still to be observed:**
+**Not yet observed:**
 
-- that the passkey and recovery-code pages follow the member's language inside
-  an action-token flow. `join` sends both the `locale` attribute and
-  `kc_locale` on the link.
-- that Keycloak returns to a `redirectUri` registered on the `join` client.
+- a passkey registered through an invitation
+- Keycloak's return to `/done/<lang>` afterwards
+- an Operator sign-in at the Desk, which needs the `operator` account's TOTP
+
+The first real invitation will show all three.

@@ -110,6 +110,17 @@ curl -s -o /dev/null -w '%{http_code}\n' https://join.<domain>/desk/   # 403
 curl -s -o /dev/null -w '%{http_code}\n' https://join.<domain>/        # 200
 ```
 
+## Rolling out a change to an existing cluster
+
+An overlay that follows `HEAD` of this repository through a fixed overlay
+commit does not see a change here on its own:
+- Argo CD caches the rendered manifests under the overlay's revision, so it
+  needs a hard refresh (`argocd.argoproj.io/refresh=hard` on the Application).
+- What it then finds counts as drift. Self-heal re-applies only the drifted
+  objects, so **Sync hooks such as `join-keycloak-setup` and Keycloak's
+  `realm-config` do not run**. A change to a hook needs a full sync of that
+  Application.
+
 ## When something is wrong
 
 | Symptom | Cause | Fix |
