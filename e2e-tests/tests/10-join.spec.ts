@@ -44,6 +44,10 @@ let invitationId = '';
 let code = '';
 
 test.describe('Member Invitations', () => {
+  // One invitation walked in order: a failure must skip the rest, not let a
+  // restarted worker issue a fresh invitation the later steps never opened.
+  test.describe.configure({ mode: 'serial' });
+
   test.beforeAll(() => {
     test.skip(!kubectl(['get', 'ns', 'join', '--ignore-not-found']),
       'join is not deployed on this cluster');
@@ -83,9 +87,6 @@ test.describe('Member Invitations', () => {
       page.waitForURL(`${IDENTITY}/realms/smallworlds/**`),
       page.click('#profile-submit'),
     ]);
-    const landed = new URL(page.url());
-    expect(landed.searchParams.get('kc_locale')).toBe('de');
-
     // Keycloak has accepted join's own token and goes straight to the passkey
     // step — no confirmation page (docs/adr/0059) — in German, in the
     // smallworlds theme, naming the account the passkey is for.

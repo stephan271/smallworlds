@@ -103,7 +103,7 @@ ingress:
 # running pod. infrastructure/keycloak-spi/action-token-generator/build.sh
 # writes the jar's checksum here; a changed annotation rolls the pod.
 podAnnotations:
-  smallworlds/keycloak-extension-sha256: "bff56aebd35abc5377f9782546aad0c9cb1453eefb0ef7fd1eeadf40a41004bb"
+  smallworlds/keycloak-extension-sha256: "86d1f35df56cd60bd6f529c66836037c2fb26bfbb0b58ea25ad6fc5dba8d9532"
 
 extraVolumes: |
   - name: realm-config
