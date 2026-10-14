@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: join
+  labels:
+    app: join
+spec:
+  selector:
+    app: join
+  ports:
+    # The join page only. The Invitation Desk will get a port of its own that
+    # the public Ingress never names (design §9).
+    - name: http
+      port: 8080
+      targetPort: http

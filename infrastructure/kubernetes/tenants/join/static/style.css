@@ -1,0 +1,155 @@
+/* join — one calm card, readable on a phone first. */
+:root {
+  --bg: #f4f2ee;
+  --card: #ffffff;
+  --text: #1f2328;
+  --muted: #5d636b;
+  --line: #d9d5cd;
+  --accent: #2f6f5e;
+  --accent-text: #ffffff;
+  --accent-soft: #e3efe9;
+  --warn-soft: #fbf1dc;
+  --warn-line: #e3c98d;
+  --error: #b42318;
+  --ok: #2f6f5e;
+  --radius: 14px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15181b;
+    --card: #1e2226;
+    --text: #e8e6e3;
+    --muted: #a3a8ae;
+    --line: #353b41;
+    --accent: #6cc3a6;
+    --accent-text: #0e1a16;
+    --accent-soft: #1d3029;
+    --warn-soft: #2e2818;
+    --warn-line: #6b5a2c;
+    --error: #ff8a7a;
+    --ok: #6cc3a6;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font: 17px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 36rem;
+  margin: 0 auto;
+  padding: 16px;
+}
+.host { color: var(--muted); font-size: 0.95rem; overflow-wrap: anywhere; }
+.langs { display: flex; gap: 4px; }
+.langs button {
+  min-width: 44px;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.langs button[aria-pressed="true"] { background: var(--accent-soft); color: var(--text); border-color: var(--accent); }
+
+.card {
+  max-width: 36rem;
+  margin: 0 auto 48px;
+  padding: 28px 24px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+@media (max-width: 600px) {
+  .card { margin: 0 16px 32px; padding: 24px 18px; }
+}
+
+h1 { font-size: 1.6rem; line-height: 1.25; margin: 0 0 12px; }
+h1:focus { outline: none; }
+p { margin: 0 0 14px; }
+.quiet { color: var(--muted); text-align: center; padding: 24px 0; }
+
+.steps { padding-left: 1.4rem; margin: 0 0 18px; }
+.steps li { margin-bottom: 10px; padding-left: 4px; }
+
+.notice {
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 0.95rem;
+}
+
+form { margin: 0; }
+.field { margin-bottom: 16px; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 480px) { .row { grid-template-columns: 1fr; gap: 0; } }
+
+label { display: block; font-weight: 600; margin-bottom: 6px; }
+input {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  font: inherit;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+input:focus { outline: 3px solid var(--accent-soft); border-color: var(--accent); }
+#code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: 0.08em; text-transform: uppercase; }
+
+.hint { color: var(--muted); font-size: 0.88rem; margin: 6px 0 0; }
+.status { font-size: 0.9rem; margin: 6px 0 0; min-height: 0; }
+.status:empty { display: none; }
+.field.invalid input { border-color: var(--error); }
+.field.invalid .status, .form-status { color: var(--error); }
+.field.valid .status { color: var(--ok); }
+
+button, .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 10px 20px;
+  font: inherit;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-decoration: none;
+}
+.primary { width: 100%; background: var(--accent); border-color: var(--accent); color: var(--accent-text); margin-top: 6px; }
+.primary:disabled { opacity: 0.6; cursor: progress; }
+button:focus-visible, .button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.actions { display: grid; gap: 10px; margin-top: 8px; }
+
+.tick {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 1.8rem;
+  background: var(--accent-soft);
+  color: var(--accent);
+  margin-bottom: 16px;
+}

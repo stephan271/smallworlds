@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex">
+  <title>Invitation</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/i18n.js" defer></script>
+  <script src="/static/done.js" defer></script>
+</head>
+<body>
+  <header class="bar">
+    <span class="host" id="host"></span>
+    <div class="langs" role="group" aria-label="Language">
+      <button type="button" data-lang="de" aria-pressed="false">DE</button>
+      <button type="button" data-lang="en" aria-pressed="false">EN</button>
+    </div>
+  </header>
+
+  <main class="card">
+    <div class="tick" aria-hidden="true">✓</div>
+    <h1 data-t="done.title"></h1>
+    <p data-t="done.text"></p>
+    <p class="notice" data-t="done.codes"></p>
+    <a class="button primary" id="dashboard" href="/" data-t="done.dashboard"></a>
+  </main>
+</body>
+</html>

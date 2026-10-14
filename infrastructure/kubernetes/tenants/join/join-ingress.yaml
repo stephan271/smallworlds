@@ -1,0 +1,30 @@
+# The join page is public: members are never on the Private Network
+# (doc/hardening.md §1). Only the member routes exist behind it — /desk is not
+# served on this port at all.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: join
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Rate limit + baseline security headers (bases/edge-protection).
+    traefik.ingress.kubernetes.io/router.middlewares: join-edge-ratelimit@kubernetescrd,join-edge-headers@kubernetescrd
+    # Members never need to come back here.
+    gethomepage.dev/enabled: "false"
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - join.smallworlds.network
+      secretName: join-tls
+  rules:
+    - host: join.smallworlds.network
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: join
+                port:
+                  name: http

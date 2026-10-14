@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: join
+  labels:
+    app: join
+spec:
+  # One replica, replaced rather than rolled: SQLite has one writer, and the
+  # redeem path holds an in-process lock across its Keycloak calls.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: join
+  template:
+    metadata:
+      labels:
+        app: join
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: join
+          # Pure Python stdlib, run straight from a ConfigMap-mounted volume —
+          # no image build, no pip, starts offline (same as Hermes).
+          image: python:3.14-slim@sha256:b877e50bd90de10af8d82c57a022fc2e0dc731c5320d762a27986facfc3355c1
+          command: ["python", "-u", "/app/main.py"]
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            # ConfigMap volumes symlink through a timestamped ..data dir; put
+            # /app on the path explicitly so imports resolve.
+            - name: PYTHONPATH
+              value: /app
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+            # The project-wide keycloak-secret contract (.agents/AGENTS.md).
+            - name: KEYCLOAK_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: clientId
+            - name: KEYCLOAK_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: client-secret
+          envFrom:
+            - configMapRef:
+                name: join-config
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 10m
+              memory: 48Mi
+            limits:
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: src
+              mountPath: /app
+            - name: static
+              mountPath: /static
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: src
+          configMap:
+            name: join-src
+        - name: static
+          configMap:
+            name: join-static
+        - name: data
+          persistentVolumeClaim:
+            claimName: join-data

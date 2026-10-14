@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex">
+  <title>Invitation</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/i18n.js" defer></script>
+  <script src="/static/join.js" defer></script>
+</head>
+<body>
+  <header class="bar">
+    <span class="host" id="host"></span>
+    <div class="langs" role="group" aria-label="Language">
+      <button type="button" data-lang="de" aria-pressed="false">DE</button>
+      <button type="button" data-lang="en" aria-pressed="false">EN</button>
+    </div>
+  </header>
+
+  <main class="card" aria-live="polite">
+    <noscript><p data-t="noscript">Diese Seite braucht JavaScript. · This page needs JavaScript.</p></noscript>
+
+    <section data-view="loading" hidden>
+      <p class="quiet" data-t="loading"></p>
+    </section>
+
+    <section data-view="enter" hidden>
+      <h1 data-t="enter.title"></h1>
+      <p data-t="enter.text"></p>
+      <form id="enter-form" novalidate>
+        <label for="code" data-t="enter.label"></label>
+        <input id="code" name="code" autocomplete="off" autocapitalize="characters" spellcheck="false"
+               inputmode="text" maxlength="16" placeholder="XXXXX-XXXXX" required>
+        <button type="submit" class="primary" data-t="enter.submit"></button>
+      </form>
+    </section>
+
+    <section data-view="welcome" hidden>
+      <h1 data-t="welcome.title"></h1>
+      <p data-t="welcome.intro"></p>
+      <ol class="steps">
+        <li data-t="welcome.step1"></li>
+        <li data-t="welcome.step2"></li>
+        <li data-t="welcome.step3"></li>
+      </ol>
+      <p class="notice" id="device-hint" hidden></p>
+      <button type="button" class="primary" id="start" data-t="welcome.start"></button>
+    </section>
+
+    <section data-view="form" hidden>
+      <h1 data-t="form.title"></h1>
+      <form id="profile-form" novalidate>
+        <div class="field" data-field="username">
+          <label for="username" data-t="form.username"></label>
+          <input id="username" name="username" autocomplete="username" autocapitalize="none"
+                 spellcheck="false" maxlength="32" required aria-describedby="username-hint username-status">
+          <p class="hint" id="username-hint" data-t="form.username_hint"></p>
+          <p class="status" id="username-status" aria-live="polite"></p>
+        </div>
+        <div class="row">
+          <div class="field" data-field="firstName">
+            <label for="firstName" data-t="form.firstName"></label>
+            <input id="firstName" name="firstName" autocomplete="given-name" maxlength="255" required>
+            <p class="status"></p>
+          </div>
+          <div class="field" data-field="lastName">
+            <label for="lastName" data-t="form.lastName"></label>
+            <input id="lastName" name="lastName" autocomplete="family-name" maxlength="255" required>
+            <p class="status"></p>
+          </div>
+        </div>
+        <div class="field" data-field="email">
+          <label for="email" data-t="form.email"></label>
+          <input id="email" name="email" type="email" autocomplete="email" maxlength="254" required
+                 aria-describedby="email-hint">
+          <p class="hint" id="email-hint" data-t="form.email_hint"></p>
+          <p class="status"></p>
+        </div>
+        <p class="status form-status" id="form-status" role="alert"></p>
+        <button type="submit" class="primary" id="profile-submit" data-t="form.submit"></button>
+      </form>
+    </section>
+
+    <section data-view="resume" hidden>
+      <h1 data-t="resume.title"></h1>
+      <p data-t="resume.text"></p>
+      <button type="button" class="primary" data-continue data-t="resume.submit"></button>
+    </section>
+
+    <section data-view="recovery" hidden>
+      <h1 data-t="recovery.title"></h1>
+      <p data-t="recovery.text"></p>
+      <button type="button" class="primary" data-continue data-t="recovery.submit"></button>
+    </section>
+
+    <section data-view="redirecting" hidden>
+      <p class="quiet" data-t="redirecting"></p>
+    </section>
+
+    <section data-view="problem" hidden>
+      <h1 data-t="problem.title"></h1>
+      <p id="problem-text"></p>
+      <p data-t="problem.ask" id="problem-ask"></p>
+      <div class="actions">
+        <button type="button" class="primary" id="retry" data-t="problem.retry" hidden></button>
+        <button type="button" id="other-code" data-t="problem.other_code"></button>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,17 @@
+# Settings for join (src/config.py). The hosts are overridden per environment by
+# the overlay's domain patches, like every other tenant's.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: join-config
+data:
+  # The Service, not the public host: in-cluster callers never traverse Traefik,
+  # so the Private Network allow-list on /admin does not apply (design §6).
+  KEYCLOAK_URL: "http://keycloak-keycloakx-http.keycloak"
+  KEYCLOAK_REALM: "smallworlds"
+  # Every minted link must start with this, or it is refused.
+  PUBLIC_IDENTITY_URL: "https://identity.smallworlds.network"
+  JOIN_URL: "https://join.smallworlds.network"
+  DASHBOARD_URL: "https://dashboard.smallworlds.network"
+  DB_PATH: "/data/invitations.db"
+  STATIC_DIR: "/static"

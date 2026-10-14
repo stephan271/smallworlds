@@ -1,6 +1,6 @@
 # Member Invitations (`join.<domain>`) — Design
 
-**Status:** accepted; phase 1 (Keycloak groundwork) implemented, phases 2–4 open
+**Status:** accepted; phases 1 (Keycloak groundwork) and 2 (join page) implemented, 3–4 open
 **Date:** 2026-10-14
 **Decision record:** `docs/adr/0058-members-are-invited-through-a-join-page.md`
 **Replaces, for everyday use:** step 13 of `doc/install-contabo-datalix.md`
@@ -82,7 +82,7 @@ the code is short enough to print, read aloud or type.
    and `CONFIGURE_RECOVERY_AUTHN_CODES`. Its pages are in the same language,
    because `join` set the member's `locale` attribute (§8). `UPDATE_PROFILE` is no
    longer needed: step 3 already collected everything it would ask for.
-5. **Done.** Keycloak returns to `https://join.<domain>/done`. This page
+5. **Done.** Keycloak returns to `https://join.<domain>/done/<lang>`. This page
    congratulates the member, reminds them to keep the recovery codes somewhere
    safe, and has one button: **To your dashboard**.
 
@@ -165,27 +165,31 @@ invitation on every new cluster.
 
 ```
 infrastructure/kubernetes/tenants/join/
-  kustomization.yaml          configMapGenerator for src/ and static/, keycloak-client-job base
-  join-deployment.yaml        python:3.14-slim, python -u /app/main.py, PYTHONPATH=/app
-  join-service.yaml           two ports: 8080 (public) and 8081 (desk)
+  kustomization.yaml          configMapGenerator for src/ and static/ (flat), keycloak-client-job base
+  join-config.yaml            hosts, Keycloak Service, DB path
+  join-deployment.yaml        python:3.14-slim, python -u /app/main.py, read-only root, uid 10001
+  join-service.yaml           8080 (public); 8081 (desk) arrives in phase 3
   join-ingress.yaml           public Ingress → 8080, edge-protection middlewares
-  join-desk-ingress.yaml      private Ingress /desk → 8081, ipAllowList, priority 1000
+  join-desk-ingress.yaml      phase 3: private Ingress /desk → 8081, ipAllowList, priority 1000
   join-pvc.yaml               64 Mi local-path, holds invitations.db
   join-keycloak-setup-job.yaml  service account + master-realm desk client (§9)
-  join-networkpolicy.yaml
+  join-networkpolicy.yaml     phase 4
   src/
-    main.py                   two http.server listeners
+    main.py                   http.server; the desk gets a second listener in phase 3
+    config.py                 settings from the environment
+    codes.py                  Crockford base32 codes, normalization, hashing
+    usernames.py              rules and reserved names (§7)
     store.py                  sqlite3: invitations, state transitions
     keycloak.py               admin REST + action-token-link SPI, urllib only
-    member.py                 public handlers
-    desk.py                   desk handlers + OIDC login
-    usernames.py              rules and reserved names (§7)
-    i18n.py                   de/en strings for server-rendered text
+    member.py                 the public API: lookup, username check, redeem
+    manage.py                 create/list/revoke from a shell, inside the pod
+    desk.py                   phase 3: desk handlers + OIDC login
   static/
-    join.html  done.html  desk.html  card.html
-    join.js  desk.js  style.css
-    qrcode.js                 vendored, pinned single-file QR encoder (MIT)
-    i18n/de.json  i18n/en.json
+    index.html  done.html     the join page and the page Keycloak returns to
+    i18n.js                   every string, de and en, and the language switch
+    join.js  done.js  style.css
+    desk.html  card.html  desk.js  qrcode.js   phase 3
+  tests/                      not shipped: fake Keycloak, unittest, Playwright walk
 infrastructure/kubernetes/apps/join.yaml   sync-wave 1
 ```
 
@@ -242,7 +246,10 @@ settings must not turn that into a silent failure.
 | mint the link | `POST /realms/smallworlds/action-token-link/generate-link` |
 
 The `generate-link` request carries `clientId: join` and
-`redirectUri: https://join.<domain>/done`. The `join` client registers that
+`redirectUri: https://join.<domain>/done/<lang>`. The language is a path
+segment rather than a query, so matching it against the registered
+`https://join.<domain>/*` never depends on how Keycloak treats query strings.
+The `join` client registers that
 redirect, so Keycloak accepts it when the member finishes. Today's links send
 the member to the account console, because `bulk-invite.py` names the `account`
 client.
@@ -277,9 +284,9 @@ The Desk can pre-fill a suggestion, but the member decides.
   (`locale`), and the page starts in it. A DE/EN switch is always visible, and
   the member's choice there wins. An opening without a code (the bare
   `join.<domain>` code field) follows `Accept-Language` and falls back to English.
-- **Where the text lives.** Static text is in `static/i18n/{de,en}.json`. The few
-  strings the server renders, such as error pages and the copied message, are in
-  `i18n.py`.
+- **Where the text lives.** Every string is in `static/i18n.js`, in both
+  languages. The server answers with message keys only, never prose, so
+  switching language re-renders whatever is on screen, errors included.
 - **Keycloak's pages follow.** When `join` creates the account, it writes the
   member's final choice into the user attribute `locale`. That requires the realm
   to allow it: `internationalizationEnabled: true`,
@@ -384,8 +391,11 @@ Keycloak's Service and DNS only.
 
 ## 11. Testing
 
-- **`admin-tools/test-join.py`** (stdlib `unittest`). It runs against a fake
-  Keycloak built on `http.server` and covers:
+- **`admin-tools/test-join.sh`** runs both halves below. The tests live in
+  `tenants/join/tests/`, beside the code like the Setup Wizard's, and are not
+  shipped in the ConfigMap.
+- **`tests/test_join.py`** (stdlib `unittest`). It runs against a fake
+  Keycloak built on `http.server` (`tests/fake_keycloak.py`) and covers:
   - the state machine (§5)
   - the username rules and reserved names
   - code hashing and the fragment-only protocol
@@ -393,8 +403,14 @@ Keycloak's Service and DNS only.
   - issuer checking of minted links
   - the 404 for `/desk` on the public port
   - Desk login rejecting a token without the `admin` role
-- **Browser.** A Playwright test walks the join page against the fake server in
-  both languages: device hint, live username check, redirect.
+- **Browser.** `tests/test-interface.mjs` walks the join page against
+  `tests/serve.py` in both languages:
+  - language switching and live username feedback
+  - field-by-field refusals
+  - arrival at Keycloak with `kc_locale`
+  - the resumed, recovery and failed cases, and the done page
+  - no horizontal scrolling at 320 px
+  - no console errors, which is how a CSP violation would show
 - **Staging.** A new `e2e-tests` spec creates an invitation through a
   port-forward to 8081 (staging is not on the tailnet), opens it, submits the form,
   and asserts the redirect into Keycloak's passkey step. The shallow e2e depth
@@ -420,7 +436,16 @@ Keycloak's Service and DNS only.
    Phase 4's domain patch must set both hosts that phase 1 hard-codes:
    - `REDIRECT_URIS` on `keycloak-client-init`
    - `JOIN_HOST` on `join-keycloak-setup`
-2. **The join page:** store, member flow, both languages, `/done`, tests.
+2. **The join page — done:**
+   - store, member flow, both languages, `/done/<lang>`
+   - Deployment, Service, PVC and public Ingress
+   - tests, and a check of the real image under the pod's restrictions
+     (read-only root, uid 10001)
+
+   Until the Desk exists, invitations are issued with `src/manage.py`
+   (`create`, `list`, `revoke`), run inside the pod with `kubectl exec`. It
+   stays afterwards as the shell route, as `bulk-invite.py` does for the
+   terminal.
 3. **The Desk:** login, create/list/revoke/renew, message/QR/card, bulk sheet,
    recovery invitations.
 4. **Wiring and documentation:**

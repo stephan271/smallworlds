@@ -1,8 +1,8 @@
 # Member Invitations — docs/adr/0058, plans-and-walkthroughs/design-member-invitations.md.
 #
-# Phase 1 only: the Keycloak clients. No Application points here yet, so
-# nothing in this directory is deployed; the namespace, the Application and the
-# domain patches arrive with the join page itself (design §12).
+# Phases 1–2: the Keycloak clients and the join page. No Application points
+# here yet, so nothing in this directory is deployed; the namespace, the
+# Application and the domain patches arrive with phase 4 (design §12).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: join
@@ -10,7 +10,34 @@ namespace: join
 resources:
   - ../../bases/setup-rbac
   - ../../bases/keycloak-client-job
+  - ../../bases/edge-protection
   - join-keycloak-setup-job.yaml
+  - join-config.yaml
+  - join-pvc.yaml
+  - join-deployment.yaml
+  - join-service.yaml
+  - join-ingress.yaml
+
+configMapGenerator:
+  # Flat on purpose: ConfigMap keys cannot contain "/". tests/ is not shipped.
+  - name: join-src
+    files:
+      - src/config.py
+      - src/codes.py
+      - src/usernames.py
+      - src/store.py
+      - src/keycloak.py
+      - src/member.py
+      - src/main.py
+      - src/manage.py
+  - name: join-static
+    files:
+      - static/index.html
+      - static/done.html
+      - static/i18n.js
+      - static/join.js
+      - static/done.js
+      - static/style.css
 
 patches:
   - target:
@@ -21,7 +48,7 @@ patches:
         path: /metadata/name
         value: setup-binding-join
   # Keycloak validates an action token's redirect against these when the
-  # member finishes, so /done must be covered (design §6).
+  # member finishes, so /done/<lang> must be covered (design §6).
   - target:
       kind: Job
       name: keycloak-client-init
