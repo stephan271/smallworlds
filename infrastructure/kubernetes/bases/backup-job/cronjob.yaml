@@ -58,8 +58,18 @@ spec:
                     ACROSS="--server-side-across-configs"
                     echo "Same service and key on both sides: copying server-side."
                   fi
+                  # --update --use-server-modtime: copy only what changed at the
+                  # source since it was last copied here, judged by each side's
+                  # own Last-Modified. The default (size, then rclone's mtime
+                  # metadata, then MD5) cannot settle on an object the app
+                  # uploaded multipart — it has no MD5 — and a copy does not
+                  # carry the source's time, so every such object counted as
+                  # changed on every run: recopied nightly, the identical old
+                  # copy filed under versions/. On a photo library that was
+                  # ~150 GiB a night of duplicates (2026-10-14, Databucket).
                   rclone sync "src:${SRC}" "dst:${DST}/current" \
                     --backup-dir "dst:${DST}/versions/${STAMP}" \
+                    --update --use-server-modtime \
                     --fast-list --transfers 4 --checkers 32 $ACROSS \
                     -v --stats-one-line
                   echo "Backup completed successfully."
