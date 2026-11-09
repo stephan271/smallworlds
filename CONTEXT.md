@@ -137,6 +137,18 @@ _Avoid_: Invite admin, admin page, console
 The community-owned private repository that declares cluster-specific configuration while referencing a pinned SmallWorlds base release.
 _Avoid_: Community repo, private overlay
 
+**Release Ring**:
+One of three stages an update passes through: Ring 0 is the Canary Cluster, Ring 1 is smallworlds.network adopting every release on the day it is tagged, Ring 2 is every other community adopting under its Follow Policy (`docs/adr/0060`).
+_Avoid_: Stage, channel, environment
+
+**Canary Cluster**:
+The Ring 0 cluster: every supported application at once, example data that is never re-seeded, following `main` automatically and reverting what fails its verification. Nothing is tagged until it has stayed green there.
+_Avoid_: Staging (that is the ephemeral cluster of `test-pr-locally.sh`), reference instance, test cluster
+
+**Follow Policy**:
+The Operator's choice of when the GitOps Overlay is offered a new release: immediately, after two weeks, security fixes now and features later, or only when asked. It only proposes; adoption is always the Operator's merge.
+_Avoid_: Update channel, auto-update
+
 **Git Provider**:
 The hosting system through which the Operator Console creates or updates a GitOps Overlay and, when supported, opens configuration proposals.
 _Avoid_: Git server, repository backend
