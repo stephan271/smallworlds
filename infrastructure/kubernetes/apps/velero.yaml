@@ -11,7 +11,7 @@ spec:
   project: default
   source:
     repoURL: 'https://github.com/stephan271/smallworlds.git'
-    targetRevision: HEAD
+    targetRevision: v1.2.44
     path: infrastructure/kubernetes/tenants/velero
   destination:
     server: 'https://kubernetes.default.svc'
