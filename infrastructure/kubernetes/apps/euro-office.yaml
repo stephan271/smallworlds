@@ -13,7 +13,7 @@ spec:
   project: default
   source:
     repoURL: 'https://github.com/stephan271/smallworlds.git'
-    targetRevision: HEAD
+    targetRevision: v1.2.45
     path: infrastructure/kubernetes/tenants/euro-office
   destination:
     server: 'https://kubernetes.default.svc'
