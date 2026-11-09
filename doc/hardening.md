@@ -60,7 +60,7 @@ the `admin` role, because the allow-list admits the node's LAN and cluster
 addresses too (`doc/tenant-join.md`).
 
 The accepted cost is a larger attack surface, paid for by the layers below and
-by keeping versions current (Renovate, Trivy).
+by keeping versions current (Renovate PRs, reviewed and tested before a tag).
 
 ## 2. Edge protections (`bases/edge-protection`)
 
@@ -186,8 +186,9 @@ and check before trusting it.
   is a real new component (agent, local API, Traefik bouncer) with its own
   operational weight and false-positive risk.
 - **Pod security contexts** — `runAsNonRoot`, dropped capabilities,
-  `readOnlyRootFilesystem`. Trivy-operator already reports these; applying them
-  is per-chart and some applications break.
+  `readOnlyRootFilesystem`. Applying them is per-chart and some applications
+  break. (Trivy-operator used to report these; it was removed on 2026-11-09 —
+  `trivy config` against the rendered manifests gives the same list on demand.)
 - **Namespace-wide default-deny NetworkPolicies** (§4).
 - **A TLSOption** pinning minimum version and cipher suites. Traefik's defaults
   are already sane, so this is low value.

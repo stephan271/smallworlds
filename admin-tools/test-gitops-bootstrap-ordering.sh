@@ -55,7 +55,5 @@ if grep -nE '^\s*-\s.*\$HOME' "$cloud_init"; then
 fi
 
 assert_contains "$apps_directory/kube-prometheus-stack.yaml" 'argocd.argoproj.io/sync-wave: "0"'
-assert_contains "$apps_directory/trivy-operator.yaml" 'argocd.argoproj.io/sync-wave: "1"'
-assert_contains "$apps_directory/trivy-operator.yaml" 'retry:'
 
 echo "GitOps bootstrap dependency ordering is valid."

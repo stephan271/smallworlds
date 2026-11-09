@@ -26,8 +26,8 @@ Identity, management, observability, and cluster utilities all deploy together i
 * **`keycloak.yaml`**: Central Identity Provider (OIDC). Must be up before end-user apps register their OIDC clients.
 * **`dashboard.yaml`**, **`kube-prometheus-stack.yaml`**, **`loki-stack.yaml`**: homepage, monitoring, logging.
 * **`velero.yaml`**: backup controller (only depends on Garage from wave -5, not on Keycloak).
-* **`hermes.yaml`**, **`remediation.yaml`**, **`trivy-operator.yaml`**, **`backup-replicator.yaml`**: the two-tier alert-remediation agents (Tier 2 Claude SRE + Tier 1 deterministic handlers), security scanning, and backup utilities.
-* `argocd-ingress.yaml`, `renovate-cronjob.yaml` and `trivy-dashboard.yaml` carry no sync-wave annotation, which defaults to wave 0 as well.
+* **`hermes.yaml`**, **`remediation.yaml`**, **`backup-replicator.yaml`**: the two-tier alert-remediation agents (Tier 2 Claude SRE + Tier 1 deterministic handlers) and backup utilities.
+* `argocd-ingress.yaml` carries no sync-wave annotation, which defaults to wave 0 as well. (`trivy-operator.yaml`, `trivy-dashboard.yaml` and `renovate-cronjob.yaml` were removed on 2026-11-09 — Renovate now runs as a GitHub App, and nothing read Trivy's reports while its scans competed with the members' applications for the one node.)
 * **`euro-office.yaml`**, when selected, starts its Document Server and creates
   the shared JWT here. This lets Nextcloud's wave-1 configuration hook wire the
   connector without racing the Secret initialization.

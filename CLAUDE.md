@@ -42,7 +42,7 @@ plans-and-walkthroughs/  Design docs and implementation walkthroughs
 
 - **Wave -10**: `cert-manager`, `cloudnative-pg`, `persistent-storage`, `traefik` — foundational infra.
 - **Wave -5**: `garage` — S3 storage, needed early by CNPG/Velero backups.
-- **Wave 0**: everything that doesn't need Keycloak — `keycloak` itself, `dashboard`, monitoring/logging stacks, `velero`, `hermes`, `remediation`, `trivy-operator`.
+- **Wave 0**: everything that doesn't need Keycloak — `keycloak` itself, `dashboard`, monitoring/logging stacks, `velero`, `hermes`, `remediation`. (`trivy-operator` and the in-cluster Renovate CronJob were removed on 2026-11-09; update PRs come from the Renovate GitHub App.)
 - **Wave 1**: end-user tenant apps (Nextcloud, Forgejo, Immich, Jitsi, Bulwark, Excalidraw, Stalwart) — all depend on CNPG/Garage/Keycloak/Traefik being up — plus `join`, which is always deployed but needs Keycloak. `operator-console` was in this wave and is **deactivated** (2026-08-23): its code and manifests are untouched but nothing deploys it — see `docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md`.
 
 Intra-wave dependencies are handled by init jobs' poll-and-retry loops and ArgoCD sync retries, not by more waves. When adding a new ArgoCD Application, pick the wave based on what it actually depends on, not by copying an unrelated app's wave.

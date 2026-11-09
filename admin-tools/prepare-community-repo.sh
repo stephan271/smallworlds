@@ -497,35 +497,10 @@ fi
 # the replicator, and Velero is pointed at the provider (docs/adr/0053).
 apply_storage_patches root "$ABS_REPO_PATH/kustomization.yaml"
 
-# Wire the in-cluster Renovate CronJob to also scan THIS overlay repo, so the
-# weekly base-tag bump PRs (see renovate.json) are raised here. Operator-specific
-# (your private repo), so it lives in the overlay, not the public base. Idempotent.
-if ! grep -q 'RENOVATE_REPOSITORIES' kustomization.yaml; then
-    echo -e "${YELLOW}Wiring Renovate to scan ${REPO_SLUG}...${NC}"
-    if ! grep -q '^patches:' kustomization.yaml; then
-        printf '\npatches:\n' >> kustomization.yaml
-    fi
-    cat <<EOF >> kustomization.yaml
-  - target:
-      kind: CronJob
-      name: renovate
-    patch: |-
-      apiVersion: batch/v1
-      kind: CronJob
-      metadata:
-        name: renovate
-      spec:
-        jobTemplate:
-          spec:
-            template:
-              spec:
-                containers:
-                  - name: renovate
-                    env:
-                      - name: RENOVATE_REPOSITORIES
-                        value: "$REPO_SLUG"
-EOF
-fi
+# Renovate no longer runs in the cluster: the Renovate GitHub App, installed on
+# this overlay repository, reads renovate.json below and opens the weekly
+# base-tag bump PRs. An overlay written before that still carries a patch for
+# the removed CronJob; kustomize ignores a patch whose target is gone.
 
 # Create renovate.json (weekly PRs that bump the pinned smallworlds base tag).
 # Written literally (quoted heredoc) so the JSON regex/backslashes are preserved.
