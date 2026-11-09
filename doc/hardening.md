@@ -142,7 +142,38 @@ that into Alertmanager is listed below.
 
 The local deployment target does not get this: `bootstrap-local-node.sh` installs
 no packages, and imposing an update policy on a machine the operator already owns
-and uses for other things is not this project's decision to make.
+and uses for other things is not this project's decision to make. Check what the
+machine already has — `grep -r Automatic-Reboot /etc/apt/apt.conf.d/` — before
+trusting it.
+
+### A new kernel is a change, not a patch
+
+On 2026-11-05 a VPS rebooted itself into Ubuntu kernel 7.0.0-42, under which
+AppArmor refuses signals between processes in a container
+(`cri-containerd.apparmor.d//&unconfined`). A running Postgres survives that, but
+one that has to start never finishes — `could not signal for checkpoint:
+Permission denied` — so the Gallery database stayed down for four days and every
+CNPG replica crash-looped. 7.0.0-38 had none of it.
+
+So treat a kernel like an application release: install it deliberately, reboot,
+and check before trusting it.
+
+1. On a node that should only change kernels on purpose, hold the meta packages
+   and the running kernel:
+   `sudo apt-mark hold linux-virtual linux-image-virtual linux-headers-virtual linux-headers-generic linux-image-$(uname -r) linux-modules-$(uname -r)`
+   (on a `-generic` install, `linux-generic linux-image-generic` instead of the
+   `-virtual` names).
+2. To move: `apt-mark unhold` the meta packages, `apt-get install` them, reboot
+   at a quiet hour.
+3. After the reboot, within ten minutes:
+   - `uname -r` shows the new kernel;
+   - `sudo dmesg | grep 'apparmor="DENIED"' | grep -c 'comm="postgres"'` is `0`;
+   - `kubectl get pods -A -l cnpg.io/podRole=instance` shows every instance `2/2`;
+   - no push alert arrived (`doc/alerting.md`).
+4. If any check fails, boot the previous kernel: set `GRUB_DEFAULT="Advanced
+   options for Ubuntu>Ubuntu, with Linux <old>-generic"` in `/etc/default/grub`,
+   `sudo update-grub`, reboot. Keep the old kernel installed until the new one
+   has run for a week.
 
 ## 6. Not done
 
