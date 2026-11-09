@@ -305,11 +305,11 @@ Rollback is just as simple: revert that commit. Because the ref is immutable, wh
 
 #### Automated weekly update proposals (Renovate)
 
-An in-cluster **Renovate** CronJob is pre-wired to reduce the toil without giving up control. Every Monday it opens **one pull request** in your private overlay that bumps the pinned base tag to the newest `smallworlds` release (config in `my-community-config/renovate.json`). It does **not** auto-merge — you review the changelog and merge when ready; the merge is the commit that triggers ArgoCD. This gives you a low-effort cadence *and* a human gate *and* a full audit trail.
+**Renovate** reduces the toil without giving up control. Every Monday it opens **one pull request** in your private overlay that bumps the pinned base tag to the newest `smallworlds` release (config in `my-community-config/renovate.json`, written by the setup). It does **not** auto-merge — you review the release notes and merge when ready; the merge is the commit that triggers ArgoCD. This gives you a low-effort cadence *and* a human gate *and* a full audit trail.
 
-Requirements for the PR automation:
-- The private overlay must be listed in the Renovate CronJob's `RENOVATE_REPOSITORIES` (added via an overlay patch in your `kustomization.yaml`, so operator-specific config stays out of the public base).
-- The Git token Renovate uses (`repo-git-creds`) must have **pull-request / write** access to the private overlay repo, not just read.
+Renovate runs as the free [Renovate GitHub App](https://github.com/apps/renovate), not in the cluster (the in-cluster CronJob was removed on 2026-11-09: it competed with the members' applications for the one node, and needed a write token stored in it). To enable it, install the app on your GitHub account and grant it access to your overlay repository only. Nothing else is needed — no token, no Secret.
+
+The base repository uses the same app for its own dependency updates: one grouped "Weekly Updates" PR plus one PR per major version, none merged automatically (`renovate.json`).
 
 ---
 

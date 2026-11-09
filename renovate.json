@@ -23,11 +23,12 @@
   },
   "packageRules": [
     {
+      "description": "One grouped PR a week, never merged automatically: a merge to main reaches no cluster until a release tag and an overlay bump, but it does reach the next release, so a human reviews it and test-pr-locally.sh proves it first.",
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "Weekly Updates",
       "schedule": ["before 4am on monday"],
       "prConcurrentLimit": 0,
-      "automerge": true
+      "automerge": false
     },
     {
       "matchDatasources": ["helm"],

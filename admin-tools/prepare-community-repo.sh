@@ -602,7 +602,7 @@ git commit -am "Bump upstream smallworlds base to v1.1.0" && git push
 Pinning keeps updates deliberate, auditable and reproducible. Using \`HEAD\` instead would let ArgoCD pick up upstream changes non-deterministically (on cache expiry) — avoid it in production.
 
 ### Automated update proposals (Renovate)
-\`renovate.json\` configures the in-cluster Renovate CronJob to open **one pull request every Monday** bumping the pinned base tag to the newest \`smallworlds\` release. It does **not** auto-merge — review and merge when ready (the merge is what ArgoCD deploys). This repo (\`${REPO_SLUG}\`) is added to the CronJob's scan list via a patch in \`kustomization.yaml\`. The Git token Renovate uses must have pull-request/write access to this repo.
+\`renovate.json\` tells the [Renovate GitHub App](https://github.com/apps/renovate) to open **one pull request every Monday** bumping the pinned base tag to the newest \`smallworlds\` release. It does **not** auto-merge — review and merge when ready (the merge is what ArgoCD deploys). Install the app on your GitHub account and grant it access to this repository (\`${REPO_SLUG}\`); no token or Secret is needed.
 EOF
 fi
 
