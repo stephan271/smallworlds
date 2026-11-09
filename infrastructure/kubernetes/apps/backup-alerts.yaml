@@ -31,9 +31,19 @@ spec:
         # No successful base backup within 36h despite a daily schedule.
         # Also fires when a cluster has never completed a backup at all
         # (the metric then reports 0).
+        #
+        # Since the move to the barman-cloud plugin (docs/adr/0050) CNPG's own
+        # cnpg_collector_last_available_backup_timestamp stays 0 for every
+        # cluster, so this alert fired permanently and meant nothing — noticed
+        # only on 2026-11-09, when alerts first reached anyone. The plugin
+        # reports the real time; the collector metric remains the fallback for
+        # a cluster without the plugin. One alert per cluster, not per pod.
         - alert: CNPGBackupStale
           expr: |
-            time() - cnpg_collector_last_available_backup_timestamp > 36 * 3600
+            time() - (
+              max by (namespace) (barman_cloud_cloudnative_pg_io_last_available_backup_timestamp)
+              or max by (namespace) (cnpg_collector_last_available_backup_timestamp)
+            ) > 36 * 3600
           for: 1h
           labels:
             severity: critical

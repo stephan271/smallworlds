@@ -225,8 +225,11 @@ Backup health is monitored: the CNPG clusters expose metrics via PodMonitors and
 `apps/backup-alerts.yaml` alerts on WAL-archiving failures (`CNPGWALArchivingFailing`),
 stale base backups (`CNPGBackupStale`) and stale Velero schedules
 (`VeleroBackupStale`); failed replicator/pv-backup CronJob runs are caught by the
-stock `KubeJobFailed` alert. All of it routes through the Alertmanager email
-receiver like every other alert.
+stock `KubeJobFailed` alert. All of it reaches the Operator by push like every
+other alert (`doc/alerting.md`). `CNPGBackupStale` reads the barman-cloud
+plugin's `barman_cloud_cloudnative_pg_io_last_available_backup_timestamp`: CNPG's
+own collector metric stays 0 under the plugin, which kept the alert firing
+falsely from the plugin migration until 2026-11-09.
 
 What this chain **covers end-to-end** (once the offsite leg is configured):
 all PostgreSQL databases — and therefore Stalwart mail, Plane/Forgejo/Nextcloud/Immich
