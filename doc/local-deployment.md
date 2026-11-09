@@ -365,6 +365,26 @@ directory. The Hetzner-specific admin tools (`destroy-cluster.sh`,
 `prepare-fresh-rebuild.sh`, `build-golden-image.sh`, `test-pr-locally.sh`) do
 not apply to local deployments.
 
+### Rolling out an overlay change
+
+Unlike the Hetzner target, the root Application `smallworlds-root` on a local or
+rented machine names **one exact overlay commit**, not a branch
+(`ROOT_APP_GIT_REVISION` in `bootstrap-local-node.sh`): a push to the overlay
+must never change a running deployment on its own. So pushing — or merging a
+Renovate tag-bump PR — deploys nothing until the root is moved to that commit:
+
+```bash
+cd <overlay> && git pull && commit="$(git rev-parse HEAD)"
+kubectl -n argocd patch application smallworlds-root --type merge \
+  -p "{\"spec\":{\"source\":{\"targetRevision\":\"$commit\"}}}"
+kubectl -n argocd get application smallworlds-root \
+  -o jsonpath='{.status.sync.revision} {.status.sync.status} {.status.health.status}{"\n"}'
+```
+
+The commit must already be on the overlay's remote. Moving back is the same
+command with the previous commit. The root is applied once by the bootstrap and
+is not managed by Argo CD itself, so the patch persists and nothing reverts it.
+
 ## Smoke tests
 
 The shallow e2e suite works against a local deployment once the machine
