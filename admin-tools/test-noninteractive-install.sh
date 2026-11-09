@@ -317,6 +317,15 @@ if grep -q 'ref=v1.2.43' "$overlay/kustomization.yaml"; then
 else
     fail "pinned the requested upstream tag"
 fi
+# A release pins the base's Applications to its tag; the ones routed to this
+# overlay must follow the overlay's own HEAD (admin-tools/lib/route_revision.py).
+routed="$(grep -c 'path: /spec/source/repoURL' "$overlay/kustomization.yaml")"
+reset="$(grep -c 'path: /spec/source/targetRevision' "$overlay/kustomization.yaml")"
+if [[ "$routed" -gt 0 && "$routed" == "$reset" ]]; then
+    pass "every routed Application follows the overlay's HEAD"
+else
+    fail "every routed Application follows the overlay's HEAD ($reset of $routed)"
+fi
 
 # Re-running setup is also the supported switch path. Exercise the full
 # none -> Euro-Office -> none cycle against the already-created overlay.
@@ -344,6 +353,12 @@ if ! grep -q '/apps/euro-office.yaml' "$overlay/kustomization.yaml" \
    && grep -q 'value: "none"' "$overlay/nextcloud/kustomization.yaml" \
    && [[ "$(grep -c 'path: /data/OFFICE_BACKEND' "$overlay/nextcloud/kustomization.yaml")" -eq 1 ]]; then
     pass "a rerun switches Euro-Office off without duplicate patches"
+    if [[ "$(grep -c 'path: /spec/source/targetRevision' "$overlay/kustomization.yaml")" \
+          == "$(grep -c 'path: /spec/source/repoURL' "$overlay/kustomization.yaml")" ]]; then
+        pass "a rerun does not reset a revision twice"
+    else
+        fail "a rerun does not reset a revision twice"
+    fi
 else
     fail "a rerun switches Euro-Office off without duplicate patches"
 fi

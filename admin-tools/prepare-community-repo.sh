@@ -471,6 +471,12 @@ EOF
     done
 fi
 
+# A release pins the base's Applications to its own tag (bump-version.sh); an
+# Application routed to this overlay must follow the overlay's HEAD instead.
+# Run on new and existing overlays alike, so re-running this script also
+# migrates one written before that rule existed.
+python3 "$SCRIPT_DIR/lib/route_revision.py" kustomization.yaml
+
 # Generate domain patches for root-level apps if using a different domain or extension
 if [ "$TARGET_DOMAIN" != "smallworlds.network" ] || [ -n "$ENV_EXT" ]; then
     echo -e "${YELLOW}Applying domain patches for root components...${NC}"

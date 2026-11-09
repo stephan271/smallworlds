@@ -139,4 +139,59 @@ if grep -q 'name: headscale' "$legacy/kustomization.yaml"; then
     exit 1
 fi
 
+# Below the first release that pins revisions, routed patches stay as they were.
+if grep -q 'path: /spec/source/targetRevision' "$overlay/kustomization.yaml"; then
+    echo 'a release before v1.2.44 must not reset routed revisions' >&2
+    exit 1
+fi
+
+# From v1.2.44 a tag pins every base Application to itself, so each Application
+# the overlay routes to its own repository must follow the overlay's HEAD.
+"$bumper" "$overlay" v1.2.31 v1.2.44 >/dev/null
+routed="$(grep -c 'path: /spec/source/repoURL' "$overlay/kustomization.yaml")"
+reset="$(grep -c 'path: /spec/source/targetRevision' "$overlay/kustomization.yaml")"
+[ "$routed" = "$reset" ] && [ "$reset" = '3' ] || {
+    echo "expected every routed Application to reset its revision: $reset of $routed" >&2
+    exit 1
+}
+grep -A1 'path: /spec/source/targetRevision' "$overlay/kustomization.yaml" | grep -q 'value: HEAD'
+"$bumper" "$overlay" v1.2.44 v1.2.45 >/dev/null
+[ "$(grep -c 'path: /spec/source/targetRevision' "$overlay/kustomization.yaml")" = '3' ]
+
+# An overlay that has tracked main moves onto a release — including one on the
+# project's own domain, which has no hostname patches to read a domain from.
+tracking="$temporary_directory/tracking"
+mkdir -p "$tracking/dashboard"
+cat > "$tracking/kustomization.yaml" <<'ROOT'
+resources:
+  - https://github.com/stephan271/smallworlds.git/infrastructure/kubernetes?ref=HEAD
+  - https://raw.githubusercontent.com/stephan271/smallworlds/HEAD/infrastructure/kubernetes/apps/immich.yaml
+patches:
+  - target:
+      group: argoproj.io
+      kind: Application
+      name: dashboard
+    patch: |-
+      - op: replace
+        path: /spec/source/repoURL
+        value: https://github.com/octocat/overlay.git
+      - op: replace
+        path: /spec/source/path
+        value: dashboard
+ROOT
+cat > "$tracking/dashboard/kustomization.yaml" <<'DASHBOARD'
+resources:
+  - https://github.com/stephan271/smallworlds.git/infrastructure/kubernetes/tenants/dashboard?ref=HEAD
+DASHBOARD
+"$bumper" "$tracking" HEAD v1.2.44 >/dev/null
+grep -q '?ref=v1.2.44' "$tracking/kustomization.yaml"
+grep -q '/smallworlds/v1.2.44/infrastructure' "$tracking/kustomization.yaml"
+grep -q '?ref=v1.2.44' "$tracking/dashboard/kustomization.yaml"
+[ ! -e "$tracking/headscale" ]
+grep -A1 'path: /spec/source/targetRevision' "$tracking/kustomization.yaml" | grep -q 'value: HEAD'
+if "$bumper" "$tracking" v1.2.44 HEAD >/dev/null 2>&1; then
+    echo 'expected refusal of HEAD as a target: that is the opposite of pinning' >&2
+    exit 1
+fi
+
 echo 'bump-overlay-release: tests passed'

@@ -31,7 +31,12 @@ OVERLAY="${1:?usage: bump-overlay-release.sh <overlay-directory> <from-tag> <to-
 FROM="${2:?missing from-tag}"
 TO="${3:?missing to-tag}"
 
+# The from-side may be HEAD: an overlay that has tracked main until now is
+# exactly the one that most needs moving onto a release.
 for tag in "$FROM" "$TO"; do
+    if [[ "$tag" == "HEAD" && "$tag" == "$FROM" ]]; then
+        continue
+    fi
     if ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         echo "not a release tag: $tag" >&2
         exit 1
@@ -45,6 +50,9 @@ fi
 # True when the target release is at least the given one. Used to decide which
 # of the migrations below apply, so bumping several releases at once still
 # picks up everything on the way.
+# The first release whose tagged commit pins targetRevision (bump-version.sh).
+FIRST_PINNED_RELEASE=v1.2.44
+
 version_at_least() {
     [ "$(printf '%s\n%s\n' "$1" "$TO" | sort -V | head -1)" = "$1" ]
 }
@@ -68,12 +76,16 @@ fi
 # The domain is read from an existing application rather than passed in: the
 # overlay already knows which hostnames it uses, and asking again would only be
 # an opportunity for the answer to disagree with the file.
-if version_at_least v1.2.30 && [ ! -f "$OVERLAY/headscale/kustomization.yaml" ]; then
+# An overlay on the project's own domain carries no hostname patches at all;
+# headscale's base manifests already name that domain, so it needs no routing.
+DOMAIN=""
+if [ -f "$OVERLAY/dashboard/kustomization.yaml" ]; then
     DOMAIN="$(sed -n 's|^ *value: dashboard\.\(.*\)$|\1|p' "$OVERLAY/dashboard/kustomization.yaml" | head -1)"
-    if [ -z "$DOMAIN" ]; then
-        echo "could not read the cluster's domain from dashboard/kustomization.yaml" >&2
-        exit 1
-    fi
+fi
+if version_at_least v1.2.30 && [ ! -f "$OVERLAY/headscale/kustomization.yaml" ] && [ -z "$DOMAIN" ]; then
+    echo "  no hostname patches in dashboard/ — headscale stays on the base's own domain"
+fi
+if version_at_least v1.2.30 && [ ! -f "$OVERLAY/headscale/kustomization.yaml" ] && [ -n "$DOMAIN" ]; then
     echo "  domain: $DOMAIN"
     mkdir -p "$OVERLAY/headscale"
     cat > "$OVERLAY/headscale/kustomization.yaml" <<HEADSCALE
@@ -106,7 +118,8 @@ fi
 # The root file lists Application patches alphabetically. Inserted with python
 # rather than sed: placing an indented multi-line block at a computed position
 # is exactly where a stream editor starts guessing.
-if version_at_least v1.2.30 && ! grep -q "name: headscale" "$OVERLAY/kustomization.yaml"; then
+if version_at_least v1.2.30 && [ -f "$OVERLAY/headscale/kustomization.yaml" ] \
+        && ! grep -q "name: headscale" "$OVERLAY/kustomization.yaml"; then
     python3 - "$OVERLAY/kustomization.yaml" <<'PYTHON'
 import re
 import sys
@@ -139,6 +152,14 @@ else:
 open(path, "w").write(text)
 print("  added the headscale Application patch to kustomization.yaml")
 PYTHON
+fi
+
+# --- 3. routed Applications follow the overlay, not the base's tag ----------
+# From the first release cut by the current bump-version.sh, a tag pins every
+# base Application to itself. An Application this overlay routes to its own
+# repository must reset that to the overlay's HEAD (admin-tools/lib/route_revision.py).
+if version_at_least "$FIRST_PINNED_RELEASE"; then
+    python3 "$(dirname "$0")/lib/route_revision.py" "$OVERLAY/kustomization.yaml"
 fi
 
 echo
