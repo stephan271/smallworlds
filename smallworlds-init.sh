@@ -778,6 +778,40 @@ fi
 ask_with_default "2. Enter your target domain (e.g. smallworlds.network)" "DOMAIN" "false" "required"
 ask_with_default "3. Enter the admin email address" "ADMIN_EMAIL" "false" "required"
 
+# How the cluster reaches its Operator (docs/adr/0049, doc/alerting.md): an
+# ntfy topic for alerts and a heartbeat URL that alerts on *silence*. Both must
+# live outside the cluster. Optional — but a cluster without them fails
+# silently, which is how a database stayed down for four days unnoticed.
+#
+# The operator pastes a plain topic URL; ntfy needs `template=alertmanager` to
+# turn Alertmanager's webhook JSON into a readable notification.
+alert_push_url() {
+    local url="$1"
+    case "$url" in
+        *template=*) printf '%s' "$url" ;;
+        *\?*)        printf '%s&template=alertmanager' "$url" ;;
+        *)           printf '%s?template=alertmanager' "$url" ;;
+    esac
+}
+require_web_url() {
+    local name="$1" value="$2"
+    if [[ -n "$value" && ! "$value" =~ ^https?://[^[:space:]\"]+$ ]]; then
+        echo -e "${YELLOW}${name} must be an http(s) URL without spaces or quotes.${NC}"
+        sw_guidance "Check the ${name}" "It has to be a full web address, for example https://ntfy.sh/your-topic or https://hc-ping.com/<uuid>."
+        exit 1
+    fi
+}
+echo -e "${YELLOW}Alerts reach you as push notifications through ntfy (https://ntfy.sh, free, no account).${NC}"
+echo -e "${YELLOW}Pick a long random topic name — it is the password — and subscribe to it in the ntfy app.${NC}"
+ask_with_default "3a. ntfy topic URL for alerts (e.g. https://ntfy.sh/<long-random-name>; empty = no alerts)" "ALERT_PUSH_URL" "true"
+if [[ -n "$ALERT_PUSH_URL" ]]; then
+    echo -e "${YELLOW}A heartbeat notices when the whole server is gone: create a check at https://healthchecks.io${NC}"
+    echo -e "${YELLOW}(period 5 minutes, grace 10 minutes) and paste its ping URL.${NC}"
+    ask_with_default "3b. Heartbeat ping URL (e.g. https://hc-ping.com/<uuid>)" "HEARTBEAT_URL" "true" "required"
+fi
+require_web_url "alert topic URL" "$ALERT_PUSH_URL"
+require_web_url "heartbeat URL" "$HEARTBEAT_URL"
+
 # Ensure ONBOARDING_MODE has a valid default if empty
 if [[ -z "$ONBOARDING_MODE" ]]; then
     ONBOARDING_MODE="invitation"
@@ -1029,6 +1063,8 @@ LIBRARY_DIR="${LIBRARY_DIR}"
 DOMAIN="${DOMAIN}"
 ENV_EXT="${ENV_EXT}"
 ADMIN_EMAIL="${ADMIN_EMAIL}"
+ALERT_PUSH_URL="${ALERT_PUSH_URL}"
+HEARTBEAT_URL="${HEARTBEAT_URL}"
 ONBOARDING_MODE="${ONBOARDING_MODE}"
 HCLOUD_TOKEN="${HCLOUD_TOKEN}"
 HETZNER_SERVER_TYPE="${HETZNER_SERVER_TYPE}"
@@ -1174,6 +1210,24 @@ stringData:
   admin-user: "admin"
   admin-password: "${GRAFANA_PASS}"
 EOF
+
+if [[ -n "$ALERT_PUSH_URL" ]]; then
+    # Read by the AlertmanagerConfigs in apps/alertmanager-config.yaml. Without
+    # this Secret they are rejected and alerts go nowhere — the honest state of
+    # a cluster that was given no way to reach its Operator.
+    cat <<EOF >> "$SECRETS_FILE"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: smallworlds-notify
+  namespace: monitoring
+type: Opaque
+stringData:
+  alerts-url: "$(alert_push_url "$ALERT_PUSH_URL")"
+  heartbeat-url: "${HEARTBEAT_URL}"
+EOF
+fi
 
 if [[ "$OBJECT_STORAGE" == "external" ]]; then
     # The whole switch, as far as the cluster is concerned: every init job that

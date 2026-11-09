@@ -127,6 +127,36 @@ def test_plan_module():
     check("an Office editor without Nextcloud is refused",
           "apps" in fields({"apps": ["euro-office"]}))
 
+    # docs/adr/0049: alerts go by push, and a push without a heartbeat would
+    # report everything except the outage that matters most.
+    check("alerts are optional", "alert_push_url" not in fields({}))
+    check("a topic without a heartbeat is refused",
+          "heartbeat_url" in fields({"alert_push_url": "https://ntfy.sh/topic"}))
+    check("a topic with a heartbeat validates",
+          fields({"alert_push_url": "https://ntfy.sh/topic",
+                  "heartbeat_url": "https://hc-ping.com/abc"}) == set())
+    check("a saved heartbeat counts",
+          fields({"alert_push_url": "https://ntfy.sh/topic",
+                  "use_saved_heartbeat_url": True}) == set())
+    check("a topic that is not a URL is refused",
+          "alert_push_url" in fields({"alert_push_url": "my-topic",
+                                      "heartbeat_url": "https://hc-ping.com/abc"}))
+    check("a quote cannot reach the YAML string",
+          "heartbeat_url" in fields({"alert_push_url": "https://ntfy.sh/topic",
+                                     "heartbeat_url": 'https://hc-ping.com/a"b'}))
+    silent_plan = plan.build_plan(complete)
+    check("a plan without alerts says so",
+          silent_plan["summary"]["alerts"].startswith("nowhere")
+          and any("No alert topic" in w for w in silent_plan["warnings"]))
+    alerting_plan = plan.build_plan({**complete,
+                                     "alert_push_url": "https://ntfy.sh/topic",
+                                     "heartbeat_url": "https://hc-ping.com/abc"})
+    check("a plan with alerts names the hosts, not the topic",
+          "ntfy.sh" in alerting_plan["summary"]["alerts"]
+          and "hc-ping.com" in alerting_plan["summary"]["alerts"]
+          and "topic" not in json.dumps(alerting_plan["summary"])
+          and not any("No alert topic" in w for w in alerting_plan["warnings"]))
+
     # docs/adr/0048: backups have to survive losing the operational disk.
     same_directory = fields({
         "target": "local", "ssh_target": "root@10.0.0.2", "local_tls": "self-signed",
@@ -685,6 +715,14 @@ def test_runner():
     check("the installer cache carries the answers",
           cached["DOMAIN"] == "example.org" and cached["ENV_EXT"] == ".dev")
     check("the tokens reach the installer", cached["HCLOUD_TOKEN"] == "hetzner-secret")
+    alert_cache = os.path.join(directory, "alert-cache.env")
+    runner.write_installer_cache(answers, alert_cache,
+                                 {**tokens, "ALERT_PUSH_URL": "https://ntfy.sh/t",
+                                  "HEARTBEAT_URL": "https://hc-ping.com/h"})
+    alert_cached = plan_module()._read_shell_assignments(alert_cache)
+    check("the alert URLs reach the installer",
+          (alert_cached["ALERT_PUSH_URL"], alert_cached["HEARTBEAT_URL"]) ==
+          ("https://ntfy.sh/t", "https://hc-ping.com/h"))
     check("the cache is private", oct(os.stat(installer_cache).st_mode)[-3:] == "600")
 
     check("an install that never chose a provider records Garage for both scripts",

@@ -418,6 +418,27 @@ if [[ -s "$fixtures/node-manifests/smallworlds-secrets.yaml" ]]; then
 else
     fail "the secrets are actually on the node"
 fi
+check_absent "$(cat "$fixtures/node-manifests/smallworlds-secrets.yaml" 2>/dev/null)" \
+    "smallworlds-notify" "no alert topic means no notification Secret"
+
+# --------------------------------------------------------------------------
+echo "alerts reach the operator by push (docs/adr/0049)"
+# --------------------------------------------------------------------------
+cache_file="$init_root/.smallworlds-cache.env"
+sed -i '/^ALERT_PUSH_URL=\|^HEARTBEAT_URL=/d' "$cache_file"
+printf 'ALERT_PUSH_URL="https://ntfy.sh/sw-test-topic"\nHEARTBEAT_URL="https://hc-ping.com/test-uuid"\n' >> "$cache_file"
+output="$(run_init_to_node done)"
+planted="$(cat "$fixtures/node-manifests/smallworlds-secrets.yaml" 2>/dev/null)"
+check_contains "$planted" "name: smallworlds-notify" "the notification Secret is planted"
+check_contains "$planted" 'alerts-url: "https://ntfy.sh/sw-test-topic?template=alertmanager"' \
+    "with ntfy's Alertmanager template added to the topic"
+check_contains "$planted" 'heartbeat-url: "https://hc-ping.com/test-uuid"' "and the heartbeat beside it"
+check_absent "$output" "sw-test-topic" "the topic never appears in the output"
+
+sed -i '/^HEARTBEAT_URL=/d' "$cache_file"
+output="$(run_init)"
+check_contains "$output" "!!! missing:HEARTBEAT_URL" "a topic without a heartbeat is refused"
+sed -i '/^ALERT_PUSH_URL=\|^HEARTBEAT_URL=/d' "$cache_file"
 
 # --------------------------------------------------------------------------
 echo "a copy that fails is not reported as a success"

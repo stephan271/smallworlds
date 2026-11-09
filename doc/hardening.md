@@ -147,7 +147,8 @@ and uses for other things is not this project's decision to make.
 ## 6. Not done
 
 - **A pending-reboot alert.** Security patches land automatically but the reboot
-  that activates kernel updates is manual and unmonitored.
+  that activates kernel updates is manual and unmonitored. (Alerts themselves now
+  reach the Operator — `doc/alerting.md` — so this is a rule, not a channel.)
 - **Rate limits for Jitsi and pod-gateway** (§2).
 - **CrowdSec or equivalent** — behavioural IP banning across all ingresses, which
   is the largest remaining lever against scanners and distributed brute force. It

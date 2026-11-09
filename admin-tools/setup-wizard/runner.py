@@ -156,6 +156,8 @@ def write_installer_cache(answers: dict, path: str, token_source: dict) -> None:
         "DOMAIN": answers["domain"],
         "ENV_EXT": answers.get("env_ext", ""),
         "ADMIN_EMAIL": answers["admin_email"],
+        "ALERT_PUSH_URL": token_source.get("ALERT_PUSH_URL", ""),
+        "HEARTBEAT_URL": token_source.get("HEARTBEAT_URL", ""),
         "ONBOARDING_MODE": answers["onboarding_mode"],
         "HCLOUD_TOKEN": token_source.get("HCLOUD_TOKEN", ""),
         "GITOPS_REPO_URL": answers["remote_url"],

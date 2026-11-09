@@ -45,12 +45,12 @@ simply has nothing to match against. See `doc/tenant-keycloak.md` §5.)
 Invitation mode also sets `emailVerified` directly rather than mailing a
 verification.
 
-What still needs an egress channel is **alerting** — Alertmanager and Hermes —
-and the `self-registration` onboarding mode, which sets `verifyEmail=true`
+What still needs an egress channel is **alerting** and the `self-registration`
+onboarding mode, which sets `verifyEmail=true`
 (`tenants/keycloak/realm-config-job.yaml`) and is meaningless without a way to
-verify. Alerting need not be SMTP: Alertmanager's `webhookConfigs` already carry
-the Tier 1 remediation route, and pointing alerts at ntfy, Gotify or Matrix
-removes the mail dependency entirely.
+verify. Alertmanager no longer uses mail at all: since 2026-11-09 it pushes to an
+external ntfy topic and pings an external heartbeat (`doc/alerting.md`). Hermes
+still mails through Stalwart.
 
 A fully mail-free cluster is therefore coherent, and is the expected shape of a
 LAN deployment: invitation onboarding, passkey login, push alerting, no
@@ -59,14 +59,13 @@ application notifications, or alerts routed by mail. See `docs/adr/0049`.
 
 ## 2. Who sends mail today
 
-All three senders talk to Stalwart's in-cluster service on plain port 25 with
+Both senders talk to Stalwart's in-cluster service on plain port 25 with
 no authentication and no TLS, which Stalwart accepts from the cluster subnets
 `10.42.0.0/16` and `10.43.0.0/16` (`doc/tenant-stalwart.md`).
 
 | Sender | Where | From address |
 |---|---|---|
 | Keycloak | `tenants/keycloak/values.yaml` (`KC_SMTP_*`) | `auth@<domain>` |
-| Alertmanager | `apps/alertmanager-config.yaml` (`smarthost:`) | `alertmanager@<domain>` |
 | Hermes | `tenants/hermes/src/config.py`, `mailer.py` | `hermes@<domain>` |
 
 Hermes uses `smtplib.SMTP` directly with **neither `starttls()` nor `login()`**.

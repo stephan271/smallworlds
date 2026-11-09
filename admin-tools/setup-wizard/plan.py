@@ -257,6 +257,10 @@ def initial_state() -> dict:
         "has_saved_git_token": bool(cached.get("GITOPS_REPO_TOKEN")),
         "has_saved_s3_secret": bool(cached.get("S3_SECRET_ACCESS_KEY")),
         "has_saved_s3_backup_secret": bool(cached.get("S3_BACKUP_SECRET_ACCESS_KEY")),
+        # The ntfy topic name is the only thing protecting the alerts, so the
+        # two notification URLs are handled like tokens (docs/adr/0049).
+        "has_saved_alert_push_url": bool(cached.get("ALERT_PUSH_URL")),
+        "has_saved_heartbeat_url": bool(cached.get("HEARTBEAT_URL")),
 
         "catalog": {
             "always": ALWAYS_INSTALLED,
@@ -275,6 +279,24 @@ def initial_state() -> dict:
 _DOMAIN_PATTERN = re.compile(
     r"^(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\.(?!-)[A-Za-z0-9-]{1,63}(?<!-))+$")
 _EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+# Mirrors require_web_url in smallworlds-init.sh: the value lands inside a
+# double-quoted YAML string, so quotes and whitespace are refused outright.
+_WEB_URL_PATTERN = re.compile(r'^https?://[^\s"]+$')
+
+
+def _url_host(url: str) -> str:
+    match = re.match(r"^https?://([^/?#]+)", url or "")
+    return match.group(1) if match else ""
+
+
+def _alerting(answers: dict) -> tuple[bool, bool]:
+    """Whether a push URL and a heartbeat URL will reach the installer —
+    typed now, or saved on this machine from an earlier run."""
+    push = bool((answers.get("alert_push_url") or "").strip()
+                or answers.get("use_saved_alert_push_url"))
+    heartbeat = bool((answers.get("heartbeat_url") or "").strip()
+                     or answers.get("use_saved_heartbeat_url"))
+    return push, heartbeat
 
 
 def validate_answers(answers: dict) -> list[dict]:
@@ -296,6 +318,17 @@ def validate_answers(answers: dict) -> list[dict]:
         problem("admin_email", "An admin email address is required.")
     elif not _EMAIL_PATTERN.match(email):
         problem("admin_email", f"'{email}' is not a valid email address.")
+
+    for field, label in (("alert_push_url", "The ntfy topic"),
+                         ("heartbeat_url", "The heartbeat")):
+        value = (answers.get(field) or "").strip()
+        if value and not _WEB_URL_PATTERN.match(value):
+            problem(field, f"{label} has to be a full web address starting with https://")
+    push, heartbeat = _alerting(answers)
+    if push and not heartbeat:
+        problem("heartbeat_url",
+                "Alerts need the heartbeat too — without it nobody notices when "
+                "the whole server is gone, which is the outage that matters most.")
 
     env_ext = (answers.get("env_ext") or "").strip()
     if env_ext and not env_ext.startswith("."):
@@ -548,7 +581,23 @@ def build_plan(answers: dict) -> dict:
         },
     ])
 
+    push, _ = _alerting(answers)
+    if push:
+        push_host = _url_host((answers.get("alert_push_url") or "").strip())
+        heartbeat_host = _url_host((answers.get("heartbeat_url") or "").strip())
+        alerts_summary = (
+            "by push" + (f" through {push_host}" if push_host else "")
+            + ", with a heartbeat" + (f" at {heartbeat_host}" if heartbeat_host else ""))
+    else:
+        alerts_summary = "nowhere — nothing tells you when something breaks"
+
     warnings = []
+    if not push:
+        warnings.append(
+            "No alert topic: when an application or a database stops, nothing "
+            "tells you — you find out when members do. Add an ntfy topic and a "
+            "heartbeat on the first panel; doc/alerting.md explains both."
+        )
     if "bulwark" in apps and "stalwart" not in apps:
         warnings.append(next(
             a["requires_note"] for a in OPTIONAL_APPS if a["name"] == "bulwark"
@@ -654,6 +703,7 @@ def build_plan(answers: dict) -> dict:
             "certificates": certificates,
             "reachable": reachable,
             "storage": storage_summary,
+            "alerts": alerts_summary,
             "onboarding": answers["onboarding_mode"],
             "repository": repository,
             "version": answers["version"],

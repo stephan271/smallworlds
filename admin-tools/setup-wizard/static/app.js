@@ -100,6 +100,10 @@ function answers() {
   return {
     domain: el("domain").value.trim().toLowerCase(),
     admin_email: el("admin_email").value.trim(),
+    alert_push_url: el("alert_push_url").value.trim(),
+    use_saved_alert_push_url: state ? state.has_saved_alert_push_url : false,
+    heartbeat_url: el("heartbeat_url").value.trim(),
+    use_saved_heartbeat_url: state ? state.has_saved_heartbeat_url : false,
     env_ext: el("env_ext").value.trim(),
     onboarding_mode: el("onboarding_mode").value,
 
@@ -201,6 +205,7 @@ function showInstalling() {
    "domain is required" never appears three screens away from the domain. */
 const FIELD_PANEL = {
   domain: 0, admin_email: 0, env_ext: 0, onboarding_mode: 0,
+  alert_push_url: 0, heartbeat_url: 0,
   target: 1, ssh_target: 1, data_dir: 1, backup_dir: 1, hcloud_token: 1,
   library_dir: 1, host_firewall: 1, local_dns: 1, photo_backend: 3,
   object_storage: 1, s3_endpoint: 1, s3_region: 1, s3_bucket_prefix: 1,
@@ -357,6 +362,7 @@ function renderPlan(target, result) {
     ["Certificates", result.summary.certificates],
     ["Reachable", result.summary.reachable],
     ["Files and backups", result.summary.storage],
+    ["Alerts", result.summary.alerts],
     ["Photos", result.summary.photos],
     ["Members join", result.summary.onboarding === "invitation"
       ? "by invitation" : "by signing up themselves"],
@@ -534,6 +540,13 @@ function applyGitModeVisibility() {
 function fill() {
   el("domain").value = state.domain;
   el("admin_email").value = state.admin_email;
+  // Never filled in: the topic name is a credential and stays on the server.
+  if (state.has_saved_alert_push_url) {
+    el("alert_push_url").placeholder = "a saved topic will be used — type to replace it";
+  }
+  if (state.has_saved_heartbeat_url) {
+    el("heartbeat_url").placeholder = "a saved heartbeat will be used — type to replace it";
+  }
   el("env_ext").value = state.env_ext;
   el("onboarding_mode").value = state.onboarding_mode;
 

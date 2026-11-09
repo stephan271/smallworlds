@@ -345,6 +345,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
             "S3_BACKUP_SECRET_ACCESS_KEY": SESSION.resolve_secret(
                 "S3_BACKUP_SECRET_ACCESS_KEY",
                 answers.get("s3_backup_secret_access_key") or "", True),
+            # The ntfy topic name is what protects the alerts (docs/adr/0049).
+            "ALERT_PUSH_URL": SESSION.resolve_secret(
+                "ALERT_PUSH_URL", (answers.get("alert_push_url") or "").strip(), True),
+            "HEARTBEAT_URL": SESSION.resolve_secret(
+                "HEARTBEAT_URL", (answers.get("heartbeat_url") or "").strip(), True),
         }
         if answers.get("object_storage") == "external" and not token_source["S3_SECRET_ACCESS_KEY"]:
             return {"started": False, "reason": "missing_token",
@@ -400,6 +405,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         answers["use_saved_s3_backup_secret"] = bool(
             answers.get("use_saved_s3_backup_secret")
             or SESSION.secrets.get("S3_BACKUP_SECRET_ACCESS_KEY"))
+        answers["use_saved_alert_push_url"] = bool(
+            answers.get("use_saved_alert_push_url") or SESSION.secrets.get("ALERT_PUSH_URL"))
+        answers["use_saved_heartbeat_url"] = bool(
+            answers.get("use_saved_heartbeat_url") or SESSION.secrets.get("HEARTBEAT_URL"))
         return answers
 
     def _stream_events(self):

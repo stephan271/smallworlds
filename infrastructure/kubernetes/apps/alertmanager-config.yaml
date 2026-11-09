@@ -1,3 +1,18 @@
+# Where alerts go (docs/adr/0049: system notification is not mail).
+#
+# Three AlertmanagerConfigs rather than one. prometheus-operator gives each its
+# own top-level route with `continue: true`, so every alert is offered to all
+# three, and each is validated on its own: a cluster whose notification Secret
+# is missing loses push and heartbeat, but the remediation hand-off keeps
+# working, and a broken remediation route cannot silence the operator's phone.
+#
+# The two outward URLs are secrets — anyone holding an ntfy topic name can read
+# the alerts — so they never appear here. The installer plants them as
+# `monitoring/smallworlds-notify` (keys `alerts-url`, `heartbeat-url`); on an
+# existing cluster the operator creates it once, see doc/alerting.md.
+#
+# Both endpoints must live outside the cluster: a service that dies with the
+# node cannot report the node.
 apiVersion: monitoring.coreos.com/v1alpha1
 kind: AlertmanagerConfig
 metadata:
@@ -12,50 +27,85 @@ metadata:
     argocd.argoproj.io/sync-wave: "1"
 spec:
   route:
-    receiver: email-admin
+    receiver: push
+    groupBy: ["alertname", "namespace"]
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: 12h
+    routes:
+      # `none` is Watchdog (handled by smallworlds-heartbeat below) and
+      # `info` is InfoInhibitor and friends: both fire continuously by design
+      # and would otherwise reach the phone every repeatInterval.
+      - receiver: discard
+        matchers:
+          - name: severity
+            matchType: "=~"
+            value: "none|info"
+  receivers:
+    - name: push
+      webhookConfigs:
+        # An ntfy topic URL ending in `?template=alertmanager`, which makes ntfy
+        # render Alertmanager's webhook JSON as a readable title and message.
+        - urlSecret:
+            name: smallworlds-notify
+            key: alerts-url
+          sendResolved: true
+    - name: discard
+---
+# Dead man's switch. Watchdog fires for as long as Prometheus and Alertmanager
+# are alive; forwarding it every five minutes to an external heartbeat service
+# (healthchecks.io) turns *silence* into the alert. Nothing inside the cluster
+# can report the cluster's own death — this is the only path that does.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: smallworlds-heartbeat
+  namespace: monitoring
+  labels:
+    alertmanagerConfig: smallworlds
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  route:
+    receiver: heartbeat
+    matchers:
+      - name: alertname
+        value: Watchdog
+    groupWait: 0s
+    groupInterval: 1m
+    repeatInterval: 5m
+  receivers:
+    - name: heartbeat
+      webhookConfigs:
+        - urlSecret:
+            name: smallworlds-notify
+            key: heartbeat-url
+          sendResolved: false
+---
+# Tier 1 remediation: hand KubePodCrashLooping to the deterministic handler
+# service (which confirms OOMKilled and opens a right-sizing PR). The operator
+# still gets the same alert by push through smallworlds-alerts, so nothing is
+# hidden while Tier 1 runs in DRY_RUN.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: smallworlds-remediation
+  namespace: monitoring
+  labels:
+    alertmanagerConfig: smallworlds
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  route:
+    receiver: tier1-webhook
     groupBy: ["alertname", "namespace"]
     groupWait: 30s
     groupInterval: 5m
     repeatInterval: 4h
-    routes:
-      # The kube-prometheus-stack deadman's-switch alert fires constantly by
-      # design — discard it instead of emailing.
-      - receiver: blackhole
-        matchers:
-          - name: alertname
-            value: Watchdog
-      # Tier 1 remediation: hand KubePodCrashLooping to the deterministic
-      # handler service (which confirms OOMKilled and opens a right-sizing PR).
-      # continue: true so the very next route still emails it — the operator
-      # keeps full visibility while Tier 1 is in DRY_RUN. Once armed, this
-      # duplicate email route can be dropped so handled alerts stop paging.
-      - receiver: tier1-webhook
-        continue: true
-        matchers:
-          - name: alertname
-            value: KubePodCrashLooping
-      - receiver: email-admin
-        matchers:
-          - name: alertname
-            value: KubePodCrashLooping
+    matchers:
+      - name: alertname
+        value: KubePodCrashLooping
   receivers:
-    - name: email-admin
-      emailConfigs:
-        # Placeholder recipient. Each operator overrides this in their private
-        # overlay (my-community-config) via a kustomize patch on this CR:
-        #   /spec/receivers/0/emailConfigs/0/to
-        - to: alerts@example.com
-          from: alertmanager@smallworlds.network
-          # EHLO identity — must be a valid FQDN or Stalwart rejects it with
-          # "550 Invalid EHLO domain" (Alertmanager otherwise sends "localhost").
-          hello: smallworlds.network
-          # Stalwart's internal relay accepts unauthenticated mail from cluster
-          # subnets (10.42/10.43) and DKIM-signs local-domain senders; plain
-          # in-cluster port 25, no TLS needed.
-          smarthost: stalwart-mail.stalwart.svc.cluster.local:25
-          requireTLS: false
-          sendResolved: true
-    - name: blackhole
     - name: tier1-webhook
       webhookConfigs:
         - url: http://remediation.remediation.svc.cluster.local:8080/webhook

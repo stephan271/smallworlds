@@ -87,6 +87,6 @@ but open no PRs and escalate to no one. To arm:
    Renovate uses) in the `remediation` namespace.
 2. Set `DRY_RUN: "false"` in `config.yaml`.
 3. Tune `HEADROOM_FACTOR`, `P95_WINDOW`, `RESOLVE_DEADLINE_SECONDS` if needed.
-4. Once confident, drop the duplicate `email-admin` route for
-   `KubePodCrashLooping` in `apps/alertmanager-config.yaml` so handled alerts
-   stop paging.
+4. Once confident, exclude `KubePodCrashLooping` from the push route
+   (`smallworlds-alerts` in `apps/alertmanager-config.yaml`, see
+   `doc/alerting.md`) so handled alerts stop paging.

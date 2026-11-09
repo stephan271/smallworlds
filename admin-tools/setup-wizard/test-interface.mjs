@@ -223,7 +223,7 @@ await page.click("#next");
 await page.waitForSelector(".plan-summary");
 check("the plan is rendered", (await openPanel()) === "review");
 check("the plan summarises every decision",
-      (await page.locator(".plan-summary dt").count()) === 11);
+      (await page.locator(".plan-summary dt").count()) === 12);
 check("the plan lists what will happen", (await page.locator(".plan-step").count()) === 4);
 const hostnames = await page.locator(".hostname").allTextContents();
 check("the plan lists the addresses members will use",

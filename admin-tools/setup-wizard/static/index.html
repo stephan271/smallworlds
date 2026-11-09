@@ -22,8 +22,9 @@
   <!-- 1 ------------------------------------------------------------------ -->
   <section class="panel" data-panel="community">
     <h1>Your community</h1>
-    <p class="lede">Two answers. Everything else has a sensible default you can
-      change later in your settings repository.</p>
+    <p class="lede">Your domain and email, and where alerts should reach you.
+      Everything else has a sensible default you can change later in your
+      settings repository.</p>
 
     <div class="field">
       <label for="domain">Domain</label>
@@ -40,6 +41,26 @@
       <input id="admin_email" type="email" autocomplete="off" placeholder="you@example.org">
       <p class="hint">Used for the Let's Encrypt account and as the operator
         contact. It is not published to members.</p>
+    </div>
+
+    <div class="field">
+      <label for="alert_push_url">Where alerts reach you</label>
+      <input id="alert_push_url" type="url" autocomplete="off" spellcheck="false"
+             placeholder="https://ntfy.sh/a-long-random-topic-name">
+      <p class="hint">A topic at <a href="https://ntfy.sh" target="_blank" rel="noopener">ntfy.sh</a>
+        — free, no account. Make the name long and random: anyone who knows it can
+        read your alerts. Subscribe to it in the ntfy phone app. Left empty, nothing
+        tells you when something breaks.</p>
+    </div>
+
+    <div class="field">
+      <label for="heartbeat_url">Heartbeat</label>
+      <input id="heartbeat_url" type="url" autocomplete="off" spellcheck="false"
+             placeholder="https://hc-ping.com/…">
+      <p class="hint">Needed with alerts. A check at
+        <a href="https://healthchecks.io" target="_blank" rel="noopener">healthchecks.io</a>
+        with period 5 minutes and grace 10 minutes: the cluster pings it while it is
+        alive, so the silence of a dead server becomes an alert too.</p>
     </div>
 
     <details class="advanced">
