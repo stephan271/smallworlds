@@ -1,0 +1,87 @@
+name: PR checks
+
+# Cheap, fast and without a cluster (docs/adr/0060, design §4.2). A PR that
+# fails here never reaches main, and so never reaches Ring 0.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    name: Render every tenant
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - uses: azure/setup-kubectl@v4
+      - name: kubectl kustomize --enable-helm
+        run: |
+          failed=0
+          for dir in infrastructure/kubernetes infrastructure/kubernetes/tenants/*/; do
+            if kubectl kustomize --enable-helm "$dir" > /dev/null; then
+              echo "ok   $dir"
+            else
+              echo "::error::$dir does not render"
+              failed=1
+            fi
+          done
+          exit $failed
+
+  static:
+    name: Syntax and configuration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: bash -n on every script
+        run: |
+          failed=0
+          while IFS= read -r -d '' f; do
+            bash -n "$f" || { echo "::error file=$f::bash -n failed"; failed=1; }
+          done < <(git ls-files -z '*.sh' smallworlds-setup)
+          exit $failed
+      - name: renovate.json parses and every application has a group
+        run: python3 admin-tools/test-renovate-groups.py
+
+  script-tests:
+    name: Script tests (no cloud)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        test:
+          - test-bootstrap-pins.sh
+          - test-bump-overlay-release.sh
+          - test-bump-version.sh
+          - test-gitops-bootstrap-ordering.sh
+          - test-hetzner-placement.sh
+          - test-join.sh
+          - test-local-bootstrap-preflight.sh
+          - test-noninteractive-install.sh
+          - test-setup-wizard.sh
+          - test-object-storage.py
+          - test-pod-gateway.py
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - uses: azure/setup-helm@v4
+      - uses: azure/setup-kubectl@v4
+      - name: ${{ matrix.test }}
+        env:
+          GIT_AUTHOR_NAME: ci
+          GIT_AUTHOR_EMAIL: ci@invalid
+          GIT_COMMITTER_NAME: ci
+          GIT_COMMITTER_EMAIL: ci@invalid
+        run: |
+          case "${{ matrix.test }}" in
+            *.py) python3 "admin-tools/${{ matrix.test }}" ;;
+            *)    bash "admin-tools/${{ matrix.test }}" ;;
+          esac

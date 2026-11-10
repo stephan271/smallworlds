@@ -4,7 +4,7 @@
     "config:best-practices",
     ":prHourlyLimitNone"
   ],
-  "prConcurrentLimit": 1,
+  "prConcurrentLimit": 5,
   "timezone": "Europe/Berlin",
   "argocd": {
     "managerFilePatterns": [
@@ -21,26 +21,223 @@
       "/infrastructure/kubernetes/.*\\.yaml$/"
     ]
   },
+  "ignorePaths": [
+    "**/node_modules/**",
+    "operator-console/**"
+  ],
   "packageRules": [
     {
-      "description": "One grouped PR a week, never merged automatically: a merge to main reaches no cluster until a release tag and an overlay bump, but it does reach the next release, so a human reviews it and test-pr-locally.sh proves it first.",
-      "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "Weekly Updates",
-      "schedule": ["before 4am on monday"],
-      "prConcurrentLimit": 0,
+      "description": "Release Rings (docs/adr/0060): an upstream release waits three days, so one the upstream project withdraws never reaches main. Nothing merges automatically until Ring 0 verifies main and reverts what it rejects (design-update-strategy.md, phase 6).",
+      "matchPackageNames": [
+        "*"
+      ],
+      "minimumReleaseAge": "3 days",
       "automerge": false
     },
     {
-      "matchDatasources": ["helm"],
+      "description": "One PR per application: an application's images and chart move together, so a failure on Ring 0 reverts one application. admin-tools/test-renovate-groups.py checks that every tenant and every chart-bearing Application has a group.",
+      "matchFileNames": [
+        "infrastructure/kubernetes/tenants/backup-replicator/**"
+      ],
+      "groupName": "backup-replicator"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/tenants/bulwark/**"
+      ],
+      "groupName": "bulwark"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/tenants/cnpg-barman-plugin/**",
+        "infrastructure/kubernetes/apps/cloudnative-pg.yaml"
+      ],
+      "groupName": "cloudnative-pg"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/tenants/collabora/**"
+      ],
+      "groupName": "collabora"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/tenants/dashboard/**"
+      ],
+      "groupName": "dashboard"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/tenants/euro-office/**"
+      ],
+      "groupName": "euro-office"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/tenants/excalidraw/**"
+      ],
+      "groupName": "excalidraw"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/tenants/forgejo/**"
+      ],
+      "groupName": "forgejo"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/tenants/gallery/**"
+      ],
+      "groupName": "gallery"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/tenants/headscale/**"
+      ],
+      "groupName": "headscale"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/tenants/hermes/**"
+      ],
+      "groupName": "hermes"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/tenants/immich/**"
+      ],
+      "groupName": "immich"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/tenants/jitsi/**"
+      ],
+      "groupName": "jitsi"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/tenants/join/**"
+      ],
+      "groupName": "join"
+    },
+    {
+      "description": "The Keycloak SPI builds against the Keycloak it runs in, so both move in one PR.",
+      "matchFileNames": [
+        "infrastructure/kubernetes/tenants/keycloak/**",
+        "infrastructure/keycloak-spi/**"
+      ],
+      "groupName": "keycloak"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/tenants/nextcloud/**"
+      ],
+      "groupName": "nextcloud"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/tenants/operator-console/**"
+      ],
+      "groupName": "operator-console"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/tenants/plane/**"
+      ],
+      "groupName": "plane"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/tenants/pod-gateway/**"
+      ],
+      "groupName": "pod-gateway"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/tenants/remediation/**"
+      ],
+      "groupName": "remediation"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/tenants/stalwart/**"
+      ],
+      "groupName": "stalwart"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/tenants/velero/**"
+      ],
+      "groupName": "velero"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/apps/cert-manager.yaml",
+        "infrastructure/kubernetes/apps/cert-manager-webhook-hetzner.yaml"
+      ],
+      "groupName": "cert-manager"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/apps/garage.yaml",
+        "infrastructure/kubernetes/apps/garage-backup.yaml"
+      ],
+      "groupName": "garage"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/apps/traefik.yaml"
+      ],
+      "groupName": "traefik"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/apps/kube-prometheus-stack.yaml",
+        "infrastructure/kubernetes/apps/loki-stack.yaml"
+      ],
+      "groupName": "monitoring"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/kubernetes/bases/**"
+      ],
+      "groupName": "init jobs"
+    },
+    {
+      "matchFileNames": [
+        "infrastructure/terraform/**"
+      ],
+      "groupName": "terraform providers"
+    },
+    {
+      "matchFileNames": [
+        "e2e-tests/**"
+      ],
+      "groupName": "e2e tests"
+    },
+    {
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupName": "github actions"
+    },
+    {
+      "matchDatasources": [
+        "helm"
+      ],
       "commitMessageTopic": "Helm chart {{depName}}"
     },
     {
-      "matchDatasources": ["docker"],
+      "matchDatasources": [
+        "docker"
+      ],
       "commitMessageTopic": "Docker image {{depName}}"
     },
     {
       "description": "Provided-scope Jakarta APIs must match the Keycloak runtime (EE 10 / ws.rs 3.1 for Keycloak 25); bump manually together with Keycloak",
-      "matchPackageNames": ["jakarta.ws.rs:jakarta.ws.rs-api"],
+      "matchPackageNames": [
+        "jakarta.ws.rs:jakarta.ws.rs-api"
+      ],
       "enabled": false
     }
   ]
