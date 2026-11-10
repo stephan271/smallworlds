@@ -27,8 +27,18 @@ jobs:
         run: |
           failed=0
           for dir in infrastructure/kubernetes infrastructure/kubernetes/tenants/*/; do
-            if kubectl kustomize --enable-helm "$dir" > /dev/null; then
-              echo "ok   $dir"
+            # Rendered twice: a chart that draws random values at render time
+            # (randAlphaNum) changes on every Argo CD refresh. Jitsi's XMPP
+            # passwords did, which broke jicofo and jvb on Ring 0.
+            if kubectl kustomize --enable-helm "$dir" > /tmp/first.yaml \
+               && kubectl kustomize --enable-helm "$dir" > /tmp/second.yaml; then
+              if cmp -s /tmp/first.yaml /tmp/second.yaml; then
+                echo "ok   $dir"
+              else
+                echo "::error::$dir renders differently each time (random values in a chart?)"
+                diff /tmp/first.yaml /tmp/second.yaml | head -20
+                failed=1
+              fi
             else
               echo "::error::$dir does not render"
               failed=1

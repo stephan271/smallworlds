@@ -26,6 +26,22 @@ helmCharts:
     valuesFile: values.yaml
 
 patches:
+  # The chart stamps `timestamp: {{ now }}` into these pod templates, so every
+  # render (each Argo CD refresh, each Ring 0 follow, each cache expiry)
+  # restarted all of Plane for nothing. Found by the PR checks' render-twice
+  # comparison, 2026-11-10.
+  - target:
+      kind: Deployment
+      name: plane-(admin|api|beat-worker|live|space|web|worker)-wl
+    patch: |-
+      - op: remove
+        path: /spec/template/metadata/annotations/timestamp
+  - target:
+      kind: Job
+      name: plane-api-migrate-.*
+    patch: |-
+      - op: remove
+        path: /spec/template/metadata/annotations/timestamp
   - target:
       kind: NetworkPolicy
       name: database-ingress
