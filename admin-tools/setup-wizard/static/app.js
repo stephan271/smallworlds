@@ -956,6 +956,20 @@ function finish(snapshot) {
     el("open-dashboard").hidden = false;
   }
 
+  const todos = result.todos || [];
+  const todoList = el("todo-list");
+  todoList.textContent = "";
+  todos.forEach((entry) => {
+    const item = document.createElement("li");
+    const heading = document.createElement("h3");
+    heading.textContent = entry.heading;
+    const detail = document.createElement("p");
+    detail.textContent = entry.detail;
+    item.append(heading, detail);
+    todoList.append(item);
+  });
+  el("todo-block").hidden = !todos.length;
+
   if (result.hosts) {
     el("hosts-block").hidden = false;
     el("hosts-line").textContent = result.hosts;
@@ -989,6 +1003,11 @@ function saveCredentials(result) {
     lines.push("");
   });
   if (result.kubeconfig) lines.push(`Kubeconfig: ${result.kubeconfig}`, "");
+  if ((result.todos || []).length) {
+    lines.push("Still to do:");
+    result.todos.forEach((entry) => lines.push(`  - ${entry.heading}`, `    ${entry.detail}`));
+    lines.push("");
+  }
   if ((result.urls || []).length) {
     lines.push("Addresses:");
     result.urls.forEach((entry) => lines.push(`  ${entry.name}: ${entry.url}`));

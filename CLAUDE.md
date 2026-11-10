@@ -98,8 +98,9 @@ the same page (**Install again**, **Change my answers**); the server always acce
 second run, and for a while only the page had no way to ask for one.
 
 It collects, validates, shows the plan, installs, and hands over the credentials — the
-scripts' `sw_result` markers carry the credentials, addresses, kubeconfig path and hosts
-line, so the handover never scrapes their prose. A failure is answered with advice
+scripts' `sw_result` markers carry the credentials, addresses, kubeconfig path, hosts
+line and any step still left to the Operator (`todo`, e.g. a rented server's PTR record,
+which only the address's provider can set), so the handover never scrapes their prose. A failure is answered with advice
 rather than a log: the scripts emit `sw_guidance` markers (`>>> guidance\t<heading>\t<detail>`,
 also in `lib/ask.sh`), the wizard renders them as "What you can do now", and a script
 that stops without saying anything falls back to per-stage advice in `runner.py`. Read `docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md` for the decision and

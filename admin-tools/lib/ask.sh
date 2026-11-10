@@ -50,8 +50,10 @@ sw_step_fail() { sw_markers_enabled && printf '>>> fail:%s %s\n' "$1" "${2:-}"; 
 #
 #   sw_result <kind> <name> <value>   ->  >>> result\t<kind>\t<name>\t<value>
 #
-# Kinds: credential, url, kubeconfig, hosts, note. Tab-separated because a name
-# has spaces in it and a value can contain very nearly anything.
+# Kinds: credential, url, kubeconfig, hosts, note, todo. Tab-separated because a
+# name has spaces in it and a value can contain very nearly anything. A todo is
+# a step the Operator still has to take by hand after a successful install
+# (name: what, value: how), such as a PTR record only the provider can set.
 #
 # These carry the generated passwords, so they are emitted only when markers
 # are on -- which means only when something asked for them. A person at a

@@ -400,6 +400,10 @@ async function afterInstall() {
         (await page.locator("#kubeconfig-path").textContent()).endsWith("production.yaml"));
   check("the hosts line is shown for a LAN install",
         (await page.locator("#hosts-line").textContent()).includes("192.168.1.50"));
+  check("a step left to the Operator is shown",
+        await page.locator("#todo-block").isVisible() &&
+        (await page.locator("#todo-list li").count()) === 1 &&
+        (await page.locator("#todo-list").textContent()).includes("mail.example.org"));
 
   const download = page.waitForEvent("download", { timeout: 15000 });
   await page.click("#save-credentials");
@@ -413,6 +417,8 @@ async function afterInstall() {
         contents.includes("operator-password-value") && contents.includes("Argo CD"));
   check("the saved file carries the addresses",
         contents.includes("https://dashboard.example.org"));
+  check("the saved file carries what is still to do",
+        contents.includes("Still to do") && contents.includes("203.0.113.7"));
 
   await page.locator("#log-panel summary").click();
   const log = await page.locator("#log").textContent();

@@ -382,6 +382,10 @@ class Run:
             urls = self.result.setdefault("urls", [])
             if not any(entry["name"] == name for entry in urls):
                 urls.append({"name": name, "url": value})
+        elif kind == "todo":
+            todos = self.result.setdefault("todos", [])
+            if not any(entry["heading"] == name for entry in todos):
+                todos.append({"heading": name, "detail": value})
         elif kind in ("kubeconfig", "hosts"):
             self.result[kind] = value
         self._emit("result", self.result)

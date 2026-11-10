@@ -639,6 +639,8 @@ result url Identity "https://identity.example.org"
 result url Files "https://files.example.org"
 result url Photos "https://photos.example.org"
 result hosts hosts "192.168.1.50 identity.example.org dashboard.example.org"
+result todo "Set the reverse DNS of 203.0.113.7" "Set the PTR record of 203.0.113.7 to mail.example.org."
+result todo "Set the reverse DNS of 203.0.113.7" "a repeat that must not stack"
 if [ -n "${STUB_INSTALLER_EXIT:-}" ]; then
   printf '>>> guidance\t%s\t%s\n' "Try Falkenstein instead" "nbg1 has no cx43 right now."
   printf '>>> guidance\t%s\t%s\n' "Try Falkenstein instead" "a repeat that must not stack"
@@ -866,6 +868,10 @@ def test_runner():
     check("the kubeconfig path is captured",
           final["result"]["kubeconfig"].endswith("production.yaml"))
     check("the hosts line is captured", "192.168.1.50" in final["result"]["hosts"])
+    check("a step left to the Operator is captured once",
+          final["result"].get("todos") == [
+              {"heading": "Set the reverse DNS of 203.0.113.7",
+               "detail": "Set the PTR record of 203.0.113.7 to mail.example.org."}])
 
     # The installer prints every application's address; listing one for
     # something this community did not install is a link to a certificate error.

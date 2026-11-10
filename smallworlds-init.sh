@@ -609,6 +609,14 @@ report_node_stuck() {
         "${detail:-Waiting for $what timed out; the node itself was not touched.} Re-run ./smallworlds-setup once the boot log says what went wrong — every step finds and reuses what already exists."
 }
 
+# The published reverse DNS (PTR) name of an address, without the final dot;
+# empty when dig is missing or nothing answers. Asks DNS itself, never
+# /etc/hosts, where a hosts line for the cluster would name some other host.
+current_ptr() {
+    command -v dig >/dev/null 2>&1 || return 0
+    dig +short +time=3 +tries=1 -x "$1" 2>/dev/null | head -n 1 | sed 's/\.$//' || true
+}
+
 # Which optional applications this community selected, one per line.
 #
 # prepare-community-repo.sh records the answers in this file, and the browser
@@ -1818,9 +1826,20 @@ elif [[ "$LOCAL_PUBLIC" == "yes" && "$LOCAL_FIREWALL" == "yes" ]]; then
     echo -e " - SSH and 6443 are still open to the internet. Once the node is on your tailnet"
     echo -e "   (${CYAN}admin-tools/setup-vpn.sh${NC}), close them with ${CYAN}smallworlds-firewall close${NC}."
     if selected_apps | grep -qx stalwart; then
-        echo -e " - Mail: set the reverse DNS (PTR) of ${CYAN}${SERVER_IP}${NC} to ${CYAN}mail${ENV_EXT}.${DOMAIN}${NC}"
-        echo -e "   in your provider's control panel — the installer cannot do that outside"
-        echo -e "   Hetzner, and most receivers reject mail from an address without it."
+        # The PTR belongs to whoever owns the address, not to the DNS zone, so
+        # outside Hetzner nothing here can set it. Said in the handover as a
+        # step still to do, unless it is already right (a re-run).
+        MAIL_HOST="mail${ENV_EXT}.${DOMAIN}"
+        PTR_NOW="$(current_ptr "$SERVER_IP")"
+        if [[ "$PTR_NOW" == "$MAIL_HOST" ]]; then
+            echo -e " - Mail: the reverse DNS (PTR) of ${CYAN}${SERVER_IP}${NC} already names ${CYAN}${MAIL_HOST}${NC}."
+        else
+            echo -e " - Mail: set the reverse DNS (PTR) of ${CYAN}${SERVER_IP}${NC} to ${CYAN}${MAIL_HOST}${NC}"
+            echo -e "   in your provider's control panel${PTR_NOW:+ (it now says ${PTR_NOW})} — only the"
+            echo -e "   provider that owns the address can, and most receivers reject mail without it."
+            sw_result todo "Set the reverse DNS of ${SERVER_IP}" \
+                "In your server provider's control panel (often under DNS or Reverse DNS), set the PTR record of ${SERVER_IP} to ${MAIL_HOST}.${PTR_NOW:+ It now says ${PTR_NOW}.} This record belongs to whoever owns the address, not to your domain, so the installer cannot set it, and most mail servers refuse mail from an address without it."
+        fi
     fi
 elif [[ "$LOCAL_PUBLIC" == "yes" ]]; then
     echo -e "Your applications will take a few minutes to boot up. The in-cluster DDNS job creates"
