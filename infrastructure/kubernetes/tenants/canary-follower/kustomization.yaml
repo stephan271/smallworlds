@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# The Canary Follower (docs/adr/0060, design §3.4). Ring 0 only: this tenant is
+# not in the base's root kustomization, so only an overlay that adds
+# apps/canary-follower.yaml deploys it.
+resources:
+  - rbac.yaml
+  - config.yaml
+  - deployment.yaml
+
+# Source runs straight from a ConfigMap (the Hermes/Remediation pattern). Every
+# src/*.py must be listed; tests/test_follower.py checks that.
+configMapGenerator:
+  - name: canary-follower-src
+    namespace: canary-follower
+    files:
+      - src/argocd.py
+      - src/checks.py
+      - src/follower.py
+      - src/github.py
+      - src/kube.py
+      - src/main.py
+      - src/settings.py

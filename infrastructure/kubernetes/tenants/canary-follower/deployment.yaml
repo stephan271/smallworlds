@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: canary-follower
+  namespace: canary-follower
+  labels:
+    app: canary-follower
+spec:
+  replicas: 1
+  # Never two followers at once: both would sync and post statuses.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: canary-follower
+  template:
+    metadata:
+      labels:
+        app: canary-follower
+    spec:
+      serviceAccountName: canary-follower
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: canary-follower
+          image: python:3.14-slim@sha256:b877e50bd90de10af8d82c57a022fc2e0dc731c5320d762a27986facfc3355c1
+          command: ["python", "-u", "/app/main.py"]
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: canary-follower-config
+          env:
+            - name: PYTHONPATH
+              value: /app
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+            # Fine-grained token on the base repository only: commit statuses
+            # (write), later pull requests and contents for the revert. Made by
+            # hand on Ring 0 and nowhere else; without it the follower still
+            # verifies but only logs its verdicts.
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: canary-follower-github
+                  key: token
+                  optional: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 30
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 60
+          resources:
+            requests:
+              cpu: 10m
+              memory: 48Mi
+            limits:
+              memory: 128Mi
+          volumeMounts:
+            - name: src
+              mountPath: /app
+      volumes:
+        - name: src
+          configMap:
+            name: canary-follower-src

@@ -50,6 +50,8 @@ jobs:
           exit $failed
       - name: renovate.json parses and every application has a group
         run: python3 admin-tools/test-renovate-groups.py
+      - name: Canary Follower unit tests
+        run: python3 -m unittest discover -s infrastructure/kubernetes/tenants/canary-follower/tests
 
   script-tests:
     name: Script tests (no cloud)

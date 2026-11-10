@@ -210,8 +210,10 @@ pattern, deployed on Ring 0 only):
 Run in order. Each step's result goes into the commit status summary.
 
 1. **Converged.** All Applications `Synced`/`Healthy` within the bound.
-2. **Smoke.** Every Ingress answers, and each app's `/healthz` or equivalent
-   passes. This is `bases/staging-test/smoke-test-job`, reused.
+2. **Smoke.** Every Ingress host answers `https://<host>/` below 500 with a
+   valid certificate, asked from inside the cluster. The Follower does this
+   itself (`tenants/canary-follower/src/checks.py`): the staging smoke-test Job
+   probes one Service per tenant and would need a patch per app.
 3. **E2E, full OIDC.** The Playwright suite with `FULL_OIDC=1`. Ring 0 has real
    Let's Encrypt certificates, so full login round-trips work, which ephemeral
    staging cannot do. It runs **in the cluster as a Job** (Playwright image), not
@@ -414,7 +416,7 @@ overlays are being deleted. The live overlays are Ring 1's
 | Alerting (ntfy, healthchecks.io) | exists |
 | Remediation / Hermes | exist, `DRY_RUN`; not needed for this design |
 | Ring 0 server, overlay, install | new |
-| Canary Follower (refresh, verify, commit status, revert) | new |
+| Canary Follower (refresh, verify, commit status, revert) | built 2026-11-10 (`tenants/canary-follower`): follow, converge, smoke, quiet period, status. Not yet: e2e Job, data checks, revert |
 | PR-check workflow | new |
 | Release kinds in `bump-version.sh`, the gate | new |
 | `release-notes.py` | new |

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: canary-follower-config
+  namespace: canary-follower
+data:
+  GITHUB_REPO: "stephan271/smallworlds"
+  BRANCH: "main"
+  STATUS_CONTEXT: "ring0/verified"
+  ROOT_APP: "smallworlds-root"
+  POLL_SECONDS: "300"
+  # Bounds and periods (design §3.5). The quiet period is a first guess.
+  CONVERGE_TIMEOUT_SECONDS: "2700"
+  QUIET_SECONDS: "1800"
+  ALERTMANAGER_URL: "http://kube-prometheus-stack-alertmanager.monitoring.svc:9093"

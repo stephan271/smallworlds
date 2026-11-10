@@ -49,6 +49,12 @@
     },
     {
       "matchFileNames": [
+        "infrastructure/kubernetes/tenants/canary-follower/**"
+      ],
+      "groupName": "canary-follower"
+    },
+    {
+      "matchFileNames": [
         "infrastructure/kubernetes/tenants/cnpg-barman-plugin/**",
         "infrastructure/kubernetes/apps/cloudnative-pg.yaml"
       ],
