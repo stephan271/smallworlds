@@ -748,6 +748,60 @@
         .sso-unlockglow { opacity: 0; animation: sso-glow-k var(--sso-cycle, 9s) linear infinite; }
         @keyframes sso-glow-k { 0%, 49% { opacity: 0; } 53% { opacity: 1; } 64%, 100% { opacity: 0; } }
 
+        /* --- Release rings slide --- */
+        .rings-stage,
+        .net-stage {
+            width: 100%;
+            flex: 0 1 auto;
+            min-height: 0;
+            display: flex;
+            justify-content: center;
+            margin-top: 1vmin;
+        }
+        .rings-stage svg { width: 100%; height: auto; max-height: 54vh; }
+        .net-stage svg   { width: 100%; height: auto; max-height: 58vh; }
+
+        /* stations light up in the order an update travels through them */
+        .rg-glow { opacity: 0; animation: rg-glow-k 10s ease-in-out infinite; }
+        .rg-glow.rg-s2 { animation-delay: 2s; }
+        .rg-glow.rg-s3 { animation-delay: 4s; }
+        .rg-glow.rg-s4 { animation-delay: 6s; }
+        .rg-glow.rg-s5 { animation-delay: 8s; }
+        @keyframes rg-glow-k {
+            0%, 22%, 100% { opacity: 0; }
+            6%, 14%       { opacity: 1; }
+        }
+
+        /* --- Network separation slide --- */
+        /* a request from the internet runs into the allow-list and bounces */
+        .nw-bad {
+            fill: none;
+            stroke: #dc2626;
+            stroke-width: 12;
+            stroke-linecap: round;
+            stroke-dasharray: 0.1 199.9;
+            stroke-dashoffset: -100;
+            opacity: 0;
+            animation: nw-bad-k 5s linear infinite;
+        }
+        @keyframes nw-bad-k {
+            0%, 10%   { stroke-dashoffset: 0; opacity: 0; }
+            12%       { opacity: 1; }
+            40%       { stroke-dashoffset: -100; opacity: 1; }
+            44%, 100% { stroke-dashoffset: -100; opacity: 0; }
+        }
+        .nw-badpulse {
+            opacity: 0;
+            transform-box: fill-box;
+            transform-origin: center;
+            animation: nw-badpulse-k 5s ease-out infinite;
+        }
+        @keyframes nw-badpulse-k {
+            0%, 39%   { opacity: 0; transform: scale(1); }
+            42%       { opacity: 1; transform: scale(1); }
+            58%, 100% { opacity: 0; transform: scale(1.7); }
+        }
+
         @media (prefers-reduced-motion: reduce) {
             /* every animation here is decorative and every base style is the
                final state, so switching them all off leaves complete slides */
@@ -1147,6 +1201,237 @@
                     </svg>
                 </div>
                 <p class="flow-note">Nothing deploys by accident: an upstream release only reaches your world when the overlay bumps its pinned ref — every change is a commit, every deploy is a pull.</p>
+            </div>
+            <div class="scroll-indicator">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+        </section>
+
+        <!-- Slide 2d: Release rings — continues the two-repo story: what has to
+             happen before a release is worth pinning -->
+        <section class="slide" id="slide-rings">
+            <div class="glass-card">
+                <img class="slide-logo" src="logos/smallworlds_logo.svg" alt="SmallWorlds logo">
+                <h2>Updates that prove themselves first</h2>
+                <p>Every update lands on a canary cluster full of example data before any real community sees it — and each community still decides for itself when to follow.</p>
+                <div class="rings-stage">
+                    <svg viewBox="0 0 1400 440" role="img" aria-label="Diagram: updates flow from main to Ring 0, a canary cluster that verifies and reverts automatically; verified commits are tagged and adopted by Ring 1, smallworlds.network, on day 0, and by Ring 2, every other community, after its Follow Policy delay — always by a deliberate merge">
+
+                        <!-- ===== Pipes first, so the stations sit on top ===== -->
+                        <g>
+                            <path class="go-pipe-casing" style="stroke-width:18" d="M190,210 H300"/>
+                            <path class="go-pipe-body" style="stroke-width:12" d="M190,210 H300"/>
+                            <path class="go-flow" stroke="#ea580c" style="animation-duration:.5s; stroke-width:6" d="M190,210 H300"/>
+                        </g>
+                        <g>
+                            <path class="go-pipe-casing" style="stroke-width:18" d="M550,210 H640"/>
+                            <path class="go-pipe-body" style="stroke-width:12" d="M550,210 H640"/>
+                            <path class="go-flow" stroke="#7c3aed" style="animation-duration:1.4s; stroke-width:6" d="M550,210 H640"/>
+                        </g>
+                        <g>
+                            <path class="go-pipe-casing" style="stroke-width:18" d="M770,210 H860"/>
+                            <path class="go-pipe-body" style="stroke-width:12" d="M770,210 H860"/>
+                            <path class="go-flow" stroke="#7c3aed" style="animation-duration:1.4s; stroke-width:6" d="M770,210 H860"/>
+                        </g>
+                        <g>
+                            <path class="go-pipe-casing" style="stroke-width:18" d="M1090,210 H1170"/>
+                            <path class="go-pipe-body" style="stroke-width:12" d="M1090,210 H1170"/>
+                            <path class="go-flow" stroke="#0284c7" style="animation-duration:3.5s; stroke-width:6" d="M1090,210 H1170"/>
+                        </g>
+                        <!-- Ring 0 -> main: the automatic revert -->
+                        <g>
+                            <path fill="none" stroke="#fee2e2" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" d="M425,330 V360 Q425,390 395,390 H135 Q105,390 105,360 V330"/>
+                            <path class="go-flow" stroke="#dc2626" style="stroke-width:6" d="M425,330 V360 Q425,390 395,390 H135 Q105,390 105,360 V330"/>
+                        </g>
+
+                        <!-- cadence labels on the pipes -->
+                        <g text-anchor="middle" font-size="15" font-weight="600">
+                            <text x="245" y="186" fill="#c2410c">auto</text>
+                            <text x="595" y="186" fill="#6d28d9">72 h ✓</text>
+                            <text x="815" y="186" fill="#6d28d9">day 0</text>
+                            <text x="1130" y="186" fill="#0369a1">+14 d</text>
+                        </g>
+                        <g text-anchor="middle" font-size="14" fill="#64748b">
+                            <text x="815" y="248">✋ merge</text>
+                            <text x="1130" y="248">✋ merge</text>
+                        </g>
+
+                        <!-- ===== Station: main ===== -->
+                        <rect x="20" y="90" width="170" height="240" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="2"/>
+                        <text x="105" y="134" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="900" font-size="26" fill="#0f172a">main</text>
+                        <text x="105" y="158" text-anchor="middle" font-size="14" fill="#64748b">public base repo</text>
+                        <line x1="50" y1="190" x2="50" y2="300" stroke="#cbd5e1" stroke-width="4" stroke-linecap="round"/>
+                        <g fill="#c4b5fd" stroke="#7c3aed" stroke-width="2.5">
+                            <circle cx="50" cy="200" r="7"/>
+                            <circle cx="50" cy="245" r="7"/>
+                            <circle cx="50" cy="290" r="7"/>
+                        </g>
+                        <g font-size="14" fill="#334155">
+                            <text x="66" y="205">update · Photos</text>
+                            <text x="66" y="250">update · Files</text>
+                            <text x="66" y="295">fix · Mail</text>
+                        </g>
+
+                        <!-- ===== Station: Ring 0 ===== -->
+                        <rect x="300" y="90" width="250" height="240" rx="16" fill="#fff7ed" stroke="#fdba74" stroke-width="2"/>
+                        <g fill="none" stroke-width="3">
+                            <circle cx="425" cy="128" r="22" stroke="#e2e8f0"/>
+                            <circle cx="425" cy="128" r="15" stroke="#e2e8f0"/>
+                            <circle cx="425" cy="128" r="8" stroke="#ea580c" fill="#fdba74"/>
+                        </g>
+                        <text x="425" y="182" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="700" font-size="22" fill="#9a3412">Ring 0 · Canary</text>
+                        <g text-anchor="middle" font-size="15" fill="#475569">
+                            <text x="425" y="216">every app, example data</text>
+                            <text x="425" y="241">follows main in minutes</text>
+                            <text x="425" y="266">sync · smoke · alerts</text>
+                        </g>
+                        <text x="425" y="304" text-anchor="middle" font-family="ui-monospace, Menlo, monospace" font-weight="700" font-size="15" fill="#c2410c">✓ ring0/verified</text>
+
+                        <!-- ===== Release tag ===== -->
+                        <rect x="640" y="180" width="130" height="60" rx="12" fill="#f5f3ff" stroke="#a78bfa" stroke-width="2"/>
+                        <text x="705" y="217" text-anchor="middle" font-family="ui-monospace, Menlo, monospace" font-weight="700" font-size="18" fill="#4c1d95">🏷 v1.x.0</text>
+
+                        <!-- ===== Station: Ring 1 ===== -->
+                        <rect x="860" y="90" width="230" height="240" rx="16" fill="#ffffff" stroke="#c4b5fd" stroke-width="2"/>
+                        <g fill="none" stroke-width="3">
+                            <circle cx="975" cy="128" r="22" stroke="#e2e8f0"/>
+                            <circle cx="975" cy="128" r="15" stroke="#7c3aed" stroke-width="5"/>
+                            <circle cx="975" cy="128" r="8" stroke="#e2e8f0"/>
+                        </g>
+                        <text x="975" y="182" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="700" font-size="22" fill="#4c1d95">Ring 1</text>
+                        <text x="975" y="216" text-anchor="middle" font-size="15" font-weight="600" fill="#334155">smallworlds.network</text>
+                        <g text-anchor="middle" font-size="15" fill="#475569">
+                            <text x="975" y="241">real members</text>
+                            <text x="975" y="266">every release,</text>
+                            <text x="975" y="291">on the day it is tagged</text>
+                        </g>
+
+                        <!-- ===== Station: Ring 2 ===== -->
+                        <rect x="1170" y="90" width="210" height="240" rx="16" fill="#ffffff" stroke="#7dd3fc" stroke-width="2"/>
+                        <g fill="none" stroke-width="3">
+                            <circle cx="1275" cy="128" r="22" stroke="#0284c7" stroke-width="5"/>
+                            <circle cx="1275" cy="128" r="15" stroke="#e2e8f0"/>
+                            <circle cx="1275" cy="128" r="8" stroke="#e2e8f0"/>
+                        </g>
+                        <text x="1275" y="182" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="700" font-size="22" fill="#075985">Ring 2</text>
+                        <text x="1275" y="216" text-anchor="middle" font-size="15" font-weight="600" fill="#334155">your community</text>
+                        <g text-anchor="middle" font-size="15" fill="#475569">
+                            <text x="1275" y="241">Follow Policy:</text>
+                            <text x="1275" y="266">after 14 days (default)</text>
+                            <text x="1275" y="291">or only when you ask</text>
+                        </g>
+
+                        <!-- station glows, in travel order -->
+                        <rect class="rg-glow"       x="14"   y="84"  width="182" height="252" rx="20" fill="none" stroke="#7c3aed" stroke-width="3.5"/>
+                        <rect class="rg-glow rg-s2" x="294"  y="84"  width="262" height="252" rx="20" fill="none" stroke="#ea580c" stroke-width="3.5"/>
+                        <rect class="rg-glow rg-s3" x="634"  y="174" width="142" height="72"  rx="16" fill="none" stroke="#7c3aed" stroke-width="3.5"/>
+                        <rect class="rg-glow rg-s4" x="854"  y="84"  width="242" height="252" rx="20" fill="none" stroke="#7c3aed" stroke-width="3.5"/>
+                        <rect class="rg-glow rg-s5" x="1164" y="84"  width="222" height="252" rx="20" fill="none" stroke="#0284c7" stroke-width="3.5"/>
+
+                        <!-- footnotes -->
+                        <text x="265" y="425" text-anchor="middle" font-size="15" font-weight="600" fill="#b91c1c">fails verification → automatic revert</text>
+                        <path d="M870,352 V364 H1370 V352" fill="none" stroke="#94a3b8" stroke-width="2"/>
+                        <text x="1120" y="392" text-anchor="middle" font-size="15" font-weight="600" fill="#475569">always a deliberate merge in your overlay</text>
+                        <text x="1120" y="416" text-anchor="middle" font-size="14" fill="#94a3b8">real members' data never rolls back on its own</text>
+                    </svg>
+                </div>
+                <p class="flow-note">Nothing is tagged until it has stayed green on Ring 0 for 72 hours. Ring 0 already gates every release; automatic reverts and per-community Follow Policies are next.</p>
+            </div>
+            <div class="scroll-indicator">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+        </section>
+
+        <!-- Slide 2e: Network separation — member apps public, operator
+             interfaces only inside the cluster's own tailnet -->
+        <section class="slide" id="slide-network">
+            <div class="glass-card">
+                <img class="slide-logo" src="logos/smallworlds_logo.svg" alt="SmallWorlds logo">
+                <h2>Public for members, private for you</h2>
+                <p>Member apps stay open to the internet — share links have to reach anyone. Everything that can change the server answers only inside your own private network.</p>
+                <div class="net-stage">
+                    <svg viewBox="0 0 1400 520" role="img" aria-label="Diagram: members reach the public apps over HTTPS; the operator reaches Argo CD, Grafana, Keycloak admin, the Invitation Desk, SSH and kubectl through a WireGuard tunnel on the cluster's own Headscale tailnet; requests from the internet to those interfaces get 403">
+
+                        <!-- ===== Server ===== -->
+                        <rect x="420" y="30" width="960" height="470" rx="22" fill="#ffffff" stroke="#e2e8f0" stroke-width="2"/>
+                        <text x="900" y="62" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="900" font-size="20" fill="#0f172a">your server</text>
+
+                        <!-- public zone -->
+                        <rect x="450" y="80" width="900" height="165" rx="16" fill="#f0f9ff" stroke="#7dd3fc" stroke-width="2"/>
+                        <text x="475" y="110" font-size="15" font-weight="700" fill="#0369a1">PUBLIC · HTTPS for everyone</text>
+                        <g font-size="16" fill="#334155" text-anchor="middle">
+                            <rect x="480"  y="128" width="150" height="56" rx="10" fill="#ffffff" stroke="#bae6fd" stroke-width="1.5"/>
+                            <text x="555"  y="162">Photos</text>
+                            <rect x="655"  y="128" width="150" height="56" rx="10" fill="#ffffff" stroke="#bae6fd" stroke-width="1.5"/>
+                            <text x="730"  y="162">Files</text>
+                            <rect x="830"  y="128" width="150" height="56" rx="10" fill="#ffffff" stroke="#bae6fd" stroke-width="1.5"/>
+                            <text x="905"  y="162">Meet</text>
+                            <rect x="1005" y="128" width="150" height="56" rx="10" fill="#ffffff" stroke="#bae6fd" stroke-width="1.5"/>
+                            <text x="1080" y="162">Mail</text>
+                            <rect x="1180" y="128" width="150" height="56" rx="10" fill="#ffffff" stroke="#bae6fd" stroke-width="1.5"/>
+                            <text x="1255" y="162">Join page</text>
+                        </g>
+                        <text x="900" y="222" text-anchor="middle" font-size="14" fill="#64748b">share links reach non-members · nothing to install</text>
+
+                        <!-- private zone -->
+                        <rect x="450" y="275" width="900" height="200" rx="16" fill="#f5f3ff" stroke="#a78bfa" stroke-width="2"/>
+                        <text x="475" y="305" font-size="15" font-weight="700" fill="#6d28d9">PRIVATE · tailnet only, 403 for everyone else</text>
+                        <g font-size="16" fill="#334155" text-anchor="middle">
+                            <rect x="480"  y="323" width="150" height="56" rx="10" fill="#ffffff" stroke="#c4b5fd" stroke-width="1.5"/>
+                            <text x="555"  y="357">Argo CD</text>
+                            <rect x="655"  y="323" width="150" height="56" rx="10" fill="#ffffff" stroke="#c4b5fd" stroke-width="1.5"/>
+                            <text x="730"  y="357">Grafana</text>
+                            <rect x="830"  y="323" width="150" height="56" rx="10" fill="#ffffff" stroke="#c4b5fd" stroke-width="1.5"/>
+                            <text x="905"  y="357">Keycloak admin</text>
+                            <rect x="1005" y="323" width="150" height="56" rx="10" fill="#ffffff" stroke="#c4b5fd" stroke-width="1.5"/>
+                            <text x="1080" y="357">Invitation Desk</text>
+                            <rect x="1180" y="323" width="150" height="56" rx="10" fill="#ffffff" stroke="#c4b5fd" stroke-width="1.5"/>
+                            <text x="1255" y="357">SSH · kubectl</text>
+                        </g>
+                        <g text-anchor="middle" font-size="14" fill="#64748b">
+                            <text x="900" y="420">SSH and the Kubernetes API close to the internet once the tailnet works</text>
+                            <text x="900" y="445">Headscale at vpn.&lt;domain&gt; — your own Tailscale control server</text>
+                        </g>
+
+                        <!-- ===== Routes (on top of the zone edges) ===== -->
+                        <!-- members -> public apps -->
+                        <g>
+                            <path class="go-pipe-casing" style="stroke-width:18" d="M156,150 H450"/>
+                            <path class="go-pipe-body" style="stroke-width:12" d="M156,150 H450"/>
+                            <path class="go-flow" stroke="#0284c7" style="stroke-width:6" d="M156,150 H450"/>
+                        </g>
+                        <text x="300" y="132" text-anchor="middle" font-size="15" font-weight="600" fill="#0369a1">HTTPS · anyone</text>
+
+                        <!-- operator -> private interfaces, through the tunnel -->
+                        <rect x="215" y="366" width="190" height="48" rx="24" fill="#faf5ff" stroke="#7c3aed" stroke-width="2.5" stroke-dasharray="8 6"/>
+                        <g>
+                            <path class="go-pipe-casing" style="stroke-width:18" d="M156,390 H450"/>
+                            <path class="go-pipe-body" style="stroke-width:12" d="M156,390 H450"/>
+                            <path class="go-flow" stroke="#7c3aed" style="stroke-width:6" d="M156,390 H450"/>
+                        </g>
+                        <text x="310" y="354" text-anchor="middle" font-size="15" font-weight="700" fill="#6d28d9">🔒 WireGuard tunnel</text>
+                        <text x="310" y="440" text-anchor="middle" font-size="14" fill="#64748b">your own tailnet</text>
+
+                        <!-- the internet trying the private side -->
+                        <path d="M150,185 Q330,200 388,282" fill="none" stroke="#fca5a5" stroke-width="3" stroke-dasharray="6 8" stroke-linecap="round"/>
+                        <path class="nw-bad" pathLength="100" d="M150,185 Q330,200 388,282"/>
+                        <circle class="nw-badpulse" cx="405" cy="298" r="24" fill="none" stroke="#dc2626" stroke-width="3"/>
+                        <circle cx="405" cy="298" r="24" fill="#fee2e2" stroke="#dc2626" stroke-width="2.5"/>
+                        <text x="405" y="304" text-anchor="middle" font-weight="700" font-size="15" fill="#b91c1c">403</text>
+
+                        <!-- ===== Actors ===== -->
+                        <circle cx="110" cy="150" r="46" fill="#f0f9ff" stroke="#0284c7" stroke-width="3"/>
+                        <text x="110" y="164" text-anchor="middle" font-size="38">🌍</text>
+                        <text x="110" y="225" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="700" font-size="17" fill="#0f172a">Members &amp; guests</text>
+                        <text x="110" y="247" text-anchor="middle" font-size="14" fill="#64748b">phones, share links</text>
+
+                        <circle cx="110" cy="390" r="46" fill="#f5f3ff" stroke="#7c3aed" stroke-width="3"/>
+                        <text x="110" y="404" text-anchor="middle" font-size="38">🧑‍💻</text>
+                        <text x="110" y="465" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="700" font-size="17" fill="#0f172a">You, the Operator</text>
+                        <text x="110" y="487" text-anchor="middle" font-size="14" fill="#64748b">enrolled laptop</text>
+                    </svg>
+                </div>
+                <p class="flow-note">Enrol your laptop once with the standard Tailscale client — no third-party account, the control server runs in your own cluster.</p>
             </div>
             <div class="scroll-indicator">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>

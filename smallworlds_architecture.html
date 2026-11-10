@@ -142,6 +142,13 @@
             overflow-x: auto;
         }
 
+        /* Without this the flex container shrink-wraps the mermaid div and its
+           width="100%" svg collapses to 300px; mermaid's own max-width still
+           caps small diagrams at their natural size. */
+        .diagram-container .mermaid {
+            width: 100%;
+        }
+
         @keyframes fadeInUp {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -175,6 +182,43 @@
             fill: currentColor;
         }
 
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 0.95rem;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: top;
+        }
+
+        th {
+            color: var(--accent-primary);
+            font-weight: 600;
+        }
+
+        .table-scroll {
+            overflow-x: auto;
+        }
+
+        .callout {
+            border-left: 3px solid var(--accent-secondary);
+            background: rgba(129, 140, 248, 0.08);
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            margin: 20px 0;
+        }
+
+        .tag.planned {
+            background: rgba(148, 163, 184, 0.1);
+            color: var(--text-secondary);
+            border-color: rgba(148, 163, 184, 0.25);
+        }
+
         .grid-container {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -188,7 +232,7 @@
         <header>
             <h1>SmallWorlds Architecture</h1>
             <p style="color: var(--text-secondary); font-size: 1.2rem; max-width: 600px; margin: 0 auto;">
-                A deep dive into the GitOps workflow, ArgoCD setup, and the seamless collaboration between infrastructure components.
+                A deep dive into the GitOps workflow, ArgoCD setup, the private operator network, the release rings, and the collaboration between infrastructure components.
             </p>
         </header>
 
@@ -211,7 +255,7 @@
 
         <div class="card stagger-2">
             <h2>2. The App of Apps Architecture</h2>
-            <p>The <code>infrastructure/kubernetes/apps/</code> directory contains individual ArgoCD <code>Application</code> manifests for every component in the cluster. Most of these — the end-user apps and Keycloak — point to a specific in-repo tenant directory (e.g., <code>infrastructure/kubernetes/tenants/keycloak/</code>) rendered with Kustomize. The core operators (CloudNativePG, Garage, Traefik, cert-manager, the monitoring/logging stacks, trivy-operator) instead reference an upstream Helm chart directly, so they have no in-repo <code>tenants/</code> directory.</p>
+            <p>The <code>infrastructure/kubernetes/apps/</code> directory contains individual ArgoCD <code>Application</code> manifests for every component in the cluster. Most of these — the end-user apps and Keycloak — point to a specific in-repo tenant directory (e.g., <code>infrastructure/kubernetes/tenants/keycloak/</code>) rendered with Kustomize. The core operators (CloudNativePG, Garage, Traefik, cert-manager, the monitoring/logging stacks) instead reference an upstream Helm chart directly, so they have no in-repo <code>tenants/</code> directory.</p>
 
             <div class="diagram-container">
                 <div class="mermaid">
@@ -240,7 +284,7 @@
                 <div>
                     <span class="tag">Persistent Storage</span>
                     <h3>Local Node Storage</h3>
-                    <p><code>persistent-storage.yaml</code> creates a <code>StorageClass</code> named <code>hetzner-local</code> (name kept for historical reasons; it is not Hetzner-specific). This maps Kubernetes PVCs to a local path at <code>/mnt/smallworlds-data</code> on the node, with PV node affinity covering both the Hetzner VM and a bootstrapped LAN machine, ensuring data survives VM recreation or a local reinstall.</p>
+                    <p><code>persistent-storage.yaml</code> creates a <code>StorageClass</code> named <code>static-local</code> (formerly <code>hetzner-local</code>; renamed since it is not Hetzner-specific). This maps Kubernetes PVCs to a local path at <code>/mnt/smallworlds-data</code> on the node, with PV node affinity covering both the Hetzner VM and a bootstrapped LAN machine, ensuring data survives VM recreation or a local reinstall.</p>
                 </div>
                 <div>
                     <span class="tag critical">Networking</span>
@@ -299,13 +343,148 @@
             <p>Stalwart mail is wired to Keycloak as an <strong>OIDC Directory</strong>, configured imperatively by the <code>stalwart-init-job</code> via the Stalwart CLI (not via a static TOML file). Bulwark (the webmail UI) is a JMAP client configured via environment variables: it authenticates users against Keycloak in OIDC-only mode using the shared <code>keycloak-secret</code>, and talks JMAP to Stalwart at <code>mail.&lt;domain&gt;</code>.</p>
         </div>
 
+        <div class="card stagger-4">
+            <h2>6. Network Separation: Public Apps, Private Operator Interfaces</h2>
+            <p>A SmallWorlds cluster is deliberately on the public internet &mdash; but not all of it. Every hostname falls into one of two classes:</p>
+
+            <div class="grid-container">
+                <div>
+                    <span class="tag">Public</span>
+                    <h3>Member applications</h3>
+                    <p>Share links have to reach people who are not members, and members open the apps from phones and work laptops. Onboarding must not require installing anything. Nextcloud, Immich/Gallery, Forgejo, Jitsi, Bulwark, the dashboard, the join page and Headscale itself stay reachable from anywhere.</p>
+                </div>
+                <div>
+                    <span class="tag critical">Tailnet only</span>
+                    <h3>Operator interfaces</h3>
+                    <p>Argo CD (<code>deploy.&lt;domain&gt;</code>), Grafana (<code>monitoring.&lt;domain&gt;</code>), Keycloak administration (<code>identity/admin</code>, <code>identity/realms/master</code>) and the Invitation Desk (<code>join/desk</code>) answer only to devices on the cluster's own tailnet &mdash; and <code>403</code> to everyone else.</p>
+                </div>
+            </div>
+
+            <div class="diagram-container">
+                <div class="mermaid">
+                    flowchart LR
+                    M[Members, guests, share links] -->|HTTPS 443| T[Traefik]
+                    O[Operator device] -.->|enrols once| HS[Headscale at vpn.domain]
+                    O ==>|WireGuard tunnel| NODE[Node's tailnet address]
+                    NODE --> T
+                    NODE ==>|SSH and kubectl via admin.domain| ADM[Node administration]
+
+                    T --> PUB[Member apps, join page, Headscale]
+                    T -->|ipAllowList admits tailnet and LAN only| PRIV[Argo CD, Grafana, Keycloak admin, Invitation Desk]
+                    M -.->|403| PRIV
+                    M -.->|dropped by the firewall once closed| ADM
+                </div>
+            </div>
+
+            <h3>The tailnet &mdash; Headscale</h3>
+            <p><code>apps/headscale.yaml</code> (sync-wave <code>0</code>) deploys Headscale, the open-source Tailscale coordination server, at <code>vpn.&lt;domain&gt;</code>. It is the only publicly reachable piece of the private network, because devices enrol through it. Devices run the standard Tailscale client (<code>tailscale login --login-server=https://vpn.&lt;domain&gt;</code>) and talk to the node over WireGuard; no third-party service decides who is on the network.</p>
+
+            <h3>How the restriction is enforced</h3>
+            <p>Every operator Ingress carries a Traefik <code>ipAllowList</code> middleware admitting the tailnet (<code>100.64.0.0/10</code>), private LAN ranges and loopback. That only works because Traefik sees each visitor's real address: its Service sets <code>externalTrafficPolicy: Local</code> (<code>apps/traefik.yaml</code>). With the default, kube-proxy rewrites every outside source to a <code>10.42.x</code> cluster address, which the allow-list admits &mdash; the whole internet got in that way until it was found on 2026-10-11.</p>
+            <div class="callout"><strong>After any change to Traefik's Service</strong>, check from a machine on neither the tailnet nor the node's LAN that <code>deploy.&lt;domain&gt;</code> answers <code>403</code>.</div>
+            <p>The Invitation Desk shares its host with the public join page, so it is served on a port of its own (8081) that the public Ingress never routes to: a dropped private router fails closed instead of falling through to the internet.</p>
+
+            <h3>Closing SSH and the Kubernetes API</h3>
+            <p>Right after an install both are still open, because nothing else reaches the machine yet. <code>admin-tools/setup-vpn.sh</code> &mdash; a deliberate step once Argo CD has deployed Headscale &mdash; joins the node to the tailnet, points <code>admin.&lt;domain&gt;</code> at the node's tailnet address and prints how to enrol the Operator's computer. Once SSH and <code>kubectl</code> work over the tailnet, the public admin ports are closed:</p>
+            <div class="table-scroll">
+                <table>
+                    <thead><tr><th>Target</th><th>How 22 and 6443 close</th></tr></thead>
+                    <tbody>
+                        <tr><td>Rented server (<code>local</code> target with <code>HOST_FIREWALL</code>, ADR 0055)</td><td><code>smallworlds-firewall close</code> on the node. It refuses unless the calling session itself arrived over the tailnet &mdash; that session is the proof the way back in survives. <code>smallworlds-firewall open</code> reverses it.</td></tr>
+                        <tr><td>Hetzner</td><td>Apply with <code>public_admin_ports = false</code>, which drops 22 and 6443 from the <code>hcloud_firewall</code>.</td></tr>
+                        <tr><td>LAN machine behind a router</td><td>Nothing to close &mdash; neither port is exposed.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p>Tailnet traffic arrives on its own interface and is never filtered, so administration keeps working. <strong>Order matters:</strong> tailnet before closing the ports, and tailnet before inviting members, because the Invitation Desk is an operator page (<code>doc/install-contabo-datalix.md</code> steps 7&ndash;14). Details: <code>doc/hardening.md</code>, <code>doc/local-deployment.md</code>.</p>
+        </div>
+
+        <div class="card stagger-4">
+            <h2>7. Updates: Three Release Rings</h2>
+            <p>The two-repo model already guarantees that nothing reaches a community by accident: an overlay only moves when its pinned tag is bumped. The release rings add the missing stage in between &mdash; <strong>an update has to prove itself on a cluster with data before anybody's members depend on it</strong> (ADR 0060, status <em>proposed</em>; design in <code>plans-and-walkthroughs/design-update-strategy.md</code>).</p>
+
+            <div class="diagram-container">
+                <div class="mermaid">
+                    flowchart LR
+                    UP[Upstream app releases] -->|Renovate, one PR per app| MAIN[main]
+                    MAIN -->|followed within minutes| R0[Ring 0: Canary Cluster]
+                    R0 -->|ring0/verified commit status| MAIN
+                    R0 -.->|fails verification: revert PR| MAIN
+                    MAIN -->|bump-version.sh tags a commit green for 72 h| TAG[Release tag vX.Y.Z]
+                    TAG -->|day 0, deliberate merge| R1[Ring 1: smallworlds.network]
+                    TAG -->|Follow Policy, default 14 days, deliberate merge| R2[Ring 2: every other community]
+                </div>
+            </div>
+
+            <div class="table-scroll">
+                <table>
+                    <thead><tr><th>Ring</th><th>Instance</th><th>Data</th><th>Follows</th><th>Adopted by</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>0</strong></td><td>Canary Cluster (Contabo Cloud VPS 8, <code>.canary.smallworlds.network</code>)</td><td>Example data, never re-seeded</td><td><code>main</code>, automatically</td><td>Nobody &mdash; it is automatic</td></tr>
+                        <tr><td><strong>1</strong></td><td>smallworlds.network</td><td>Real members</td><td>Every release, on the day it is tagged</td><td>The project's Operator, by merging the overlay PR</td></tr>
+                        <tr><td><strong>2</strong></td><td>Every other community</td><td>Real members</td><td>Releases older than its <strong>Follow Policy</strong> (default 14 days)</td><td>Its Operator, by merging the overlay PR &mdash; or never</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="grid-container">
+                <div>
+                    <span class="tag">Ring 0</span>
+                    <h3>Tests upgrades, not installs</h3>
+                    <p>Ephemeral staging (<code>test-pr-locally.sh</code>) builds a fresh cluster every time, so it cannot see a migration that breaks existing data &mdash; which is how an update actually hurts a community. Ring 0 runs every supported application at once, on the same machine type and install route (setup wizard, <code>local</code> + <code>HOST_FIREWALL</code>) as the communities it protects, and keeps its data across every update. Where two choices exclude each other it runs Ring 1's side (Gallery, Euro-Office); the other side gets fresh-install tests only, and the release notes say so. It has its own machine, because cluster-wide components (cert-manager, CNPG, Traefik, Argo CD) would make a canary on the production host a production update.</p>
+                </div>
+                <div>
+                    <span class="tag">Canary Follower</span>
+                    <h3>Follows and verifies main</h3>
+                    <p><code>tenants/canary-follower</code> (Ring 0 only; stdlib Python from a ConfigMap, the Hermes/Remediation pattern) polls <code>main</code>. On a new commit it hard-refreshes every Application and runs a full sync &mdash; Argo CD neither notices a new commit in a remote Kustomize base nor runs hooks without that &mdash; waits for <code>Synced</code>/<code>Healthy</code>, smoke-tests every Ingress host from inside the cluster, waits out a quiet period with no <code>critical</code> alert, and reports the result as the GitHub commit status <code>ring0/verified</code>.</p>
+                </div>
+            </div>
+
+            <div class="grid-container">
+                <div>
+                    <span class="tag">Release gate</span>
+                    <h3>Only green commits get tagged</h3>
+                    <p><code>bump-version.sh patch|minor|major [--security]</code> (<code>admin-tools/lib/ring0_gate.py</code>) cuts a release only from the newest commit of <code>main</code> that has been green on Ring 0 for 72 hours &mdash; a full backup cycle, every nightly job twice; <code>--security</code> shrinks that to one green verification. The number now means something: <strong>patch</strong> = fixes only, <strong>minor</strong> = feature updates or migrations, <strong>major</strong> = an Operator must act. <code>admin-tools/release-notes.py</code> drafts per-application notes from what the two tags actually deploy, including the Ring 0 verdict.</p>
+                </div>
+                <div>
+                    <span class="tag critical">Rings 1 &amp; 2</span>
+                    <h3>Never automatic, either way</h3>
+                    <p>Adoption is always a merge in the GitOps Overlay &mdash; the audit trail and the rollback point. Most applications migrate their database forward on start, so an automatic image rollback on a real community could turn a failed update into lost data. Only Ring 0, which holds no member data, reverts by itself. Ring 1 being the project's own community lets every release carry the evidence Operators trust most: <em>&ldquo;running on smallworlds.network since &lt;date&gt;&rdquo;</em>.</p>
+                </div>
+            </div>
+
+            <div class="table-scroll">
+                <table>
+                    <thead><tr><th>Piece</th><th>State (2026-11-10)</th></tr></thead>
+                    <tbody>
+                        <tr><td>Ring 0 installed, overlay on <code>?ref=HEAD</code></td><td><span class="tag">done</span></td></tr>
+                        <tr><td>Canary Follower: follow, converge, smoke, quiet period, commit status</td><td><span class="tag">built</span></td></tr>
+                        <tr><td>Release kinds and the Ring 0 gate in <code>bump-version.sh</code>; <code>release-notes.py</code></td><td><span class="tag">built</span></td></tr>
+                        <tr><td>Canary Follower: in-cluster e2e, data checks, automatic revert</td><td><span class="tag planned">planned</span></td></tr>
+                        <tr><td>Follow Policy question (wizard, <code>prepare-community-repo.sh</code>)</td><td><span class="tag planned">planned</span></td></tr>
+                        <tr><td><code>PreSync</code> database backup before every update; post-update alert and per-app rollback runbooks</td><td><span class="tag planned">planned</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <div class="card stagger-4" style="border-color: var(--accent-primary);">
             <h2>System Topology Map</h2>
             <div class="diagram-container">
                 <div class="mermaid">
                     flowchart LR
+                    OP[Operator device]
+
                     subgraph Edge
                         T[Traefik Ingress]
+                        HS[Headscale]
+                    end
+
+                    subgraph Private [Operator interfaces - tailnet only]
+                        ARGO[Argo CD]
+                        GRAF[Grafana]
+                        KCA[Keycloak admin]
+                        DESK[Invitation Desk]
                     end
 
                     subgraph Identity
@@ -341,6 +520,12 @@
                     T -->|HTTPS| JI
                     T -->|HTTPS| EX
                     T -->|HTTPS| DASH
+                    T -->|HTTPS| HS
+
+                    %% Private network — operator interfaces admit only the tailnet (and LAN)
+                    OP -.->|enrols| HS
+                    OP ==>|WireGuard tunnel| T
+                    T -->|ipAllowList| Private
 
                     %% Identity — apps that delegate login to Keycloak
                     NC -->|OIDC Auth| KC
