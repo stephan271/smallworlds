@@ -1,0 +1,86 @@
+# Keeps Stalwart serving the Let's Encrypt certificate cert-manager keeps in the
+# stalwart-tls Secret (mounted in Stalwart's pod at /etc/stalwart/tls).
+#
+# Stalwart v0.16 ignores the STALWART_CERTIFICATE_* variables it was once given,
+# so until 2026-11-10 IMAP (993) and submission (465) served its own
+# self-signed certificate. It reads a certificate registered in its registry as
+# a file, but only when certificates are loaded: at start and on a
+# ReloadTlsCertificates action — a renewed file is not noticed by itself. And a
+# registered certificate that has expired when loaded is deleted from the
+# registry. So every hour this registers it if missing, makes it the default,
+# and reloads. cert-manager renews 30 days ahead, so an hour is far inside that.
+# Proven against Stalwart v0.16.12 in Docker: registration, a renewal, and a
+# re-registration after Stalwart deleted it.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: stalwart-tls-sync
+  namespace: stalwart
+data:
+  tls-sync.sh: |
+    #!/bin/sh
+    # Keep Stalwart serving the certificate cert-manager keeps in the stalwart-tls
+    # Secret (mounted in Stalwart's pod at /etc/stalwart/tls).
+    set -eu
+    URL="${STALWART_JMAP_URL:-http://stalwart-mail:8080/jmap}"
+    CRT=/etc/stalwart/tls/tls.crt
+    KEY=/etc/stalwart/tls/tls.key
+    jmap() {
+      curl -sf -u "admin:$STALWART_PASSWORD" -H 'Content-Type: application/json' "$URL" \
+        -d "{\"using\":[\"urn:ietf:params:jmap:core\",\"urn:stalwart:jmap\"],\"methodCalls\":[$1]}"
+    }
+    ID=$(jmap '["x:Certificate/get",{"ids":null},"c0"]' \
+      | jq -r --arg crt "$CRT" '.methodResponses[0][1].list[] | select(.certificate.filePath == $crt) | .id' | head -n 1)
+    if [ -z "$ID" ]; then
+      echo "Registering the certificate in $CRT with Stalwart..."
+      OUT=$(jmap "[\"x:Certificate/set\",{\"create\":{\"c\":{\"certificate\":{\"@type\":\"File\",\"filePath\":\"$CRT\"},\"privateKey\":{\"@type\":\"File\",\"filePath\":\"$KEY\"}}}},\"c0\"]")
+      ID=$(echo "$OUT" | jq -r '.methodResponses[0][1].created.c.id // empty')
+      [ -n "$ID" ] || { echo "Stalwart refused the certificate: $OUT"; exit 1; }
+    fi
+    OUT=$(jmap "[\"x:SystemSettings/set\",{\"update\":{\"singleton\":{\"defaultCertificateId\":\"$ID\"}}},\"c0\"]")
+    echo "$OUT" | jq -e '.methodResponses[0][1].updated' >/dev/null || echo "Could not make it the default certificate (yet): $OUT"
+    OUT=$(jmap '["x:Action/set",{"create":{"r":{"@type":"ReloadTlsCertificates"}}},"c0"]')
+    echo "$OUT" | jq -e '.methodResponses[0][1].created.r' >/dev/null || { echo "Stalwart did not reload its certificates: $OUT"; exit 1; }
+    echo "Stalwart serves certificate $ID, reloaded from $CRT."
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: stalwart-tls-sync
+  namespace: stalwart
+spec:
+  schedule: "17 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 300
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: tls-sync
+              image: docker.io/alpine/k8s:1.36.2
+              command: ["sh", "/scripts/tls-sync.sh"]
+              env:
+                - name: STALWART_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: stalwart-admin-secret
+                      key: password
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+                limits:
+                  memory: 64Mi
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+          volumes:
+            - name: scripts
+              configMap:
+                name: stalwart-tls-sync

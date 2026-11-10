@@ -87,11 +87,12 @@ resource "hcloud_firewall" "k8s_firewall" {
     ]
   }
 
-  # Allow Email Submission
+  # Allow Email Submission from mail apps: implicit TLS on 465, which is
+  # where Stalwart listens and what its SRV records name. Nothing listens on 587.
   rule {
     direction = "in"
     protocol  = "tcp"
-    port      = "587"
+    port      = "465"
     source_ips = [
       "0.0.0.0/0",
       "::/0"

@@ -60,8 +60,6 @@ spec:
               name: smtp
             - containerPort: 465
               name: submissions
-            - containerPort: 587
-              name: submission
             - containerPort: 143
               name: imap
             - containerPort: 993
@@ -92,22 +90,17 @@ spec:
                 secretKeyRef:
                   name: stalwart-dns-secrets
                   key: ENV_EXT
+            # Stalwart v0.16 takes its settings from its own registry, not from
+            # STALWART_* variables: on Ring 0 (2026-11-10) the hostname, the
+            # certificate and a submission listener on 587 set here were all
+            # ignored. The hostname is set by stalwart-init-job.yaml and the
+            # certificate by stalwart-tls-sync.yaml; mail apps submit on 465.
             - name: STALWART_SERVER_HOSTNAME
               value: "mail$(ENV_EXT).$(DOMAIN)"
             - name: STALWART_MTA_OUTBOUND_STRATEGY_DEFAULT_EHLO
               value: "mail$(ENV_EXT).$(DOMAIN)"
             - name: STALWART_SESSION_RCPT_ALLOW_RELAYING
               value: "!is_empty(authenticated_as) || starts_with(remote_ip, '10.42.') || starts_with(remote_ip, '10.43.')"
-            - name: STALWART_CERTIFICATE_DEFAULT_CERT
-              value: "file:///etc/stalwart/tls/tls.crt"
-            - name: STALWART_CERTIFICATE_DEFAULT_PRIVATE_KEY
-              value: "file:///etc/stalwart/tls/tls.key"
-            - name: STALWART_SERVER_LISTENER_SUBMISSION_BIND
-              value: "[::]:587"
-            - name: STALWART_SERVER_LISTENER_SUBMISSION_PROTOCOL
-              value: "smtp"
-            - name: STALWART_SERVER_LISTENER_SUBMISSION_TLS_IMPLICIT
-              value: "false"
           volumeMounts:
             - name: config
               mountPath: /etc/stalwart/config.json
@@ -143,9 +136,6 @@ spec:
     - name: submissions
       port: 465
       targetPort: 465
-    - name: submission
-      port: 587
-      targetPort: 587
     - name: imaps
       port: 993
       targetPort: 993

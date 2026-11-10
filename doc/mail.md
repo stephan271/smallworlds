@@ -126,7 +126,7 @@ senders address the seam rather than Stalwart directly.
 
 Terraform provides the supporting infrastructure: A records for `mail` and
 `webmail`, the PTR for `mail<env_ext>.<domain>` that must match Stalwart's EHLO
-identity, and inbound firewall rules for 25, 587 and 993
+identity, and inbound firewall rules for 25, 465 and 993
 (`infrastructure/terraform/main.tf`). All of it is conditional on this mode.
 
 ## 5. Mode B — external provider
@@ -305,7 +305,7 @@ Therefore:
   rather than gated: it can run against an external JMAP server, so refusing the
   selection would forbid a legitimate deployment (`doc/tenant-other.md`).
 - `infrastructure/terraform/main.tf` — make the `mail`/`webmail` A records, the
-  PTR and the 25/587/993 firewall rules conditional on Mode A.
+  PTR and the 25/465/993 firewall rules conditional on Mode A.
 - `e2e-tests/tests/03-bulwark.spec.ts` must skip cleanly in Mode B. Add a relay
   smoke test (a Keycloak password-reset request accepted by the relay), because
   mail otherwise becomes an untested silent-failure path.

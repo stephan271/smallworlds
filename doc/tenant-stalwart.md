@@ -12,7 +12,8 @@ Stalwart uses a CloudNativePG (CNPG) cluster for its storage backend.
 ### 2. Stalwart Core Configuration (`stalwart-deployment.yaml`)
 - **Database Connection**: The `stalwart-config` ConfigMap points to `database-rw.stalwart.svc.cluster.local`, which is the read-write service automatically created by the CNPG operator.
 - **Relay Configuration**: The `relay.json` allows relaying from Kubernetes internal subnets (`10.42.0.0/16`, `10.43.0.0/16`). This is crucial because other applications in the cluster (like Keycloak and Nextcloud) use Stalwart as an SMTP relay to send emails without needing full authentication for internal traffic.
-- **Certificates**: It mounts TLS certificates from `stalwart-tls`. This secret is expected to be populated by `cert-manager` via the Ingress resource, allowing secure STARTTLS/IMAPS.
+- **Certificates**: It mounts TLS certificates from `stalwart-tls`, which `cert-manager` fills via the Ingress resource. Stalwart v0.16 ignores the old `STALWART_CERTIFICATE_*` variables, so the hourly `stalwart-tls-sync` CronJob registers the mounted files in Stalwart's registry, makes them the default certificate and reloads them — Stalwart does not notice a renewed file by itself, and deletes a registered certificate that has expired when it loads. Until 2026-11-10, IMAPS (993) and submission (465) served Stalwart's own self-signed certificate.
+- **Mail apps** submit on 465 (implicit TLS), which is what Stalwart's SRV records name and what both firewalls open. Nothing listens on 587.
 
 ### 3. Mail Provisioner (`mail-provisioner-deployment.yaml` & `mail-provisioner-rbac.yaml`)
 Because Keycloak doesn't natively push user creation events to external mail servers in a simple way, a custom sidecar/provisioner deployment is used to synchronize users.

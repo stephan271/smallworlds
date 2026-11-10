@@ -1684,7 +1684,9 @@ EOF
     if [[ "$LOCAL_FIREWALL" == "yes" ]]; then
         HOST_FIREWALL="true"
         if selected_apps | grep -qx stalwart; then
-            FIREWALL_TCP_PORTS="$FIREWALL_TCP_PORTS 25 587 993"
+            # 465, not 587: Stalwart submits on implicit TLS there (and its SRV
+            # records say so), and nothing listens on 587. Mirrors main.tf.
+            FIREWALL_TCP_PORTS="$FIREWALL_TCP_PORTS 25 465 993"
         fi
         if selected_apps | grep -qx jitsi; then
             FIREWALL_UDP_PORTS="10000"
