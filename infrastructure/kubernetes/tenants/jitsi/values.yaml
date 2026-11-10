@@ -97,6 +97,16 @@ jvb:
     type: LoadBalancer
   xmpp:
     existingSecretName: jitsi-jvb-auth
+  # The chart's probe has no start-up delay, so Kubernetes' defaults give the
+  # JVM about 30 s. On a busy node jvb needs about that long to open port 8080,
+  # and was killed over and over before it ever started (Ring 0, 2026-11-10).
+  livenessProbe:
+    httpGet:
+      path: /about/health
+      port: 8080
+    initialDelaySeconds: 60
+    periodSeconds: 10
+    failureThreshold: 6
 
 prosody:
   jwt:
