@@ -50,6 +50,8 @@ charts/
 # Except for example files which are meant to be committed
 !*.env.example
 !*.example.env
+# Not a secret: the K3s and Argo CD pins every bootstrap path reads (docs/adr/0057)
+!infrastructure/bootstrap-pins.env
 
 # Any locally resolved secrets or keys
 *.resolved
