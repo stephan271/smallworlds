@@ -79,6 +79,10 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    # No ServerSideApply: this chart has no CRDs and nothing large, and with it
+    # Argo CD compares by structured-merge diff, which the ignore list above
+    # does not reach. On Ring 0 (Argo CD v3.5.4, K3s 1.36, 2026-11-10) that
+    # left loki-stack OutOfSync and re-syncing forever, while `argocd app diff`
+    # (no structured merge) found no difference at all.
     syncOptions:
       - CreateNamespace=true
-      - ServerSideApply=true
