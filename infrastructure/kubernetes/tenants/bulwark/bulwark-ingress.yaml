@@ -12,7 +12,7 @@ metadata:
     gethomepage.dev/name: "Webmail"
     gethomepage.dev/description: "Bulwark"
     gethomepage.dev/group: "Applications"
-    gethomepage.dev/icon: "bulwark.png"
+    gethomepage.dev/icon: "mdi-email-outline-#d69e2e"
     gethomepage.dev/pod-selector: "app=bulwark"
 spec:
   rules:

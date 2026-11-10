@@ -106,7 +106,7 @@ metadata:
     gethomepage.dev/name: "Nextcloud Office"
     gethomepage.dev/description: "Euro-Office Document Server"
     gethomepage.dev/group: "Applications"
-    gethomepage.dev/icon: "euro-office.png"
+    gethomepage.dev/icon: "mdi-file-document-edit-#2b6cb0"
 spec:
   rules:
     - host: office.smallworlds.network

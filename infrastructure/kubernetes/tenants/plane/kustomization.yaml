@@ -88,6 +88,7 @@ patches:
           gethomepage.dev/description: "Project Management"
           gethomepage.dev/group: "Applications"
           gethomepage.dev/icon: "plane.png"
+          gethomepage.dev/pod-selector: "app.name=plane-plane-web"
   - target:
       kind: Deployment
       name: plane-api-wl
