@@ -5,7 +5,7 @@
 
 ## Talks
 
-Watch the [SmallWorlds Lightning Talk](https://rawcdn.githack.com/stephan271/smallworlds/30beb50/lightning_talk.html).
+Watch the [SmallWorlds Lightning Talk](https://rawcdn.githack.com/stephan271/smallworlds/7bccee0/lightning_talk.html).
 > Refer to the [SmallWorlds Architecture Diagram](smallworlds_architecture.md) for system topology and data flows.
 
 # SmallWorlds Setup Guide
