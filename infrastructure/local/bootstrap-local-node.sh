@@ -203,9 +203,12 @@ fi
 
 # fetch_verified <url> <sha256> <destination>: download, and keep the file only
 # if it is byte for byte what was pinned.
+# --retry alone does not retry a dropped connection ("Recv failure: Connection
+# reset by peer" stopped an install on 2026-11-10); --retry-all-errors does,
+# and is safe because the digest below rejects anything but the pinned file.
 fetch_verified() {
     local url="$1" expected="$2" destination="$3" actual
-    if ! curl -fsSL --retry 3 --max-time 120 -o "$destination" "$url"; then
+    if ! curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 --max-time 120 -o "$destination" "$url"; then
         echo -e "${RED}Could not download $url.${NC}" >&2
         exit 1
     fi
@@ -1032,11 +1035,16 @@ ROOTAPP
     # step is idempotent, so a resumed run simply waits again.
     if [ ! -f "$MARKER_DIR/issuer-ready" ]; then
         echo -e "${YELLOW}Waiting for cert-manager's CRDs before creating the certificate issuer...${NC}"
-        # kubectl wait fails immediately on a resource that does not exist yet,
-        # and this CRD only appears once Argo CD has synced cert-manager. So poll
-        # for it to appear, then wait for it to be established.
+        # kubectl wait cannot be used here: it fails immediately on a CRD that
+        # does not exist yet (it appears only once Argo CD has synced
+        # cert-manager), and *also* on one that exists but has no status yet
+        # (".status.conditions accessor error: <nil>"), which is the moment
+        # right after it appears. Both stopped a first install (2026-11-10).
+        # So poll for the Established condition itself.
         ISSUER_DEADLINE=$(( $(date +%s) + ${ISSUER_CRD_TIMEOUT_SECONDS:-900} ))
-        until kubectl get crd clusterissuers.cert-manager.io >/dev/null 2>&1; do
+        until [ "$(kubectl get crd clusterissuers.cert-manager.io \
+                    -o jsonpath='{.status.conditions[?(@.type=="Established")].status}' \
+                    2>/dev/null)" = "True" ]; do
             if [ "$(date +%s)" -ge "$ISSUER_DEADLINE" ]; then
                 echo -e "${RED}cert-manager did not install clusterissuers.cert-manager.io in time.${NC}" >&2
                 echo -e "${RED}No certificate can be issued until it does; re-run to wait again.${NC}" >&2
@@ -1044,7 +1052,6 @@ ROOTAPP
             fi
             sleep 5
         done
-        kubectl wait --for=condition=Established --timeout=2m crd/clusterissuers.cert-manager.io
         # An Established CRD says nothing about cert-manager being able to
         # *admit* one. Its validating webhook is a separate Deployment installed
         # by the same Argo CD Application, and until that has endpoints every

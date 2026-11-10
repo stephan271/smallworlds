@@ -306,7 +306,7 @@ runcmd:
   # Pinned and checked, not "whatever upstream serves today": the version and
   # the checksum come from infrastructure/bootstrap-pins.env (docs/adr/0057).
   # A mismatch stops here, before k3s exists; cloud-init then reports an error.
-  - curl -fsSL --retry 3 -o /usr/local/lib/k3s-install.sh "${k3s_installer_url}"
+  - curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o /usr/local/lib/k3s-install.sh "${k3s_installer_url}"
   - echo "${k3s_installer_sha256}  /usr/local/lib/k3s-install.sh" | sha256sum -c - || { rm -f /usr/local/lib/k3s-install.sh; echo "K3s installer checksum mismatch - see infrastructure/bootstrap-pins.env" >&2; exit 1; }
   - INSTALL_K3S_VERSION="${k3s_version}" sh /usr/local/lib/k3s-install.sh server --cluster-init --node-ip=$NODE_IP --node-name=${node_name} --disable traefik --kubelet-arg=registry-qps=50 --kubelet-arg=registry-burst=100
 %{ endif ~}
@@ -320,7 +320,7 @@ runcmd:
 
   # 3. Install ArgoCD
   - kubectl create namespace argocd || true
-  - curl -fsSL --retry 3 -o /root/argocd-install.yaml "${argocd_manifest_url}"
+  - curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o /root/argocd-install.yaml "${argocd_manifest_url}"
   - echo "${argocd_manifest_sha256}  /root/argocd-install.yaml" | sha256sum -c - || { rm -f /root/argocd-install.yaml; echo "Argo CD manifest checksum mismatch - see infrastructure/bootstrap-pins.env" >&2; exit 1; }
   - kubectl apply -n argocd -f /root/argocd-install.yaml --server-side --force-conflicts
   - |
@@ -356,18 +356,20 @@ runcmd:
   # 4b. Certificate issuer. Every Ingress annotates cluster-issuer
   # letsencrypt-prod, so nothing gets a certificate without this. Waiting for
   # the one precondition beats retrying blindly.
-  # kubectl wait fails immediately on a resource that does not exist yet, and
-  # this CRD only appears once Argo CD has synced cert-manager.
+  # kubectl wait fails immediately on a CRD that does not exist yet (it appears
+  # once Argo CD has synced cert-manager) and also on one that has no status
+  # yet, right after it appears. So poll for the Established condition itself.
   - |
     deadline=$(( $(date +%s) + 900 ))
-    until kubectl get crd clusterissuers.cert-manager.io >/dev/null 2>&1; do
+    until [ "$(kubectl get crd clusterissuers.cert-manager.io \
+                -o jsonpath='{.status.conditions[?(@.type=="Established")].status}' \
+                2>/dev/null)" = "True" ]; do
       if [ "$(date +%s)" -ge "$deadline" ]; then
         echo "cert-manager did not install clusterissuers.cert-manager.io in time" >&2
         exit 1
       fi
       sleep 5
     done
-    kubectl wait --for=condition=Established --timeout=2m crd/clusterissuers.cert-manager.io
     # An Established CRD says nothing about cert-manager being able to *admit*
     # one. Its validating webhook is a separate Deployment installed by the same
     # Argo CD Application, and until that has endpoints every create is refused

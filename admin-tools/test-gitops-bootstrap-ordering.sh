@@ -33,8 +33,14 @@ for bootstrap in "$local_bootstrap" "$cloud_init"; do
         echo "Expected $bootstrap not to auto-apply a ClusterIssuer" >&2
         exit 1
     fi
-    assert_contains "$bootstrap" 'crd/clusterissuers.cert-manager.io'
     assert_contains "$bootstrap" 'kubectl get crd clusterissuers.cert-manager.io'
+    assert_contains "$bootstrap" '?(@.type=="Established")'
+    # kubectl wait fails at once on a CRD that has no status yet, which is the
+    # moment right after Argo CD creates it; that stopped a first install.
+    if grep -Eq 'kubectl wait .*crd/clusterissuers' "$bootstrap"; then
+        echo "Expected $bootstrap to poll the Established condition, not kubectl wait" >&2
+        exit 1
+    fi
 done
 
 # cloud-init writes runcmd to a script and runs it with `sh -e`, in an
