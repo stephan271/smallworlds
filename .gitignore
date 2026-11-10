@@ -85,3 +85,6 @@ __pycache__/
 # be committed — the script writes them 0600 for the same reason.
 invite-links.csv
 invite-qr/
+
+# Member lists for bulk-invite.py hold names, phone numbers and email addresses.
+admin-tools/users.csv
