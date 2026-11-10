@@ -33,6 +33,19 @@ def _operation_running(app: dict) -> bool:
     return app.get("status", {}).get("operationState", {}).get("phase") == "Running"
 
 
+def _sync_failure(app: dict) -> str | None:
+    """Why the last sync failed, or None. A failed sync hook (an init Job at
+    its backoff limit) leaves the app Synced and Healthy: only the operation
+    says so (Stalwart's stalwart-init on Ring 0, 2026-11-10)."""
+    state = app.get("status", {}).get("operationState", {})
+    if state.get("phase") not in ("Failed", "Error"):
+        return None
+    failed = [f"{r.get('kind')} {r.get('name')}: {r.get('message', '')}".rstrip(": ")
+              for r in state.get("syncResult", {}).get("resources", [])
+              if r.get("hookPhase") in ("Failed", "Error") or r.get("status") == "SyncFailed"]
+    return f"sync {state['phase']}: " + ("; ".join(failed) or state.get("message", ""))
+
+
 def _sources(app: dict) -> list[dict]:
     spec = app.get("spec", {})
     return spec.get("sources") or ([spec["source"]] if spec.get("source") else [])
@@ -73,10 +86,18 @@ class ArgoCD:
                 raise TimeoutError("Argo CD did not refresh " + ", ".join(sorted(pending)))
             self.sleep(5)
 
-    def _sync(self, name: str) -> None:
-        self.kube.merge_patch(f"{self.path}/{name}", {"operation": {
+    def _sync(self, app: dict) -> None:
+        # The controller reads sync options from the operation, not from the
+        # Application's syncPolicy (the UI and CLI copy them over). Without
+        # them ServerSideApply was lost and cloudnative-pg's CRDs failed
+        # client-side apply on Ring 0: "metadata.annotations: Too long".
+        sync = {"prune": True}
+        options = app.get("spec", {}).get("syncPolicy", {}).get("syncOptions")
+        if options:
+            sync["syncOptions"] = list(options)
+        self.kube.merge_patch(f"{self.path}/{app['metadata']['name']}", {"operation": {
             "initiatedBy": {"username": "canary-follower"},
-            "sync": {"prune": True},
+            "sync": sync,
         }})
 
     def follow(self, refresh_timeout: int) -> tuple[list[str], set[str]]:
@@ -90,11 +111,11 @@ class ArgoCD:
         """
         deadline = self.clock() + refresh_timeout
         self._refresh([self.root_app], deadline)
-        while _operation_running(self.get(self.root_app)):
+        while _operation_running(root := self.get(self.root_app)):
             if self.clock() >= deadline:
                 raise TimeoutError(f"{self.root_app} kept running an operation")
             self.sleep(5)
-        self._sync(self.root_app)
+        self._sync(root)
         while _operation_running(self.get(self.root_app)):
             if self.clock() >= deadline:
                 raise TimeoutError(f"{self.root_app} did not finish syncing")
@@ -104,10 +125,10 @@ class ArgoCD:
         self._refresh(others, deadline)
         synced, deferred = [self.root_app], set()
         for name in others:
-            if _operation_running(self.get(name)):
+            if _operation_running(app := self.get(name)):
                 deferred.add(name)
             else:
-                self._sync(name)
+                self._sync(app)
                 synced.append(name)
         return synced, deferred
 
@@ -115,7 +136,8 @@ class ArgoCD:
                  deferred: set[str] = frozenset()) -> tuple[bool, list[str]]:
         """Wait until every Application is Synced and Healthy, syncing each
         deferred one as soon as its running operation ends. Returns
-        (converged, the ones that are not, as 'name: sync/health')."""
+        (converged, the ones that are not, as 'name: sync/health' or
+        'name: sync Failed: <what failed>')."""
         deferred = set(deferred)
         deadline = self.clock() + timeout
         while True:
@@ -123,7 +145,7 @@ class ArgoCD:
             for app in apps:
                 name = app["metadata"]["name"]
                 if name in deferred and not _operation_running(app):
-                    self._sync(name)
+                    self._sync(app)
                     deferred.discard(name)
             lagging = []
             for a in self.list():
@@ -132,6 +154,8 @@ class ArgoCD:
                     lagging.append(f"{name}: still running an earlier sync")
                 elif _operation_running(a) or _sync_status(a) != "Synced" or _health(a) != "Healthy":
                     lagging.append(f"{name}: {_sync_status(a)}/{_health(a)}")
+                elif failure := _sync_failure(a):
+                    lagging.append(f"{name}: {failure}")
             if not lagging:
                 return True, []
             if self.clock() >= deadline:

@@ -41,6 +41,7 @@ class FakeArgoKube:
     def __init__(self, sha, names=("smallworlds-root", "keycloak", "gallery"), routed=("gallery",)):
         self.deploys = sha
         self.busy = {}
+        self.fail = {}
         self.calls = []
         self.health = {}
         self.apps = {}
@@ -69,6 +70,17 @@ class FakeArgoKube:
             revision = OVERLAY_SHA if app["spec"]["source"]["repoURL"] == OVERLAY else self.deploys
             app["status"]["sync"] = {"status": "Synced", "revision": revision}
             app["status"]["health"] = {"status": self.health.get(name, "Healthy")}
+            if name in self.fail:
+                kind, resource, message = self.fail[name]
+                app["status"]["operationState"] = {
+                    "phase": "Failed",
+                    "message": "one or more synchronization tasks completed unsuccessfully",
+                    "syncResult": {"resources": [
+                        {"kind": "ConfigMap", "name": "fine", "status": "Synced"},
+                        {"kind": kind, "name": resource, "status": "Synced",
+                         "hookPhase": "Failed", "message": message}]}}
+            else:
+                app["status"]["operationState"] = {"phase": "Succeeded"}
 
     def get(self, path):
         self.calls.append(("GET", path))
@@ -180,6 +192,29 @@ class FollowerTest(unittest.TestCase):
         outcome = follower.tick()
         self.assertEqual("failure", outcome.state)
         self.assertIn("keycloak: Synced/Degraded", outcome.description)
+
+    def test_a_failed_hook_fails_the_commit_although_the_app_is_healthy(self):
+        # Ring 0, 2026-11-10: stalwart-init hit its backoff limit, the sync
+        # ended Failed, and Stalwart still read Synced/Healthy.
+        follower, gh, kube, _ = make()
+        kube.fail["keycloak"] = ("Job", "stalwart-init", "Job has reached the specified backoff limit")
+        outcome = follower.tick()
+        self.assertEqual("failure", outcome.state)
+        self.assertIn("keycloak: sync Failed: Job stalwart-init: Job has reached the specified backoff limit",
+                      outcome.description)
+
+    def test_a_sync_carries_the_apps_own_sync_options(self):
+        # The controller takes sync options from the operation only. Without
+        # them cloudnative-pg's CRDs went through client-side apply on Ring 0
+        # and failed: "metadata.annotations: Too long".
+        follower, gh, kube, _ = make()
+        kube.apps["keycloak"]["spec"]["syncPolicy"] = {
+            "syncOptions": ["CreateNamespace=true", "ServerSideApply=true"]}
+        follower.tick()
+        syncs = {c[1].rsplit("/", 1)[1]: c[2]["operation"]["sync"]
+                 for c in kube.calls if c[0] == "PATCH" and "operation" in c[2]}
+        self.assertEqual(["CreateNamespace=true", "ServerSideApply=true"], syncs["keycloak"]["syncOptions"])
+        self.assertNotIn("syncOptions", syncs["gallery"], "an app without options gets none")
 
     def test_main_moving_on_mid_way_is_an_error_not_a_verdict(self):
         follower, gh, kube, _ = make()

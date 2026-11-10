@@ -78,8 +78,53 @@ spec:
               export STALWART_URL="http://stalwart-mail:8080"
               export STALWART_USER="admin"
               # STALWART_PASSWORD is set via environment variable
-              
-              
+
+              # 4b. Spam filter rules made for this Stalwart version.
+              # Stalwart fetches its rules from the spam-filter repository's
+              # *latest* release on first boot. From v3.0.2 those rules use
+              # `bit_and`, which Stalwart only parses from v0.16.23 on, so v0.16.12
+              # rejects them — and a rejected object makes every ReloadSettings
+              # fail, so no setting below takes effect until a restart (Ring 0,
+              # 2026-11-10: the zone file kept the pod's name as the mail
+              # hostname). Move this pin together with the image in
+              # stalwart-deployment.yaml.
+              SPAM_RULES_URL="https://github.com/stalwartlabs/spam-filter/releases/download/v3.0.1/spam-filter-rules.json.gz"
+              echo "Pinning the spam filter rules to $SPAM_RULES_URL..."
+              # Let the first-boot fetch finish, or its objects arrive after the repair.
+              for i in $(seq 1 60); do
+                [ -n "$($CLI query SpamDnsblServer --json 2>/dev/null | head -n 1)" ] && break
+                sleep 2
+              done
+              $CLI update SpamSettings singleton --field spamFilterRulesUrl="$SPAM_RULES_URL"
+              # Delete what Stalwart rejects (only spam filter objects), then
+              # fetch those again from the pinned rules. A rules update only
+              # inserts, so a rejected object would otherwise stay forever.
+              reload_settings() {
+                $CLI create Action --json '{"@type":"ReloadSettings"}' > /tmp/reload.out 2>&1
+              }
+              REMOVED=0
+              for i in $(seq 1 50); do
+                reload_settings && break
+                REJECTED=$(sed -n 's/^ *Object id: *\(Spam[A-Za-z]*\)#\([a-z0-9]*\).*/\1 \2/p' /tmp/reload.out | head -n 1)
+                [ -n "$REJECTED" ] || break
+                echo "Stalwart rejects ${REJECTED% *} ${REJECTED#* }; deleting it:"
+                grep -i "invalid\|error" /tmp/reload.out | head -n 3
+                $CLI delete "${REJECTED% *}" --ids "${REJECTED#* }"
+                REMOVED=$((REMOVED + 1))
+              done
+              if [ "$REMOVED" -gt 0 ]; then
+                echo "Deleted $REMOVED spam filter object(s); fetching them again from the pinned rules..."
+                $CLI create Task/SpamFilterMaintenance --json '{"maintenanceType":"updateRules"}'
+                sleep 20
+              fi
+              if ! reload_settings; then
+                cat /tmp/reload.out
+                echo "ERROR: Stalwart rejects its own settings, so none of the settings below would take effect."
+                exit 1
+              fi
+              echo "Stalwart accepts its settings."
+
+
               # 5. Configure System Settings and SenderAuth for Internal Relaying BEFORE domain creation
 
               # Exempt cluster-internal CIDRs from Stalwart's fail2ban. Without
@@ -205,9 +250,13 @@ spec:
                 # back to its own pod hostname), pushing an unresolvable MX
                 # record to production DNS with no visible error (2026-07-19).
                 $CLI update SystemSettings singleton --field defaultDomainId="$DOMAIN_ID" --field defaultHostname="$MAIL_HOSTNAME"
-                $CLI create Action --json '{"@type":"ReloadSettings"}' || true
-                # Read it back: on Ring 0 (2026-11-10) the zone file still named
-                # the pod after this step, and the job could not say why.
+                # The zone file is built from the hostname Stalwart loaded, not
+                # the stored one: a reload that fails leaves the pod's name in it.
+                if ! reload_settings; then
+                  cat /tmp/reload.out
+                  echo "ERROR: Stalwart did not reload its settings; the zone file would keep the old hostname."
+                  exit 1
+                fi
                 ACTUAL_HOSTNAME=$($CLI get SystemSettings --json --fields defaultHostname 2>&1 | jq -r '.defaultHostname // empty' 2>/dev/null || true)
                 echo "SystemSettings.defaultHostname reads back as: ${ACTUAL_HOSTNAME:-<empty>}"
                 if [ "$ACTUAL_HOSTNAME" != "$MAIL_HOSTNAME" ]; then
@@ -232,15 +281,6 @@ spec:
               # 7. Configure Keycloak OIDC Directory
               echo "Configuring Keycloak OIDC Directory..."
               
-              echo "Cleaning up old Keycloak OIDC directories..."
-              $CLI query Directory --json > /tmp/dirs.json || true
-              grep -i '"@type":"Oidc"' /tmp/dirs.json | jq -r .id > /tmp/oidc_ids.txt || true
-              for ID in $(cat /tmp/oidc_ids.txt); do
-                echo "Deleting OIDC Directory Directory/oidc/$ID..."
-                $CLI delete Directory/oidc/$ID || $CLI delete Directory/$ID || true
-              done
-
-              echo "Creating fresh OIDC Directory..."
               OIDC_JSON=$(jq -n \
                 --arg issuer "https://identity${ENV_EXT}.${DOMAIN_NAME}/realms/smallworlds" \
                 --arg domain "$MAIL_DOMAIN" \
@@ -253,7 +293,24 @@ spec:
                   claimName: "name",
                   claimGroups: "groups"
                 }')
-              DIR_ID=$( $CLI create Directory/oidc --json "$OIDC_JSON" | awk '{print $3}' || true )
+              # One OIDC directory, updated in place. This used to create a fresh
+              # one on every run and delete the old ones with `delete
+              # Directory/oidc/<id>`, a syntax the CLI refuses — so none was ever
+              # deleted and they piled up. Keep the one sign-in uses now.
+              OIDC_IDS=$($CLI query Directory --json | jq -r 'select(."@type" == "Oidc") | .id')
+              IN_USE=$($CLI get Authentication singleton --json | jq -r '.directoryId // empty')
+              DIR_ID=""
+              for ID in $OIDC_IDS; do
+                [ "$ID" = "$IN_USE" ] && DIR_ID="$ID"
+              done
+              [ -n "$DIR_ID" ] || DIR_ID=$(echo "$OIDC_IDS" | head -n 1)
+              if [ -n "$DIR_ID" ]; then
+                echo "Updating OIDC Directory $DIR_ID..."
+                $CLI update Directory "$DIR_ID" --json "$OIDC_JSON"
+              else
+                echo "Creating the OIDC Directory..."
+                DIR_ID=$( $CLI create Directory/oidc --json "$OIDC_JSON" | awk '{print $3}' || true )
+              fi
 
               if [ -n "$DIR_ID" ]; then
                 echo "Associating OIDC Directory $DIR_ID as the default authentication directory..."
@@ -265,6 +322,13 @@ spec:
                 $CLI update Domain "$DOMAIN_ID" --field directoryId="$DIR_ID" || true
               else
                 echo "Error: Directory ID or Domain ID not resolved, skipping association."
+              fi
+
+              # Now that nothing links them, the others can go.
+              OLD_IDS=$(echo "$OIDC_IDS" | grep -vx "$DIR_ID" | paste -sd, - || true)
+              if [ -n "$DIR_ID" ] && [ -n "$OLD_IDS" ]; then
+                echo "Deleting $(echo "$OLD_IDS" | tr ',' '\n' | wc -l) unused OIDC Directories..."
+                $CLI delete Directory --ids "$OLD_IDS" || true
               fi
 
               
