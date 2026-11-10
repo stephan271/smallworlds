@@ -83,9 +83,20 @@ web:
             proxy_set_header Host $http_host;
         }
 
+# The chart's default for these two XMPP passwords is `randAlphaNum 10` at
+# every render, so each new render (a hard refresh, a new commit, Argo CD's
+# cache expiring) wrote new passwords and restarted jicofo and jvb with them,
+# which Prosody then refused (SASL not-authorized) — first seen on Ring 0 on
+# 2026-11-10. jitsi-secret-init-job creates these Secrets once instead.
+jicofo:
+  xmpp:
+    existingSecretName: jitsi-jicofo-auth
+
 jvb:
   service:
     type: LoadBalancer
+  xmpp:
+    existingSecretName: jitsi-jvb-auth
 
 prosody:
   jwt:
