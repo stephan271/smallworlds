@@ -82,6 +82,19 @@ only place where anything happens without a human.
   Ring 1's buckets turns a canary bug into a production incident. If the
   provider cannot scope keys, use a second account.
 
+  **Accepted for now (2026-11-10):** the provider could not scope the key, and
+  Ring 0 runs with an account-wide key. Ring 0 only names its own buckets, so
+  the risk is a bug that addresses another prefix, or a compromise of Ring 0.
+  Until a second account exists, turn on versioning or object lock for Ring 1's
+  buckets where the provider offers it, and never point a Ring 0 restore drill
+  (§9) at Ring 1's prefix.
+- **GitOps Overlay:** Ring 0 has one, like every install
+  (`my-community.canary-config`), with every reference at `?ref=HEAD`; it is
+  written once and never bumped. Argo CD's root Application needs it, and it
+  carries what the base cannot: the `.canary` hostname patches, the external
+  S3 patches, the Gallery and Euro-Office choices, and the Ring 0-only Canary
+  Follower.
+
 **Why always on, and not an hourly Hetzner server.** A Hetzner server billed by
 the hour, running only while a release is being tested, was considered on
 2026-11-10 and rejected:
@@ -469,7 +482,8 @@ the data checks.
 ## 10. Open questions
 
 - Contabo and port 25 / PTR for Stalwart (§3.2).
-- Whether the S3 provider can scope an access key to a bucket prefix (§3.1).
+- ~~Whether the S3 provider can scope an access key to a bucket prefix (§3.1).~~
+  It cannot (2026-11-10); accepted for now, a second account later.
 - The quiet-period and soak lengths (30 minutes, 72 hours) are first guesses.
   Revisit after the first month.
 - Plane's real memory footprint (§3.2).
