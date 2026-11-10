@@ -82,6 +82,43 @@ only place where anything happens without a human.
   Ring 1's buckets turns a canary bug into a production incident. If the
   provider cannot scope keys, use a second account.
 
+**Why always on, and not an hourly Hetzner server.** A Hetzner server billed by
+the hour, running only while a release is being tested, was considered on
+2026-11-10 and rejected:
+
+- **The saving is small.** Every app at once needs 24 GB, so the Hetzner size
+  would be a CX53 (32 GB; the 16 GB CX43 is too small): about €29.49/month cap,
+  about €0.047/hour after the 2026 price rises. A powered-off server is still
+  billed in full. Billing stops only when the server is deleted, and the volumes
+  and Primary IP keep costing about €3/month. Break-even with the Contabo server
+  (about €14/month) is about 230 hours a month. One test day a week (about 100
+  hours) costs about €8/month, a saving of about €70 a year. Prices are from
+  third-party trackers; check them before relying on them.
+- **The failures that matter most need time.** WAL growth that fills a disk
+  (the 2026-08-09 outage), certificate renewal, backup retention, nightly
+  CronJobs, memory leaks and log growth show up after days, not in a test
+  session. The 72-hour gate in §4.4 would shrink to "one session passed".
+- **It would test the wrong install path.** Hetzner means the `hetzner` target
+  (Terraform, cloud-init, network volumes). Ring 1 and most Ring 2 servers use
+  `local` with `HOST_FIREWALL`.
+- **Parking and reviving is not supported today.** etcd lives on the server's
+  own disk (`/var/lib/smallworlds-etcd`), so deleting the server deletes the
+  cluster datastore. A rebuilt node starts empty, and every generated Secret is
+  generated again. Reviving a parked cluster would need:
+  - an etcd snapshot (`k3s etcd-snapshot save`, to the volume and to S3)
+    before deleting the server;
+  - a cloud-init branch that restores it with `k3s server --cluster-reset
+    --cluster-reset-restore-path=…`;
+  - skipping the template's first step, which deletes
+    `/var/lib/rancher/k3s/server` (on the volume, including the token the
+    restore needs). That change has to be mirrored in the local bootstrap.
+
+  That is about two to three days of work in the most sensitive part of the
+  bootstrap.
+
+Revisit this if the canary turns out to be needed only rarely, or if the
+Contabo server proves unreliable.
+
 ### 3.2 What it runs
 
 **Every supported application, at the same time**: Nextcloud, Forgejo, Plane,

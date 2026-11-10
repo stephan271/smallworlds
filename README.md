@@ -224,7 +224,7 @@ To deploy external applications, add standard Kubernetes manifests to your confi
 The rebuild procedures below are for the **hetzner** target (they drive Terraform). For **local** deployments, the equivalent lifecycle (uninstall/reinstall preserving data, full wipe) is described in `doc/local-deployment.md`.
 
 ### Rebuild (Preserve Data)
-This procedure replaces the VM while retaining the persistent volume containing cluster state and data.
+This procedure replaces the VM while retaining the persistent volumes, which hold the application data. The cluster datastore (etcd) is on the VM's own disk and does not survive: the new node starts with an empty cluster, and Argo CD recreates it from your overlay.
 ```bash
 cd infrastructure/terraform
 terraform destroy -target=hcloud_server.smallworlds_pilot_node

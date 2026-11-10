@@ -178,7 +178,11 @@ is a tag.
 - The file is plain `KEY=value` only (no quotes, no expansion) because Terraform parses it
   with a regex. Change version, URL and digest together.
 - A pin change reaches **new and rebuilt nodes only**. Never lower the K3s pin below what
-  running clusters have: a rebuilt Hetzner node re-attaches the existing etcd data.
+  running clusters have: a re-bootstrapped `local` machine keeps its etcd datastore, and a
+  rebuilt Hetzner node keeps the K3s data directory on its volume. The datastore itself
+  does **not** survive a Hetzner rebuild: it lives on the server's own disk
+  (`/var/lib/smallworlds-etcd`, `doc/storage-and-backup.md`), so a rebuilt node starts with
+  an empty cluster and Argo CD recreates it from git.
 - `admin-tools/lab/lab-node-bootstrap.sh` and the unused `terraform/modules/worker-node`
   template still fetch `get.k3s.io` unverified; they are outside the install paths.
 
