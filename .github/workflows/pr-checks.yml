@@ -65,6 +65,7 @@ jobs:
           - test-setup-wizard.sh
           - test-object-storage.py
           - test-pod-gateway.py
+          - test-generate-domain-patches.py
     steps:
       - uses: actions/checkout@v4
         with:

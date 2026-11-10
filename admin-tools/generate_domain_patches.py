@@ -708,6 +708,27 @@ def generate_patches(app_name, domain, ext):
 
     return patches
 
+def without_present_entries(patches: str, content: str) -> str:
+    """Drop the patch entries that the kustomization already contains.
+
+    A setup rerun calls this generator again for every application, and
+    appending unconditionally doubled every patch (2026-11-10, the Ring 0
+    install). Doubled `replace` operations are harmless, but doubled `add`
+    operations append the same env entry twice. Each entry starts at a
+    two-space `- target:` line; comment lines travel with the entry before them.
+    """
+    entries: list[str] = []
+    current: list[str] = []
+    for line in patches.splitlines(keepends=True):
+        if line.startswith("  - target:") and current:
+            entries.append("".join(current))
+            current = []
+        current.append(line)
+    if current:
+        entries.append("".join(current))
+    return "".join(entry for entry in entries if entry not in content)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Generate Kustomize domain patches for an overlay repository.")
     parser.add_argument("--app", required=True, help="The application name (e.g. dashboard)")
@@ -743,6 +764,11 @@ def main():
         else:
             patches += generate_office_backend_patch(args.office_backend)
     
+    if patches:
+        with open(args.kustomization_file, "r", newline="\n") as existing:
+            patches = without_present_entries(patches, existing.read())
+        if not patches:
+            print(f"Patches for {args.app} already present in {args.kustomization_file}")
     if patches:
         # newline="\n" on both handles: text mode would translate on Windows, and
         # a kustomization with CRLF endings is not the file the console's own
