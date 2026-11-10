@@ -396,6 +396,11 @@ members. Today `my-community-config` (v1.2.39), `my-community-dev-config`
 `my-community-lab-config` (v1.2.42) are below. For each one: move it to a
 current tag or confirm that its cluster no longer exists.
 
+**Done (2026-11-10):** none of the four clusters exists any more, and the
+overlays are being deleted. The live overlays are Ring 1's
+`my-ovh-gallery-nextcloud` (v1.2.45) and Ring 0's `my-canary-installation`
+(`?ref=HEAD`, on purpose).
+
 ## 6. What exists and what is new
 
 | Piece | State |
