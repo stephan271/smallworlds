@@ -70,11 +70,12 @@ class Follower:
         steps: list[str] = []
         self.github.set_status(sha, "pending", "Ring 0 is syncing and verifying this commit")
         try:
-            synced = self.argocd.follow(s.refresh_timeout_seconds)
-            steps.append(f"synced {len(synced)} Applications")
+            synced, deferred = self.argocd.follow(s.refresh_timeout_seconds)
+            steps.append(f"synced {len(synced)} Applications"
+                         + (f", {len(deferred)} after their running sync" if deferred else ""))
 
             converged, lagging = self.argocd.converge(s.converge_timeout_seconds,
-                                                      s.converge_interval_seconds)
+                                                      s.converge_interval_seconds, deferred)
             if not converged:
                 return self._finish(sha, "failure", "Not converged: " + _list(lagging), steps)
             steps.append("converged")

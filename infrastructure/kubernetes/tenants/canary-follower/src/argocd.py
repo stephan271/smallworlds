@@ -73,24 +73,28 @@ class ArgoCD:
                 raise TimeoutError("Argo CD did not refresh " + ", ".join(sorted(pending)))
             self.sleep(5)
 
-    def _sync(self, name: str, deadline: float) -> None:
-        # A sync operation written over a running one is lost, so wait it out.
-        while _operation_running(self.get(name)):
-            if self.clock() >= deadline:
-                raise TimeoutError(f"{name} kept running an operation")
-            self.sleep(5)
+    def _sync(self, name: str) -> None:
         self.kube.merge_patch(f"{self.path}/{name}", {"operation": {
             "initiatedBy": {"username": "canary-follower"},
             "sync": {"prune": True},
         }})
 
-    def follow(self, refresh_timeout: int) -> list[str]:
+    def follow(self, refresh_timeout: int) -> tuple[list[str], set[str]]:
         """Hard-refresh and fully sync the root first (it owns the other
         Applications, and a new one may appear), then every other one.
-        Returns the names synced."""
+
+        A sync written over a running operation is lost, and an application
+        can sit in a retrying sync for hours (Stalwart did, on Ring 0). Such
+        an application is not waited for here: it is returned as deferred and
+        synced by converge() once its operation ends. Returns (synced, deferred).
+        """
         deadline = self.clock() + refresh_timeout
         self._refresh([self.root_app], deadline)
-        self._sync(self.root_app, deadline)
+        while _operation_running(self.get(self.root_app)):
+            if self.clock() >= deadline:
+                raise TimeoutError(f"{self.root_app} kept running an operation")
+            self.sleep(5)
+        self._sync(self.root_app)
         while _operation_running(self.get(self.root_app)):
             if self.clock() >= deadline:
                 raise TimeoutError(f"{self.root_app} did not finish syncing")
@@ -98,19 +102,36 @@ class ArgoCD:
         others = sorted(a["metadata"]["name"] for a in self.list()
                         if a["metadata"]["name"] != self.root_app)
         self._refresh(others, deadline)
+        synced, deferred = [self.root_app], set()
         for name in others:
-            self._sync(name, deadline)
-        return [self.root_app, *others]
+            if _operation_running(self.get(name)):
+                deferred.add(name)
+            else:
+                self._sync(name)
+                synced.append(name)
+        return synced, deferred
 
-    def converge(self, timeout: int, interval: int) -> tuple[bool, list[str]]:
-        """Wait until every Application is Synced and Healthy. Returns
+    def converge(self, timeout: int, interval: int,
+                 deferred: set[str] = frozenset()) -> tuple[bool, list[str]]:
+        """Wait until every Application is Synced and Healthy, syncing each
+        deferred one as soon as its running operation ends. Returns
         (converged, the ones that are not, as 'name: sync/health')."""
+        deferred = set(deferred)
         deadline = self.clock() + timeout
         while True:
-            lagging = [f"{a['metadata']['name']}: {_sync_status(a)}/{_health(a)}"
-                       for a in self.list()
-                       if _operation_running(a) or _sync_status(a) != "Synced"
-                       or _health(a) != "Healthy"]
+            apps = self.list()
+            for app in apps:
+                name = app["metadata"]["name"]
+                if name in deferred and not _operation_running(app):
+                    self._sync(name)
+                    deferred.discard(name)
+            lagging = []
+            for a in self.list():
+                name = a["metadata"]["name"]
+                if name in deferred:
+                    lagging.append(f"{name}: still running an earlier sync")
+                elif _operation_running(a) or _sync_status(a) != "Synced" or _health(a) != "Healthy":
+                    lagging.append(f"{name}: {_sync_status(a)}/{_health(a)}")
             if not lagging:
                 return True, []
             if self.clock() >= deadline:

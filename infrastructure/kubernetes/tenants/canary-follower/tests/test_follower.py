@@ -40,6 +40,7 @@ class FakeArgoKube:
 
     def __init__(self, sha, names=("smallworlds-root", "keycloak", "gallery"), routed=("gallery",)):
         self.deploys = sha
+        self.busy = {}
         self.calls = []
         self.health = {}
         self.apps = {}
@@ -59,6 +60,11 @@ class FakeArgoKube:
     def _settle(self, app):
         name = app["metadata"]["name"]
         app["metadata"]["annotations"].pop(REFRESH, None)
+        if self.busy.get(name, 0) > 0:
+            # An earlier sync still retrying: it ends after `busy` more reads.
+            self.busy[name] -= 1
+            app["status"]["operationState"] = {"phase": "Running" if self.busy[name] else "Failed"}
+            return
         if app.pop("operation", None) is not None:
             revision = OVERLAY_SHA if app["spec"]["source"]["repoURL"] == OVERLAY else self.deploys
             app["status"]["sync"] = {"status": "Synced", "revision": revision}
@@ -182,6 +188,26 @@ class FollowerTest(unittest.TestCase):
         self.assertEqual("error", outcome.state)
         self.assertIn("keycloak@dddddddddddd", outcome.description)
         self.assertNotIn("gallery", outcome.description, "routed apps run the overlay's revision")
+
+    def test_an_app_busy_with_an_earlier_sync_is_synced_once_it_ends(self):
+        follower, gh, kube, _ = make()
+        kube.busy["keycloak"] = 40
+        outcome = follower.tick()
+        self.assertEqual("success", outcome.state)
+        self.assertIn("1 after their running sync", outcome.steps[0])
+        syncs = [c[1].rsplit("/", 1)[1] for c in kube.calls if c[0] == "PATCH" and "operation" in c[2]]
+        self.assertEqual("keycloak", syncs[-1], "synced last, after its own sync ended")
+        self.assertEqual(1, syncs.count("keycloak"), "never written over the running one")
+
+    def test_an_app_stuck_in_a_sync_fails_the_commit_and_names_it(self):
+        follower, gh, kube, _ = make()
+        kube.busy["stalwart"] = 10 ** 9
+        kube.apps["stalwart"] = {"metadata": {"name": "stalwart", "annotations": {}},
+                                 "spec": {"source": {"repoURL": BASE}},
+                                 "status": {"sync": {"status": "OutOfSync"}, "health": {"status": "Healthy"}}}
+        outcome = follower.tick()
+        self.assertEqual("failure", outcome.state, "Ring 0's state, not a follower error")
+        self.assertIn("stalwart: still running an earlier sync", outcome.description)
 
     def test_smoke_failure_names_the_host(self):
         follower, gh, kube, _ = make(smoke_result=["photos.canary.x: HTTP 502"])
