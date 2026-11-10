@@ -83,6 +83,7 @@ jobs:
           - test-pod-gateway.py
           - test-generate-domain-patches.py
           - test-release-notes.py
+          - test-stalwart-dns-push.py
     steps:
       - uses: actions/checkout@v4
         with:

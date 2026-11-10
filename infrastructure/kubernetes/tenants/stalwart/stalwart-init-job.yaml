@@ -56,7 +56,7 @@ spec:
                 MAIL_DOMAIN="$DOMAIN_NAME"
               fi
               MAIL_HOSTNAME="mail${ENV_EXT}.$DOMAIN_NAME"
-              export MAIL_DOMAIN
+              export MAIL_DOMAIN MAIL_HOSTNAME
 
               # 1. Wait for JMAP endpoint to be online
               until nc -z -w 2 stalwart-mail 8080; do
@@ -205,6 +205,16 @@ spec:
                 # back to its own pod hostname), pushing an unresolvable MX
                 # record to production DNS with no visible error (2026-07-19).
                 $CLI update SystemSettings singleton --field defaultDomainId="$DOMAIN_ID" --field defaultHostname="$MAIL_HOSTNAME"
+                $CLI create Action --json '{"@type":"ReloadSettings"}' || true
+                # Read it back: on Ring 0 (2026-11-10) the zone file still named
+                # the pod after this step, and the job could not say why.
+                ACTUAL_HOSTNAME=$($CLI get SystemSettings --json --fields defaultHostname 2>&1 | jq -r '.defaultHostname // empty' 2>/dev/null || true)
+                echo "SystemSettings.defaultHostname reads back as: ${ACTUAL_HOSTNAME:-<empty>}"
+                if [ "$ACTUAL_HOSTNAME" != "$MAIL_HOSTNAME" ]; then
+                  echo "ERROR: defaultHostname is '${ACTUAL_HOSTNAME}', not '$MAIL_HOSTNAME'. Full SystemSettings:"
+                  $CLI get SystemSettings --json || true
+                  exit 1
+                fi
                 $CLI update Domain "$DOMAIN_ID" --field allowRelaying=true || true
               fi
               
@@ -429,6 +439,23 @@ spec:
                         "value": value
                     })
                 
+                # Refuse to publish a record that points anywhere but the mail
+                # hostname. Stalwart falls back to its pod name when its own
+                # hostname is unset, and such an MX was once published for
+                # production (2026-07-19) and again for Ring 0 (2026-11-10).
+                expected = (os.getenv("MAIL_HOSTNAME") or "").rstrip(".") + "."
+                wrong = []
+                for rec in records:
+                    if rec["type"] in ("MX", "SRV", "CNAME"):
+                        target = rec["value"].split()[-1]
+                        if target != expected:
+                            wrong.append(f'{rec["name"]} {rec["type"]} -> {target}')
+                if wrong:
+                    print(f"Refusing to push DNS: records must point at {expected}, these do not:")
+                    for line in wrong:
+                        print("  " + line)
+                    sys.exit(1)
+
                 # Group records by (name, type) for RRset management
                 grouped_new = {}
                 for rec in records:
@@ -439,17 +466,26 @@ spec:
                         grouped_new[key] = []
                     grouped_new[key].append(rec["value"])
                 
-                # Fetch existing RRsets
-                req = urllib.request.Request(
-                    f"https://api.hetzner.cloud/v1/zones/{zone_id}/rrsets",
-                    headers={"Authorization": f"Bearer {token}"}
-                )
-                try:
-                    with urllib.request.urlopen(req) as response:
-                        existing_rrsets = json.loads(response.read().decode())["rrsets"]
-                except Exception as e:
-                    print(f"Error fetching existing RRsets: {e}")
-                    existing_rrsets = []
+                # Fetch existing RRsets, every page: one page holds 25, and a zone
+                # shared by several clusters has more, so records on later pages
+                # looked new, every re-create got 409 Conflict, and a wrong
+                # record could never be corrected (Ring 0, 2026-11-10).
+                existing_rrsets = []
+                page = 1
+                while page:
+                    req = urllib.request.Request(
+                        f"https://api.hetzner.cloud/v1/zones/{zone_id}/rrsets?per_page=100&page={page}",
+                        headers={"Authorization": f"Bearer {token}"}
+                    )
+                    try:
+                        with urllib.request.urlopen(req) as response:
+                            body = json.loads(response.read().decode())
+                    except Exception as e:
+                        print(f"Error fetching existing RRsets (page {page}): {e}")
+                        sys.exit(1)
+                    existing_rrsets += body.get("rrsets", [])
+                    page = (body.get("meta", {}).get("pagination", {}) or {}).get("next_page")
+                print(f"The zone holds {len(existing_rrsets)} RRsets.")
                 
                 existing_map = {}
                 for r in existing_rrsets:
