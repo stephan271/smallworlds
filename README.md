@@ -336,7 +336,7 @@ The `admin-tools/` directory contains helper scripts to automate common operatio
 
 ### Repository & Version Management
 - **`prepare-community-repo.sh`**: Interactive script to initialize a new private configuration repository, select applications, and wire it up to the upstream base. Also runs non-interactively (`SMALLWORLDS_NONINTERACTIVE=1`), which is how the setup wizard drives it.
-- **`bump-version.sh`**: Detects the highest release tag, increments the patch version, tags a commit beside `main` in which the base's Applications name that tag (see "Tag the release"), and pushes the tag. `test-bump-version.sh` covers it.
+- **`bump-version.sh patch|minor|major [--security]`**: Cuts the next release of that kind from the newest commit of `main` that Ring 0 verified at least 72 hours ago (`ring0/verified`; `--security` waives the wait), tags a commit beside it in which the base's Applications name that tag (see "Tag the release"), and pushes the tag. `test-bump-version.sh` covers it.
 - **`update-community-version.sh`**: Updates all `kustomization.yaml` files in your private config repository to pin them to a specific upstream release, then commits and pushes the change.
 
 ### Utilities
@@ -416,10 +416,15 @@ A changed pin reaches new and rebuilt nodes only; a running node keeps the K3s a
 ### Step 2 — Tag the release
 
 ```bash
-./admin-tools/bump-version.sh        # tags the next patch version and pushes the tag
+./admin-tools/bump-version.sh patch              # fixes only: v1.2.45 -> v1.2.46
+./admin-tools/bump-version.sh minor              # a feature update or a migration: -> v1.3.0
+./admin-tools/bump-version.sh major              # every Operator must act: -> v2.0.0
+./admin-tools/bump-version.sh minor --security   # carries a security fix: no 72-hour wait
 ```
 
-The tag does not sit on `main` itself but on a commit beside it: `main` plus one change in which every Application sourced from this repository says `targetRevision: <tag>` instead of `HEAD`. On `main` those Applications follow `HEAD`, so before `v1.2.44` an overlay pinned to a tag still took half its tenant manifests from whatever `main` held. From `v1.2.44` on, a pinned overlay runs exactly the tag, and a push to `main` reaches no cluster until an overlay is bumped. Overlays that route an Application to their own repository reset its revision to their own `HEAD`; `admin-tools/bump-overlay-release.sh` adds that when it moves an overlay to `v1.2.44` or later.
+The kind is what an Operator reads from the number, so choose it by what the release asks of them (`docs/adr/0060`). The release is cut from the newest commit of `main` that the Canary Follower verified on Ring 0 at least 72 hours ago, which need not be `main`'s head; with `--security`, from the newest verified one. If none qualifies, nothing is tagged and the script lists each recent commit with the reason. In a real emergency, `SMALLWORLDS_RELEASE_GATE=off SMALLWORLDS_RELEASE_GATE_REASON="<why>"` cuts from `main`'s head and writes the reason into the tag.
+
+The tag does not sit on `main` itself but on a commit beside it: the release commit plus one change in which every Application sourced from this repository says `targetRevision: <tag>` instead of `HEAD`. On `main` those Applications follow `HEAD`, so before `v1.2.44` an overlay pinned to a tag still took half its tenant manifests from whatever `main` held. From `v1.2.44` on, a pinned overlay runs exactly the tag, and a push to `main` reaches no cluster until an overlay is bumped. Overlays that route an Application to their own repository reset its revision to their own `HEAD`; `admin-tools/bump-overlay-release.sh` adds that when it moves an overlay to `v1.2.44` or later.
 
 ### Step 3 — Write the release notes
 
