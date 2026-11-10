@@ -419,7 +419,7 @@ overlays are being deleted. The live overlays are Ring 1's
 | Canary Follower (refresh, verify, commit status, revert) | built 2026-11-10 (`tenants/canary-follower`): follow, converge, smoke, quiet period, status. Not yet: e2e Job, data checks, revert |
 | PR-check workflow | new |
 | Release kinds in `bump-version.sh`, the gate | built 2026-11-10 (`admin-tools/lib/ring0_gate.py`; override with a recorded reason) |
-| `release-notes.py` | new |
+| `release-notes.py` | built 2026-11-10 (draft with `TODO:` lines; tests in `admin-tools/test-release-notes.py`) |
 | Follow Policy question (wizard, `prepare-community-repo.sh`) | new |
 | `PreSync` database backup per CNPG tenant | new |
 | Post-update alert and per-tenant rollback runbooks | new |

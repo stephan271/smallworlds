@@ -428,13 +428,16 @@ The tag does not sit on `main` itself but on a commit beside it: the release com
 
 ### Step 3 — Write the release notes
 
-Give operators a human-readable summary — what changed, and anything that affects an upgrade (backup-model changes, newly optional apps, breaking renames, a pin that moved):
+Draft them, finish every `TODO:` line, then publish:
 
 ```bash
-gh release create v1.2.44 --title "SmallWorlds v1.2.44" --notes-file <notes.md>
+./admin-tools/release-notes.py v1.2.45 v1.2.46 > notes.md   # previous tag, new tag
+gh release create v1.2.46 --title "SmallWorlds v1.2.46" --notes-file notes.md
 ```
 
-The deploy works without this, but the [Releases page](https://github.com/stephan271/smallworlds/releases) is where operators read what a bump will do to them.
+The draft fills in what the repository knows: the kind and Security flag and the Ring 0 verdict (from the tag), every image and chart that moved per application, the commits behind each, platform and bootstrap-pin changes, and which variants Ring 0 soaked. A human adds what only a human can say, per application: what changes for members, whether the database migrates, how to roll back, opt-in features and memory. Each application has its own section so an Operator can skip the ones they do not run (design §4.5).
+
+The deploy works without notes, but Renovate copies them into the pull request it opens in every GitOps Overlay: they are what an Operator reads before deciding to merge.
 
 ### Step 4 — Let operators adopt it
 
