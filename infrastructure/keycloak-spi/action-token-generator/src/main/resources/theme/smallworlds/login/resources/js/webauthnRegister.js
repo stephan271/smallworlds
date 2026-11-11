@@ -1,7 +1,7 @@
 // Copied from Keycloak 26.6.4, theme/base/login/resources/js/webauthnRegister.js
 // (Apache License 2.0). One change, in returnSuccess(): the passkey is named
-// without asking (docs/adr/0059). Diff against the new base file on every
-// Keycloak upgrade.
+// without asking, after the date and time it was made (docs/adr/0059). Diff
+// against the new base file on every Keycloak upgrade.
 
 import { base64url } from "rfc4648";
 
@@ -134,10 +134,14 @@ function returnSuccess(result, initLabel, initLabelPrompt) {
         document.getElementById("authenticatorAttachment").value = result.authenticatorAttachment;
     }
 
-    // SmallWorlds: no window.prompt. Name the passkey after the day it was
-    // made, which is what the account console lists it by.
-    const today = new Date().toLocaleDateString(document.documentElement.lang || undefined);
-    document.getElementById("authenticatorLabel").value = initLabel + " " + today;
+    // SmallWorlds: no window.prompt. Name the passkey after when it was made,
+    // which is what the account console lists it by. Date and time: Keycloak
+    // refuses a second passkey with a label the member already has ("Device
+    // already exists with the same name"), so a date alone failed the second
+    // device a member set up on the same day.
+    const made = new Date().toLocaleString(document.documentElement.lang || undefined,
+                                           {dateStyle: "medium", timeStyle: "short"});
+    document.getElementById("authenticatorLabel").value = initLabel + " " + made;
 
     document.getElementById("register").requestSubmit();
 }
