@@ -199,8 +199,27 @@ breaks existing data.
   `seed.py check`. The photos are 19 public-domain NASA pictures pinned by
   SHA-256 in `admin-tools/canary/photos.json` (three astronauts, so face
   recognition has people to find; the largest is 52 MB, so it goes up to S3 in
-  parts). Nextcloud, Forgejo, Stalwart and pod-gateway are still to come. Two
-  traps the browser half already handles: the passkey button's handler arrives
+  parts). Nextcloud, Forgejo and mail followed the same day, all passing
+  `check`:
+  - **Nextcloud:** files with umlauts and a photo; anna's `Projekte` shared
+    with ben, who reads it through the share; a calendar event; a contact.
+  - **Forgejo:** a repository with commits (one path with an umlaut), labels,
+    anna's issue with ben's comment, and ben's pull request as collaborator.
+  - **Mail:** anna and ben exchange three mails, and ben files one into a
+    folder of his own.
+
+  Each member signs in the way a client of theirs would: an app password from
+  Nextcloud's settings, an access token from Forgejo's, and for mail the JMAP
+  bearer token that Bulwark's page uses. Stalwart accepts only the audience
+  `stalwart`, which only the webmail client gets, so a mail check also proves
+  that webmail sign-in works.
+
+  **pod-gateway is not seeded.** Only an agent token can append to a pod, and
+  the only agent, the Immich exporter, is not deployed with Gallery, which
+  both Ring 0 and Ring 1 run. Seeding would need an Operator-made token and
+  would test a path no ring uses.
+
+  Two traps the browser half already handles: the passkey button's handler arrives
   with a module script after the page, so the first click can do nothing; and
   Keycloak refuses a passkey whose signature counter did not rise, so the
   counter starts from the clock rather than from the stored value.
