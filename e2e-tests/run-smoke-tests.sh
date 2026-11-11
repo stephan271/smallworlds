@@ -59,8 +59,29 @@ echo -e "${CYAN}╚════════════════════�
 echo ""
 echo -e "  Domain:  ${YELLOW}${DOMAIN}${NC}"
 
-# --- Resolve Keycloak admin password ---
-if [[ -z "$KC_ADMIN_PASS" ]]; then
+# --- Resolve join's service account (mints the test users' onboarding links) ---
+# The link SPI accepts only tokens of the members' realm, so a master admin
+# token cannot mint one (e2e-tests/setup/provision-test-users.ts).
+if [[ -z "${KC_CLIENT_SECRET:-}" && "${SKIP_PROVISION:-}" != "1" ]]; then
+  source "$(dirname "$SCRIPT_DIR")/admin-tools/lib/cluster-env.sh"
+  KUBECONFIG="${KUBECONFIG:-$(kubeconfig_path "$(cluster_label "$(detect_env_ext)")")}"
+  if [[ -f "$KUBECONFIG" ]]; then
+    export KUBECONFIG
+    KC_CLIENT_ID=$(kubectl -n join get secret keycloak-secret \
+      -o jsonpath='{.data.clientId}' 2>/dev/null | base64 -d 2>/dev/null) || true
+    KC_CLIENT_SECRET=$(kubectl -n join get secret keycloak-secret \
+      -o jsonpath='{.data.client-secret}' 2>/dev/null | base64 -d 2>/dev/null) || true
+  fi
+  if [[ -n "$KC_CLIENT_SECRET" ]]; then
+    echo -e "  ${GREEN}✅ Retrieved join's service account from the cluster${NC}"
+  else
+    echo -e "  ${YELLOW}⚠ No join service account (KC_CLIENT_ID/KC_CLIENT_SECRET): no onboarding links.${NC}"
+  fi
+fi
+export KC_CLIENT_ID="${KC_CLIENT_ID:-join}" KC_CLIENT_SECRET="${KC_CLIENT_SECRET:-}"
+
+# --- Resolve Keycloak admin password (only without join's service account) ---
+if [[ -z "$KC_ADMIN_PASS" && -z "$KC_CLIENT_SECRET" ]]; then
   echo -e "  ${YELLOW}No admin password provided. Trying kubectl...${NC}"
   source "$(dirname "$SCRIPT_DIR")/admin-tools/lib/cluster-env.sh"
   KUBECONFIG="${KUBECONFIG:-$(kubeconfig_path "$(cluster_label "$(detect_env_ext)")")}"

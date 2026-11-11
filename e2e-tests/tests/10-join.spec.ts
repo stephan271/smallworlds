@@ -47,8 +47,14 @@ test.describe('Member Invitations', () => {
   // One invitation walked in order: a failure must skip the rest, not let a
   // restarted worker issue a fresh invitation the later steps never opened.
   test.describe.configure({ mode: 'serial' });
+  // Someone new to the community: not signed in as the suite's test user. With
+  // alice's Keycloak session, the invitation's token met another signed-in user
+  // and Keycloak answered with an English error page instead of the passkey step.
+  test.use({ storageState: { cookies: [], origins: [] } });
 
   test.beforeAll(() => {
+    // Ring 0's checks Job has no kubectl and no Kubernetes credentials on purpose.
+    test.skip(!process.env.KUBECONFIG, 'KUBECONFIG is required to issue an invitation');
     test.skip(!kubectl(['get', 'ns', 'join', '--ignore-not-found']),
       'join is not deployed on this cluster');
     const issued = manage(['create', '--locale', 'de', '--label', `e2e ${suffix}`, '--days', '1']);

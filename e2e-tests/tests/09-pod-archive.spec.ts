@@ -81,6 +81,10 @@ test.describe('Pod archive', () => {
     // The agent token is stored in the source app's namespace.
     test.skip(!kubectl(['get', 'ns', 'immich', '--ignore-not-found']),
               'immich is not deployed in this cluster');
+    // Gallery replaces Immich without the exporter (docs/adr/0054), and with it
+    // nothing appends to pods: no agent to enrol.
+    test.skip(!kubectl(['get', 'cronjob', 'immich-pod-export', '-n', 'immich', '--ignore-not-found']),
+              'the Immich pod exporter is not deployed (Gallery)');
 
     // Mint an append-only agent token through the real operator script.
     sh('./admin-tools/pod-enroll-device.sh', ['--agent', 'immich', '--env', ENV_NAME]);

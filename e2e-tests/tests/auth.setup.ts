@@ -75,13 +75,24 @@ async function registerPasskey(
 
   await page.goto(onboardingLink(username));
 
+  // join's token (docs/adr/0059) goes straight to the passkey page; Keycloak's
+  // execute-actions token first shows "Click here to proceed".
+  // (isVisible() does not wait, whatever its timeout says: waitFor() does.)
+  const proceed = page.locator('a[href*="/login-actions/action-token"]').first();
+  const registerButton = page.locator('#registerWebAuthn, input[name="registerWebAuthn"]').first();
+  await proceed.or(registerButton).waitFor({ timeout: 20_000 }).catch(() => {});
+  if (await proceed.isVisible()) {
+    await proceed.click();
+  }
+
   // Keycloak may interpose a "Register passkey" confirmation before invoking
   // navigator.credentials.create(); click it when present.
-  const registerButton = page
-    .locator('#registerWebAuthn, input[name="registerWebAuthn"]')
-    .or(page.getByRole('button', { name: /register|continue|weiter/i }));
-  if (await registerButton.first().isVisible({ timeout: 10_000 }).catch(() => false)) {
-    await registerButton.first().click();
+  // The smallworlds login theme labels it "Set up passkey" (docs/adr/0059).
+  // Its click handler is attached by a module script, which runs only once the
+  // document has loaded: a click as soon as the button shows is lost.
+  if (await registerButton.waitFor({ timeout: 20_000 }).then(() => true, () => false)) {
+    await page.waitForLoadState('load');
+    await registerButton.click();
   }
 
   // Other versions render a label field on a form instead of a prompt.
@@ -91,7 +102,8 @@ async function registerPasskey(
     await page.click('#kc-login, input[type="submit"], button[type="submit"]');
   }
 
-  // Registration is done once Keycloak stops driving required actions.
+  // Registration is done once Keycloak stops driving required actions; join's
+  // token then signs the user in and lands on join's done page.
   await page.waitForURL((url) => !url.toString().includes('/login-actions/'), {
     timeout: 30_000,
   });

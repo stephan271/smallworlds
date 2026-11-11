@@ -13,8 +13,16 @@
  * kubectl port-forward set up by run-smoke-tests.sh — rather than the public
  * ingress. Browser tests still use the public host.
  *
+ * Credentials: join's service account (KC_CLIENT_ID / KC_CLIENT_SECRET, from
+ * join's keycloak-secret) is what the Invitation Desk itself uses, and it holds
+ * manage-, view- and query-users in the realm. The SPI authenticates bearer
+ * tokens against the realm it is called in, so a master-realm admin token is
+ * refused there (401) — links can only be minted with a token of this realm.
+ * KC_ADMIN_PASS still works for creating users when no client is given, but
+ * then no link can be minted.
+ *
  * Usage:
- *   DOMAIN=smallworlds.network KC_ADMIN_PASS=<password> npx tsx setup/provision-test-users.ts
+ *   DOMAIN=smallworlds.network KC_CLIENT_ID=join KC_CLIENT_SECRET=<secret> npx tsx setup/provision-test-users.ts
  */
 
 import fs from 'fs';
@@ -22,10 +30,12 @@ import path from 'path';
 
 const DOMAIN = process.env.DOMAIN;
 const KC_ADMIN_PASS = process.env.KC_ADMIN_PASS;
+const KC_CLIENT_ID = process.env.KC_CLIENT_ID;
+const KC_CLIENT_SECRET = process.env.KC_CLIENT_SECRET;
 const REALM = 'smallworlds';
 
-if (!DOMAIN || !KC_ADMIN_PASS) {
-  console.error('❌ Required environment variables: DOMAIN, KC_ADMIN_PASS');
+if (!DOMAIN || !((KC_CLIENT_ID && KC_CLIENT_SECRET) || KC_ADMIN_PASS)) {
+  console.error('❌ Required: DOMAIN, and KC_CLIENT_ID + KC_CLIENT_SECRET (join\'s service account)');
   process.exit(1);
 }
 
@@ -74,6 +84,25 @@ async function getAdminToken(): Promise<string> {
   return data.access_token;
 }
 
+/** A token of the members' realm, from join's service account. */
+async function getRealmToken(): Promise<string> {
+  const url = `${ADMIN_URL}/realms/${REALM}/protocol/openid-connect/token`;
+  const body = new URLSearchParams({
+    client_id: KC_CLIENT_ID!,
+    client_secret: KC_CLIENT_SECRET!,
+    grant_type: 'client_credentials',
+  });
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to get a ${REALM} token for ${KC_CLIENT_ID} (${response.status}): ${await response.text()}`);
+  }
+  return (await response.json()).access_token;
+}
+
 async function findUser(token: string, username: string): Promise<string | null> {
   const url = `${ADMIN_URL}/admin/realms/${REALM}/users?username=${encodeURIComponent(username)}&exact=true`;
   const response = await fetch(url, {
@@ -90,14 +119,40 @@ async function findUser(token: string, username: string): Promise<string | null>
 }
 
 /**
- * Create the user, or return the existing id. Existing users keep whatever
- * passkey they already hold; a fresh link is minted either way, and registering
- * a second passkey is harmless.
+ * Remove an existing test user's passkeys and give the registration back as a
+ * required action. Every run registers a fresh passkey (the virtual
+ * authenticator dies with its browser), and the login theme names a passkey
+ * after the day it was made: a second one the same day was refused with "Device
+ * already exists with the same name", and on Ring 0, where the checks run after
+ * every commit, they would pile up.
+ */
+async function forgetPasskeys(token: string, userId: string): Promise<void> {
+  const base = `${ADMIN_URL}/admin/realms/${REALM}/users/${userId}`;
+  const headers = { Authorization: `Bearer ${token}` };
+  const response = await fetch(`${base}/credentials`, { headers });
+  if (!response.ok) throw new Error(`Failed to list credentials (${response.status})`);
+  for (const credential of (await response.json()) as { id: string; type: string }[]) {
+    if (!credential.type.startsWith('webauthn')) continue;
+    const removed = await fetch(`${base}/credentials/${credential.id}`, { method: 'DELETE', headers });
+    if (!removed.ok) throw new Error(`Failed to remove a passkey (${removed.status})`);
+  }
+  const updated = await fetch(base, {
+    method: 'PUT',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requiredActions: ['webauthn-register-passwordless'] }),
+  });
+  if (!updated.ok) throw new Error(`Failed to reset required actions (${updated.status})`);
+}
+
+/**
+ * Create the user, or return the existing id with its passkeys removed
+ * (forgetPasskeys); a fresh link is minted either way.
  */
 async function createUser(token: string, user: (typeof TEST_USERS)[0]): Promise<string | null> {
   const existingId = await findUser(token, user.username);
   if (existingId) {
     console.log(`  ⏭  User ${user.username} already exists (id: ${existingId})`);
+    await forgetPasskeys(token, existingId);
     return existingId;
   }
 
@@ -138,11 +193,17 @@ async function generateLink(token: string, userId: string): Promise<string | nul
   const response = await fetch(url, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    // join's own token (docs/adr/0059), as a real invitation gets: no
+    // confirmation page, and the member is signed in at the end, which is the
+    // SSO session the later specs reuse. Keycloak's execute-actions token ends
+    // on "Account updated" without signing anyone in. The redirect must be one
+    // registered on the join client.
     body: JSON.stringify({
       userId,
       actions: ['webauthn-register-passwordless'],
-      clientId: 'account',
-      redirectUri: `${PUBLIC_URL}/realms/${REALM}/account/`,
+      clientId: KC_CLIENT_ID || 'join',
+      redirectUri: `https://join.${DOMAIN}/done/en`,
+      tokenType: 'smallworlds-join',
     }),
   });
 
@@ -165,8 +226,12 @@ async function generateLink(token: string, userId: string): Promise<string | nul
 async function main() {
   console.log(`\n🔧 Provisioning test users via ${ADMIN_URL}...\n`);
 
-  const token = await getAdminToken();
-  console.log('  🔑 Obtained admin token\n');
+  const realmClient = Boolean(KC_CLIENT_ID && KC_CLIENT_SECRET);
+  if (!realmClient) {
+    console.error(`  ⚠ No KC_CLIENT_ID/KC_CLIENT_SECRET: users can be created, but no link minted.`);
+  }
+  const token = realmClient ? await getRealmToken() : await getAdminToken();
+  console.log(`  🔑 Obtained ${realmClient ? `a ${REALM} token for ${KC_CLIENT_ID}` : 'a master admin token'}\n`);
 
   const links: Record<string, string> = {};
   for (const user of TEST_USERS) {

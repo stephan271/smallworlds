@@ -44,12 +44,14 @@ test.describe('Immich Photos', () => {
   test('loads main view after OIDC auto-login', async ({ page }) => {
     // A successful auto-login lands either on the main app shell — whose
     // "Primary" sidebar nav and header Upload button are stable landmarks —
-    // or, for a brand-new user, the onboarding wizard (a "welcome" heading).
+    // or, for a brand-new user, the onboarding wizard (a "welcome" heading in
+    // Immich; in Gallery a "Welcome, <name>" paragraph).
     // Role-based only: broad text unions can resolve to hidden nodes during
     // the SPA's hydration and flake the visibility assertion.
     const mainView = page.getByRole('navigation', { name: 'Primary' })
       .or(page.getByRole('button', { name: /upload/i }))
-      .or(page.getByRole('heading', { name: /welcome/i }));
+      .or(page.getByRole('heading', { name: /welcome/i }))
+      .or(page.getByRole('paragraph').filter({ hasText: /^Welcome, / }));
     await expect(mainView.first()).toBeVisible({ timeout: 30_000 });
   });
 
