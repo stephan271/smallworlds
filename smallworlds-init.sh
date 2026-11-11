@@ -631,7 +631,7 @@ current_ptr() {
 # cluster already has.
 selected_apps() {
     local config="${SMALLWORLDS_COMMUNITY_CONFIG:-$HOME/.config/smallworlds/community-setup.conf}"
-    local all=(forgejo immich nextcloud stalwart bulwark excalidraw jitsi collabora euro-office plane pod-gateway)
+    local all=(forgejo immich nextcloud stalwart bulwark excalidraw jitsi collabora euro-office pod-gateway)
 
     if [[ ! -f "$config" ]]; then
         # Historical installs selected every old optional app. Keep Collabora
@@ -698,7 +698,6 @@ dns_subdomains() {
                 excalidraw)            sub=whiteboard ;;
                 jitsi)                 sub=meet ;;
                 collabora|euro-office) sub=office ;;
-                plane)                 sub=plan ;;
                 stalwart)              sub=mail ;;
                 bulwark)               sub=webmail ;;
                 pod-gateway)           sub=pod ;;
@@ -1790,7 +1789,7 @@ EOF
     HOSTS_SNIPPET="$HOME/.smallworlds/hosts-${KUBECONFIG_LABEL}.txt"
     {
         printf '%s' "$SERVER_IP"
-        for sub in identity dashboard files photos git mail webmail monitoring whiteboard meet office plan pod join; do
+        for sub in identity dashboard files photos git mail webmail monitoring whiteboard meet office pod join; do
             printf ' %s%s.%s' "$sub" "$ENV_EXT" "$DOMAIN"
         done
         printf '\n'
@@ -1918,7 +1917,6 @@ declare -A _APP_ADDRESS=(
     [jitsi]="meet|Meet|Meet (Jitsi)"
     [collabora]="office|Office|Office (Collabora)"
     [euro-office]="office|Office|Office (Euro-Office)"
-    [plane]="plan|Plan|Plan"
     [stalwart]="mail|Mail|Mail (Stalwart)"
     [bulwark]="webmail|Webmail|Webmail (Bulwark)"
     [pod-gateway]="pod|Personal data pods|Personal data pods"

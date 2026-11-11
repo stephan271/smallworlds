@@ -32,9 +32,9 @@ The following applications are planned to expand the capabilities of the SmallWo
   - *Details:* Real-time collaborative LaTeX editor. Essential for academic and professional publication authoring. The open-source community edition provides a solid foundation for robust document compilation.
 
 ### Software Project Management
-- **✅ Initial implementation exists:** Plane integration.
-- **Recommendation:** **Plane** (previously Taiga)
-  - *Why:* Plane is the modern default for self-hosted agile PM: full self-hosting with no user or feature limits in the Community Edition, a rapid development pace, and Scrum/Kanban boards, sprints, user stories, and issues — providing a more comprehensive planning interface than Forgejo's built-in issue tracking. We moved away from **Taiga** because Kaleidos, the company behind it, has wound down; its designated successor **Tenzu** shipped its first stable release in September 2025 but is still far from Taiga's feature parity. If deep waterfall/Gantt planning is ever needed, **OpenProject** is the heavier alternative, but Plane best fits our needs.
+- **⬜ Open — Plane was removed on 2026-11-11 ([`docs/adr/0061`](docs/adr/0061-plane-is-removed-until-a-replacement-is-chosen.md)); a replacement is still to be chosen.**
+- **Previous choice:** **Plane** (previously Taiga)
+  - *Why it was chosen:* Plane is the modern default for self-hosted agile PM: full self-hosting with no user or feature limits in the Community Edition, a rapid development pace, and Scrum/Kanban boards, sprints, user stories, and issues — providing a more comprehensive planning interface than Forgejo's built-in issue tracking. We moved away from **Taiga** because Kaleidos, the company behind it, has wound down; its designated successor **Tenzu** shipped its first stable release in September 2025 but is still far from Taiga's feature parity. If deep waterfall/Gantt planning is ever needed, **OpenProject** is the heavier alternative, but Plane best fits our needs.
 
 ### Wiki Documentation
 - **⬜ Planned — no initial implementation yet.**

@@ -109,5 +109,5 @@ silently discards both the image's install-time domain and the
 `occ config:system:set trusted_domains 3` performed by the oidc-config job.
 On a fresh install that meant: startup probe (Host: `files.<domain>`) → 400 →
 Deployment never healthy (wave 0) → the wave-1 oidc-config hook never ran —
-the same deadlock class as plane's migrate Job (see
-`doc/plane-architecture.md`).
+the same deadlock class as Plane's migrate Job had (Plane was removed in
+`docs/adr/0061`; its `doc/plane-architecture.md` is in git history).

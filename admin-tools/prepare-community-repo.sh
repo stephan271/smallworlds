@@ -157,7 +157,7 @@ echo -e "${YELLOW}Selecting Optional Applications...${NC}"
 # stalwart is here rather than in APPS below because mail is opt-in
 # (docs/adr/0049): nothing in the cluster depends on it. Note that bulwark does
 # — selecting bulwark without stalwart leaves it with no mail server to protect.
-OPTIONAL_APPS=("forgejo" "immich" "nextcloud" "stalwart" "bulwark" "excalidraw" "jitsi" "collabora" "euro-office" "plane" "pod-gateway")
+OPTIONAL_APPS=("forgejo" "immich" "nextcloud" "stalwart" "bulwark" "excalidraw" "jitsi" "collabora" "euro-office" "pod-gateway")
 SELECTED_APPS=()
 
 # An app name is not automatically a shell identifier: pod-gateway has a hyphen,

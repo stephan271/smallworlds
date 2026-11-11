@@ -82,8 +82,6 @@ OPTIONAL_APPS = [
      "choice_group": "office", "requires": "nextcloud", "auto_select_requires": True,
      "requires_note": "An Office editor requires Files (Nextcloud).",
      "description": "New European editor focused on DOCX, XLSX and PPTX compatibility."},
-    {"name": "plane", "label": "Plan", "default": False, "weight": "heavy",
-     "description": "Project and issue planning across several services."},
     {"name": "stalwart", "label": "Mail", "default": False, "weight": "medium",
      "description": "A real mail server. Opt-in: nothing else in the cluster "
                     "needs it, and delivery from a home connection is unreliable "
@@ -450,7 +448,7 @@ _SUBDOMAIN_BY_APP = {
     "nextcloud": "files", "immich": "photos", "forgejo": "git",
     "excalidraw": "whiteboard", "jitsi": "meet", "collabora": "office",
     "euro-office": "office",
-    "plane": "plan", "stalwart": "mail", "bulwark": "webmail",
+    "stalwart": "mail", "bulwark": "webmail",
     "pod-gateway": "pod",
 }
 

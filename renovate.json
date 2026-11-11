@@ -148,12 +148,6 @@
     },
     {
       "matchFileNames": [
-        "infrastructure/kubernetes/tenants/plane/**"
-      ],
-      "groupName": "plane"
-    },
-    {
-      "matchFileNames": [
         "infrastructure/kubernetes/tenants/pod-gateway/**"
       ],
       "groupName": "pod-gateway"

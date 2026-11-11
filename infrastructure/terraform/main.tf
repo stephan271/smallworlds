@@ -207,7 +207,6 @@ locals {
     "jitsi"       = "meet"
     "collabora"   = "office"
     "euro-office" = "office"
-    "plane"       = "plan"
     "stalwart"    = "mail"
     "bulwark"     = "webmail"
     "pod-gateway" = "pod"

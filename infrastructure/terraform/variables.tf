@@ -120,7 +120,7 @@ variable "apps" {
   type        = list(string)
   default = [
     "nextcloud", "immich", "forgejo", "excalidraw", "jitsi",
-    "collabora", "plane", "stalwart", "bulwark", "pod-gateway",
+    "collabora", "stalwart", "bulwark", "pod-gateway",
   ]
 
   validation {

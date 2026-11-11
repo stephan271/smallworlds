@@ -272,7 +272,6 @@ STORED_APP_excalidraw=y
 STORED_APP_jitsi=n
 STORED_APP_collabora=n
 STORED_APP_euro_office=n
-STORED_APP_plane=n
 STORED_APP_pod_gateway=n
 CONF
 
@@ -295,7 +294,7 @@ for app in dashboard keycloak nextcloud excalidraw; do
         fail "selected app present: $app"
     fi
 done
-for app in immich forgejo jitsi collabora euro-office plane; do
+for app in immich forgejo jitsi collabora euro-office; do
     if [[ ! -d "$overlay/$app" ]]; then pass "unselected app absent: $app"; else
         fail "unselected app absent: $app"
     fi

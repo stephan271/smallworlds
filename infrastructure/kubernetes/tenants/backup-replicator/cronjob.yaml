@@ -79,7 +79,6 @@ spec:
                     immich
                     nextcloud
                     forgejo
-                    plane
               volumeMounts:
                 - name: rclone-config
                   mountPath: /config/rclone

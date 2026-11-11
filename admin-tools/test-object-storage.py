@@ -397,23 +397,23 @@ class InitJobTest(unittest.TestCase):
                          ("BACKUPKEY", "https://backup.other.example:8443", "sw-demo-pod-gateway"))
 
     def test_a_key_that_cannot_create_buckets_is_fine_when_they_exist(self):
-        names = storage.bucket_names(PREFIX, "plane")
-        result, state = self.run_job("bases/garage-init-job/garage-init-job.yaml", "plane", EXTERNAL,
+        names = storage.bucket_names(PREFIX, "forgejo")
+        result, state = self.run_job("bases/garage-init-job/garage-init-job.yaml", "forgejo", EXTERNAL,
                                      may_create=False,
                                      buckets=[names["tenant"], names["tenant-backup"], names["postgres"]])
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertFalse([r for r in state["requests"] if r[0] == "PUT"])
 
     def test_a_missing_bucket_that_cannot_be_created_fails_by_name(self):
-        result, state = self.run_job("bases/garage-init-job/garage-init-job.yaml", "plane", EXTERNAL,
+        result, state = self.run_job("bases/garage-init-job/garage-init-job.yaml", "forgejo", EXTERNAL,
                                      may_create=False)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("sw-demo-plane", result.stdout)
-        self.assertNotIn("plane/garage-secret", state["secrets"],
+        self.assertIn("sw-demo-forgejo", result.stdout)
+        self.assertNotIn("forgejo/garage-secret", state["secrets"],
                          "no credential may be handed out for a bucket that is not there")
 
     def test_an_incomplete_external_secret_is_refused(self):
-        result, _ = self.run_job("bases/garage-init-job/garage-init-job.yaml", "plane",
+        result, _ = self.run_job("bases/garage-init-job/garage-init-job.yaml", "forgejo",
                                  {**EXTERNAL, "bucketPrefix": ""})
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("incomplete", result.stdout)

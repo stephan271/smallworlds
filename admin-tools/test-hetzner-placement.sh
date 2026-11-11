@@ -189,7 +189,6 @@ STORED_APP_excalidraw=y
 STORED_APP_jitsi=n
 STORED_APP_collabora=n
 STORED_APP_euro_office=n
-STORED_APP_plane=n
 STORED_APP_pod_gateway=n
 CONF
 

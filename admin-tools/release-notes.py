@@ -35,7 +35,7 @@ APPLICATIONS = {
     "gallery": "Photos (Gallery)",
     "immich": "Photos (Immich)",
     "forgejo": "Git (Forgejo)",
-    "plane": "Plan (Plane)",
+    "plane": "Plan (Plane)",  # removed (docs/adr/0061); kept so that removal is filed here
     "jitsi": "Meet (Jitsi)",
     "stalwart": "Mail (Stalwart)",
     "bulwark": "Webmail (Bulwark)",

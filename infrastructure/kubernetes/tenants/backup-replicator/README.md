@@ -28,7 +28,7 @@ remain recoverable as older versions.
    enabled** (B2 buckets keep all versions by default — do not switch to "keep
    only the latest"). The names must match the source exactly:
    `postgres-backups`, `postgres-backups-keycloak`, `velero-backups`,
-   `immich`, `nextcloud`, `forgejo`, `plane`.
+   `immich`, `nextcloud`, `forgejo`.
 2. Add a lifecycle rule: hide/delete prior versions after ~30 days.
 3. Create an **application key** scoped to those buckets (read+write).
 
@@ -62,7 +62,7 @@ never needs to read operational storage at all.
 # in the garage-backup-system namespace, NOT garage-system
 garage key create replicator-key
 for b in postgres-backups postgres-backups-keycloak velero-backups \
-         immich nextcloud forgejo plane; do
+         immich nextcloud forgejo; do
   garage bucket allow "$b" --read --key replicator-key
 done
 ```

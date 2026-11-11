@@ -50,7 +50,7 @@ Two consequences to keep in mind:
 
 | Public | Restricted |
 |---|---|
-| Nextcloud, Immich, Collabora, Forgejo, Plane, Excalidraw, Bulwark, dashboard, Jitsi, pod-gateway, Headscale, `identity/realms/smallworlds`, `join` (the join page) | Operator Console, ArgoCD, Grafana, `identity/admin`, `identity/realms/master`, `join/desk` (the Invitation Desk) |
+| Nextcloud, Immich, Collabora, Forgejo, Excalidraw, Bulwark, dashboard, Jitsi, pod-gateway, Headscale, `identity/realms/smallworlds`, `join` (the join page) | Operator Console, ArgoCD, Grafana, `identity/admin`, `identity/realms/master`, `join/desk` (the Invitation Desk) |
 
 The Invitation Desk is the one restricted interface that shares a host with a
 public one. It is served on a port of its own that the public Ingress never

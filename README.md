@@ -56,7 +56,6 @@ This project is built upon several foundational open-source technologies, core i
 | **Immich** | [immich.app](https://immich.app/) | High performance photo and video backup. Photos can run [Gallery](https://github.com/open-noodle/gallery) instead, a fork that keeps the photos in S3. |
 | **Jitsi Meet** | [jitsi.org](https://jitsi.org/) | Secure video conferencing and communication platform. |
 | **Nextcloud** | [nextcloud.com](https://nextcloud.com/) | File synchronization and collaboration. |
-| **Plane** | [plane.so](https://plane.so/) | Open-source project management tool. |
 | **Stalwart** | [stalw.art](https://stalw.art/) | Self-hosted mail server with OIDC directory integration. **Optional**, and not installed by default: mail is an opt-in capability ([`docs/adr/0049`](docs/adr/0049-mail-is-opt-in-and-notification-is-not-mail.md)) — onboarding hands out action-token links out of band and alerting pushes over HTTP, so nothing in the cluster needs a mail server. See [`doc/mail.md`](doc/mail.md). |
 | **Bulwark** | [github.com/bulwarkmail/webmail](https://github.com/bulwarkmail/webmail) | JMAP webmail client connected to Stalwart. Select Stalwart too — this is the one app that depends on it. |
 

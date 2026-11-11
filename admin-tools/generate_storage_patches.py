@@ -3,7 +3,7 @@
 
 Most consumers need nothing from here: endpoint, region and bucket travel in
 the same Secret as the key (bases/garage-init-job writes them), so the rclone
-jobs, Forgejo and Plane follow whatever that Secret says. What is left are the
+jobs and Forgejo follow whatever that Secret says. What is left are the
 places where the value is a literal field of a resource and cannot be read from
 a Secret — the barman ObjectStore, Velero's BackupStorageLocation, Nextcloud's
 chart-rendered environment, the pod-gateway ConfigMap — plus the Applications
@@ -27,7 +27,7 @@ END = "  # <<< smallworlds:object-storage"
 
 # Tenants whose database backs up into the shared postgres-backups bucket.
 # Keycloak keeps a bucket of its own (tenants/keycloak/garage-init-job.yaml).
-SHARED_OBJECTSTORE_APPS = ("nextcloud", "immich", "forgejo", "plane", "stalwart")
+SHARED_OBJECTSTORE_APPS = ("nextcloud", "immich", "forgejo", "stalwart")
 
 # Gone when there is no Garage: the two instances, and the replicator whose
 # only job is to carry garage-backup offsite — with an external provider the

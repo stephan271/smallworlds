@@ -73,7 +73,7 @@ This is the single most important constraint on the design: any scheme that
 requires each sender to authenticate to an external provider forces a rewrite of
 the component least suited to it.
 
-**Nextcloud, Immich, Forgejo and Plane have no SMTP configuration at all** and
+**Nextcloud, Immich and Forgejo have no SMTP configuration at all** and
 therefore silently send nothing. Wiring them to the endpoint in section 3 is
 the natural moment to fix that.
 
@@ -293,7 +293,7 @@ Therefore:
   plus the `ExternalName` variant shipped from the Stalwart tenant. Sync wave
   `-5` or `0`; nothing needs it at sync time, only at runtime.
 - Repoint the three senders in section 2 at the seam; add SMTP configuration to
-  Nextcloud, Immich, Forgejo and Plane while doing so.
+  Nextcloud, Immich and Forgejo while doing so.
 - `smallworlds-init.sh` — prompt for the mail mode and, in Mode B, the provider
   host/port/username/password and sending domain; emit
   `smtp-relay-credentials`; add the `ADMIN_EMAIL` guard and the `ADMIN_LOGIN`

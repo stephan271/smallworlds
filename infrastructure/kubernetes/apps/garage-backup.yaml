@@ -6,7 +6,7 @@
 # It is a second instance rather than a second bucket because Garage has one
 # data_dir per instance and no per-bucket placement, and because the buckets on
 # the operational instance are not backups at all but the primary store for
-# users' Nextcloud files, Forgejo LFS and Plane uploads.
+# users' Nextcloud files and Forgejo LFS.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

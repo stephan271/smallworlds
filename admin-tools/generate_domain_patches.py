@@ -43,7 +43,6 @@ def generate_patches(app_name, domain, ext):
         'whiteboard': f"whiteboard{ext}.{domain}",
         'meet': f"meet{ext}.{domain}",
         'office': f"office{ext}.{domain}",
-        'plan': f"plan{ext}.{domain}",
         'deploy': f"deploy{ext}.{domain}",
         'vpn': f"vpn{ext}.{domain}",
         'console': f"console{ext}.{domain}",
@@ -520,27 +519,6 @@ def generate_patches(app_name, domain, ext):
                 value: {subdomains['whiteboard']}
         """), "  ")
         
-    elif app_name == "plane":
-        patches += textwrap.indent(textwrap.dedent(f"""\
-          - target:
-              kind: Ingress
-              name: plane-ingress
-            patch: |-
-              - op: replace
-                path: /spec/rules/0/host
-                value: {subdomains['plan']}
-              - op: replace
-                path: /spec/tls/0/hosts/0
-                value: {subdomains['plan']}
-          - target:
-              kind: ConfigMap
-              name: plane-app-vars
-            patch: |-
-              - op: replace
-                path: /data/WEB_URL
-                value: "https://{subdomains['plan']}"
-        """), "  ")
-
     elif app_name == "pod-gateway":
         # Only the Ingress: the one in-cluster client, immich-pod-export, reaches
         # the gateway through its Service and never through this hostname. What

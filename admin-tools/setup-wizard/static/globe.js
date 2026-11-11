@@ -10,7 +10,6 @@ const catalog = {
   jitsi: ['#8ccbc7', 'Meet · Jitsi', 'A meeting plaza: video screens face a communal round table.'],
   collabora: ['#a8c680', 'Collabora', 'A document campus: pages, a spreadsheet and an editing desk.'],
   'euro-office': ['#88b4db', 'Euro-Office', 'A European office campus: documents, charts and a shared editing desk.'],
-  plane: ['#b6addf', 'Plan · Plane', 'A project square: a three-column task board tracks work across the town.'],
   stalwart: ['#e3b879', 'Mail · Stalwart', 'A post office: a giant envelope, sorting depot and postal delivery vans.'],
   bulwark: ['#cf9dbb', 'Webmail · Bulwark', 'An inbox café: an open mailbox and a screen for reading letters.'],
   'pod-gateway': ['#8dbda8', 'Personal data pods', 'A neighbourhood of private homes, each with its own personal data vault.'],
@@ -199,11 +198,6 @@ async function createWorld(T) {
         page(parent,-.15,.4,-.04);
         page(parent,.16,.44,-.1,'#def0dc');
         for(let i=0;i<3;i++) box(parent,'#62a78b',.09+i*.065,.43,-.068,.03,.06+i*.045,.015);
-        break;
-      case 'plane':
-        screen(parent,0,.4,-.09,.68,.46,'#e4e8f3');
-        for(let col=0;col<3;col++) for(let row=0;row<3-col;row++)
-          box(parent,['#d5a25e','#ac91cf','#7cb6a0'][col],-.22+col*.22,.52-row*.1,-.052,.16,.07,.012);
         break;
       case 'stalwart':
         building(parent,0,-.13,'#d8906d',.3);

@@ -134,7 +134,7 @@ Contabo server proves unreliable.
 
 ### 3.2 What it runs
 
-**Every supported application, at the same time**: Nextcloud, Forgejo, Plane,
+**Every supported application, at the same time**: Nextcloud, Forgejo,
 Jitsi, Stalwart, Bulwark, Excalidraw, pod-gateway, plus the always-installed
 Platform Services.
 
@@ -150,9 +150,9 @@ install tested, not soaked" is honest and is enough for an Operator to decide.
 
 **Sizing estimate.** On Ring 1 (OVH, same CPU and RAM class), Nextcloud,
 Gallery, Jitsi, Keycloak and monitoring use about 11 GB of 23 GB, measured on
-2026-11-09. Forgejo, Plane, Stalwart, Bulwark, Excalidraw and pod-gateway add
-roughly 3–5 GB. Plane, with its several services, is the largest and least
-certain part. The steady state should be about 15–17 GB, with Gallery's machine
+2026-11-09. Forgejo, Stalwart, Bulwark, Excalidraw and pod-gateway add
+roughly 2–4 GB (Plane, the largest and least certain part of the first
+estimate, was removed on 2026-11-11, `docs/adr/0061`). The steady state should be about 15–17 GB, with Gallery's machine
 learning and Nextcloud's background jobs spiking above that. That fits in 24 GB
 but should be measured in the first week. If it is tight, the fix is limits on
 the spiking workloads, not a bigger machine, because customers run this same
@@ -168,10 +168,31 @@ Ring 0 is only worth its cost if it **upgrades populated applications**. A fresh
 install, which `test-pr-locally.sh` already covers, cannot show a migration that
 breaks existing data.
 
-- A seeder, `admin-tools/canary/seed.py` (new), creates a fixed cast of example
-  members and gives each application content: photos with faces and albums,
-  files and shares, repositories with issues, Plane projects, a mailbox with
-  mail, whiteboards. It builds on `admin-tools/lab/seed-immich-photos.py` and
+- A seeder, `admin-tools/canary/seed.py` (new), creates a fixed cast of three
+  example members and gives each application that keeps data some content
+  (decided 2026-11-11):
+  - **anna** owns most of it: photos, albums, the repository, files she shares.
+  - **ben** is on the receiving end: shares, a shared album, issue comments,
+    mail from anna. Links *between* members are what migrations break.
+  - **zoë** ("Zoë Müller-Lüthi") has non-ASCII names, also in file names, and
+    signs in to only some applications, so some accounts appear late.
+
+  They sign in like members, with passkeys only: the seeder and the data checks
+  drive Playwright with virtual authenticators whose private keys are kept, so
+  every check also exercises Keycloak's login theme and token handler.
+
+  | Application | Seeded content |
+  | --- | --- |
+  | Gallery/Immich | photos with faces, a named face, an album shared with ben |
+  | Nextcloud | files (with umlauts), a share, a calendar and a contact |
+  | Keycloak | the three members themselves, passkeys, recovery codes, groups |
+  | Forgejo | a repository with commits, issues, labels and a pull request |
+  | Stalwart | mailboxes, mail between the members, a folder |
+  | pod-gateway | one export from Immich |
+
+  Jitsi, Excalidraw, Collabora, Euro-Office, Bulwark and the dashboard keep no
+  member data (Excalidraw has neither a volume nor a database), so a smoke test
+  covers them. It builds on `admin-tools/lab/seed-immich-photos.py` and
   `admin-tools/restore-drill/app-data.py` (*exist*).
 - **The data is never re-seeded.** It ages with the cluster and passes through
   every migration, as a real community's data does. The seeder runs once, and
@@ -493,4 +514,4 @@ the data checks.
   It cannot (2026-11-10); accepted for now, a second account later.
 - The quiet-period and soak lengths (30 minutes, 72 hours) are first guesses.
   Revisit after the first month.
-- Plane's real memory footprint (§3.2).
+- ~~Plane's real memory footprint (§3.2).~~ Plane was removed (`docs/adr/0061`).
