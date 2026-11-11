@@ -14,7 +14,8 @@ sys.path.insert(0, str(TENANT / "src"))
 import checks  # noqa: E402
 import settings as settings_module  # noqa: E402
 from argocd import REFRESH, ArgoCD  # noqa: E402
-from follower import NOT_YET, Follower  # noqa: E402
+from follower import NOT_YET, Follower, touched_tenants  # noqa: E402
+from main import metrics  # noqa: E402
 from github import GitHub  # noqa: E402
 
 BASE = "https://github.com/stephan271/smallworlds.git"
@@ -108,10 +109,16 @@ OVERLAY_SHA = "overlay0000000000"
 
 
 class FakeGitHub:
-    def __init__(self, head, statuses=None):
+    def __init__(self, head, statuses=None, paths=()):
         self.head = head
         self.statuses = dict(statuses or {})
         self.posted = []
+        self.paths = paths
+
+    def changed_paths(self, sha):
+        if isinstance(self.paths, Exception):
+            raise self.paths
+        return list(self.paths)
 
     def head_sha(self, branch):
         return self.head
@@ -124,10 +131,10 @@ class FakeGitHub:
         self.statuses[sha] = state
 
 
-def make(sha="a" * 40, smoke_result=(), quiet_result=(), statuses=None, **kube_args):
+def make(sha="a" * 40, smoke_result=(), quiet_result=(), statuses=None, paths=(), **kube_args):
     clock = Clock()
     kube = FakeArgoKube(sha, **kube_args)
-    gh = FakeGitHub(sha, statuses)
+    gh = FakeGitHub(sha, statuses, paths)
     s = settings_module.Settings(quiet_seconds=1800)
     seen = {}
 
@@ -303,6 +310,69 @@ class ChecksTest(unittest.TestCase):
             raise OSError("refused")
         self.assertEqual(["Alertmanager unreadable (OSError)"],
                          checks.quiet("http://am", 60, 60, fetch=fetch))
+
+
+GALLERY_BUMP = ["infrastructure/kubernetes/tenants/gallery/kustomization.yaml", "doc/tenant-immich.md"]
+
+
+class AlertTest(unittest.TestCase):
+    """A rejected commit has to reach the Operator, and say whether reverting it
+    can help at all (design §3.6; Gallery v5.10 -> v5.8 on Ring 0, 2026-11-11)."""
+
+    def test_a_rejected_gallery_update_says_restore_not_revert(self):
+        follower, gh, kube, _ = make(smoke_result=["photos.canary.x"], paths=GALLERY_BUMP)
+        outcome = follower.tick()
+        self.assertEqual(["gallery"], outcome.restore_only)
+        self.assertIn("touches gallery: restore, do not revert", gh.posted[-1][2])
+        self.assertIn('restore_only="gallery"', metrics(outcome))
+        self.assertTrue(metrics(outcome).rstrip().endswith(" 1"))
+
+    def test_the_application_file_counts_as_the_tenant(self):
+        self.assertEqual(["immich"], touched_tenants(["infrastructure/kubernetes/apps/immich.yaml"],
+                                                     ["immich", "nextcloud"]))
+        self.assertEqual([], touched_tenants(["infrastructure/kubernetes/tenants/immich-x/a.yaml"],
+                                             ["immich"]))
+
+    def test_a_rejected_commit_elsewhere_is_alerted_without_the_restore_note(self):
+        follower, gh, kube, _ = make(quiet_result=["X"], paths=["README.md"])
+        outcome = follower.tick()
+        self.assertEqual([], outcome.restore_only)
+        self.assertNotIn("restore", gh.posted[-1][2])
+        self.assertIn('restore_only=""', metrics(outcome))
+        self.assertTrue(metrics(outcome).rstrip().endswith(" 1"))
+
+    def test_unreadable_changes_are_said_not_guessed(self):
+        follower, gh, kube, _ = make(quiet_result=["X"], paths=OSError("rate limited"))
+        outcome = follower.tick()
+        self.assertIsNone(outcome.restore_only)
+        self.assertIn("changed files unreadable", gh.posted[-1][2])
+        self.assertIn('restore_only="unknown"', metrics(outcome))
+
+    def test_success_and_superseded_do_not_alert(self):
+        follower, gh, kube, _ = make(paths=GALLERY_BUMP)
+        self.assertTrue(metrics(follower.tick()).rstrip().endswith(" 0"))
+        follower, gh, kube, _ = make(paths=GALLERY_BUMP)
+        kube.deploys = "d" * 40
+        outcome = follower.tick()
+        self.assertEqual("error", outcome.state)
+        self.assertNotIn("restore", outcome.description)
+        self.assertTrue(metrics(outcome).rstrip().endswith(" 0"))
+
+    def test_a_restarted_pod_keeps_alerting_on_a_rejected_head(self):
+        follower, gh, kube, _ = make(statuses={"a" * 40: "failure"}, paths=GALLERY_BUMP)
+        self.assertIsNone(follower.tick())
+        self.assertEqual([], gh.posted, "the verdict is not posted again")
+        text = metrics(follower.last_outcome)
+        self.assertIn('restore_only="gallery"', text)
+        self.assertTrue(text.rstrip().endswith(" 1"))
+
+    def test_no_verdict_yet_is_no_series(self):
+        self.assertNotIn("smallworlds_canary_failed{", metrics(None))
+
+    def test_label_values_are_escaped(self):
+        follower, gh, kube, _ = make(quiet_result=['a "quoted" alert'], paths=["README.md"])
+        line = [l for l in metrics(follower.tick()).splitlines() if l.startswith("smallworlds")][0]
+        self.assertIn('\\"quoted\\"', line)
 
 
 class GitHubTest(unittest.TestCase):

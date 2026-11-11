@@ -273,6 +273,15 @@ that application's database on Ring 0 from the backup taken before `X`
 first version this is a manual runbook. Automating it is a later step, once the
 runbook has been run a few times.
 
+**Confirmed on 2026-11-11 (§8):** reverting the Gallery v5.10.0 bump would have
+left Ring 0's Gallery crash-looping, because v5.10.0's newer Immich base had run an
+Immich migration that nothing undoes. So the revert, when it is built, **skips
+every commit that touches a tenant whose database migrates**; for those the
+Follower only alerts. That part exists already: a rejected commit raises
+`CanaryCommitFailed` (warning, through ntfy), and both the alert and the GitHub
+status say "restore, do not revert" when the commit touches such a tenant
+(`tenants/canary-follower/README.md`).
+
 The token for commit statuses and revert PRs is a fine-grained GitHub token
 limited to the base repository (statuses, pull requests, contents). It lives
 **only on Ring 0**, which holds no member data.
@@ -524,10 +533,9 @@ step 1 was a hand-made PR (#44); its checks rendered `gallery` and passed.
 **What this changes in the design:**
 - **§3.6:** the automatic revert cannot undo an update that moves Gallery to a
   new Immich base. Reverting the commit leaves Ring 0 crash-looping, which is
-  worse than staying on the new release. Until restore is automated, the
-  Follower should alert instead of reverting when the failing commit changes a
-  tenant whose image is known to migrate (Gallery, Immich, Nextcloud,
-  Forgejo).
+  worse than staying on the new release. The Follower had no revert yet. It
+  now raises an alert for every rejected commit, and that alert says
+  "restore, not revert" for tenants whose database migrates.
 - **§4.5:** the release notes' rollback row has to say per release whether it
   is "revert" or "restore only". For Gallery, the Immich base named in its
   notes decides.

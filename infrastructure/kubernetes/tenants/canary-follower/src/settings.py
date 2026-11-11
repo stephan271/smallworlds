@@ -22,6 +22,15 @@ class Settings:
     quiet_interval_seconds: int = 60
     alertmanager_url: str = "http://kube-prometheus-stack-alertmanager.monitoring.svc:9093"
     http_port: int = 8080
+    # Tenants whose database an image update may migrate. A failing commit that
+    # touches one cannot be undone by reverting it: the old image may refuse the
+    # migrated database (Gallery v5.10 -> v5.8 on Ring 0, 2026-11-11), so the way
+    # back is the pre-update backup.
+    migrating_tenants: str = "immich,gallery,nextcloud,forgejo,stalwart,keycloak"
+
+    @property
+    def migrating(self) -> list[str]:
+        return [t.strip() for t in self.migrating_tenants.split(",") if t.strip()]
 
     @property
     def base_repo_url(self) -> str:

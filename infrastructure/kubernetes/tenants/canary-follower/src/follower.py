@@ -27,6 +27,26 @@ class Outcome:
     state: str
     description: str
     steps: list[str] = field(default_factory=list)
+    # Migrating tenants the commit touched: reverting it will not bring them
+    # back (design §3.6). None when the changed files could not be read.
+    restore_only: list[str] | None = field(default_factory=list)
+    superseded: bool = False
+
+    @property
+    def failed(self) -> bool:
+        """What the Operator is alerted about: a rejected commit, or one the
+        follower could not judge — not one that main simply moved past."""
+        return self.state in ("failure", "error") and not self.superseded
+
+
+def touched_tenants(paths: list[str], tenants: list[str]) -> list[str]:
+    found = set()
+    for tenant in tenants:
+        for path in paths:
+            if (path.startswith(f"infrastructure/kubernetes/tenants/{tenant}/")
+                    or path == f"infrastructure/kubernetes/apps/{tenant}.yaml"):
+                found.add(tenant)
+    return sorted(found)
 
 
 def _list(items: list[str], limit: int = 3) -> str:
@@ -51,19 +71,42 @@ class Follower:
         sha = self.github.head_sha(self.s.branch)
         if sha == self.last_sha:
             return None
-        if self.github.status(sha) in FINAL_STATES:
+        verdict = self.github.status(sha)
+        if verdict in FINAL_STATES:
             log.info("%s already has a verdict; nothing to do", sha[:12])
             self.last_sha = sha
+            # A restarted pod still reports what it last found, or the alert on
+            # a rejected commit would resolve itself with every restart.
+            outcome = Outcome(sha, verdict, "verdict already posted")
+            if verdict != "success":
+                outcome.restore_only = self._restore_only(sha)
+            self.last_outcome = outcome
             return None
         outcome = self.verify(sha)
         self.last_sha = sha
         self.last_outcome = outcome
         return outcome
 
-    def _finish(self, sha: str, state: str, description: str, steps: list[str]) -> Outcome:
+    def _restore_only(self, sha: str) -> list[str] | None:
+        try:
+            return touched_tenants(self.github.changed_paths(sha), self.s.migrating)
+        except Exception:
+            log.exception("could not read the files %s changed", sha[:12])
+            return None
+
+    def _finish(self, sha: str, state: str, description: str, steps: list[str],
+                superseded: bool = False) -> Outcome:
+        outcome = Outcome(sha, state, description, steps, superseded=superseded)
+        if outcome.failed:
+            outcome.restore_only = self._restore_only(sha)
+            if outcome.restore_only:
+                description += f"; touches {', '.join(outcome.restore_only)}: restore, do not revert"
+            elif outcome.restore_only is None:
+                description += "; changed files unreadable"
+            outcome.description = description
         log.info("%s %s: %s | %s", sha[:12], state, description, " | ".join(steps))
         self.github.set_status(sha, state, description)
-        return Outcome(sha, state, description, steps)
+        return outcome
 
     def verify(self, sha: str) -> Outcome:
         s = self.s
@@ -83,7 +126,8 @@ class Follower:
             stale = self.argocd.not_at(sha, s.base_repo_url)
             if stale:
                 return self._finish(sha, "error",
-                                    "Superseded before verified: " + _list(stale), steps)
+                                    "Superseded before verified: " + _list(stale), steps,
+                                    superseded=True)
 
             hosts = self._hosts(self.kube)
             failed = self._smoke(hosts, s.smoke_attempts, s.smoke_retry_seconds)

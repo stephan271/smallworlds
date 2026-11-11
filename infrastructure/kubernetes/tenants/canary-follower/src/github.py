@@ -39,6 +39,10 @@ class GitHub:
     def head_sha(self, branch: str) -> str:
         return self._request("GET", f"/commits/{branch}")["sha"]
 
+    def changed_paths(self, sha: str) -> list[str]:
+        """The files a commit touched; for a merge, against its first parent."""
+        return [f["filename"] for f in self._request("GET", f"/commits/{sha}").get("files", [])]
+
     def status(self, sha: str) -> str | None:
         """The newest state of our context on that commit, or None."""
         for entry in self._request("GET", f"/commits/{sha}/statuses?per_page=100"):

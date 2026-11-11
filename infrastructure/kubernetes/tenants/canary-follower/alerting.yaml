@@ -1,0 +1,65 @@
+# How a commit that Ring 0 rejects reaches the Operator. Without this the verdict
+# was only a red mark on GitHub, which nobody is watching.
+#
+# The follower exposes its last verdict on /metrics; Prometheus scrapes it, and
+# CanaryCommitFailed goes through the usual Alertmanager -> ntfy route
+# (doc/alerting.md). Severity is warning on purpose: the follower's own quiet
+# check fails a commit on any *critical* alert, so a critical one here would
+# fail every following commit, the fix included.
+apiVersion: v1
+kind: Service
+metadata:
+  name: canary-follower
+  namespace: canary-follower
+  labels:
+    app: canary-follower
+spec:
+  selector:
+    app: canary-follower
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+# kube-prometheus-stack sets serviceMonitorSelectorNilUsesHelmValues and
+# ruleSelectorNilUsesHelmValues to false, so both are picked up here.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: canary-follower
+  namespace: canary-follower
+  labels:
+    app: canary-follower
+spec:
+  selector:
+    matchLabels:
+      app: canary-follower
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 60s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: canary-follower
+  namespace: canary-follower
+spec:
+  groups:
+    - name: canary-follower.rules
+      rules:
+        - alert: CanaryCommitFailed
+          expr: smallworlds_canary_failed == 1
+          labels:
+            severity: warning
+          annotations:
+            summary: "Ring 0 rejected main at {{ $labels.sha }} ({{ $labels.state }})"
+            description: >-
+              {{ $labels.description }}.
+              {{ if eq $labels.restore_only "unknown" }}The follower could not read which files the
+              commit changed: check whether it touches a tenant whose database migrates before
+              reverting it.{{ else if $labels.restore_only }}It touches {{ $labels.restore_only }},
+              whose database the update may have migrated: reverting the commit will not bring
+              {{ $labels.restore_only }} back. Restore the backup taken before the update
+              (doc/tenant-immich.md, "Rolling Gallery back"; design §3.6).{{ else }}Revert the
+              commit or fix forward.{{ end }}

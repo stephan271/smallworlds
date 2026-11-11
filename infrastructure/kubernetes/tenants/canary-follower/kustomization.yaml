@@ -8,6 +8,7 @@ resources:
   - rbac.yaml
   - config.yaml
   - deployment.yaml
+  - alerting.yaml
 
 # Source runs straight from a ConfigMap (the Hermes/Remediation pattern). Every
 # src/*.py must be listed; tests/test_follower.py checks that.

@@ -20,11 +20,33 @@ from kube import Kube
 log = logging.getLogger("main")
 
 
+def _label(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ")
+
+
+def metrics(outcome) -> str:
+    """The last verdict, for the CanaryCommitFailed alert (PrometheusRule next to
+    this tenant). Nothing before the first verdict: no verdict is not a failure."""
+    lines = ["# HELP smallworlds_canary_failed 1 while main's last commit is rejected on Ring 0.",
+             "# TYPE smallworlds_canary_failed gauge"]
+    if outcome is not None:
+        if outcome.restore_only is None:
+            restore = "unknown"
+        else:
+            restore = ",".join(outcome.restore_only)
+        lines.append(f'smallworlds_canary_failed{{sha="{outcome.sha[:12]}",state="{outcome.state}",'
+                     f'restore_only="{_label(restore)}",description="{_label(outcome.description[:200])}"}} '
+                     f'{1 if outcome.failed else 0}')
+    return "\n".join(lines) + "\n"
+
+
 def serve(follower: Follower, port: int) -> None:
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
             if self.path == "/healthz":
                 body = b"ok\n"
+            elif self.path == "/metrics":
+                body = metrics(follower.last_outcome).encode()
             elif self.path == "/status":
                 outcome = follower.last_outcome
                 body = json.dumps({"last_sha": follower.last_sha,

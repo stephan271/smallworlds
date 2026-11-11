@@ -28,8 +28,25 @@ final state and verifies again one left at `pending`. An `error` is final for th
 commit too, so a commit is not re-synced every five minutes; the next commit is
 verified as usual. `GET /status` on port 8080 shows the last verdict.
 
+## When a commit is rejected
+
+`GET /metrics` reports the last verdict as `smallworlds_canary_failed` (1 for a
+`failure`, or for an `error` other than "superseded"). `alerting.yaml` turns that into
+the warning `CanaryCommitFailed`, which reaches ntfy like every other alert
+(`doc/alerting.md`). It is a warning, not critical, on purpose: the quiet check fails a
+commit on any critical alert, so a critical one would also fail the fix that follows.
+
+The follower reads which files the commit changed. If it touches a tenant whose
+database an update may migrate (`MIGRATING_TENANTS`: immich, gallery, nextcloud,
+forgejo, stalwart, keycloak), the status and the alert say **restore, do not revert**.
+On Ring 0, Gallery v5.10.0 could not be taken back to v5.8.0 by reverting; only the
+pre-update backup leads back across an Immich base change (`doc/tenant-immich.md`,
+"Rolling Gallery back"). A restarted pod reads the head's verdict back from GitHub, so
+the alert does not resolve itself on a restart.
+
 Not yet (later phases): the in-cluster Playwright run with full OIDC, the data checks,
-and the automatic revert (§3.6).
+and the automatic revert (§3.6). When the revert comes, it must skip the commits the
+alert marks "restore".
 
 ## Deploying it (Ring 0 only)
 
