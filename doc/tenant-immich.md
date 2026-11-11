@@ -42,6 +42,33 @@ Any change to this tenant changes Gallery as well. Render both
 (`kubectl kustomize --enable-helm infrastructure/kubernetes/tenants/gallery`);
 `admin-tools/test-object-storage.py` asserts they differ only as listed.
 
+### Rolling Gallery back
+
+Proven on Ring 0 on 2026-11-11, going from v5.10.0 back to v5.8.0
+(`plans-and-walkthroughs/design-update-strategy.md` §8).
+
+- **Changing the image tag back never works on its own.** An earlier release
+  refuses to start on a database holding migrations it does not ship.
+- **Within one Immich base, revert.** Gallery's own procedure: the *running*
+  image undoes its Gallery migrations one by one. A target before v5.9 also
+  gets the records copied back into `kysely_migrations`.
+  `admin-tools/canary/gallery-rollback-drill.sh` does this on Kubernetes.
+- **Across an Immich base change, restore.** Gallery's revert tool does not
+  touch Immich's own migrations, and Immich has no downgrade. v5.10.0 (Immich
+  3.3.5) had run `1792213725597-AddAssetFaceAssetState`, so v5.8.0 (Immich
+  3.3.1) stopped with "previously executed migration … is missing". The only
+  way back is the database backup taken before the update; the drill script
+  checks for this before it changes anything. A release's notes name its Immich
+  base ("Based on Immich vX.Y.Z"), so the rollback row of a release can say in
+  advance which case applies.
+- **Rolling forward again after a revert is safe.** Gallery moves the records
+  back and re-runs the reverted migrations. The seeded data passed
+  `admin-tools/canary/seed.py check` before the update, after it, and after
+  going forward again.
+- **Checking the version:** from v5.9 on, `/api/server/version` reports the
+  Immich base (3.3.5), not the Gallery release. Read the Deployment's image tag
+  instead.
+
 ## Notable changes per file (from git history)
 
 ### `admin-init-job.yaml` & `admin-config.yaml`

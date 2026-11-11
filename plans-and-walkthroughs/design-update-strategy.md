@@ -507,6 +507,35 @@ Steps, and the phase each one exercises:
 Ring 1 is a production cluster with real members: step 6's commands are run by
 Stephan.
 
+**Results so far (2026-11-11, steps 1–4).** Renovate is not installed yet, so
+step 1 was a hand-made PR (#44); its checks rendered `gallery` and passed.
+
+- **Step 2 (seed):** members and Gallery were seeded on v5.8.0 (§3.3), and an
+  on-demand backup was taken (`before-gallery-5-10`).
+- **Step 3 (update):** Ring 0 followed the merge without help. Under v5.10.0,
+  `seed.py check` passed with a fresh passkey sign-in. The migration-ledger
+  change ran on existing data (84 records in `gallery_migrations`), and the
+  52 MB original read back from S3 intact.
+- **Step 4 (rollback):** reverting worked for every Gallery migration. v5.8.0
+  then still refused to start, because v5.10.0's newer Immich base had run an
+  Immich migration that nothing undoes. Going forward again was clean, and
+  `check` passed. The full Gallery rollback row is in `doc/tenant-immich.md`.
+
+**What this changes in the design:**
+- **§3.6:** the automatic revert cannot undo an update that moves Gallery to a
+  new Immich base. Reverting the commit leaves Ring 0 crash-looping, which is
+  worse than staying on the new release. Until restore is automated, the
+  Follower should alert instead of reverting when the failing commit changes a
+  tenant whose image is known to migrate (Gallery, Immich, Nextcloud,
+  Forgejo).
+- **§4.5:** the release notes' rollback row has to say per release whether it
+  is "revert" or "restore only". For Gallery, the Immich base named in its
+  notes decides.
+- **Still open:** step 4's last part, restoring `before-gallery-5-10` into a
+  CNPG cluster that Argo CD manages on Ring 0, was not run. It is the real way
+  back for a release that crosses a base, and it needs its own runbook before
+  Ring 1 relies on it.
+
 ## 9. Moving Ring 1 to Contabo later
 
 Not part of this design, but it is affected by it. Ring 1 keeps its S3 provider,

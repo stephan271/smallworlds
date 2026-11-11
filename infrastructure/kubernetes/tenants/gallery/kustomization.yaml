@@ -27,10 +27,8 @@ images:
   # Gallery versions are its own; v5.10.0 is built on Immich v3.3.5. Bump both
   # together, and read the release notes first: a Gallery release can migrate
   # the database in ways plain Immich cannot read back. Going back is NOT a tag
-  # change: from v5.9 on, the newer image has to revert its own migrations first
-  # (`gallery-migrations.js revert`), and v5.8.0 also needs its records copied
-  # back into kysely_migrations — see Gallery's "Rolling back to an earlier
-  # release" and plans-and-walkthroughs/design-update-strategy.md §8.
+  # change, and across an Immich base change (v5.8 -> v5.9 was one) it is a
+  # database restore, not a revert: doc/tenant-immich.md, "Rolling Gallery back".
   - name: ghcr.io/immich-app/immich-server
     newName: ghcr.io/open-noodle/gallery-server
     newTag: v5.10.0
