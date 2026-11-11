@@ -24,15 +24,19 @@ resources:
   - ../../bases/backup-job
 
 images:
-  # Gallery versions are its own; v5.8.0 is built on Immich v3.3.1. Bump both
+  # Gallery versions are its own; v5.10.0 is built on Immich v3.3.5. Bump both
   # together, and read the release notes first: a Gallery release can migrate
-  # the database in ways plain Immich cannot read back.
+  # the database in ways plain Immich cannot read back. Going back is NOT a tag
+  # change: from v5.9 on, the newer image has to revert its own migrations first
+  # (`gallery-migrations.js revert`), and v5.8.0 also needs its records copied
+  # back into kysely_migrations — see Gallery's "Rolling back to an earlier
+  # release" and plans-and-walkthroughs/design-update-strategy.md §8.
   - name: ghcr.io/immich-app/immich-server
     newName: ghcr.io/open-noodle/gallery-server
-    newTag: v5.8.0
+    newTag: v5.10.0
   - name: ghcr.io/immich-app/immich-machine-learning
     newName: ghcr.io/open-noodle/gallery-ml
-    newTag: v5.8.0
+    newTag: v5.10.0
 
 patches:
   # Everything about the bucket comes from garage-secret, next to the key
