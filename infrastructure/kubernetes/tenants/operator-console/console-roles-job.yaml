@@ -25,7 +25,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: setup
-          image: docker.io/alpine/k8s:1.36.2
+          image: docker.io/alpine/k8s:1.37.2@sha256:dcb7185e112a453aa72f426754849a97357727ef8f40168fb208c8cf59952042
           command:
             - /bin/bash
             - -c
