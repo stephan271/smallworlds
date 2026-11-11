@@ -194,6 +194,16 @@ breaks existing data.
   member data (Excalidraw has neither a volume nor a database), so a smoke test
   covers them. It builds on `admin-tools/lab/seed-immich-photos.py` and
   `admin-tools/restore-drill/app-data.py` (*exist*).
+
+  **Status 2026-11-11:** members and Gallery are seeded on Ring 0 and pass
+  `seed.py check`. The photos are 19 public-domain NASA pictures pinned by
+  SHA-256 in `admin-tools/canary/photos.json` (three astronauts, so face
+  recognition has people to find; the largest is 52 MB, so it goes up to S3 in
+  parts). Nextcloud, Forgejo, Stalwart and pod-gateway are still to come. Two
+  traps the browser half already handles: the passkey button's handler arrives
+  with a module script after the page, so the first click can do nothing; and
+  Keycloak refuses a passkey whose signature counter did not rise, so the
+  counter starts from the clock rather than from the stored value.
 - **The data is never re-seeded.** It ages with the cluster and passes through
   every migration, as a real community's data does. The seeder runs once, and
   again only to add content for an application or a feature that is new.
