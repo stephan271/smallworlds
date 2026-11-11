@@ -21,18 +21,28 @@ class Kube:
             return handle.read().strip()
 
     def _request(self, method: str, path: str, body: dict | None = None,
-                 content_type: str = "application/json") -> dict:
+                 content_type: str = "application/json", raw: bool = False):
         data = json.dumps(body).encode() if body is not None else None
         request = urllib.request.Request(
             self.base + path, data=data, method=method,
             headers={"Authorization": f"Bearer {self._token()}",
-                     "Accept": "application/json",
+                     "Accept": "*/*" if raw else "application/json",
                      "Content-Type": content_type})
         with urllib.request.urlopen(request, timeout=30, context=self._context) as response:
-            return json.load(response)
+            return response.read().decode(errors="replace") if raw else json.load(response)
 
     def get(self, path: str) -> dict:
         return self._request("GET", path)
 
     def merge_patch(self, path: str, body: dict) -> dict:
         return self._request("PATCH", path, body, "application/merge-patch+json")
+
+    def create(self, path: str, body: dict) -> dict:
+        return self._request("POST", path, body)
+
+    def delete(self, path: str) -> dict:
+        return self._request("DELETE", path, {"propagationPolicy": "Background"})
+
+    def text(self, path: str) -> str:
+        """A plain-text answer, such as a pod's log."""
+        return self._request("GET", path, raw=True)

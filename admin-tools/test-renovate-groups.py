@@ -46,9 +46,24 @@ def main() -> int:
             problems.append(f"group pattern {pattern} names a path that does not exist")
 
     rules = config.get("packageRules", [])
+    # Ring 0's merge queue (design §3.6): the label goes on minor, patch and
+    # digest updates only, and the paths it leaves out must exist.
+    queued = [r for r in rules if "ring0-queue" in r.get("addLabels", []) + r.get("labels", [])]
+    if len(queued) != 1:
+        problems.append(f"expected one rule labelling ring0-queue, found {len(queued)}")
+    for rule in queued:
+        kinds = set(rule.get("matchUpdateTypes", []))
+        if not kinds or "major" in kinds or not kinds <= {"minor", "patch", "digest", "pin", "pinDigest"}:
+            problems.append(f"ring0-queue must never carry majors: matchUpdateTypes {sorted(kinds)}")
+        for pattern in rule.get("matchFileNames", []):
+            base = pattern.lstrip("!").split("*", 1)[0].rstrip("/")
+            if not (ROOT / base).exists():
+                problems.append(f"ring0-queue pattern {pattern} names a path that does not exist")
+
     if any(r.get("automerge") for r in rules) or config.get("automerge"):
-        # Allowed only from phase 6, once Ring 0 reverts what it rejects.
-        problems.append("automerge is on; it needs Ring 0's revert (design §3.6) first")
+        # Renovate must not merge on its own: Ring 0's queue merges one update
+        # at a time, and only while main is green (design §3.6).
+        problems.append("Renovate automerge is on; Ring 0's merge queue merges instead")
 
     for line in problems:
         print(f"FAIL {line}")

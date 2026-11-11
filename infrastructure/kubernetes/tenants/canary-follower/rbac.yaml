@@ -1,5 +1,6 @@
-# Refresh and sync Argo CD Applications (patch), read their state, and list
-# Ingresses for the smoke step. Nothing else: no Secrets, no workloads.
+# Refresh and sync Argo CD Applications (patch), read their state, list
+# Ingresses for the smoke step, take pre-update CNPG Backups, and run the checks
+# Job in its own namespace. No Secrets anywhere, and no workloads elsewhere.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -47,6 +48,69 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: canary-follower-ingresses
+subjects:
+  - kind: ServiceAccount
+    name: canary-follower
+    namespace: canary-follower
+---
+# Pre-update backups (src/backups.py): read the CNPG clusters, create and prune
+# the follower's own Backups. Cluster-wide because the migrating tenants live in
+# their own namespaces; Backups only, never Clusters.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: canary-follower-backups
+rules:
+  - apiGroups: ["postgresql.cnpg.io"]
+    resources: ["clusters"]
+    verbs: ["list"]
+  - apiGroups: ["postgresql.cnpg.io"]
+    resources: ["backups"]
+    verbs: ["get", "list", "create", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: canary-follower-backups
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: canary-follower-backups
+subjects:
+  - kind: ServiceAccount
+    name: canary-follower
+    namespace: canary-follower
+---
+# The checks Job (src/checksjob.py), cut from the suspended CronJob in this
+# namespace, and its log for the summary.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: canary-follower-checks
+  namespace: canary-follower
+rules:
+  - apiGroups: ["batch"]
+    resources: ["cronjobs"]
+    verbs: ["get"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["list"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: canary-follower-checks
+  namespace: canary-follower
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: canary-follower-checks
 subjects:
   - kind: ServiceAccount
     name: canary-follower

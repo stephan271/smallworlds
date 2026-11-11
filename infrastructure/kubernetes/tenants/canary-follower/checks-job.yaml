@@ -1,0 +1,104 @@
+# Ring 0's e2e and data checks (design §3.5 steps 3–4), as a template only.
+#
+# Suspended and scheduled never: the Canary Follower cuts one Job from it per
+# commit (src/checksjob.py), sets CHECK_SHA, and waits for it. Keeping the Job's
+# shape here rather than in Python lets Renovate update the image and lets a
+# person run it by hand (without CHECK_SHA it checks main's head):
+#
+#   kubectl -n canary-follower create job --from=cronjob/canary-checks by-hand-$(date +%s)
+#
+# It needs the Secret canary-checks (README, "Deploying it"): join's service
+# account, which mints the e2e test users' onboarding links exactly as the
+# Invitation Desk does, and the seeder's state file with the example members'
+# passkeys. Both are Ring 0's only, and Ring 0 holds no member data.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: canary-checks
+  namespace: canary-follower
+spec:
+  suspend: true
+  schedule: "0 0 1 1 *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+        app: canary-checks
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 3300
+      # Kept three days for its log; the follower deletes a running one itself
+      # before it starts the next.
+      ttlSecondsAfterFinished: 259200
+      template:
+        metadata:
+          labels:
+            app: canary-checks
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            # pwuser, the image's own unprivileged user.
+            runAsNonRoot: true
+            runAsUser: 1001
+            runAsGroup: 1001
+            fsGroup: 1001
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: checks
+              # Playwright with Chromium, Node.js and python3 (seed.py). Keep
+              # the version at e2e-tests/package-lock.json's @playwright/test;
+              # run-checks.sh downloads the matching browser if they drift.
+              image: mcr.microsoft.com/playwright:v1.61.1-noble@sha256:5b8f294aff9041b7191c34a4bab3ac270157a28774d4b0660e9743297b697e48
+              command: ["bash", "/scripts/run-checks.sh"]
+              env:
+                - name: REPO
+                  value: stephan271/smallworlds
+                - name: DOMAIN
+                  value: canary.smallworlds.network
+                # The admin REST API answers only on the tailnet at the
+                # Ingress; in the cluster the Service is reachable directly.
+                - name: KC_ADMIN_URL
+                  value: http://keycloak-keycloakx-http.keycloak.svc
+                - name: KC_CLIENT_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: canary-checks
+                      key: clientId
+                - name: KC_CLIENT_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: canary-checks
+                      key: client-secret
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests:
+                  cpu: 500m
+                  memory: 1Gi
+                limits:
+                  memory: 3Gi
+              volumeMounts:
+                - name: work
+                  mountPath: /work
+                - name: scripts
+                  mountPath: /scripts
+                - name: secrets
+                  mountPath: /secrets
+                  readOnly: true
+          volumes:
+            - name: work
+              emptyDir:
+                sizeLimit: 3Gi
+            - name: scripts
+              configMap:
+                name: canary-checks-scripts
+            - name: secrets
+              secret:
+                secretName: canary-checks
+                items:
+                  - key: seed-state.json
+                    path: seed-state.json

@@ -4,7 +4,7 @@
     "config:best-practices",
     ":prHourlyLimitNone"
   ],
-  "prConcurrentLimit": 5,
+  "prConcurrentLimit": 10,
   "timezone": "Europe/Berlin",
   "argocd": {
     "managerFilePatterns": [
@@ -27,12 +27,33 @@
   ],
   "packageRules": [
     {
-      "description": "Release Rings (docs/adr/0060): an upstream release waits three days, so one the upstream project withdraws never reaches main. Nothing merges automatically until Ring 0 verifies main and reverts what it rejects (design-update-strategy.md, phase 6).",
+      "description": "Release Rings (docs/adr/0060): an upstream release waits three days, so one the upstream project withdraws never reaches main. Renovate itself never merges: Ring 0's merge queue does, one update at a time while main is green (next rule).",
       "matchPackageNames": [
         "*"
       ],
       "minimumReleaseAge": "3 days",
       "automerge": false
+    },
+    {
+      "description": "Ring 0's merge queue (tenants/canary-follower/src/mergequeue.py): the Canary Follower squash-merges PRs with this label one at a time while main is green on Ring 0, and reverts one Ring 0 rejects. Never majors, and never what Ring 0 does not run (it could not verify it): those stay for a person to merge.",
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest",
+        "pin",
+        "pinDigest"
+      ],
+      "matchFileNames": [
+        "!infrastructure/terraform/**",
+        "!infrastructure/kubernetes/apps/garage.yaml",
+        "!infrastructure/kubernetes/apps/garage-backup.yaml",
+        "!infrastructure/kubernetes/tenants/backup-replicator/**",
+        "!infrastructure/kubernetes/tenants/collabora/**",
+        "!infrastructure/kubernetes/tenants/operator-console/**"
+      ],
+      "addLabels": [
+        "ring0-queue"
+      ]
     },
     {
       "description": "One PR per application: an application's images and chart move together, so a failure on Ring 0 reverts one application. admin-tools/test-renovate-groups.py checks that every tenant and every chart-bearing Application has a group.",

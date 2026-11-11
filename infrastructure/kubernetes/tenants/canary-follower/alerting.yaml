@@ -60,6 +60,8 @@ spec:
               commit changed: check whether it touches a tenant whose database migrates before
               reverting it.{{ else if $labels.restore_only }}It touches {{ $labels.restore_only }},
               whose database the update may have migrated: reverting the commit will not bring
-              {{ $labels.restore_only }} back. Restore the backup taken before the update
-              (doc/tenant-immich.md, "Rolling Gallery back"; design §3.6).{{ else }}Revert the
-              commit or fix forward.{{ end }}
+              {{ $labels.restore_only }} back, so the follower did not revert it and merges
+              nothing more. Restore the CNPG Backup ring0-before-{{ $labels.sha }} taken before
+              the update (doc/tenant-immich.md, "Rolling Gallery back"; design §3.6), or fix
+              forward.{{ else }}A queued Renovate update is reverted automatically; a person's
+              commit gets a revert PR to merge (tenants/canary-follower/README.md).{{ end }}

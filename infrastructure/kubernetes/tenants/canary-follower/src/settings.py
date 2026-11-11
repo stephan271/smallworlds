@@ -13,6 +13,9 @@ class Settings:
     argocd_namespace: str = "argocd"
     root_app: str = "smallworlds-root"
     poll_seconds: int = 300
+    # A commit whose verification ended in error is verified again this often.
+    error_retries: int = 3
+    error_retry_seconds: int = 3600
     refresh_timeout_seconds: int = 300
     converge_timeout_seconds: int = 2700
     converge_interval_seconds: int = 20
@@ -27,6 +30,35 @@ class Settings:
     # migrated database (Gallery v5.10 -> v5.8 on Ring 0, 2026-11-11), so the way
     # back is the pre-update backup.
     migrating_tenants: str = "immich,gallery,nextcloud,forgejo,stalwart,keycloak"
+    # tenant:namespace where they differ (Gallery is a variant of the immich tenant).
+    tenant_namespaces: str = "gallery:immich"
+
+    # Pre-update backups (backups.py): one on-demand CNPG Backup per cluster of
+    # every migrating tenant a commit touches, before anything is synced.
+    pre_update_backups: str = "false"
+    backup_timeout_seconds: int = 1800
+    backups_keep: int = 3
+
+    # E2E and data checks (checksjob.py): the suspended CronJob the Job is cut
+    # from. Empty: not run, and the status says so.
+    checks_cronjob: str = ""
+    checks_namespace: str = "canary-follower"
+    checks_timeout_seconds: int = 3600
+
+    # Merge queue (mergequeue.py).
+    merge_queue: str = "false"
+    auto_revert: str = "false"
+    queue_label: str = "ring0-queue"
+    queue_author: str = "renovate[bot]"
+
+    @staticmethod
+    def on(value: str) -> bool:
+        return value.strip().lower() in ("1", "true", "yes", "on")
+
+    @property
+    def namespaces(self) -> dict[str, str]:
+        pairs = (p.split(":", 1) for p in self.tenant_namespaces.split(",") if ":" in p)
+        return {t.strip(): n.strip() for t, n in pairs}
 
     @property
     def migrating(self) -> list[str]:

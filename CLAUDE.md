@@ -210,6 +210,20 @@ Tests: `admin-tools/test-hetzner-placement.sh` (stubbed Hetzner API, ssh/scp and
 covers a fresh project, a pinned Primary IP, no capacity anywhere, the cloud-init race, a
 failed secrets copy, and each wait running out).
 
+## Ring 0 merges into `main` by itself (`tenants/canary-follower`)
+
+The Canary Cluster (Ring 0, `docs/adr/0060`) follows `main` and verifies every commit:
+pre-update CNPG backup for migrating tenants, sync, smoke, an in-cluster Job running the
+e2e suite with full OIDC plus `admin-tools/canary/seed.py check`, a quiet period; the
+verdict is the commit status `ring0/verified`. While the head is green, the follower
+**squash-merges the next Renovate PR labelled `ring0-queue`** (minor/patch/digest of what
+Ring 0 runs; `renovate.json`), one per verified commit, and reverts a rejected one unless
+it touches a migrating tenant. So `main` moves without a person: pull before working, and
+never turn on Renovate's own `automerge` (`admin-tools/test-renovate-groups.py` fails) —
+it would land several updates between two verifications. Changes to `e2e-tests/` or
+`admin-tools/canary/` are what Ring 0 runs on the next commit, so a broken test stops the
+queue. Details: `tenants/canary-follower/README.md`.
+
 ## Local end-to-end staging (`admin-tools/test-pr-locally.sh`)
 
 `./admin-tools/test-pr-locally.sh <branch-name>` gives a full ephemeral test of a PR branch: provisions a throwaway Hetzner VM via `infrastructure/terraform-staging/`, diffs the branch against `main` to decide whether to deploy *all* apps (core `apps/`/`bases/`/terraform changed) or only the affected tenants, rewrites `infrastructure/kubernetes/kustomization.yaml` and `targetRevision` fields to point at the branch, deploys via `kubectl apply -k`, waits for every ArgoCD Application to go Healthy, patches `/etc/hosts`, and runs the Playwright e2e suite. It always restores git state and destroys the VM on exit (`trap cleanup EXIT`); set `KEEP_VM=1` to skip teardown for debugging. Requires `HCLOUD_TOKEN`. This script — not manual `kubectl apply` — is the standard way to validate a change against a real cluster before merging.

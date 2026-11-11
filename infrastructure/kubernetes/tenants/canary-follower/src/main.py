@@ -13,9 +13,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import settings as settings_module
 from argocd import ArgoCD
+from backups import Backups
+from checksjob import ChecksJob
 from follower import Follower
 from github import GitHub
 from kube import Kube
+from mergequeue import MergeQueue
 
 log = logging.getLogger("main")
 
@@ -49,8 +52,11 @@ def serve(follower: Follower, port: int) -> None:
                 body = metrics(follower.last_outcome).encode()
             elif self.path == "/status":
                 outcome = follower.last_outcome
+                queue = follower.queue
                 body = json.dumps({"last_sha": follower.last_sha,
-                                   "last_outcome": asdict(outcome) if outcome else None},
+                                   "last_outcome": asdict(outcome) if outcome else None,
+                                   "last_action": follower.last_action,
+                                   "queue": queue.waiting if queue else "off"},
                                   indent=2).encode()
             else:
                 self.send_error(404)
@@ -72,15 +78,25 @@ def main() -> None:
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     s = settings_module.from_environment()
     kube = Kube()
+    github = GitHub(s.github_api, s.github_repo, s.github_token, s.status_context)
+    writes = bool(s.github_token)
     follower = Follower(
-        s,
-        GitHub(s.github_api, s.github_repo, s.github_token, s.status_context),
-        ArgoCD(kube, s.argocd_namespace, s.root_app),
-        kube,
+        s, github, ArgoCD(kube, s.argocd_namespace, s.root_app), kube,
+        backups=Backups(kube, s.namespaces, s.backup_timeout_seconds, s.backups_keep)
+        if s.on(s.pre_update_backups) else None,
+        checks_job=ChecksJob(kube, s.checks_namespace, s.checks_cronjob, s.checks_timeout_seconds)
+        if s.checks_cronjob else None,
+        # Merging and reverting write to the repository: never without a token.
+        queue=MergeQueue(github, s.branch, s.queue_label, s.queue_author,
+                         merge=s.on(s.merge_queue), revert=s.on(s.auto_revert))
+        if writes and (s.on(s.merge_queue) or s.on(s.auto_revert)) else None,
     )
     serve(follower, s.http_port)
-    log.info("following %s@%s every %ss; statuses %s", s.github_repo, s.branch,
-             s.poll_seconds, "on" if s.github_token else "OFF (no token, log only)")
+    log.info("following %s@%s every %ss; statuses %s; backups %s; checks %s; merge queue %s; revert %s",
+             s.github_repo, s.branch, s.poll_seconds, "on" if writes else "OFF (no token, log only)",
+             "on" if follower.backups else "off", s.checks_cronjob or "off",
+             "on" if writes and s.on(s.merge_queue) else "off",
+             "on" if writes and s.on(s.auto_revert) else "off")
     while True:
         try:
             follower.tick()

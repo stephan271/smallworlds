@@ -9,6 +9,7 @@ resources:
   - config.yaml
   - deployment.yaml
   - alerting.yaml
+  - checks-job.yaml
 
 # Source runs straight from a ConfigMap (the Hermes/Remediation pattern). Every
 # src/*.py must be listed; tests/test_follower.py checks that.
@@ -17,9 +18,16 @@ configMapGenerator:
     namespace: canary-follower
     files:
       - src/argocd.py
+      - src/backups.py
       - src/checks.py
+      - src/checksjob.py
       - src/follower.py
       - src/github.py
       - src/kube.py
       - src/main.py
+      - src/mergequeue.py
       - src/settings.py
+  - name: canary-checks-scripts
+    namespace: canary-follower
+    files:
+      - checks/run-checks.sh

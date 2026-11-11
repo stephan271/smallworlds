@@ -13,3 +13,14 @@ data:
   CONVERGE_TIMEOUT_SECONDS: "2700"
   QUIET_SECONDS: "1800"
   ALERTMANAGER_URL: "http://kube-prometheus-stack-alertmanager.monitoring.svc:9093"
+  # Before syncing a commit that touches a migrating tenant: an on-demand CNPG
+  # Backup ring0-before-<sha> of each of its clusters (design §3.6).
+  PRE_UPDATE_BACKUPS: "true"
+  # E2E with full OIDC and the data checks, as a Job cut from checks-job.yaml.
+  CHECKS_CRONJOB: "canary-checks"
+  CHECKS_TIMEOUT_SECONDS: "3600"
+  # One Renovate update at a time while main is green; a rejected one is
+  # reverted unless it touches a migrating tenant (src/mergequeue.py). Both need
+  # the token's contents and pull-request permissions (README).
+  MERGE_QUEUE: "true"
+  AUTO_REVERT: "true"

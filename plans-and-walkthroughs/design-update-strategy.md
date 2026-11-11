@@ -275,6 +275,22 @@ Run in order. Each step's result goes into the commit status summary.
 A commit is **green on Ring 0** when all five pass. After that it stays green
 unless a later failure on the same commit is recorded.
 
+**Built 2026-11-11:** steps 3 and 4 run as one Job cut from the suspended CronJob
+`tenants/canary-follower/checks-job.yaml`, on the Playwright image, with that
+commit's `e2e-tests/` and `admin-tools/canary/`. Getting the e2e suite to pass
+against Ring 0 for the first time (the suite had not passed since invitations moved
+to join's token, ADR 0059) found faults in the suite, none in the platform: the
+test users' links were minted with a master-realm token, which the link endpoint
+refuses since it authenticates in the members' realm (now join's service account);
+Keycloak's execute-actions token ends on "Account updated" without signing anyone
+in, so no spec had a session (the test users now get join's own token, as members
+do); the passkey button's handler is attached by a module script, so a click as
+soon as the button shows was lost; the join spec ran inside the test user's
+session; Gallery's onboarding greets with a paragraph, not a heading; and the
+pod-archive spec did not skip where Gallery runs without the Immich exporter. It also found one fault members would meet: the login theme named a passkey
+after the day only, so a second passkey on the same day was refused ("Device
+already exists with the same name"); it now carries the time too.
+
 ### 3.6 Automatic revert on Ring 0
 
 When verification fails on commit `X`:
@@ -301,9 +317,31 @@ Follower only alerts. That part exists already: a rejected commit raises
 status say "restore, do not revert" when the commit touches such a tenant
 (`tenants/canary-follower/README.md`).
 
-The token for commit statuses and revert PRs is a fine-grained GitHub token
-limited to the base repository (statuses, pull requests, contents). It lives
-**only on Ring 0**, which holds no member data.
+**Built 2026-11-11** (`tenants/canary-follower/src/mergequeue.py`,
+`src/backups.py`):
+
+- **Merge queue.** Renovate never merges. The follower squash-merges the oldest
+  Renovate PR labelled `ring0-queue` (minor, patch, digest and pin updates of what
+  Ring 0 runs; `renovate.json`) while `main`'s head is green, so each commit on
+  `main` is one update and each verdict is about one update. A design that let
+  Renovate automerge would have had several updates land between two
+  verifications: the follower verifies only the head, so the earlier ones would
+  be superseded unjudged, and a failure could not be pinned on one of them.
+- **Pre-update backup on Ring 0.** Before syncing a commit that touches a
+  migrating tenant, the follower takes an on-demand CNPG Backup
+  `ring0-before-<sha12>` of each of its clusters and waits for it. Those tenants
+  come through the overlay's remote base, so the old release is still running
+  while it is taken.
+- **Rejection.** The PR is labelled `ring0-rejected-<fingerprint>` (the lines the
+  update adds), so Renovate re-opening the same update does not get it merged
+  again. Then: revert and merge for a queued update with no migrating tenant; a
+  revert PR left for a person for a person's commit; no revert, an alert naming
+  the backup, and a stopped queue for a migrating tenant.
+
+The token for commit statuses, merges and revert PRs is a fine-grained GitHub
+token limited to the base repository (statuses, contents, pull requests, issues
+for labels, workflows for Renovate's Actions pins). It lives **only on Ring 0**,
+which holds no member data.
 
 ## 4. From main to a release
 
@@ -475,7 +513,7 @@ overlays are being deleted. The live overlays are Ring 1's
 | Alerting (ntfy, healthchecks.io) | exists |
 | Remediation / Hermes | exist, `DRY_RUN`; not needed for this design |
 | Ring 0 server, overlay, install | new |
-| Canary Follower (refresh, verify, commit status, revert) | built 2026-11-10 (`tenants/canary-follower`): follow, converge, smoke, quiet period, status. Not yet: e2e Job, data checks, revert |
+| Canary Follower (refresh, verify, commit status, revert) | built 2026-11-10/11 (`tenants/canary-follower`): pre-update backup, follow, converge, smoke, e2e + data checks Job, quiet period, status, merge queue, revert |
 | PR-check workflow | new |
 | Release kinds in `bump-version.sh`, the gate | built 2026-11-10 (`admin-tools/lib/ring0_gate.py`; override with a recorded reason) |
 | `release-notes.py` | built 2026-11-10 (draft with `TODO:` lines; tests in `admin-tools/test-release-notes.py`) |
@@ -503,6 +541,8 @@ Each phase is useful on its own.
    `update-community-version.sh`.
 6. **Ring 0 reverts.** §3.6, after phase 3 has run long enough for its false
    alarms to be fixed. Then allow Renovate automerge for minor and patch updates.
+   *Built 2026-11-11, earlier than planned and differently:* Renovate does not
+   automerge; the follower's merge queue merges one update per green head (§3.6).
 
 ## 8. Walkthrough: Gallery v5.8.0 → v5.10.0
 
