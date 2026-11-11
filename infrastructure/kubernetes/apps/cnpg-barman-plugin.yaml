@@ -23,7 +23,7 @@ spec:
     # plugin signs nothing and a moving tag would change what produces the
     # backups without anybody deciding to.
     repoURL: 'https://github.com/stephan271/smallworlds.git'
-    targetRevision: HEAD
+    targetRevision: v1.3.0
     path: infrastructure/kubernetes/tenants/cnpg-barman-plugin
   destination:
     server: 'https://kubernetes.default.svc'

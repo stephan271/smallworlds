@@ -16,7 +16,7 @@ spec:
   project: default
   source:
     repoURL: 'https://github.com/stephan271/smallworlds.git'
-    targetRevision: HEAD
+    targetRevision: v1.3.0
     path: infrastructure/kubernetes/tenants/operator-console
   destination:
     server: 'https://kubernetes.default.svc'
