@@ -132,3 +132,17 @@ patches:
       kind: CronJob
       metadata:
         name: immich-pod-export
+
+# Again here: ../immich copied the Immich image before `images` above swapped it.
+replacements:
+  # The image the update brings, for the pre-update backup (bases/pre-update-backup).
+  - source:
+      kind: Deployment
+      name: immich-server
+      fieldPath: spec.template.spec.containers.[name=main].image
+    targets:
+      - select:
+          kind: Job
+          name: pre-update-backup
+        fieldPaths:
+          - spec.template.spec.containers.[name=backup].env.[name=DESIRED_IMAGE].value

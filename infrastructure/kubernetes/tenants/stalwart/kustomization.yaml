@@ -7,6 +7,7 @@ bases:
   - ../../bases/garage-init-job
 
 resources:
+  - ../../bases/pre-update-backup
   - objectstore.yaml
   - cnpg-cluster.yaml
   - stalwart-deployment.yaml
@@ -21,6 +22,24 @@ resources:
 
 patches:
   - target:
+      kind: Job
+      name: pre-update-backup
+    patch: |-
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: pre-update-backup
+      spec:
+        template:
+          spec:
+            containers:
+              - name: backup
+                env:
+                  - name: WORKLOAD
+                    value: deployment/stalwart-mail
+                  - name: CONTAINER
+                    value: stalwart
+  - target:
       kind: NetworkPolicy
       name: database-ingress
     patch: |-
@@ -34,3 +53,26 @@ patches:
       - op: replace
         path: /metadata/name
         value: setup-binding-stalwart
+
+replacements:
+  # The image the update brings, for the pre-update backup (bases/pre-update-backup).
+  - source:
+      kind: Deployment
+      name: stalwart-mail
+      fieldPath: spec.template.spec.containers.[name=stalwart].image
+    targets:
+      - select:
+          kind: Job
+          name: pre-update-backup
+        fieldPaths:
+          - spec.template.spec.containers.[name=backup].env.[name=DESIRED_IMAGE].value
+  - source:
+      kind: Cluster
+      name: database
+      fieldPath: spec.imageName
+    targets:
+      - select:
+          kind: Job
+          name: pre-update-backup
+        fieldPaths:
+          - spec.template.spec.containers.[name=backup].env.[name=DESIRED_DB_IMAGE].value

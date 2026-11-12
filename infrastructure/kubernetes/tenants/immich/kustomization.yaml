@@ -9,6 +9,7 @@ bases:
   - ../../bases/pv-backup-job
 
 resources:
+  - ../../bases/pre-update-backup
   - redis.yaml
   - objectstore.yaml
   - cnpg-cluster.yaml
@@ -23,6 +24,24 @@ resources:
   - ../../bases/db-network-policy
 
 patches:
+  - target:
+      kind: Job
+      name: pre-update-backup
+    patch: |-
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: pre-update-backup
+      spec:
+        template:
+          spec:
+            containers:
+              - name: backup
+                env:
+                  - name: WORKLOAD
+                    value: deployment/immich-server
+                  - name: CONTAINER
+                    value: main
   - target:
       kind: NetworkPolicy
       name: database-ingress
@@ -118,3 +137,16 @@ helmCharts:
     releaseName: immich
     version: 0.13.1
     valuesFile: values.yaml
+
+replacements:
+  # The image the update brings, for the pre-update backup (bases/pre-update-backup).
+  - source:
+      kind: Deployment
+      name: immich-server
+      fieldPath: spec.template.spec.containers.[name=main].image
+    targets:
+      - select:
+          kind: Job
+          name: pre-update-backup
+        fieldPaths:
+          - spec.template.spec.containers.[name=backup].env.[name=DESIRED_IMAGE].value

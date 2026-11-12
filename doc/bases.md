@@ -102,3 +102,14 @@ A generic post-deploy smoke test template used in the staging pipeline (`db13931
 - **Argocd Hooks**: Runs as a `Sync` hook with `hook-delete-policy: HookSucceeded`, so a passing run cleans itself up and only a *failing* run lingers for inspection.
 - **What it does**: Polls a tenant's `/healthz` endpoint (via the in-cluster service DNS `${SERVICE_NAME}.${NAMESPACE}.svc.cluster.local`) up to 30 times at 10s intervals, treating `200/301/302` as success. `SERVICE_NAME` defaults to the placeholder `REPLACE_ME_IN_PATCH` and is overridden per tenant via a Kustomize patch.
 - **Why?** Gives the automated weekly-update / staging runs a deterministic "did the app actually come up?" gate rather than trusting ArgoCD's resource health alone. The `curlimages/curl` image is pinned by digest for reproducible test runs.
+
+### 6. Pre-update Backup (`pre-update-backup`)
+An on-demand CNPG backup before an update changes what runs against a tenant's database (`docs/adr/0060`, design-update-strategy.md §5.2). Used by every tenant with a CNPG cluster: `immich` (and `gallery`), `nextcloud`, `keycloak`, `forgejo`, `stalwart`.
+
+**Key Configuration Highlights:**
+- **Argo CD hooks**: everything is a `PreSync` hook, the ServiceAccount, Role and RoleBinding included (hook wave `-1`, the Job `0`). On a fresh install nothing else exists yet when PreSync runs, which is the trap a PreSync Job relying on `setup-sa` would fall into. Argo CD runs PreSync hooks on automated syncs too, so an overlay bump triggers it without a manual full sync (seen on Ring 1, 2026-11-12).
+- **Backs up only when something changes**: the tenant's kustomization copies the image of its main workload into `DESIRED_IMAGE`, and the Cluster's `imageName` into `DESIRED_DB_IMAGE`, with `replacements`; the hook compares them with what runs. Ring 0's follower full-syncs every commit, and without this every sync would back up every database. `gallery` repeats the replacement because `../immich` copied the Immich image before Gallery's `images:` swapped it.
+- **Holds the update back** when the backup fails or does not finish in `TIMEOUT_SECONDS` (30 min): the hook fails, the sync stops in PreSync, the old version keeps running, and `ApplicationNotSynced` (`apps/update-alerts.yaml`) tells the Operator. `kubectl -n <ns> create configmap pre-update-backup-skip` lets the next sync through once.
+- **Labels and keeping**: each Backup is labelled `smallworlds.network/pre-update=<hash of the change>` (a retried update finds its backup and does not take another) and annotated with the change; the newest three are kept. Deleting a Backup object does not delete its data; the ObjectStore's retention policy does.
+- **Restore**: `doc/storage-and-backup.md`, "Rolling an update back". Tests: `admin-tools/test-pre-update-backup.sh` (stubbed kubectl).
+

@@ -420,6 +420,44 @@ CNPG restores by bootstrapping a *new* cluster from the object store of the old 
 > were re-enabled, and a new base backup completed for each. The drill found the
 > archiver-ordering rule above; enabling it during bootstrap makes recovery fail.
 
+#### Rolling an update back
+
+Every tenant with a CNPG cluster takes a backup before an update changes its
+application image or its PostgreSQL image (`bases/pre-update-backup`, an Argo CD
+PreSync hook; `docs/adr/0060`). A release's notes say per application whether
+going back is "revert the overlay commit" or "restore". Restore is the answer
+whenever the new version has migrated the database (Gallery across an Immich
+base, `doc/tenant-immich.md`).
+
+1. Find the backup the update took:
+   ```bash
+   kubectl -n <namespace> get backups -l smallworlds.network/pre-update \
+     -o custom-columns=NAME:.metadata.name,ID:.status.backupId,DONE:.status.stoppedAt,CHANGE:.metadata.annotations.smallworlds\\.network/change
+   ```
+2. Recover a cluster as in 7.1, but stop at that backup instead of replaying the
+   WAL the new version wrote afterwards:
+   ```yaml
+   bootstrap:
+     recovery:
+       source: database
+       recoveryTarget:
+         backupID: <ID from step 1>
+         targetImmediate: true
+   ```
+3. Revert the overlay commit that brought the update, push it, and move the root
+   to it (`doc/local-deployment.md`, "Rolling out an overlay change"), then point
+   the application at the recovered cluster and reconcile its credential (7.1
+   step 4).
+
+> **Not yet drilled.** Steps 2 and 3 follow 7.1, which is drilled, but stopping at
+> a `backupID` and switching an application over have not been run end to end.
+> Drill them on Ring 0 before the first real rollback.
+
+An update the hook held back (backup failed or overdue) has not changed anything:
+the sync stopped in PreSync and the old version is still running. The hook's log
+says why. To update without that backup, after taking one some other way:
+`kubectl -n <namespace> create configmap pre-update-backup-skip`, then sync again.
+
 ### 7.2 Cluster state and workloads (Velero)
 
 Requires the `velero` CLI (not installed by bootstrap — `brew install velero` /

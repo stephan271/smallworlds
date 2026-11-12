@@ -105,6 +105,19 @@ was given no way to reach its Operator.
 - `AlertmanagerFailedToSendAlerts` firing means an endpoint refused delivery —
   usually a typo in one of the URLs.
 
+## After an update
+
+`apps/update-alerts.yaml` scrapes Argo CD's own metrics (`argocd-metrics`, which
+nothing collected before 2026-11-12) and adds two warnings:
+
+- `ApplicationNotHealthy`: an Application is not Healthy for 30 minutes.
+- `ApplicationNotSynced`: an Application is not Synced for 45 minutes, which is
+  where a sync that keeps failing ends up, including an update the pre-update
+  backup hook held back (`doc/bases.md` §6).
+
+Rings 1 and 2 are never rolled back automatically (`docs/adr/0060`); these tell
+the Operator to look, and the descriptions point at the way back.
+
 ## Not covered yet
 
 - **Hermes** still mails through Stalwart (`doc/mail.md` §2); `docs/adr/0049`

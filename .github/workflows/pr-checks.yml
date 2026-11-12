@@ -81,6 +81,7 @@ jobs:
           - test-setup-wizard.sh
           - test-object-storage.py
           - test-pod-gateway.py
+          - test-pre-update-backup.sh
           - test-generate-domain-patches.py
           - test-release-notes.py
           - test-stalwart-dns-push.py

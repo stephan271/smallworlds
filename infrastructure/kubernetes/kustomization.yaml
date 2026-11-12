@@ -28,6 +28,7 @@ resources:
   - apps/alertmanager-config.yaml
   - apps/priorityclasses.yaml
   - apps/backup-alerts.yaml
+  - apps/update-alerts.yaml
   - apps/node-disk-alerts.yaml
   # No trivy-operator and no in-cluster Renovate (2026-11-09). Version-bump PRs
   # come from the Renovate GitHub App (renovate.json); nothing read Trivy's

@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: keycloak
 
 resources:
+  - ../../bases/pre-update-backup
   - objectstore.yaml
   - cnpg-cluster.yaml
   - keycloak-admin-ingress.yaml
@@ -25,6 +26,26 @@ generatorOptions:
   disableNameSuffixHash: true
 
 patches:
+  - target:
+      kind: Job
+      name: pre-update-backup
+    patch: |-
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: pre-update-backup
+      spec:
+        template:
+          spec:
+            containers:
+              - name: backup
+                env:
+                  - name: CLUSTER
+                    value: keycloak-db
+                  - name: WORKLOAD
+                    value: statefulset/keycloak-keycloakx
+                  - name: CONTAINER
+                    value: keycloak
   - target:
       kind: NetworkPolicy
       name: database-ingress
@@ -57,3 +78,26 @@ helmCharts:
     releaseName: keycloak
     version: 7.2.0
     valuesFile: values.yaml
+
+replacements:
+  # The image the update brings, for the pre-update backup (bases/pre-update-backup).
+  - source:
+      kind: StatefulSet
+      name: keycloak-keycloakx
+      fieldPath: spec.template.spec.containers.[name=keycloak].image
+    targets:
+      - select:
+          kind: Job
+          name: pre-update-backup
+        fieldPaths:
+          - spec.template.spec.containers.[name=backup].env.[name=DESIRED_IMAGE].value
+  - source:
+      kind: Cluster
+      name: keycloak-db
+      fieldPath: spec.imageName
+    targets:
+      - select:
+          kind: Job
+          name: pre-update-backup
+        fieldPaths:
+          - spec.template.spec.containers.[name=backup].env.[name=DESIRED_DB_IMAGE].value

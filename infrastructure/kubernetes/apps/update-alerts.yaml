@@ -1,0 +1,58 @@
+# After an update (docs/adr/0060, design-update-strategy.md §5.3): Rings 1 and 2
+# are never rolled back automatically, so a person has to hear when an update did
+# not take. Argo CD's own metrics say it: an Application that stays unhealthy, or
+# one whose sync keeps failing (the pre-update backup hook holding an update back
+# ends up here too). Both go out through the push receiver (doc/alerting.md).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: argocd-metrics
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-metrics
+  endpoints:
+    - port: metrics
+      interval: 60s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: update-alerts
+  namespace: monitoring
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  groups:
+    - name: update.rules
+      rules:
+        - alert: ApplicationNotHealthy
+          expr: argocd_app_info{health_status!="Healthy"} == 1
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.name }} has been {{ $labels.health_status }} for 30 minutes"
+            description: >-
+              If this follows an update, the release notes say for each
+              application how to go back: revert the overlay commit, or restore
+              the backup taken before the update (doc/storage-and-backup.md,
+              "Rolling an update back"). `kubectl -n argocd get application
+              {{ $labels.name }}` shows what Argo CD sees.
+        - alert: ApplicationNotSynced
+          expr: argocd_app_info{sync_status!="Synced"} == 1
+          for: 45m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.name }} has not been in sync for 45 minutes"
+            description: >-
+              Its sync keeps failing or never ran. The reason is in
+              `kubectl -n argocd get application {{ $labels.name }} -o
+              jsonpath='{.status.operationState.message}'`. A failed
+              pre-update-backup hook holds an update back on purpose:
+              infrastructure/kubernetes/bases/pre-update-backup says how to
+              proceed.

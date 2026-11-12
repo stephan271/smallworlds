@@ -58,6 +58,7 @@ Shared, reusable resources consumed by tenants via Kustomize, mostly ArgoCD sync
 - **`backup-job`**: generic `rclone` CronJob template replicating S3 backups off-cluster.
 - **`setup-rbac`** (sync-wave `-3`, strictly before the `-2` init jobs): ServiceAccount/RoleBindings the init jobs run as. Deliberately has **no** ArgoCD hook — a prior `PreSync` hook caused retries to delete the ServiceAccount out from under running jobs (see `doc/bases.md`).
 - **`staging-test/smoke-test-job`**: post-deploy `/healthz` poll gate used by the staging pipeline, self-deletes on success (`HookSucceeded`).
+- **`pre-update-backup`** (PreSync, own ServiceAccount): a CNPG `Backup` before an update changes a tenant's app or PostgreSQL image, compared through `replacements` in the tenant's kustomization; a failed backup holds the update back. A new tenant with a CNPG cluster needs it, with both replacements (`doc/bases.md` §6).
 
 Init job images are pinned to `alpine/k8s:<version>` (not `bitnami/kubectl:latest`, which Bitnami stopped maintaining).
 

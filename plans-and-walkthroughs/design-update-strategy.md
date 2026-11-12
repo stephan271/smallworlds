@@ -465,6 +465,11 @@ Two constraints:
   unrelated reason forever. It fails after a bound, and the sync stops with a
   clear message rather than updating without a backup.
 
+**Built 2026-11-12** as `bases/pre-update-backup`, differently in one respect:
+an automated sync runs PreSync hooks too (Ring 1, v1.3.0), so no manual full
+sync is needed; and the hook backs up only when the tenant's application or
+PostgreSQL image changes, since Ring 0's follower full-syncs every commit.
+
 ### 5.3 After the update: detection and the rollback command
 
 Rings 1 and 2 are **not** reverted automatically. A database that has migrated
@@ -477,6 +482,11 @@ community loses members' data. Instead:
 - The alert links the release's **rollback section**: for each application,
   either "revert the overlay commit", or "restore the pre-update backup with
   these commands". That is a per-tenant runbook in `doc/tenant-*.md`.
+
+**Built 2026-11-12:** `apps/update-alerts.yaml` (`ApplicationNotHealthy` 30 min,
+`ApplicationNotSynced` 45 min, from Argo CD's metrics). One runbook instead of
+one per tenant: `doc/storage-and-backup.md`, "Rolling an update back", not yet
+drilled.
 
 ### 5.4 Overlay tooling
 

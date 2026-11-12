@@ -1,0 +1,187 @@
+# A backup of the tenant's database before an update changes what runs against it
+# (docs/adr/0060, design-update-strategy.md §5.2). Rings 1 and 2 are never rolled
+# back automatically; a migrated database can only go back by restore, and this
+# makes that restore lose minutes instead of up to a day.
+#
+# An Argo CD PreSync hook. It backs up only when the update changes something the
+# database cares about: the tenant's application image (DESIRED_IMAGE, copied in
+# by a `replacements` entry in the tenant's kustomization from the workload that
+# is about to be applied) or the Cluster's own PostgreSQL image (DESIRED_DB_IMAGE).
+# Every other sync, including the Canary Follower's hourly full sync on Ring 0,
+# finds nothing changed and returns at once.
+#
+# If the backup fails or does not finish in time, the hook fails and the sync
+# stops there: the update is held back rather than applied without a restore
+# point. To update anyway, after taking a backup some other way:
+#   kubectl -n <namespace> create configmap pre-update-backup-skip
+# and sync again. The hook uses that ConfigMap once and deletes it.
+#
+# Everything here is a PreSync hook, the ServiceAccount and its Role included:
+# on a fresh install nothing else exists yet when PreSync runs.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pre-update-backup
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "-1"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pre-update-backup
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "-1"
+rules:
+  - apiGroups: ["postgresql.cnpg.io"]
+    resources: ["clusters"]
+    verbs: ["get"]
+  - apiGroups: ["postgresql.cnpg.io"]
+    resources: ["backups"]
+    verbs: ["get", "list", "create", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["pre-update-backup-skip"]
+    verbs: ["get", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pre-update-backup
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "-1"
+subjects:
+  - kind: ServiceAccount
+    name: pre-update-backup
+roleRef:
+  kind: Role
+  name: pre-update-backup
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pre-update-backup
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 2400
+  template:
+    spec:
+      serviceAccountName: pre-update-backup
+      restartPolicy: Never
+      containers:
+        - name: backup
+          image: docker.io/alpine/k8s:1.36.2
+          env:
+            # Set per tenant: the CNPG Cluster, the workload whose image decides,
+            # and (by replacements) the image the update brings.
+            - name: CLUSTER
+              value: database
+            - name: WORKLOAD
+              value: ""
+            - name: CONTAINER
+              value: ""
+            - name: DESIRED_IMAGE
+              value: ""
+            - name: DESIRED_DB_IMAGE
+              value: ""
+            - name: TIMEOUT_SECONDS
+              value: "1800"
+            - name: KEEP
+              value: "3"
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -uo pipefail
+              ns=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+              say() { echo "pre-update-backup: $*"; }
+              fail() { echo "pre-update-backup: FAILED: $*"; exit 1; }
+
+              if ! kubectl -n "$ns" get clusters.postgresql.cnpg.io "$CLUSTER" >/dev/null 2>&1; then
+                say "no Cluster $CLUSTER yet (first install): nothing to back up"; exit 0
+              fi
+              live=$(kubectl -n "$ns" get "$WORKLOAD" \
+                -o jsonpath="{.spec.template.spec.containers[?(@.name==\"$CONTAINER\")].image}" 2>/dev/null)
+              live_db=$(kubectl -n "$ns" get clusters.postgresql.cnpg.io "$CLUSTER" -o jsonpath='{.spec.imageName}')
+              changes=()
+              if [[ -n "$live" && -n "$DESIRED_IMAGE" && "$live" != "$DESIRED_IMAGE" ]]; then
+                changes+=("$WORKLOAD $live -> $DESIRED_IMAGE")
+              fi
+              if [[ -n "$live_db" && -n "$DESIRED_DB_IMAGE" && "$live_db" != "$DESIRED_DB_IMAGE" ]]; then
+                changes+=("PostgreSQL $live_db -> $DESIRED_DB_IMAGE")
+              fi
+              if [[ ${#changes[@]} -eq 0 ]]; then
+                say "no image changes for $CLUSTER: no backup needed"; exit 0
+              fi
+              change=$(IFS=';'; echo "${changes[*]}")
+              say "update changes: $change"
+
+              if kubectl -n "$ns" get configmap pre-update-backup-skip >/dev/null 2>&1; then
+                kubectl -n "$ns" delete configmap pre-update-backup-skip >/dev/null
+                say "skipped once, as pre-update-backup-skip asked"; exit 0
+              fi
+
+              # A retry of the same update (the sync failed after the backup) does
+              # not back up again.
+              key=$(echo -n "$change" | sha256sum | cut -c1-16)
+              done_before=$(kubectl -n "$ns" get backups.postgresql.cnpg.io \
+                -l "smallworlds.network/pre-update=$key" \
+                -o jsonpath='{range .items[?(@.status.phase=="completed")]}{.metadata.name}{"\n"}{end}' | head -1)
+              if [[ -n "$done_before" ]]; then
+                say "already backed up for this update: $done_before"; exit 0
+              fi
+
+              plugin=$(kubectl -n "$ns" get clusters.postgresql.cnpg.io "$CLUSTER" \
+                -o jsonpath='{.spec.plugins[?(@.isWALArchiver==true)].name}')
+              name="pre-update-$(date -u +%Y%m%d%H%M%S)"
+              {
+                echo "apiVersion: postgresql.cnpg.io/v1"
+                echo "kind: Backup"
+                echo "metadata:"
+                echo "  name: $name"
+                echo "  labels:"
+                echo "    smallworlds.network/pre-update: \"$key\""
+                echo "  annotations:"
+                echo "    smallworlds.network/change: \"$change\""
+                echo "spec:"
+                echo "  cluster:"
+                echo "    name: $CLUSTER"
+                if [[ -n "$plugin" ]]; then
+                  echo "  method: plugin"
+                  echo "  pluginConfiguration:"
+                  echo "    name: $plugin"
+                fi
+              } | kubectl -n "$ns" create -f - >/dev/null || fail "could not create Backup $name"
+              say "Backup $name started"
+
+              deadline=$(( $(date +%s) + TIMEOUT_SECONDS ))
+              while :; do
+                phase=$(kubectl -n "$ns" get backups.postgresql.cnpg.io "$name" -o jsonpath='{.status.phase}' 2>/dev/null)
+                case "$phase" in
+                  completed) say "Backup $name completed"; break ;;
+                  failed) fail "Backup $name failed: $(kubectl -n "$ns" get backups.postgresql.cnpg.io "$name" -o jsonpath='{.status.error}'). The update is held back; see the header of bases/pre-update-backup to update without it." ;;
+                esac
+                (( $(date +%s) >= deadline )) && fail "Backup $name did not complete within $((TIMEOUT_SECONDS / 60)) min. The update is held back; see the header of bases/pre-update-backup to update without it."
+                sleep 10
+              done
+
+              # Keep the newest $KEEP pre-update Backup objects. Deleting one does
+              # not delete its data in the object store; the ObjectStore's
+              # retention policy does that.
+              kubectl -n "$ns" get backups.postgresql.cnpg.io -l smallworlds.network/pre-update \
+                --sort-by=.metadata.creationTimestamp -o name | head -n "-$KEEP" \
+                | xargs -r kubectl -n "$ns" delete >/dev/null
+              exit 0

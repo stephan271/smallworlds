@@ -38,10 +38,10 @@ follower (`docs/adr/0060`) now cover part of what the console was to observe.
 ## Consequences
 
 - Reviving any part starts from the tag `operator-console-final`, not from `main`.
-- A cluster still on a tag before `v1.2.44` (the lab cluster, `v1.2.42`) takes the
-  console's manifests from `main` (`targetRevision: HEAD`). Its `operator-console`
-  Application now reports a ComparisonError and stops syncing; what it deployed
-  keeps running. Bumping that overlay to a current tag prunes it.
+- No live overlay is on a tag before `v1.2.44` any more
+  (design-update-strategy.md §5.5). One that were would take the console's
+  manifests from `main` (`targetRevision: HEAD`) and see its `operator-console`
+  Application fail to render; bumping it to a current tag prunes it.
 - ADRs 0001–0046 remain as the record of the console's decisions and are not
   rewritten. Where one states a principle that is independent of the console, such
   as private operator interfaces (0012, 0038), secrets out of git (0010), no
