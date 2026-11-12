@@ -38,7 +38,9 @@ Ring 0's follower (`docs/adr/0060`, `plans-and-walkthroughs/design-update-strate
 9. It posts the verdict as the commit status `ring0/verified`.
 10. **Merge queue:** while the head is green, it squash-merges the oldest Renovate PR
     labelled `ring0-queue` that is mergeable and has passed its PR checks. One update
-    per commit, so each verdict is about one update. A rejected commit is handled as in
+    per commit, so each verdict is about one update. "Green" means the commit verified
+    is still `main`'s head: if someone pushed while it was being checked, the queue
+    waits for the newer commit's verdict. A rejected commit is handled as in
     "When a commit is rejected" below.
 
 | State | Meaning |

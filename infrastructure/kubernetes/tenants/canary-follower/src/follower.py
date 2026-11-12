@@ -144,6 +144,15 @@ class Follower:
         outcome = self.last_outcome
         if outcome is None or outcome.sha != sha or outcome.state != "success":
             return
+        # Green, but only for itself: a commit that landed on main meanwhile
+        # (a person's push during the hour of checks) has not been verified,
+        # and a merge now would put an update on top of it unverified. Ring 0,
+        # 2026-11-12: aa71398 went green while 598d061 sat on top, and #38 merged.
+        head = self.github.head_sha(self.s.branch)
+        if head != sha:
+            log.info("%s is green but main has moved on to %s; merging waits for its verdict",
+                     sha[:12], head[:12])
+            return
         try:
             merged = self.queue.advance()
         except Exception as error:

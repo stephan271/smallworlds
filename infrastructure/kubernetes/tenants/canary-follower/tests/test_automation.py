@@ -450,6 +450,18 @@ class FollowerAutomationTest(unittest.TestCase):
         follower.tick()
         self.assertEqual(2, follower.queue.advanced)
 
+    def test_a_green_commit_no_longer_at_the_head_merges_nothing(self):
+        follower, gh, kube = wired(checks=FakeChecks())
+        checks = follower.checks_job
+
+        def run_while_main_moves(sha):
+            gh.head = "b" * 40  # a person pushes during the checks
+            return FakeChecks.run(checks, sha)
+        checks.run = run_while_main_moves
+        outcome = follower.tick()
+        self.assertEqual("success", outcome.state)
+        self.assertEqual(0, follower.queue.advanced, "the new head is unverified")
+
     def test_a_restarted_pod_on_a_green_head_resumes_the_queue(self):
         follower, gh, kube = wired(statuses={SHA: "success"})
         self.assertIsNone(follower.tick())
