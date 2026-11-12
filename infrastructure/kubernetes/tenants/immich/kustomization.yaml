@@ -135,7 +135,7 @@ helmCharts:
     # The HTTP helm repo was removed with chart 0.13; OCI only
     repo: oci://ghcr.io/immich-app/immich-charts
     releaseName: immich
-    version: 0.13.1
+    version: 0.13.4
     valuesFile: values.yaml
 
 replacements:
