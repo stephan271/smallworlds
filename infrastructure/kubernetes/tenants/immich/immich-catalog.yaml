@@ -5,5 +5,5 @@ metadata:
 spec:
   images:
     # Immich v3 requires the VectorChord extension (pgvecto.rs is deprecated)
-    - image: "ghcr.io/tensorchord/cloudnative-vectorchord:16.13-1.1.1"
+    - image: "ghcr.io/tensorchord/cloudnative-vectorchord:16.15-1.1.1@sha256:f5a17fa05faf25e81304ee95e9f920d8ae077ac4a4ef0a1251e09c7197cbb236"
       major: 16
