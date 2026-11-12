@@ -60,7 +60,9 @@ patches:
 
 helmCharts:
   - name: forgejo
-    repo: oci://codeberg.org/forgejo-contrib
+    # The chart's own registry. codeberg.org/forgejo-contrib mirrors it, and its
+    # registry refused every pull with 403 "under load" for hours on 2026-11-12.
+    repo: oci://code.forgejo.org/forgejo-helm
     releaseName: forgejo
     version: 17.1.1
     valuesFile: values.yaml
