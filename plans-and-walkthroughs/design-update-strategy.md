@@ -503,6 +503,7 @@ drilled on Ring 0 with Forgejo the same day (in place, through the overlay).
   hand.
 - `update-community-version.sh` (*exists*) duplicates it, skips its migrations
   and `overlay-config.yaml`, and pushes without review. **Retire it.**
+  *Removed 2026-11-12.*
 
 ### 5.5 Precondition: no live overlay below v1.2.44
 

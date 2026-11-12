@@ -336,7 +336,7 @@ The `admin-tools/` directory contains helper scripts to automate common operatio
 ### Repository & Version Management
 - **`prepare-community-repo.sh`**: Interactive script to initialize a new private configuration repository, select applications, and wire it up to the upstream base. Also runs non-interactively (`SMALLWORLDS_NONINTERACTIVE=1`), which is how the setup wizard drives it.
 - **`bump-version.sh patch|minor|major [--security]`**: Cuts the next release of that kind from the newest commit of `main` that Ring 0 verified at least 72 hours ago (`ring0/verified`; `--security` waives the wait), tags a commit beside it in which the base's Applications name that tag (see "Tag the release"), and pushes the tag. `test-bump-version.sh` covers it.
-- **`update-community-version.sh`**: Updates all `kustomization.yaml` files in your private config repository to pin them to a specific upstream release, then commits and pushes the change.
+- **`bump-overlay-release.sh <overlay> <from-tag> <to-tag>`**: Moves a private overlay from one base release to the next by hand: every pinned reference, `overlay-config.yaml`, and the migrations a release needs (applications that joined the always-installed set, new patches). Nothing is committed; review with `git diff`. The Follow Policy's Renovate PRs do the same bump for an overlay that has one.
 
 ### Utilities
 - **`test-pr-locally.sh`**: Deploys a local testing environment to validate pull requests.
