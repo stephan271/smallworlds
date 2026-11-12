@@ -485,8 +485,8 @@ community loses members' data. Instead:
 
 **Built 2026-11-12:** `apps/update-alerts.yaml` (`ApplicationNotHealthy` 30 min,
 `ApplicationNotSynced` 45 min, from Argo CD's metrics). One runbook instead of
-one per tenant: `doc/storage-and-backup.md`, "Rolling an update back", not yet
-drilled.
+one per tenant: `doc/storage-and-backup.md`, "Rolling an update back",
+drilled on Ring 0 with Forgejo the same day (in place, through the overlay).
 
 ### 5.4 Overlay tooling
 

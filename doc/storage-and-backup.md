@@ -434,24 +434,64 @@ base, `doc/tenant-immich.md`).
    kubectl -n <namespace> get backups -l smallworlds.network/pre-update \
      -o custom-columns=NAME:.metadata.name,ID:.status.backupId,DONE:.status.stoppedAt,CHANGE:.metadata.annotations.smallworlds\\.network/change
    ```
-2. Recover a cluster as in 7.1, but stop at that backup instead of replaying the
-   WAL the new version wrote afterwards:
+2. In the overlay, revert the commit that brought the update and, **in the same
+   commit**, rebuild the Cluster from that backup. Stop at the backup instead of
+   replaying the WAL the new version wrote afterwards, and leave the WAL archiver
+   out while it recovers (pointed at the same `serverName` it refuses an archive
+   that is not empty):
    ```yaml
-   bootstrap:
-     recovery:
-       source: database
-       recoveryTarget:
-         backupID: <ID from step 1>
-         targetImmediate: true
+   - target:
+       kind: Cluster
+       name: database            # keycloak-db for Keycloak
+     patch: |-
+       - op: replace
+         path: /spec/bootstrap
+         value:
+           recovery:
+             source: origin
+             recoveryTarget:
+               backupID: <ID from step 1>
+               targetImmediate: true
+       - op: add
+         path: /spec/externalClusters
+         value:
+           - name: origin
+             plugin:
+               name: barman-cloud.cloudnative-pg.io
+               parameters:
+                 barmanObjectName: postgres-backups    # postgres-backups-keycloak for Keycloak
+                 serverName: <the Cluster's serverName, e.g. forgejo-database>
+       - op: remove
+         path: /spec/plugins
    ```
-3. Revert the overlay commit that brought the update, push it, and move the root
-   to it (`doc/local-deployment.md`, "Rolling out an overlay change"), then point
-   the application at the recovered cluster and reconcile its credential (7.1
-   step 4).
+   Push it and move the root to it (`doc/local-deployment.md`, "Rolling out an
+   overlay change"). Wait until `kubectl -n <namespace> get cluster <name> -o
+   jsonpath='{.spec.bootstrap}'` shows `recovery`. Argo CD may report the sync
+   as failed because of the Cluster's health; that does not matter here. The
+   older version may crash-loop against the migrated database until step 3, and
+   going back to it is itself an image change, so the pre-update hook first
+   backs up the migrated database. That backup is the record of what members did
+   after the update.
+3. Delete the Cluster: `kubectl -n <namespace> delete cluster <name>`. Argo CD
+   recreates it at once, now from the backup. Its PVCs and its `<name>-app`
+   Secret go with it, and the new Secret has a new password.
+4. When the Cluster is healthy, restart the application's pods so they read the
+   new password (`kubectl -n <namespace> delete pod <app pod>`). The service
+   name (`<name>-rw`) and the Secret name are unchanged, so nothing else changes.
+5. Remove the patch from the overlay (a second commit, root moved again). The
+   WAL archiver comes back on the recovered timeline. Take a `Backup` and wait
+   for `completed` before calling it done.
 
-> **Not yet drilled.** Steps 2 and 3 follow 7.1, which is drilled, but stopping at
-> a `backupID` and switching an application over have not been run end to end.
-> Drill them on Ring 0 before the first real rollback.
+Everything members did between the backup and the restore is gone. That is the
+price of going back across a migration.
+
+> **Drilled on Ring 0, 2026-11-12, with Forgejo** (backup `20261112T170019`): a
+> marker row written before the backup was there afterwards and one written after
+> it was not; repositories and users matched; `admin-tools/canary/seed.py check
+> --only forgejo` passed; Forgejo was down from deleting the Cluster to the
+> restarted pod, about five minutes. The same restore into a separate Cluster
+> (`bootstrap.recovery` under another name, as in 7.1) is the way to look at the
+> old data without touching the running application.
 
 An update the hook held back (backup failed or overdue) has not changed anything:
 the sync stopped in PreSync and the old version is still running. The hook's log
