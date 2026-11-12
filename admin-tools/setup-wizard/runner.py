@@ -185,7 +185,7 @@ def write_installer_cache(answers: dict, path: str, token_source: dict) -> None:
         token_source.get("S3_BACKUP_SECRET_ACCESS_KEY", "") if separate_backup else "")
     # Anything the installer generates rather than asks for.
     for generated in ("KC_PASS", "KC_OPERATOR_PASS", "INVITE_SECRET",
-                      "GARAGE_RPC_SECRET", "CONSOLE_SESSION_KEY",
+                      "GARAGE_RPC_SECRET",
                       "GARAGE_ADMIN_TOKEN", "GARAGE_BACKUP_RPC_SECRET",
                       "GARAGE_BACKUP_ADMIN_TOKEN", "GRAFANA_PASS"):
         values[generated] = existing.get(generated, "")

@@ -45,7 +45,6 @@ def generate_patches(app_name, domain, ext):
         'office': f"office{ext}.{domain}",
         'deploy': f"deploy{ext}.{domain}",
         'vpn': f"vpn{ext}.{domain}",
-        'console': f"console{ext}.{domain}",
         'join': f"join{ext}.{domain}",
         'pod': f"pod{ext}.{domain}"
     }
@@ -552,62 +551,6 @@ def generate_patches(app_name, domain, ext):
                 value: {subdomains['deploy']}
         """), "  ")
 
-    elif app_name == "operator-console":
-        # The console has to be told its own address, not just routed to it: the
-        # OIDC redirect URI it sends to Keycloak, the redirect URI Keycloak is
-        # willing to accept, and the hostname on the Ingress are three separate
-        # places that must agree, and a login fails outright if any one of them
-        # still names somebody else's domain.
-        patches += textwrap.indent(textwrap.dedent(f"""\
-          - target:
-              kind: Ingress
-              name: operator-console
-            patch: |-
-              - op: replace
-                path: /spec/rules/0/host
-                value: {subdomains['console']}
-              - op: replace
-                path: /spec/tls/0/hosts/0
-                value: {subdomains['console']}
-          - target:
-              kind: Deployment
-              name: operator-console
-            patch: |-
-              apiVersion: apps/v1
-              kind: Deployment
-              metadata:
-                name: operator-console
-              spec:
-                template:
-                  spec:
-                    containers:
-                      - name: operator-console
-                        env:
-                          - name: SMALLWORLDS_CONSOLE_URL
-                            value: "https://{subdomains['console']}"
-                          - name: SMALLWORLDS_OIDC_ISSUER
-                            value: "https://{subdomains['identity']}/realms/smallworlds"
-                          - name: SMALLWORLDS_BASE_DOMAIN
-                            value: "{domain}"
-          - target:
-              kind: Job
-              name: keycloak-client-init
-              namespace: operator-console
-            patch: |-
-              apiVersion: batch/v1
-              kind: Job
-              metadata:
-                name: keycloak-client-init
-              spec:
-                template:
-                  spec:
-                    containers:
-                      - name: setup
-                        env:
-                          - name: REDIRECT_URIS
-                            value: '["https://{subdomains['console']}/api/v1/auth/callback"]'
-        """), "  ")
-
     elif app_name == "monitoring":
         # Modify the values within the kube-prometheus-stack Application manifest for Grafana ingress
         patches += textwrap.indent(textwrap.dedent(f"""\
@@ -749,9 +692,7 @@ def main():
             print(f"Patches for {args.app} already present in {args.kustomization_file}")
     if patches:
         # newline="\n" on both handles: text mode would translate on Windows, and
-        # a kustomization with CRLF endings is not the file the console's own
-        # renderer produces for the same overlay. The parity test compares the
-        # two byte for byte, and was failing on Windows for exactly this.
+        # an overlay must be the same file whichever machine prepared it.
         with open(getattr(args, 'kustomization_file'), 'a', newline="\n") as f:
             with open(getattr(args, 'kustomization_file'), 'r', newline="\n") as r:
                 content = r.read()

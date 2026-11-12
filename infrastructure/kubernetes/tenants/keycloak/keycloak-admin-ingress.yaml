@@ -7,7 +7,7 @@
 #
 # Members must still reach /realms/... from anywhere, so the restriction cannot
 # go on the chart's Ingress. This is a second, more specific route for the /admin
-# prefix only, carrying the same address restriction the Operator Console uses.
+# prefix only, carrying the same address restriction as Argo CD and Grafana.
 # Traefik prefers the longer rule, and the explicit priority makes that ordering
 # a declared property rather than a side effect of rule length.
 #

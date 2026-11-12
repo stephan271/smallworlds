@@ -1,5 +1,8 @@
 # SmallWorlds Operator Console
 
+> **Closed.** The Operator Console was deactivated on 2026-08-23 (docs/adr/0051) and
+> deleted on 2026-11-12 (docs/adr/0062); its last state is the tag `operator-console-final`.
+
 Status: ready-for-agent
 
 ## Problem Statement

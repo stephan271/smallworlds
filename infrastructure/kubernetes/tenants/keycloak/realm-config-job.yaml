@@ -123,7 +123,7 @@ spec:
               # A human administrator with a second factor, kept separate from
               # `admin`. TOTP cannot be required of `admin` itself: that account
               # authenticates by password grant for bases/keycloak-client-job
-              # (every tenant's OIDC registration), console-roles-job and this
+              # (every tenant's OIDC registration) and this
               # job, and a pending required action makes direct grant fail with
               # "Account is not fully set up" — which would break the OIDC wiring
               # of the whole cluster on the next sync. So `admin` stays the

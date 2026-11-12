@@ -321,14 +321,7 @@ sw_step repo-apps "Writing the application overlays"
 echo -e "${YELLOW}Creating application subdirectories...${NC}"
 # Always installed, and each carries hostnames that have to follow the
 # operator's domain.
-#
-# "operator-console" was here too, and is DEACTIVATED (2026-08-23): the console
-# is no longer deployed, so an overlay must not carry a directory and patches
-# for it. Its code and manifests are untouched — see the note in
-# infrastructure/kubernetes/kustomization.yaml. Re-activating means putting it
-# back in this list; the console has to be listed, not merely routed to, since
-# it is told its own address and would otherwise name somebody else in its OIDC
-# redirect.
+# ("operator-console" was here too until it was deleted, docs/adr/0062.)
 APPS=("dashboard" "keycloak" "join" "${SELECTED_APPS[@]}")
 
 for app in "${APPS[@]}"; do

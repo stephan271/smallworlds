@@ -2,7 +2,7 @@
 
 **Status:** accepted and implemented; all four phases complete
 **Date:** 2026-08-23
-**Supersedes, in the install half only:** `implementation_plan-operator-console.md`
+**Supersedes, in the install half only:** `implementation_plan-operator-console.md` (deleted with the console, `docs/adr/0062`)
 
 ## 1. Why
 
@@ -325,6 +325,10 @@ want for automation, and it is what the wizard runs.
 records the decision, what it supersedes, and what is lost by it.
 
 ## 8. The Operator Console's status
+
+> **Since 2026-11-12 the console is deleted** (`docs/adr/0062`); the last commit
+> carrying it is tagged `operator-console-final`. What follows records the
+> deactivation as it was done on 2026-08-23.
 
 **Deactivated, not deleted.** Every line of
 [`operator-console/`](../operator-console/),

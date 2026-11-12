@@ -44,20 +44,10 @@ resources:
   # run a mail server does not get one. Overlays that do select it add
   # apps/stalwart.yaml themselves, like any other optional app.
 
-  # 3. The Operator Console is DEACTIVATED (2026-08-23). Its code, manifests,
-  # ADRs and docs are all still here and untouched, but nothing deploys it:
-  # the setup wizard in admin-tools/setup-wizard/ takes over the install half
-  # of what it did, and the observe half is on hold until that lands. See
-  # docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md.
-  #
-  # Re-activating is this line plus the operator-console Namespace in
-  # namespaces.yaml, the APPS list in admin-tools/prepare-community-repo.sh,
-  # and the operator-console Namespace/Secret in smallworlds-init.sh.
-  #
-  # Note for existing clusters: adopting a release with this commented out
-  # PRUNES the running console (the root app removes the Application, whose
-  # finalizer deletes its resources). That is the intended effect.
-  # - apps/operator-console.yaml
+  # 3. The Operator Console was deactivated on 2026-08-23 and deleted on
+  # 2026-11-12 (docs/adr/0062); the setup wizard in admin-tools/setup-wizard/
+  # installs instead. A cluster still running it loses it when it adopts a
+  # release from v1.2.44 on: the root app prunes the Application.
   
   # Note: Optional apps (forgejo, immich, nextcloud, bulwark, excalidraw) 
   # are dynamically added to your private kustomization.yaml by prepare-community-repo.sh

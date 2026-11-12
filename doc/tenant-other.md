@@ -53,9 +53,9 @@ for several servers with independent OAuth blocks) and
 `ALLOW_CUSTOM_JMAP_ENDPOINT` (a server field on the login form). Neither is used
 here; they are the route to a multi-provider setup if one is ever wanted.
 
-The Operator Console's catalog still declares `bulwark → stalwart`, deliberately:
-selecting Bulwark and configuring nothing else yields a webmail client that
-cannot log in, and that is the honest default. The dependency is on *a* JMAP
+The setup wizard warns when Bulwark is selected without Stalwart
+(`admin-tools/setup-wizard/plan.py`), deliberately: selecting Bulwark and
+configuring nothing else yields a webmail client that cannot log in. The dependency is on *a* JMAP
 server that trusts this Keycloak, of which the in-cluster Stalwart is simply the
 one that arrives already configured.
 

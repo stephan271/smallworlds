@@ -43,7 +43,6 @@ This project is built upon several foundational open-source technologies, core i
 | **Traefik** | [traefik.io](https://traefik.io/) | Ingress routing and reverse proxy for handling incoming requests. |
 | **Cert-Manager** | [cert-manager.io](https://cert-manager.io/) | Automated TLS certificate provisioning and management. |
 | **Pod Gateway** | [`tenants/pod-gateway/`](infrastructure/kubernetes/tenants/pod-gateway/) | Append-only personal data pods (`pod.<domain>`). Apps deposit each member's source data into a pod they cannot read; the member's home device pulls it and never deletes. Optional. See [`doc/pod-archive.md`](doc/pod-archive.md). |
-| **Operator Console** *(deactivated)* | [`operator-console/`](operator-console/) | **Not deployed since 2026-08-23.** The code, manifests and ADRs are all still here and unchanged, but no cluster runs it — the browser setup wizard (`admin-tools/setup-wizard/`) takes over the install half of what it did, and the observe half is on hold until that lands. See [`docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md`](docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md) and [`doc/tenant-operator-console.md`](doc/tenant-operator-console.md). |
 
 ### End User Applications
 
@@ -443,7 +442,7 @@ The deploy works without notes, but Renovate copies them into the pull request i
 Publishing does not deploy anything. Each operator's private overlay pins an immutable tag, so the new release only reaches a cluster when someone bumps that pin — either manually or by merging the weekly Renovate PR. See "Managing Updates — the two-repo model" above.
 
 > [!NOTE]
-> **The Operator Console and its launcher are deactivated** ([ADR 0051](docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md)), and nothing in a release is built for them. The Console's publishing workflow (`publish-operator-console.yml`), the launcher packaging script and the release signing key remain in the repository unused; the launcher's two workflows were removed on 2026-11-12, after its cross-platform contract test had drifted from the shell path and failed every PR that touched a workflow. Releases up to `v1.2.43` carried signed bootstrap archives for the launcher; the procedure that produced them is in this README at that tag.
+> **The Operator Console and its Bootstrap Launcher are deleted** ([ADR 0062](docs/adr/0062-the-operator-console-is-deleted.md)); the setup wizard installs instead. Releases up to `v1.2.43` carried signed bootstrap archives for the launcher, and the procedure that produced them is in this README at that tag; the last commit with the console's code is tagged `operator-console-final`.
 
 ---
 

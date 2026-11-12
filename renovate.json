@@ -22,8 +22,7 @@
     ]
   },
   "ignorePaths": [
-    "**/node_modules/**",
-    "operator-console/**"
+    "**/node_modules/**"
   ],
   "packageRules": [
     {
@@ -48,8 +47,7 @@
         "!infrastructure/kubernetes/apps/garage.yaml",
         "!infrastructure/kubernetes/apps/garage-backup.yaml",
         "!infrastructure/kubernetes/tenants/backup-replicator/**",
-        "!infrastructure/kubernetes/tenants/collabora/**",
-        "!infrastructure/kubernetes/tenants/operator-console/**"
+        "!infrastructure/kubernetes/tenants/collabora/**"
       ],
       "addLabels": [
         "ring0-queue"
@@ -160,12 +158,6 @@
         "infrastructure/kubernetes/tenants/nextcloud/**"
       ],
       "groupName": "nextcloud"
-    },
-    {
-      "matchFileNames": [
-        "infrastructure/kubernetes/tenants/operator-console/**"
-      ],
-      "groupName": "operator-console"
     },
     {
       "matchFileNames": [

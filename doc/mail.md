@@ -300,8 +300,8 @@ Therefore:
   split; print the required DNS records and provider aliases.
 - ~~`admin-tools/prepare-community-repo.sh` — move `stalwart` out of the
   always-installed `APPS` list into `OPTIONAL_APPS`~~ **done**; it also left the
-  base's master kustomization, and the Operator Console's catalog reclassified it
-  from a platform service to a community application. Bulwark is *warned* about
+  base's master kustomization, and became a community application rather than a
+  platform service. Bulwark is *warned* about
   rather than gated: it can run against an external JMAP server, so refusing the
   selection would forbid a legitimate deployment (`doc/tenant-other.md`).
 - `infrastructure/terraform/main.tf` — make the `mail`/`webmail` A records, the

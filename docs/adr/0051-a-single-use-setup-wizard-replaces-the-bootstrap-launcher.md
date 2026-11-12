@@ -4,6 +4,9 @@ status: accepted
 
 # A single-use setup wizard replaces the Bootstrap Launcher
 
+> Its "deactivated but not deleted" is superseded by `docs/adr/0062`: the console
+> was deleted on 2026-11-12.
+
 Installing SmallWorlds is a browser wizard that runs on the future Operator's own machine,
 collects the settings, drives `admin-tools/prepare-community-repo.sh` and
 `smallworlds-init.sh`, hands over the credentials, and stops. It never reimplements install

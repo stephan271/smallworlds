@@ -1,7 +1,7 @@
 # ArgoCD is the GitOps control plane: anyone who reaches it can change what the
 # cluster runs. It is an operator interface (ADR 0038) and was neither
 # address-restricted nor hidden — it was advertised on the Member Dashboard.
-# Same restriction the Operator Console and the Keycloak admin console carry.
+# Same restriction the Keycloak admin console carries.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:

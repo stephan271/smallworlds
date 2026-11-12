@@ -2,10 +2,11 @@
 
 The language used to describe installation and operation of a SmallWorlds cluster.
 
-> **Much of this vocabulary describes the Operator Console, which is deactivated**
-> (`docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md`). The terms below are kept because the console's code, manifests and ADRs are
-> kept, and because a term that stops being used does not stop appearing in them. Terms
-> that describe the console rather than the cluster are marked *(console; deactivated)*.
+> **Much of this vocabulary describes the Operator Console, which is deleted**
+> (`docs/adr/0062-the-operator-console-is-deleted.md`; deactivated before that by
+> `docs/adr/0051`). The terms stay because ADRs 0001–0046 use them and those records
+> keep their words. Terms that describe the console rather than the cluster are marked
+> *(console; deleted)*.
 > Installation is now described by **Setup Wizard**, and "Wizard" is no longer a word to
 > avoid.
 
@@ -19,7 +20,7 @@ _Avoid_: Admin user, administrator
 An Operator's in-cluster authority level: Observer for read-only access, Operator for routine actions and proposals, or Owner for access management and sensitive in-cluster actions.
 _Avoid_: Keycloak group, admin level
 
-**Operator Console** *(console; deactivated)*:
+**Operator Console** *(console; deleted)*:
 The privileged interface through which an Operator sets up, observes, and eventually operates a SmallWorlds cluster.
 _Avoid_: Admin dashboard, Homepage
 
@@ -31,7 +32,7 @@ _Avoid_: Console, installer UI, launcher
 The K3s version, K3s install script and Argo CD manifest a new Cluster Node installs before Argo CD takes over, each named with an immutable URL and a SHA-256 in `infrastructure/bootstrap-pins.env`. Every bootstrap path reads them and verifies the downloads on the node.
 _Avoid_: Bootstrap assets, bootstrap archive, input lock
 
-**Bootstrap Launcher** *(console; deactivated)*:
+**Bootstrap Launcher** *(console; deleted)*:
 The locally executed product that made the Operator Console available before the SmallWorlds cluster existed. Superseded by the Setup Wizard.
 _Avoid_: Desktop app, installer script
 
@@ -103,10 +104,10 @@ _Avoid_: Configuration value, GitOps secret
 The private trust authority used to issue certificates for a Local LAN-only cluster.
 _Avoid_: Self-signed certificate, local cert
 
-**Setup Journey** *(console; deactivated)*:
+**Setup Journey** *(console; deleted)*:
 The resumable, dependency-driven progression from an empty Cluster Profile to an operational and protected cluster. The Setup Wizard has panels rather than a Journey: it holds no durable state, so there is nothing to resume beyond what the setup scripts already cache.
 
-**Journey Task** *(console; deactivated)*:
+**Journey Task** *(console; deleted)*:
 A revalidatable unit of progress in the Setup Journey with explicit prerequisites and completion evidence.
 
 **Change Plan**:

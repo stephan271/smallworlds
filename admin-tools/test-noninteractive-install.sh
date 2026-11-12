@@ -305,11 +305,11 @@ if grep -q 'path: /data/OFFICE_BACKEND' "$overlay/nextcloud/kustomization.yaml" 
 else
     fail "Nextcloud explicitly records no Office backend"
 fi
-# The Operator Console is deactivated: an overlay must no longer carry it.
+# The Operator Console is deleted (docs/adr/0062): an overlay must not name it.
 if grep -rq "operator-console" "$overlay" 2>/dev/null; then
-    fail "no operator-console in the overlay (it is deactivated)"
+    fail "no operator-console in the overlay (it is deleted)"
 else
-    pass "no operator-console in the overlay (it is deactivated)"
+    pass "no operator-console in the overlay (it is deleted)"
 fi
 if grep -q 'ref=v1.2.43' "$overlay/kustomization.yaml"; then
     pass "pinned the requested upstream tag"

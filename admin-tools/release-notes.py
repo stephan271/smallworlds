@@ -48,6 +48,7 @@ APPLICATIONS = {
 SOAKED = {"gallery", "euro-office"}
 FRESH_INSTALL_ONLY = {"immich": "gallery", "collabora": "euro-office"}
 # Tenants that ship with every install but are not member applications.
+# operator-console was deleted (docs/adr/0062) but is still in older tags.
 NOT_RELEASED = {"canary-follower", "operator-console"}
 
 TODO_APPLICATION = """\

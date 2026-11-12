@@ -1047,12 +1047,6 @@ if [[ -z "$GARAGE_ADMIN_TOKEN" ]]; then GARAGE_ADMIN_TOKEN=$(openssl rand -hex 3
 # Distinct credentials for the backup instance — see docs/adr/0048.
 if [[ -z "$GARAGE_BACKUP_RPC_SECRET" ]]; then GARAGE_BACKUP_RPC_SECRET=$(openssl rand -hex 32); fi
 if [[ -z "$GARAGE_BACKUP_ADMIN_TOKEN" ]]; then GARAGE_BACKUP_ADMIN_TOKEN=$(openssl rand -hex 32); fi
-# Signs the in-cluster Operator Console's session cookies. DEACTIVATED
-# (2026-08-23) along with the console itself — see the note in
-# infrastructure/kubernetes/kustomization.yaml. Kept, not deleted: an existing
-# cache file still carries the value, so re-activating the console restores the
-# same key rather than logging everyone out.
-# if [[ -z "$CONSOLE_SESSION_KEY" ]]; then CONSOLE_SESSION_KEY=$(openssl rand -hex 32); fi
 if [[ -z "$GRAFANA_PASS" ]]; then GRAFANA_PASS=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32); fi
 
 # Save values to cache for next time
@@ -1082,7 +1076,6 @@ KC_PASS="${KC_PASS}"
 KC_OPERATOR_PASS="${KC_OPERATOR_PASS}"
 INVITE_SECRET="${INVITE_SECRET}"
 GARAGE_RPC_SECRET="${GARAGE_RPC_SECRET}"
-CONSOLE_SESSION_KEY="${CONSOLE_SESSION_KEY}"
 GARAGE_ADMIN_TOKEN="${GARAGE_ADMIN_TOKEN}"
 GARAGE_BACKUP_RPC_SECRET="${GARAGE_BACKUP_RPC_SECRET}"
 GARAGE_BACKUP_ADMIN_TOKEN="${GARAGE_BACKUP_ADMIN_TOKEN}"

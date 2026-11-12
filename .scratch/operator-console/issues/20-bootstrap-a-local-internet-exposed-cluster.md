@@ -1,6 +1,6 @@
 # Bootstrap a Local internet-exposed cluster
 
-Status: ready-for-agent
+Status: wontfix — the Operator Console was deleted on 2026-11-12 (docs/adr/0062)
 
 ## What to build
 
