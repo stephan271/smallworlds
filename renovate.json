@@ -26,12 +26,21 @@
   ],
   "packageRules": [
     {
-      "description": "Release Rings (docs/adr/0060): an upstream release waits three days, so one the upstream project withdraws never reaches main. Renovate itself never merges: Ring 0's merge queue does, one update at a time while main is green (next rule).",
+      "description": "Release Rings (docs/adr/0060): an upstream release waits three days, so one the upstream project withdraws never reaches main. Where a registry gives no release date (ghcr.io, code.forgejo.org, every digest), the update is not held forever (minimumReleaseAgeBehaviour timestamp-optional): Ring 0 still verifies it before anything else moves. Renovate itself never merges: Ring 0's merge queue does, one update at a time while main is green (the ring0-queue rule below).",
       "matchPackageNames": [
         "*"
       ],
       "minimumReleaseAge": "3 days",
-      "automerge": false
+      "automerge": false,
+      "minimumReleaseAgeBehaviour": "timestamp-optional"
+    },
+    {
+      "description": "A pin names the version already running, so there is nothing to wait for.",
+      "matchUpdateTypes": [
+        "pin",
+        "pinDigest"
+      ],
+      "minimumReleaseAge": null
     },
     {
       "description": "Ring 0's merge queue (tenants/canary-follower/src/mergequeue.py): the Canary Follower squash-merges PRs with this label one at a time while main is green on Ring 0, and reverts one Ring 0 rejects. Never majors, and never what Ring 0 does not run (it could not verify it): those stay for a person to merge.",
