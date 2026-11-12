@@ -19,6 +19,7 @@ import time
 from dataclasses import dataclass, field
 
 import checks
+from argocd import UNREACHABLE
 from backups import BackupFailed
 from github import FINAL_STATES
 
@@ -198,6 +199,10 @@ class Follower:
             converged, lagging = self.argocd.converge(s.converge_timeout_seconds,
                                                       s.converge_interval_seconds, deferred)
             if not converged:
+                if all(UNREACHABLE in entry for entry in lagging):
+                    # Only an upstream that did not answer kept Ring 0 from the
+                    # commit: no verdict, tried again later.
+                    return self._finish(sha, "error", "Could not render, " + _list(lagging), steps)
                 return self._finish(sha, "failure", "Not converged: " + _list(lagging), steps)
             steps.append("converged")
 

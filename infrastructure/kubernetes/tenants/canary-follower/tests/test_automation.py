@@ -610,5 +610,62 @@ class ConvergeRetryTest(unittest.TestCase):
         self.assertIn("keycloak: sync Error: ComparisonError", lagging[0])
 
 
+
+CODEBERG_DOWN = (
+    "ComparisonError: Failed to load target state: failed to generate manifest for source 1 of 1: "
+    "rpc error: code = Unknown desc = Manifest generation error (cached): `kustomize build` failed "
+    "exit status 1: Error: accumulating resources from 'https://github.com/x/smallworlds.git/"
+    "infrastructure/kubernetes/tenants/forgejo?ref=HEAD': Error: failed to perform \"FetchReference\" "
+    "on source: GET \"https://codeberg.org/v2/forgejo-contrib/forgejo/manifests/17.1.1\": "
+    "response status code 403: Forbidden")
+
+
+class UnrenderableKube(FakeArgoKube):
+    """Apps whose target cannot be rendered: every sync ends in Error with `message`
+    and the sync status Unknown, as Argo CD reported forgejo on Ring 0 (2026-11-12)."""
+
+    def __init__(self, sha, broken):
+        super().__init__(sha)
+        self.broken = dict(broken)
+
+    def _settle(self, app):
+        name = app["metadata"]["name"]
+        super()._settle(app)
+        if name in self.broken:
+            app["status"]["sync"] = {"status": "Unknown"}
+            app["status"]["operationState"] = {"phase": "Error", "message": self.broken[name]}
+            app["status"]["conditions"] = [{"type": "ComparisonError", "message": self.broken[name]}]
+
+
+class UpstreamUnreachableTest(unittest.TestCase):
+    def verify(self, broken):
+        clock = Clock()
+        kube = UnrenderableKube(SHA, broken)
+        follower, gh, _, _ = make(SHA)
+        follower.kube = kube
+        follower.argocd = ArgoCD(kube, "argocd", "smallworlds-root", clock, clock.sleep)
+        return follower.tick()
+
+    def test_an_upstream_that_does_not_answer_is_an_error_not_a_rejection(self):
+        outcome = self.verify({"keycloak": CODEBERG_DOWN})
+        self.assertEqual("error", outcome.state)
+        self.assertIn("keycloak: upstream unreachable: codeberg.org: response status code 403",
+                      outcome.description)
+
+    def test_a_version_that_does_not_exist_still_fails(self):
+        outcome = self.verify({"keycloak": CODEBERG_DOWN.replace("403: Forbidden", "404: Not Found")})
+        self.assertEqual("failure", outcome.state)
+
+    def test_a_broken_kustomization_still_fails(self):
+        outcome = self.verify({"keycloak": "ComparisonError: Manifest generation error: "
+                                           "accumulating resources: missing metadata.name"})
+        self.assertEqual("failure", outcome.state)
+
+    def test_an_unreachable_upstream_beside_a_real_failure_fails(self):
+        outcome = self.verify({"keycloak": CODEBERG_DOWN,
+                               "gallery": "ComparisonError: Manifest generation error: bad patch"})
+        self.assertEqual("failure", outcome.state)
+
+
 if __name__ == "__main__":
     unittest.main()

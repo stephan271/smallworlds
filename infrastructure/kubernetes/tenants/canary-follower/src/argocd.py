@@ -12,6 +12,7 @@ is what `argocd app sync` does. Everything goes through the Kubernetes API on
 the Application objects; no Argo CD API token is needed.
 """
 import logging
+import re
 import time
 
 log = logging.getLogger("argocd")
@@ -53,6 +54,36 @@ def _errored(app: dict) -> bool:
     sync whose resources or hooks failed. Nothing re-syncs such an app by itself."""
     return (not _operation_running(app)
             and app.get("status", {}).get("operationState", {}).get("phase") == "Error")
+
+
+# Argo CD could not render the target because an upstream registry or chart
+# repository did not answer (Ring 0, 2026-11-12: "Codeberg is under load", 403 on
+# the Forgejo chart). That is no verdict on the commit; the follower reports an
+# error and tries again later. A version that does not exist answers 404, which
+# stays a failure.
+UNREACHABLE = "upstream unreachable:"
+_RENDER_FAILED = ("Manifest generation error", "failed to generate manifest")
+_UPSTREAM_DOWN = re.compile(
+    r"response status code (?:403|408|429|5\d\d)|under load|i/o timeout|dial tcp"
+    r"|connection (?:reset|refused)|TLS handshake timeout|context deadline exceeded"
+    r"|no such host|Service Unavailable|Too Many Requests")
+
+
+def _upstream_unreachable(app: dict) -> str | None:
+    """'<host>: <what it answered>' when the target could not be rendered because
+    something outside the repo did not answer, else None."""
+    status = app.get("status", {})
+    messages = [c.get("message", "") for c in status.get("conditions", [])
+                if c.get("type") == "ComparisonError"]
+    messages.append(status.get("operationState", {}).get("message", ""))
+    for message in messages:
+        if not any(m in message for m in _RENDER_FAILED):
+            continue
+        if found := _UPSTREAM_DOWN.search(message):
+            hosts = re.findall(r"https?://([^/\s\"']+)", message[:found.start()])
+            host = next((h for h in reversed(hosts) if "github.com" not in h), None)
+            return f"{host}: {found.group(0)}" if host else found.group(0)
+    return None
 
 
 def _sources(app: dict) -> list[dict]:
@@ -170,6 +201,8 @@ class ArgoCD:
                 name = a["metadata"]["name"]
                 if name in deferred:
                     lagging.append(f"{name}: still running an earlier sync")
+                elif why := _upstream_unreachable(a):
+                    lagging.append(f"{name}: {UNREACHABLE} {why}")
                 elif _operation_running(a) or _sync_status(a) != "Synced" or _health(a) != "Healthy":
                     lagging.append(f"{name}: {_sync_status(a)}/{_health(a)}")
                 elif failure := _sync_failure(a):

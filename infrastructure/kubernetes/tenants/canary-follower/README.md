@@ -17,6 +17,11 @@ Ring 0's follower (`docs/adr/0060`, `plans-and-walkthroughs/design-update-strate
    An operation that ended in `Error` rather than `Failed` (Argo CD could not carry it
    out, e.g. a `ComparisonError` while the API server was busy) is synced again, up to
    three times, before it counts against the commit.
+   When the only Applications left behind could not even be rendered because an
+   upstream registry or chart repository did not answer (a 403, 429 or 5xx, a timeout;
+   Codeberg "under load" on 2026-11-12), the result is `error`, not `failure`: nothing
+   is rejected and the commit is verified again an hour later. A 404 — a version that
+   does not exist — still fails.
 5. It checks that every Application sourced straight from the base runs *that*
    commit. If `main` moved on meanwhile, the result is `error` and the newer commit is
    verified next.
@@ -41,7 +46,7 @@ Ring 0's follower (`docs/adr/0060`, `plans-and-walkthroughs/design-update-strate
 | `pending` | being synced and verified |
 | `success` | every step passed |
 | `failure` | Ring 0 did not take the commit: not converged, smoke, checks or a critical alert |
-| `error` | the commit could not be judged: `main` moved on, the pre-update backup failed, or the follower failed |
+| `error` | the commit could not be judged: `main` moved on, the pre-update backup failed, an upstream did not answer, or the follower failed |
 
 The status is also the follower's memory. A restarted pod skips a commit that has a
 final state and verifies again one left at `pending`. An `error` is no verdict on
