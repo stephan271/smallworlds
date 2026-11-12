@@ -15,7 +15,8 @@ from backups import GROUP, LABEL, BackupFailed, Backups, backup_name  # noqa: E4
 from checksjob import ChecksJob  # noqa: E402
 from follower import Outcome  # noqa: E402
 from mergequeue import REJECTED, MergeQueue, fingerprint  # noqa: E402
-from test_follower import Clock, make  # noqa: E402
+from test_follower import BASE, Clock, FakeArgoKube, make  # noqa: E402
+from argocd import ArgoCD  # noqa: E402
 
 SHA = "a" * 40
 
@@ -177,6 +178,23 @@ class ChecksJobTest(unittest.TestCase):
     def test_a_job_that_could_not_check_anything_is_no_verdict(self):
         job, kube = self.make(outcome="Failed", log="CHECKS-INFRA npm ci failed\n")
         self.assertEqual((None, "npm ci failed"), job.run(SHA))
+
+    def test_a_pod_that_cannot_start_is_no_verdict_and_does_not_wait_the_hour(self):
+        job, kube = self.make(outcome=None, log="")
+        original = kube.get
+
+        def get(path):
+            if "/pods?" in path:
+                return {"items": [{"metadata": {"name": "pod-1"}, "status": {"containerStatuses": [
+                    {"state": {"waiting": {"reason": "CreateContainerConfigError",
+                                           "message": 'secret "canary-checks" not found'}}}]}}]}
+            return original(path)
+        kube.get = get
+        passed, summary = job.run(SHA)
+        self.assertIsNone(passed)
+        self.assertIn('CreateContainerConfigError: secret "canary-checks" not found', summary)
+        self.assertLess(job.clock(), 600, "given up after minutes, not at the deadline")
+        self.assertEqual(1, len(kube.deleted))
 
     def test_a_job_that_hangs_is_stopped_and_fails(self):
         job, kube = self.make(outcome=None, log="")
@@ -525,6 +543,21 @@ class ErrorRetryTest(unittest.TestCase):
         clock.now += follower.s.error_retry_seconds
         self.assertEqual("success", follower.tick().state)
 
+    def test_a_failure_after_an_error_ends_the_retries(self):
+        # Ring 0, 2026-11-11: an errored head was verified again, rejected, and
+        # then verified again five minutes later because the error was remembered.
+        checks = FakeChecks(None, "could not fetch")
+        follower, gh, kube = wired(checks=checks)
+        clock = Clock()
+        follower.clock = clock
+        follower.tick()
+        clock.now += follower.s.error_retry_seconds
+        checks.result = (False, "e2e 1 failed")
+        self.assertEqual("failure", follower.tick().state)
+        clock.now += follower.s.error_retry_seconds
+        self.assertIsNone(follower.tick())
+        self.assertEqual(2, len(checks.ran))
+
     def test_a_rejection_is_not_retried(self):
         checks = FakeChecks(False, "e2e 1 failed")
         follower, gh, kube = wired(checks=checks)
@@ -534,6 +567,47 @@ class ErrorRetryTest(unittest.TestCase):
         clock.now += 10 ** 6
         follower.tick()
         self.assertEqual(1, len(checks.ran))
+
+
+class ErroredSyncKube(FakeArgoKube):
+    """An app whose next `errors` syncs end in phase Error, as Argo CD reports a
+    ComparisonError (Ring 0, 2026-11-11: CRD health unreadable)."""
+
+    def __init__(self, sha, errors):
+        super().__init__(sha)
+        self.errors = dict(errors)
+
+    def _settle(self, app):
+        name = app["metadata"]["name"]
+        had_operation = "operation" in app
+        super()._settle(app)
+        if had_operation and self.errors.get(name, 0) > 0:
+            self.errors[name] -= 1
+            app["status"]["operationState"] = {
+                "phase": "Error",
+                "message": "ComparisonError: error setting app health: failed to get resource health "
+                           "for \"CustomResourceDefinition\""}
+
+
+class ConvergeRetryTest(unittest.TestCase):
+    def converge(self, errors):
+        clock = Clock()
+        kube = ErroredSyncKube(SHA, errors)
+        argo = ArgoCD(kube, "argocd", "smallworlds-root", clock, clock.sleep)
+        argo.follow(300)
+        return argo.converge(2700, 20), kube
+
+    def test_a_transient_error_is_synced_again_and_converges(self):
+        (converged, lagging), kube = self.converge({"keycloak": 2})
+        self.assertTrue(converged, lagging)
+        syncs = [c for c in kube.calls if c[0] == "PATCH" and "operation" in c[2]
+                 and c[1].endswith("/keycloak")]
+        self.assertEqual(3, len(syncs), "the first sync and two more")
+
+    def test_an_error_that_stays_fails_after_the_bounded_retries(self):
+        (converged, lagging), kube = self.converge({"keycloak": 10})
+        self.assertFalse(converged)
+        self.assertIn("keycloak: sync Error: ComparisonError", lagging[0])
 
 
 if __name__ == "__main__":

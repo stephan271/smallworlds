@@ -46,6 +46,15 @@ def _sync_failure(app: dict) -> str | None:
     return f"sync {state['phase']}: " + ("; ".join(failed) or state.get("message", ""))
 
 
+def _errored(app: dict) -> bool:
+    """The last operation ended in Error, not Failed: Argo CD could not carry it
+    out (on Ring 0: "ComparisonError: … failed to get resource health for
+    CustomResourceDefinition …" while the API server was busy), as opposed to a
+    sync whose resources or hooks failed. Nothing re-syncs such an app by itself."""
+    return (not _operation_running(app)
+            and app.get("status", {}).get("operationState", {}).get("phase") == "Error")
+
+
 def _sources(app: dict) -> list[dict]:
     spec = app.get("spec", {})
     return spec.get("sources") or ([spec["source"]] if spec.get("source") else [])
@@ -58,8 +67,9 @@ def _revisions(app: dict) -> list[str]:
 
 class ArgoCD:
     def __init__(self, kube, namespace: str, root_app: str,
-                 clock=time.monotonic, sleep=time.sleep):
+                 clock=time.monotonic, sleep=time.sleep, error_resyncs: int = 3):
         self.kube = kube
+        self.error_resyncs = error_resyncs
         self.path = f"/apis/argoproj.io/v1alpha1/namespaces/{namespace}/applications"
         self.root_app = root_app
         self.clock = clock
@@ -139,6 +149,7 @@ class ArgoCD:
         (converged, the ones that are not, as 'name: sync/health' or
         'name: sync Failed: <what failed>')."""
         deferred = set(deferred)
+        resynced: dict[str, int] = {}
         deadline = self.clock() + timeout
         while True:
             apps = self.list()
@@ -147,6 +158,13 @@ class ArgoCD:
                 if name in deferred and not _operation_running(app):
                     self._sync(app)
                     deferred.discard(name)
+                elif _errored(app) and resynced.get(name, 0) < self.error_resyncs:
+                    # A transient error is no verdict on the commit: try again,
+                    # a bounded number of times, before reporting it.
+                    resynced[name] = resynced.get(name, 0) + 1
+                    log.info("%s: last operation ended in Error; syncing again (%d/%d)",
+                             name, resynced[name], self.error_resyncs)
+                    self._sync(app)
             lagging = []
             for a in self.list():
                 name = a["metadata"]["name"]

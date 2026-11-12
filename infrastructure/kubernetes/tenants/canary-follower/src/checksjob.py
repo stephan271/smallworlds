@@ -19,10 +19,16 @@ log = logging.getLogger("checksjob")
 
 APP_LABEL = "canary-checks"
 
+# A pod that cannot start: no Secret, no image. Nothing will change by waiting
+# out the Job's deadline (an hour, Ring 0's first night: no Secret canary-checks).
+STUCK_REASONS = ("CreateContainerConfigError", "CreateContainerError", "ErrImagePull",
+                 "ImagePullBackOff", "InvalidImageName")
+
 
 class ChecksJob:
     def __init__(self, kube, namespace: str, cronjob: str, timeout: int,
-                 clock=time.monotonic, sleep=time.sleep, now=time.time):
+                 clock=time.monotonic, sleep=time.sleep, now=time.time, stuck_seconds: int = 300):
+        self.stuck_seconds = stuck_seconds
         self.kube = kube
         self.namespace = namespace
         self.cronjob = cronjob
@@ -70,6 +76,20 @@ class ChecksJob:
                  for l in log_text.splitlines() if l.startswith(("CHECKS ", "CHECKS-INFRA "))]
         return found[-1] if found else (True, "no summary in the log")
 
+    def _stuck(self, name: str) -> str | None:
+        """Why the Job's pod cannot start, or None."""
+        try:
+            pods = self.kube.get(f"/api/v1/namespaces/{self.namespace}/pods"
+                                 f"?labelSelector=job-name={name}").get("items", [])
+        except Exception:
+            return None
+        for pod in pods:
+            for status in pod.get("status", {}).get("containerStatuses", []):
+                waiting = status.get("state", {}).get("waiting", {})
+                if waiting.get("reason") in STUCK_REASONS:
+                    return f"{waiting['reason']}: {waiting.get('message', '')}".rstrip(": ")[:160]
+        return None
+
     def run(self, sha: str) -> tuple[bool | None, str]:
         """(passed, summary); passed is None when nothing could be checked."""
         self._clear()
@@ -77,7 +97,8 @@ class ChecksJob:
         name = job["metadata"]["name"]
         self.kube.create(self.jobs, job)
         log.info("checks Job %s started", name)
-        deadline = self.clock() + self.timeout
+        started = self.clock()
+        deadline = started + self.timeout
         while True:
             status = self.kube.get(f"{self.jobs}/{name}").get("status", {})
             conditions = {c["type"]: c.get("status") for c in status.get("conditions", [])}
@@ -86,6 +107,9 @@ class ChecksJob:
             if conditions.get("Failed") == "True":
                 checked, summary = self._summary(name)
                 return (False if checked else None), summary
+            if self.clock() - started >= self.stuck_seconds and (why := self._stuck(name)):
+                self.kube.delete(f"{self.jobs}/{name}")
+                return None, f"the checks pod cannot start: {why}"
             if self.clock() >= deadline:
                 _, summary = self._summary(name)
                 self.kube.delete(f"{self.jobs}/{name}")

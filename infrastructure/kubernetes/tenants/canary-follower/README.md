@@ -14,6 +14,9 @@ Ring 0's follower (`docs/adr/0060`, `plans-and-walkthroughs/design-update-strate
    other Application. A hard refresh is needed because a remote Kustomize base is
    served from cache; a full sync because Sync hooks do not run on self-heal.
 4. It waits until every Application is Synced and Healthy (`CONVERGE_TIMEOUT_SECONDS`).
+   An operation that ended in `Error` rather than `Failed` (Argo CD could not carry it
+   out, e.g. a `ComparisonError` while the API server was busy) is synced again, up to
+   three times, before it counts against the commit.
 5. It checks that every Application sourced straight from the base runs *that*
    commit. If `main` moved on meanwhile, the result is `error` and the newer commit is
    verified next.
@@ -24,7 +27,8 @@ Ring 0's follower (`docs/adr/0060`, `plans-and-walkthroughs/design-update-strate
    `admin-tools/canary/`, runs the e2e suite with full OIDC (test users onboarded with a
    passkey through a real action-token link), then `seed.py check`: the example
    members' photos, files, repository and mail, read back with a fresh passkey
-   sign-in. Its summary line goes into the status.
+   sign-in. Its summary line goes into the status. A pod that cannot start (a missing
+   Secret, an image that will not pull) is given up on after five minutes, as an error.
 8. **Quiet:** no `critical` alert in Alertmanager for `QUIET_SECONDS`.
 9. It posts the verdict as the commit status `ring0/verified`.
 10. **Merge queue:** while the head is green, it squash-merges the oldest Renovate PR

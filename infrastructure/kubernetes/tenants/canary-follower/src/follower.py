@@ -120,6 +120,10 @@ class Follower:
         self.last_outcome = outcome
         if outcome.state == "error" and not outcome.superseded:
             self._note_error(sha)
+        else:
+            # A verdict ends the retries: a failure is final, and a success
+            # must not be verified again an hour later.
+            self.errors.pop(sha, None)
         if outcome.state == "success":
             self._advance(sha)
         # Only a rejection is acted on: an error says nothing about the commit.
