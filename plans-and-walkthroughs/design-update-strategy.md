@@ -450,6 +450,15 @@ they are never merged by accident with a routine update.
 Every policy only **proposes**: Renovate opens a PR, and the Operator merges it.
 The merge is what Argo CD deploys.
 
+**Built 2026-11-12:** `admin-tools/lib/follow_policy.py` writes the rule (marked
+`smallworlds:follow-policy`, replaced in place on every run, so an existing
+overlay gets it too); asked in the wizard's applications panel ("New SmallWorlds
+releases") and in `prepare-community-repo.sh` (`FOLLOW_POLICY`). Every policy sets
+`schedule: at any time`, so the old Monday-only schedule no longer adds a week.
+Checked with Renovate itself against a v1.2.45 overlay: v1.3.0 (a minor, one day
+old) was offered under *immediately* and held back under *two-weeks* and
+*security-now*.
+
 ### 5.2 Before the update: a backup of every database that will migrate
 
 New. Each tenant with a CNPG cluster gets an Argo CD `PreSync` hook that creates

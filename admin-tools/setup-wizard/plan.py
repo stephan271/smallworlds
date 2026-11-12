@@ -42,6 +42,14 @@ _storage_spec = importlib.util.spec_from_file_location(
 storage = importlib.util.module_from_spec(_storage_spec)
 _storage_spec.loader.exec_module(storage)
 
+# The Follow Policy's choices and wording come from the generator that writes it
+# into renovate.json (docs/adr/0060 §5.1), for the same reason.
+_policy_spec = importlib.util.spec_from_file_location(
+    "follow_policy",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib", "follow_policy.py"))
+follow_policy = importlib.util.module_from_spec(_policy_spec)
+_policy_spec.loader.exec_module(follow_policy)
+
 
 def default_bucket_prefix(domain: str, env_ext: str) -> str:
     """Mirrors DEFAULT_BUCKET_PREFIX in prepare-community-repo.sh."""
@@ -221,6 +229,7 @@ def initial_state() -> dict:
         "local_dns_remembered": bool(cached.get("LOCAL_DNS")),
         "library_dir": cached.get("LIBRARY_DIR", ""),
         "photo_backend": stored.get("STORED_PHOTO_BACKEND") or "immich",
+        "follow_policy": stored.get("STORED_FOLLOW_POLICY") or follow_policy.DEFAULT,
 
         # The overlay's record wins, as it does in smallworlds-init.sh: the
         # overlay is what was actually written for one mode or the other.
@@ -418,6 +427,8 @@ def validate_answers(answers: dict) -> list[dict]:
 
     if (answers.get("photo_backend") or "immich") not in ("immich", "gallery"):
         problem("photo_backend", "Photos runs either Immich or Gallery.")
+    if (answers.get("follow_policy") or follow_policy.DEFAULT) not in follow_policy.POLICIES:
+        problem("follow_policy", "Choose when new SmallWorlds releases are offered.")
 
     apps = list(answers.get("apps") or [])
     known_apps = {app["name"] for app in OPTIONAL_APPS}
@@ -705,6 +716,8 @@ def build_plan(answers: dict) -> dict:
             "onboarding": answers["onboarding_mode"],
             "repository": repository,
             "version": answers["version"],
+            "follow_policy": follow_policy.POLICIES[
+                answers.get("follow_policy") or follow_policy.DEFAULT][0],
             "application_count": len(apps) + 2,
         },
         "steps": steps,

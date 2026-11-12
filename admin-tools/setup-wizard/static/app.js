@@ -118,6 +118,7 @@ function answers() {
       ? el("local_dns").value : "hetzner",
     library_dir: el("library_dir").value.trim(),
     photo_backend: el("photo_backend").value,
+    follow_policy: el("follow_policy").value,
     hcloud_token: usingLocal ? el("hcloud_token_local").value : el("hcloud_token").value,
     use_saved_hcloud_token: state ? state.has_saved_hcloud_token : false,
 
@@ -207,7 +208,7 @@ const FIELD_PANEL = {
   domain: 0, admin_email: 0, env_ext: 0, onboarding_mode: 0,
   alert_push_url: 0, heartbeat_url: 0,
   target: 1, ssh_target: 1, data_dir: 1, backup_dir: 1, hcloud_token: 1,
-  library_dir: 1, host_firewall: 1, local_dns: 1, photo_backend: 3,
+  library_dir: 1, host_firewall: 1, local_dns: 1, photo_backend: 3, follow_policy: 3,
   object_storage: 1, s3_endpoint: 1, s3_region: 1, s3_bucket_prefix: 1,
   s3_access_key_id: 1, s3_secret_access_key: 1, s3_backup_endpoint: 1,
   s3_backup_region: 1, s3_backup_access_key_id: 1, s3_backup_secret_access_key: 1,
@@ -368,6 +369,7 @@ function renderPlan(target, result) {
       ? "by invitation" : "by signing up themselves"],
     ["Settings repo", result.summary.repository],
     ["Pinned release", result.summary.version],
+    ["New releases", result.summary.follow_policy],
     ["Applications", String(result.summary.application_count)],
   ];
   rows.forEach(([term, value]) => {
@@ -556,6 +558,7 @@ function fill() {
   el("library_dir").value = state.library_dir;
   el("local_dns").value = state.local_dns;
   el("photo_backend").value = state.photo_backend;
+  el("follow_policy").value = state.follow_policy;
   if (target) target.checked = true;
   el("ssh_target").value = state.ssh_target;
   el("data_dir").value = state.data_dir;

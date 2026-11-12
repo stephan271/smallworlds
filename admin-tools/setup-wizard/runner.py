@@ -109,6 +109,8 @@ def write_repository_config(answers: dict, path: str, apps: list[str]) -> None:
     lines.append(f"STORED_OBJECT_STORAGE={_shell_quote('external' if external else 'garage')}")
     lines.append("STORED_PHOTO_BACKEND=" + _shell_quote(
         "gallery" if answers.get("photo_backend") == "gallery" else "immich"))
+    lines.append("STORED_FOLLOW_POLICY=" + _shell_quote(
+        answers.get("follow_policy") or planning.follow_policy.DEFAULT))
     for stored, field in (("STORED_S3_ENDPOINT", "s3_endpoint"),
                           ("STORED_S3_REGION", "s3_region"),
                           ("STORED_S3_BUCKET_PREFIX", "s3_bucket_prefix"),

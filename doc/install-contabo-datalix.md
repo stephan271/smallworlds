@@ -238,7 +238,8 @@ key is wrong, and the install would fail later for the same reason.
 
 Tick **Files**, **Photos** and **Meet**; untick everything else. Under the app
 list, set **Photos runs** to **Gallery**. Leave the Office editor at "No online
-office editor".
+office editor". Leave **New SmallWorlds releases** at "Offer them once they are
+two weeks old".
 
 **Panel 5 — Ready to install**
 

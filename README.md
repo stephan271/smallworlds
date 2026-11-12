@@ -77,6 +77,7 @@ Four further choices are made at install time, each recorded in a decision recor
 |---|---|---|---|
 | Where files and backups are kept | The in-cluster Garage (needs a second disk for backups), or an external S3 provider (one disk is enough; the provider can read what is stored) | Garage | [`docs/adr/0053`](docs/adr/0053-object-storage-is-in-house-or-external.md) |
 | What Photos runs | Immich (photos on the machine's disk), or Gallery (photos in S3) | Immich | [`docs/adr/0054`](docs/adr/0054-gallery-is-a-variant-of-the-immich-tenant.md) |
+| Follow Policy: when new releases are offered | On the day they are published; once two weeks old; fix-only releases at once and the rest after two weeks; or never | Two weeks | [`docs/adr/0060`](docs/adr/0060-updates-move-through-three-release-rings.md) |
 | Host firewall | Only for a machine directly on the internet | off | [`docs/adr/0055`](docs/adr/0055-a-rented-server-is-the-local-target-with-its-own-firewall.md) |
 | DNS records (exposed `local` machine) | Managed through Hetzner DNS, or one wildcard record you create yourself — no Hetzner account | Managed | [`docs/adr/0056`](docs/adr/0056-dns-can-be-kept-by-hand.md) |
 
@@ -301,9 +302,9 @@ Rollback is just as simple: revert that commit. Because the ref is immutable, wh
 > [!TIP]
 > `prepare-community-repo.sh` pins to a release tag by default (it prompts for the version). You *can* answer `HEAD` to always track the latest `main`, but avoid it in production: ArgoCD only re-pulls a floating `HEAD` non-deterministically (on cache expiry), so you lose reproducibility and can't tell what's actually running.
 
-#### Automated weekly update proposals (Renovate)
+#### Automated update proposals (Renovate)
 
-**Renovate** reduces the toil without giving up control. Every Monday it opens **one pull request** in your private overlay that bumps the pinned base tag to the newest `smallworlds` release (config in `my-community-config/renovate.json`, written by the setup). It does **not** auto-merge — you review the release notes and merge when ready; the merge is the commit that triggers ArgoCD. This gives you a low-effort cadence *and* a human gate *and* a full audit trail.
+**Renovate** reduces the toil without giving up control. It opens **one pull request** in your private overlay that bumps the pinned base tag to a newer `smallworlds` release when your **Follow Policy** says it is due: on the day it is published, once it is two weeks old (the default), fix-only releases at once and the rest after two weeks, or never (config in `my-community-config/renovate.json`, written by the setup; the policy is the rule marked `smallworlds:follow-policy`, chosen in the wizard or `prepare-community-repo.sh` and changed by running either again). A major release, one that needs you to do something, always comes as its own pull request. It does **not** auto-merge — you review the release notes and merge when ready; the merge is the commit that triggers ArgoCD. This gives you a low-effort cadence *and* a human gate *and* a full audit trail.
 
 Renovate runs as the free [Renovate GitHub App](https://github.com/apps/renovate), not in the cluster (the in-cluster CronJob was removed on 2026-11-09: it competed with the members' applications for the one node, and needed a write token stored in it). To enable it, install the app on your GitHub account and grant it access to your overlay repository only. Nothing else is needed — no token, no Secret.
 
@@ -439,7 +440,7 @@ The deploy works without notes, but Renovate copies them into the pull request i
 
 ### Step 4 — Let operators adopt it
 
-Publishing does not deploy anything. Each operator's private overlay pins an immutable tag, so the new release only reaches a cluster when someone bumps that pin — either manually or by merging the weekly Renovate PR. See "Managing Updates — the two-repo model" above.
+Publishing does not deploy anything. Each operator's private overlay pins an immutable tag, so the new release only reaches a cluster when someone bumps that pin — either manually or by merging the Renovate PR its Follow Policy opens. See "Managing Updates — the two-repo model" above.
 
 > [!NOTE]
 > **The Operator Console and its Bootstrap Launcher are deleted** ([ADR 0062](docs/adr/0062-the-operator-console-is-deleted.md)); the setup wizard installs instead. Releases up to `v1.2.43` carried signed bootstrap archives for the launcher, and the procedure that produced them is in this README at that tag; the last commit with the console's code is tagged `operator-console-final`.

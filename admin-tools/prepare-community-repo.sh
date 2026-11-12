@@ -264,6 +264,24 @@ if [[ " ${SELECTED_APPS[*]} " == *" immich "* ]]; then
     fi
 fi
 
+# The Follow Policy: when this overlay is offered a new SmallWorlds release
+# (docs/adr/0060, design-update-strategy.md §5.1). Renovate only opens the pull
+# request; merging it is what deploys. Written into renovate.json below.
+echo ""
+echo "When should new SmallWorlds releases be offered to you?"
+echo "  immediately   on the day they are published"
+echo "  two-weeks     once they are two weeks old (recommended)"
+echo "  security-now  fix-only releases at once, everything else after two weeks"
+echo "  manual        never; you move the version yourself (bump-overlay-release.sh)"
+ask_prefilled "Follow Policy (immediately/two-weeks/security-now/manual): " FOLLOW_POLICY "${STORED_FOLLOW_POLICY:-two-weeks}" required
+case "$FOLLOW_POLICY" in
+    immediately|two-weeks|security-now|manual) ;;
+    *)
+        echo -e "${RED}Choose exactly one of: immediately, two-weeks, security-now, manual.${NC}" >&2
+        exit 1
+        ;;
+esac
+
 # Object storage: the in-cluster Garage, or an external S3 provider that
 # replaces it (docs/adr/0053). Only the coordinates are asked for here — they
 # are not secret and belong in the overlay. The access key is asked for by
@@ -491,14 +509,14 @@ fi
 apply_storage_patches root "$ABS_REPO_PATH/kustomization.yaml"
 
 # Renovate no longer runs in the cluster: the Renovate GitHub App, installed on
-# this overlay repository, reads renovate.json below and opens the weekly
-# base-tag bump PRs. An overlay written before that still carries a patch for
+# this overlay repository, reads renovate.json below and opens the base-tag
+# bump PRs when the Follow Policy says a release is due. An overlay written before that still carries a patch for
 # the removed CronJob; kustomize ignores a patch whose target is gone.
 
-# Create renovate.json (weekly PRs that bump the pinned smallworlds base tag).
+# Create renovate.json (PRs that bump the pinned smallworlds base tag).
 # Written literally (quoted heredoc) so the JSON regex/backslashes are preserved.
 if [ ! -f "renovate.json" ]; then
-    echo -e "${YELLOW}Creating renovate.json (weekly base-tag update PRs)...${NC}"
+    echo -e "${YELLOW}Creating renovate.json (base-tag update PRs)...${NC}"
     cat <<'EOF' > renovate.json
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
@@ -530,6 +548,10 @@ if [ ! -f "renovate.json" ]; then
 }
 EOF
 fi
+# On every run, also for an overlay written before the Follow Policy existed:
+# the policy is one rule, replaced in place, and the rest of the file is kept.
+python3 "$SCRIPT_DIR/lib/follow_policy.py" renovate.json "$FOLLOW_POLICY" \
+    || { echo -e "${RED}Could not write the Follow Policy into renovate.json.${NC}" >&2; exit 1; }
 
 # Save settings
 cat <<EOF > "$CONFIG_FILE"
@@ -541,6 +563,7 @@ STORED_ENV_EXT="${ENV_EXT}"
 STORED_CREATE_REPO="${CREATE_REPO}"
 STORED_PUSH_CHOICE="${PUSH_CHOICE:-${STORED_PUSH_CHOICE:-}}"
 STORED_PHOTO_BACKEND="${PHOTO_BACKEND}"
+STORED_FOLLOW_POLICY="${FOLLOW_POLICY}"
 STORED_OBJECT_STORAGE="${OBJECT_STORAGE}"
 STORED_S3_ENDPOINT="${S3_ENDPOINT}"
 STORED_S3_REGION="${S3_REGION}"
@@ -595,7 +618,7 @@ git commit -am "Bump upstream smallworlds base to v1.1.0" && git push
 Pinning keeps updates deliberate, auditable and reproducible. Using \`HEAD\` instead would let ArgoCD pick up upstream changes non-deterministically (on cache expiry) — avoid it in production.
 
 ### Automated update proposals (Renovate)
-\`renovate.json\` tells the [Renovate GitHub App](https://github.com/apps/renovate) to open **one pull request every Monday** bumping the pinned base tag to the newest \`smallworlds\` release. It does **not** auto-merge — review and merge when ready (the merge is what ArgoCD deploys). Install the app on your GitHub account and grant it access to this repository (\`${REPO_SLUG}\`); no token or Secret is needed.
+\`renovate.json\` tells the [Renovate GitHub App](https://github.com/apps/renovate) to open a pull request bumping the pinned base tag to a newer \`smallworlds\` release when your **Follow Policy** says it is due: on the day it is published, once it is two weeks old, fix-only releases at once and the rest after two weeks, or never (the rule marked \`smallworlds:follow-policy\`; change it by running \`prepare-community-repo.sh\` again). A major release always comes as its own pull request. It does **not** auto-merge — review and merge when ready (the merge is what ArgoCD deploys). Install the app on your GitHub account and grant it access to this repository (\`${REPO_SLUG}\`); no token or Secret is needed.
 EOF
 fi
 

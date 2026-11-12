@@ -253,6 +253,15 @@ def test_plan_module():
     check("the default bucket prefix matches the script's",
           plan.default_bucket_prefix("Example.org", ".dev") == "sw-example-org-dev")
 
+    # docs/adr/0060 §5.1: the Follow Policy, written by the same generator the script uses.
+    check("an unknown Follow Policy is caught",
+          "follow_policy" in fields({"follow_policy": "whenever"}))
+    check("releases are offered after two weeks unless told otherwise",
+          plan.build_plan(complete)["summary"]["follow_policy"].endswith("two weeks old."))
+    check("the review names the chosen Follow Policy",
+          "day it is published" in plan.build_plan(
+              {**complete, "follow_policy": "immediately"})["summary"]["follow_policy"])
+
     # docs/adr/0054: Gallery is a choice within Photos, not another application.
     check("an unknown photo application is caught",
           "photo_backend" in fields({"photo_backend": "picasa"}))
@@ -757,15 +766,21 @@ def test_runner():
            cached_external["S3_SECRET_ACCESS_KEY"]) == ("external", "AKID", "s3-secret"))
     check("Immich is recorded as the photo application by default",
           written["STORED_PHOTO_BACKEND"] == "immich" and cached["LOCAL_FIREWALL"] == "no")
+    check("the default Follow Policy reaches the repository script",
+          written["STORED_FOLLOW_POLICY"] == "two-weeks")
     rented_answers = {
         **external_answers, "target": "local", "ssh_target": "root@203.0.113.9",
         "local_public": "yes", "local_tls": "letsencrypt", "host_firewall": "yes",
         "library_dir": "/mnt/big/photos", "photo_backend": "gallery",
+        "follow_policy": "security-now",
     }
     runner.write_repository_config(rented_answers, repository_config, answers["apps"])
     check("the photo application reaches the repository script",
           plan_module()._read_shell_assignments(repository_config)["STORED_PHOTO_BACKEND"]
           == "gallery")
+    check("the chosen Follow Policy reaches the repository script",
+          plan_module()._read_shell_assignments(repository_config)["STORED_FOLLOW_POLICY"]
+          == "security-now")
     rented_cache = os.path.join(directory, "rented-cache.env")
     runner.write_installer_cache(rented_answers, rented_cache, external_tokens)
     cached_rented = plan_module()._read_shell_assignments(rented_cache)

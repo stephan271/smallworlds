@@ -479,6 +479,37 @@ set_stored STORED_PHOTO_BACKEND immich
 set_stored STORED_APP_immich n
 
 # --------------------------------------------------------------------------
+echo "prepare-community-repo.sh — the Follow Policy"
+# --------------------------------------------------------------------------
+policy_rules() {  # the policy rules in the overlay's renovate.json, one per line
+    python3 -c 'import json,sys
+for r in json.load(open(sys.argv[1]))["packageRules"]:
+    if r.get("description","").startswith("smallworlds:follow-policy"):
+        print(r["description"].split()[1].rstrip(":"), r.get("minimumReleaseAge"), r.get("enabled", True))' \
+        "$overlay/renovate.json"
+}
+output="$(run_prepare)"
+check_contains "$output" "FOLLOW_POLICY: two-weeks" "releases are offered after two weeks unless told otherwise"
+if [[ "$(policy_rules)" == "two-weeks 14 days True" ]]; then
+    pass "renovate.json waits 14 days before offering a release"
+else
+    fail "renovate.json waits 14 days before offering a release ($(policy_rules))"
+fi
+set_stored STORED_FOLLOW_POLICY manual
+run_prepare >/dev/null
+if [[ "$(policy_rules)" == "manual None False" ]]; then
+    pass "a new policy replaces the old rule instead of adding one"
+else
+    fail "a new policy replaces the old rule instead of adding one ($(policy_rules))"
+fi
+set_stored STORED_FOLLOW_POLICY whenever
+output="$(run_prepare)"
+status=$?
+check_contains "$output" "immediately, two-weeks, security-now, manual" "an unknown Follow Policy is refused"
+if [[ "$status" -ne 0 ]]; then pass "and the script stops"; else fail "and the script stops"; fi
+set_stored STORED_FOLLOW_POLICY two-weeks
+
+# --------------------------------------------------------------------------
 echo "prepare-community-repo.sh — a push the remote refuses"
 # --------------------------------------------------------------------------
 # A remote that cannot be reached without touching the network. Headless, the

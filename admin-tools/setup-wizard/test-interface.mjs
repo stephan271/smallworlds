@@ -184,7 +184,8 @@ await page.click("#next");
 await page.waitForSelector('[data-panel="apps"]:not([hidden])');
 check("the applications panel is reached", (await openPanel()) === "apps");
 check("every optional application and the no-Office choice are offered",
-      (await page.locator(".app").count()) === 12);
+      // ten optional applications and "no Office editor" (Plane left in docs/adr/0061)
+      (await page.locator(".app").count()) === 11);
 check("a useful set is ticked",
       (await page.locator('.app input:checked:not([value=""])').count()) === 4);
 check("no Office editor is the initial explicit choice",
@@ -223,7 +224,7 @@ await page.click("#next");
 await page.waitForSelector(".plan-summary");
 check("the plan is rendered", (await openPanel()) === "review");
 check("the plan summarises every decision",
-      (await page.locator(".plan-summary dt").count()) === 12);
+      (await page.locator(".plan-summary dt").count()) === 13);
 check("the plan lists what will happen", (await page.locator(".plan-step").count()) === 4);
 const hostnames = await page.locator(".hostname").allTextContents();
 check("the plan lists the addresses members will use",

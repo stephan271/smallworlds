@@ -386,6 +386,18 @@
         storage, the photos go there. It is a community fork, so it trails and
         sometimes diverges from Immich.</p>
     </div>
+    <div class="field">
+      <label for="follow_policy">New SmallWorlds releases</label>
+      <select id="follow_policy">
+        <option value="two-weeks">Offer them once they are two weeks old (recommended)</option>
+        <option value="security-now">Offer fixes at once, everything else after two weeks</option>
+        <option value="immediately">Offer them on the day they are published</option>
+        <option value="manual">Never offer them; I update by hand</option>
+      </select>
+      <p class="hint">An offer is a pull request in your settings repository.
+        Nothing on the cluster changes until you merge it, and a release that
+        needs you to do something always comes on its own.</p>
+    </div>
     <div class="check" id="check-apps"></div>
   </section>
 
