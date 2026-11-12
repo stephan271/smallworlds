@@ -21,7 +21,7 @@ spec:
           # v1.5.0's composer had no sender-identity support at all (empty
           # From when composing); the From dropdown / identity handling
           # arrived in v1.7.x.
-          image: ghcr.io/bulwarkmail/webmail:v1.7.7@sha256:8c93a6af6abf1b0e6595015dd8236ad83c4cbb2a1dce51966deaecb4d93ffeea
+          image: ghcr.io/bulwarkmail/webmail:1.21.2@sha256:037b85b1433233d2d7eebb83f928df5ecc3b4adc91dc7e4c55f0a2f69024e754
           ports:
             - containerPort: 3000
           env:
