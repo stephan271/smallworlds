@@ -443,7 +443,7 @@ The deploy works without notes, but Renovate copies them into the pull request i
 Publishing does not deploy anything. Each operator's private overlay pins an immutable tag, so the new release only reaches a cluster when someone bumps that pin — either manually or by merging the weekly Renovate PR. See "Managing Updates — the two-repo model" above.
 
 > [!NOTE]
-> **The Operator Console and its launcher are deactivated** ([ADR 0051](docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md)), and nothing in a release is built for them. Their publishing workflows (`publish-operator-console.yml`, `publish-bootstrap-launcher.yml`), the launcher packaging script and the release signing key remain in the repository unused. Releases up to `v1.2.43` carried signed bootstrap archives for the launcher; the procedure that produced them is in this README at that tag.
+> **The Operator Console and its launcher are deactivated** ([ADR 0051](docs/adr/0051-a-single-use-setup-wizard-replaces-the-bootstrap-launcher.md)), and nothing in a release is built for them. The Console's publishing workflow (`publish-operator-console.yml`), the launcher packaging script and the release signing key remain in the repository unused; the launcher's two workflows were removed on 2026-11-12, after its cross-platform contract test had drifted from the shell path and failed every PR that touched a workflow. Releases up to `v1.2.43` carried signed bootstrap archives for the launcher; the procedure that produced them is in this README at that tag.
 
 ---
 
