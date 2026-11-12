@@ -243,6 +243,14 @@
       "groupName": "github actions"
     },
     {
+      "description": "kubectl in the init jobs: one helper image in some twenty files across most tenants. Grouped per application it became a dozen identical PRs, each waiting for its own hour on Ring 0; it holds no data and behaves the same everywhere, so it moves in one PR. After the per-application rules, so it wins.",
+      "matchPackageNames": [
+        "docker.io/alpine/k8s",
+        "alpine/k8s"
+      ],
+      "groupName": "kubectl image for init jobs"
+    },
+    {
       "matchDatasources": [
         "helm"
       ],
