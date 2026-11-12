@@ -103,7 +103,7 @@ helmCharts:
   - name: nextcloud
     repo: https://nextcloud.github.io/helm/
     releaseName: nextcloud
-    version: 9.2.0
+    version: 9.4.1
     valuesFile: values.yaml
 
 replacements:
