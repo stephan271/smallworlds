@@ -5,7 +5,7 @@ This is a single-context repository. Engineering skills should consume its domai
 ## Before exploring, read these
 
 - `CONTEXT.md` at the repository root
-- Relevant decisions under `docs/adr/`
+- Relevant decisions under `docs/adr/` (top level only: `docs/adr/superseded/` holds decisions that no longer apply, kept as history — read them only when tracing why something was done)
 
 If either is absent, proceed silently. Domain-modeling skills create these files lazily when terms or decisions are resolved.
 

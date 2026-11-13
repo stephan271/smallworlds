@@ -4,7 +4,7 @@ The language used to describe installation and operation of a SmallWorlds cluste
 
 > **Much of this vocabulary describes the Operator Console, which is deleted**
 > (`docs/adr/0062-the-operator-console-is-deleted.md`; deactivated before that by
-> `docs/adr/0051`). The terms stay because ADRs 0001–0046 use them and those records
+> `docs/adr/0051`). The terms stay because ADRs 0001–0046 (most now in `docs/adr/superseded/`) use them and those records
 > keep their words. Terms that describe the console rather than the cluster are marked
 > *(console; deleted)*.
 > Installation is now described by **Setup Wizard**, and "Wizard" is no longer a word to
