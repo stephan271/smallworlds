@@ -46,7 +46,7 @@ spec:
       serviceAccountName: forgejo-oidc-config
       containers:
         - name: configure-oidc
-          image: docker.io/alpine/k8s:1.36.2
+          image: docker.io/alpine/k8s:1.37.1@sha256:712dc5385d1c1a3f83b747fa9e40f64d433a97f72ff42f9755ff7dd1f62846e4
           env:
             - name: CLIENT_SECRET
               valueFrom:

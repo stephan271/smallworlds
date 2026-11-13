@@ -83,7 +83,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: backup
-          image: docker.io/alpine/k8s:1.36.2
+          image: docker.io/alpine/k8s:1.37.1@sha256:712dc5385d1c1a3f83b747fa9e40f64d433a97f72ff42f9755ff7dd1f62846e4
           env:
             # Set per tenant: the CNPG Cluster, the workload whose image decides,
             # and (by replacements) the image the update brings.
