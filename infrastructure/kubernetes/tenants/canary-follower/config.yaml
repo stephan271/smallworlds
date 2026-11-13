@@ -16,6 +16,12 @@ data:
   CONVERGE_TIMEOUT_SECONDS: "2700"
   QUIET_SECONDS: "1200"
   ALERTMANAGER_URL: "http://kube-prometheus-stack-alertmanager.monitoring.svc:9093"
+  # Before smoke and checks: wait (at most SETTLE_TIMEOUT_SECONDS) until the
+  # 1-minute load per CPU stays below SETTLE_LOAD_PERCENT. Ring 0 idles near 100;
+  # a sync of every Application drove it to 480 on 2026-11-13.
+  PROMETHEUS_URL: "http://kube-prometheus-stack-prometheus.monitoring.svc:9090"
+  SETTLE_LOAD_PERCENT: "150"
+  SETTLE_TIMEOUT_SECONDS: "900"
   # Before syncing a commit that touches a migrating tenant: an on-demand CNPG
   # Backup ring0-before-<sha> of each of its clusters (design §3.6).
   PRE_UPDATE_BACKUPS: "true"

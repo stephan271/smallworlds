@@ -9,6 +9,7 @@ import json
 import logging
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 log = logging.getLogger("checks")
@@ -63,6 +64,44 @@ def smoke(hosts: list[str], attempts: int, retry_seconds: int,
         if attempt < attempts - 1:
             sleep(retry_seconds)
     return [f"{host}: {reason}" for host, reason in sorted(failed.items())]
+
+
+# 1-minute load average per CPU, of the busiest node.
+LOAD_PER_CPU = ('max(node_load1 / on(instance) '
+                'count by (instance) (node_cpu_seconds_total{mode="idle"}))')
+
+
+def _load_per_cpu(prometheus_url: str) -> float:
+    url = f"{prometheus_url}/api/v1/query?" + urllib.parse.urlencode({"query": LOAD_PER_CPU})
+    with urllib.request.urlopen(url, timeout=15) as response:
+        result = json.load(response)["data"]["result"]
+    return float(result[0]["value"][1])
+
+
+def settle(prometheus_url: str, max_load_per_cpu: float, timeout: int, interval: int,
+           fetch=_load_per_cpu, clock=time.monotonic, sleep=time.sleep) -> str | None:
+    """Wait until the node has calmed down after a sync, before the checks run.
+    Ring 0, 2026-11-13: syncing 25 Applications and a pre-update backup drove
+    the load to 38 on 8 CPUs; every probe on the node timed out, and an Immich
+    e2e test failed against a server that was merely slow. Settled means two
+    readings in a row below the bound. Returns None when it settled at once,
+    else a note for the status. A node that does not calm down, or a Prometheus
+    that cannot be read, is no verdict on the commit: the checks run anyway."""
+    start = clock()
+    calm = 0
+    load = None
+    while True:
+        try:
+            load = fetch(prometheus_url)
+        except Exception as error:
+            return f"load unreadable ({type(error).__name__})"
+        calm = calm + 1 if load < max_load_per_cpu else 0
+        waited = clock() - start
+        if calm >= 2:
+            return None if waited <= interval else f"load settled after {round(waited / 60)} min"
+        if waited >= timeout:
+            return f"load still {load:.1f}/CPU after {round(waited / 60)} min"
+        sleep(interval)
 
 
 def _critical_alerts(alertmanager_url: str) -> list[str]:

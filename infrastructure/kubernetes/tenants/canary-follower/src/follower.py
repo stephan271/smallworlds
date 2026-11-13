@@ -64,6 +64,7 @@ def _list(items: list[str], limit: int = 3) -> str:
 class Follower:
     def __init__(self, settings, github, argocd, kube,
                  smoke=checks.smoke, quiet=checks.quiet, hosts=checks.ingress_hosts,
+                 settle=checks.settle,
                  backups=None, checks_job=None, queue=None, clock=time.monotonic):
         self.s = settings
         self.github = github
@@ -71,6 +72,7 @@ class Follower:
         self.kube = kube
         self._smoke = smoke
         self._quiet = quiet
+        self._settle = settle
         self._hosts = hosts
         self.backups = backups
         self.checks_job = checks_job
@@ -220,6 +222,11 @@ class Follower:
                 return self._finish(sha, "error",
                                     "Superseded before verified: " + _list(stale), steps,
                                     superseded=True)
+
+            note = self._settle(s.prometheus_url, s.settle_load_percent / 100,
+                                s.settle_timeout_seconds, s.settle_interval_seconds)
+            if note:
+                steps.append(note)
 
             hosts = self._hosts(self.kube)
             failed = self._smoke(hosts, s.smoke_attempts, s.smoke_retry_seconds)

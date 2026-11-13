@@ -28,8 +28,15 @@ test.describe('Immich Photos', () => {
       .or(page.locator('a[href*="oauth"], a[href*="keycloak"]').filter({ hasText: /keycloak|smallworlds/i }))
       .or(page.locator('button:has-text("Keycloak"), a:has-text("Keycloak")'));
 
-    if (await keycloakBtn.first().isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await keycloakBtn.first().click();
+    // Immich disables the button once it has started the OAuth redirect itself
+    // (auto-launch) and re-renders it while that request runs. Clicking a
+    // disabled button waits for it to become enabled, which never happened
+    // against a slow server (Ring 0, 2026-11-13, node load 38 on 8 CPUs): click
+    // only an enabled one, and let waitForURL below wait for the redirect.
+    const btn = keycloakBtn.first();
+    if (await btn.isVisible({ timeout: 5_000 }).catch(() => false)
+        && await btn.isEnabled().catch(() => false)) {
+      await btn.click({ timeout: 10_000 }).catch(() => {});
     }
 
     // Wait for the OIDC redirect chain to complete and Immich to load.

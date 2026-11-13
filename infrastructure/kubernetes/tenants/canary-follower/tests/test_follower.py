@@ -131,7 +131,8 @@ class FakeGitHub:
         self.statuses[sha] = state
 
 
-def make(sha="a" * 40, smoke_result=(), quiet_result=(), statuses=None, paths=(), **kube_args):
+def make(sha="a" * 40, smoke_result=(), quiet_result=(), statuses=None, paths=(), settle_note=None,
+         **kube_args):
     clock = Clock()
     kube = FakeArgoKube(sha, **kube_args)
     gh = FakeGitHub(sha, statuses, paths)
@@ -140,14 +141,20 @@ def make(sha="a" * 40, smoke_result=(), quiet_result=(), statuses=None, paths=()
 
     def smoke(hosts, attempts, retry):
         seen["hosts"] = hosts
+        seen.setdefault("order", []).append("smoke")
         return list(smoke_result)
 
     def quiet(url, seconds, interval):
         seen["quiet"] = seconds
         return list(quiet_result)
 
+    def settle(url, max_load, timeout, interval):
+        seen["settle"] = (max_load, timeout)
+        seen.setdefault("order", []).append("settle")
+        return settle_note
+
     follower = Follower(s, gh, ArgoCD(kube, "argocd", "smallworlds-root", clock, clock.sleep),
-                        kube, smoke=smoke, quiet=quiet)
+                        kube, smoke=smoke, quiet=quiet, settle=settle)
     return follower, gh, kube, seen
 
 
@@ -162,6 +169,20 @@ class FollowerTest(unittest.TestCase):
         self.assertIn("quiet 30 min", outcome.description)
         self.assertIn(NOT_YET, outcome.description, "the status must not claim e2e")
         self.assertEqual(["files.canary.x", "photos.canary.x"], seen["hosts"])
+
+    def test_the_node_settles_before_smoke_and_checks(self):
+        follower, gh, kube, seen = make()
+        outcome = follower.tick()
+        self.assertEqual("success", outcome.state)
+        self.assertEqual(["settle", "smoke"], seen["order"])
+        self.assertEqual((1.5, 900), seen["settle"])
+        self.assertNotIn("load", outcome.description, "a calm node adds nothing to the status")
+
+    def test_a_slow_settle_is_shown_in_the_status(self):
+        follower, gh, kube, _ = make(settle_note="load settled after 4 min")
+        outcome = follower.tick()
+        self.assertEqual("success", outcome.state)
+        self.assertIn("load settled after 4 min", outcome.description)
 
     def test_the_same_head_is_not_verified_twice(self):
         follower, gh, kube, _ = make()
@@ -304,6 +325,39 @@ class ChecksTest(unittest.TestCase):
                               clock=clock, sleep=clock.sleep)
         self.assertEqual(["KubePodCrashLooping"], result)
         self.assertEqual(120, clock.now)
+
+    def settle(self, loads, timeout=900):
+        clock = Clock()
+        answers = list(loads)
+
+        def fetch(url):
+            answer = answers.pop(0)
+            if isinstance(answer, Exception):
+                raise answer
+            return answer
+        note = checks.settle("http://prom", 1.5, timeout, 30, fetch=fetch, clock=clock, sleep=clock.sleep)
+        return note, clock.now
+
+    def test_a_calm_node_settles_at_once_and_says_nothing(self):
+        self.assertEqual((None, 30), self.settle([1.0, 0.9]))
+
+    def test_settle_waits_for_two_calm_readings_in_a_row(self):
+        # Ring 0, 2026-11-13 08:36: load 38 on 8 CPUs after the sync.
+        note, waited = self.settle([4.8, 2.4, 1.2, 1.9, 1.4, 1.1])
+        self.assertEqual("load settled after 2 min", note)
+        self.assertEqual(150, waited)
+
+    def test_a_node_that_stays_busy_is_noted_not_failed(self):
+        note, waited = self.settle([2.0] * 40, timeout=300)
+        self.assertEqual("load still 2.0/CPU after 5 min", note)
+        self.assertEqual(300, waited)
+
+    def test_an_unreadable_prometheus_is_noted_not_failed(self):
+        self.assertEqual(("load unreadable (OSError)", 0), self.settle([OSError("refused")]))
+
+    def test_the_load_query_is_per_cpu_of_the_busiest_node(self):
+        self.assertIn("node_load1 / on(instance)", checks.LOAD_PER_CPU)
+        self.assertTrue(checks.LOAD_PER_CPU.startswith("max("))
 
     def test_an_unreadable_alertmanager_is_not_quiet(self):
         def fetch(url):

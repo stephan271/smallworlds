@@ -30,18 +30,24 @@ Ring 0's follower (`docs/adr/0060`, `plans-and-walkthroughs/design-update-strate
 5. It checks that every Application sourced straight from the base runs *that*
    commit. If `main` moved on meanwhile, the result is `error` and the newer commit is
    verified next.
-6. **Smoke:** every Ingress host must answer `https://<host>/` below 500, with a
+6. **Settle:** before anything is checked, it waits until the node's 1-minute load per
+   CPU has been below `SETTLE_LOAD_PERCENT` (150) for two readings in a row, at most
+   `SETTLE_TIMEOUT_SECONDS`. Syncing every Application plus a pre-update backup drove
+   Ring 0 to a load of 38 on 8 CPUs (2026-11-13); every probe on the node timed out and
+   an Immich e2e test failed against a server that was only slow. A node that stays
+   busy, or a Prometheus that cannot be read, is noted in the status, not failed.
+7. **Smoke:** every Ingress host must answer `https://<host>/` below 500, with a
    valid certificate, from inside the cluster.
-7. **Checks:** a Job cut from the suspended CronJob `canary-checks`
+8. **Checks:** a Job cut from the suspended CronJob `canary-checks`
    (`checks-job.yaml`, `checks/run-checks.sh`) fetches that commit's `e2e-tests/` and
    `admin-tools/canary/`, runs the e2e suite with full OIDC (test users onboarded with a
    passkey through a real action-token link), then `seed.py check`: the example
    members' photos, files, repository and mail, read back with a fresh passkey
    sign-in. Its summary line goes into the status. A pod that cannot start (a missing
    Secret, an image that will not pull) is given up on after five minutes, as an error.
-8. **Quiet:** no `critical` alert in Alertmanager for `QUIET_SECONDS`.
-9. It posts the verdict as the commit status `ring0/verified`.
-10. **Merge queue:** while the head is green, it squash-merges the oldest Renovate PR
+9. **Quiet:** no `critical` alert in Alertmanager for `QUIET_SECONDS`.
+10. It posts the verdict as the commit status `ring0/verified`.
+11. **Merge queue:** while the head is green, it squash-merges the oldest Renovate PR
     labelled `ring0-queue` that is mergeable and has passed its PR checks. One update
     per commit, so each verdict is about one update. "Green" means the commit verified
     is still `main`'s head: if someone pushed while it was being checked, the queue

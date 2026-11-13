@@ -24,6 +24,12 @@ class Settings:
     quiet_seconds: int = 1200
     quiet_interval_seconds: int = 60
     alertmanager_url: str = "http://kube-prometheus-stack-alertmanager.monitoring.svc:9093"
+    # Before smoke and checks, wait until the 1-minute load per CPU stays below
+    # this percentage (checks.settle). Ring 0 idles at about 100.
+    prometheus_url: str = "http://kube-prometheus-stack-prometheus.monitoring.svc:9090"
+    settle_load_percent: int = 150
+    settle_timeout_seconds: int = 900
+    settle_interval_seconds: int = 30
     http_port: int = 8080
     # Tenants whose database an image update may migrate. A failing commit that
     # touches one cannot be undone by reverting it: the old image may refuse the
