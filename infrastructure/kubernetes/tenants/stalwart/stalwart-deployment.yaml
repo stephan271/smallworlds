@@ -54,7 +54,7 @@ spec:
           # Upgrading? Move SPAM_RULES_URL in stalwart-init-job.yaml to the
           # spam-filter release made for the new version in the same change:
           # rules this version cannot parse stop every settings reload.
-          image: stalwartlabs/stalwart:v0.16.12@sha256:b7ee9deb6344b1365b00b38bf6aaa18c2922f2c3321f8cfecc57fdb07dd5f464
+          image: stalwartlabs/stalwart:v0.16.27@sha256:2c9af6bfccb361b9f286d6cd0bb50acb2aaeffc06f5257354c0ce4dff9f02b58
           ports:
             - containerPort: 25
               name: smtp
