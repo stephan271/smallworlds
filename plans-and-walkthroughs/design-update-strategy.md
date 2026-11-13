@@ -270,7 +270,8 @@ Run in order. Each step's result goes into the commit status summary.
    from GitHub: Keycloak administration answers only on the tailnet, and the e2e
    setup needs it.
 4. **Data checks** from §3.3.
-5. **Quiet period.** No `critical` alert for 30 minutes after the sync.
+5. **Quiet period.** No `critical` alert for 20 minutes after the sync (30 until
+   2026-11-13; 20 is the floor while `CNPGWALArchivingFailing` needs 15 minutes to fire).
 
 A commit is **green on Ring 0** when all five pass. After that it stays green
 unless a later failure on the same commit is recorded.
@@ -638,6 +639,6 @@ the data checks.
 - Contabo and port 25 / PTR for Stalwart (§3.2).
 - ~~Whether the S3 provider can scope an access key to a bucket prefix (§3.1).~~
   It cannot (2026-11-10); accepted for now, a second account later.
-- The quiet-period and soak lengths (30 minutes, 72 hours) are first guesses.
-  Revisit after the first month.
+- The soak length (72 hours) is a first guess; revisit after the first month. The
+  quiet period went from 30 to 20 minutes on 2026-11-13 (§3.5).
 - ~~Plane's real memory footprint (§3.2).~~ Plane was removed (`docs/adr/0061`).

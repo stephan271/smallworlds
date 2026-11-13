@@ -21,7 +21,7 @@ class Settings:
     converge_interval_seconds: int = 20
     smoke_attempts: int = 3
     smoke_retry_seconds: int = 20
-    quiet_seconds: int = 1800
+    quiet_seconds: int = 1200
     quiet_interval_seconds: int = 60
     alertmanager_url: str = "http://kube-prometheus-stack-alertmanager.monitoring.svc:9093"
     http_port: int = 8080

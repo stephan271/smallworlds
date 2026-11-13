@@ -9,9 +9,12 @@ data:
   STATUS_CONTEXT: "ring0/verified"
   ROOT_APP: "smallworlds-root"
   POLL_SECONDS: "300"
-  # Bounds and periods (design §3.5). The quiet period is a first guess.
+  # Bounds and periods (design §3.5). The quiet period must outlast the critical
+  # alerts an update can set off: CNPGWALArchivingFailing fires after 15 minutes
+  # (the 2026-08-09 outage), so 20 is the floor. It was 30 until 2026-11-13; at
+  # one update per verified commit that made a backlog of eight take six hours.
   CONVERGE_TIMEOUT_SECONDS: "2700"
-  QUIET_SECONDS: "1800"
+  QUIET_SECONDS: "1200"
   ALERTMANAGER_URL: "http://kube-prometheus-stack-alertmanager.monitoring.svc:9093"
   # Before syncing a commit that touches a migrating tenant: an on-demand CNPG
   # Backup ring0-before-<sha> of each of its clusters (design §3.6).
