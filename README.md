@@ -29,34 +29,41 @@ This project is built upon several foundational open-source technologies, core i
 
 ### Infrastructure and Cluster Management
 
-| Name | Source URL | Role in this Project |
-| :--- | :--- | :--- |
-| **Terraform** | [terraform.io](https://www.terraform.io/) | Infrastructure as Code tool used on the `hetzner` target to provision the VM and DNS; on the `local` target only the (optional) DNS zone is Hetzner-managed, the node itself is bootstrapped over SSH without Terraform. |
-| **Kubernetes** | [kubernetes.io](https://kubernetes.io/) | Core container orchestration system that serves as the foundation for the cluster. |
-| **Argo CD** | [argoproj.github.io/cd](https://argoproj.github.io/cd/) | GitOps continuous delivery tool that synchronizes cluster state with the configuration repository (accessible at `deploy.<domain>`). |
-| **Velero** | [velero.io](https://velero.io/) | Cluster backup and disaster recovery solution. |
-| **Grafana** | [grafana.com](https://grafana.com/) | Operational dashboard for cluster monitoring and observability. |
-| **CloudNativePG** | [cloudnative-pg.io](https://cloudnative-pg.io/) | High-availability PostgreSQL database clustering. |
-| **Garage** | [garagehq.deuxfleurs.fr](https://garagehq.deuxfleurs.fr/) | S3-compatible object storage backend. Not deployed when an external S3 provider is chosen at install time. |
-| **Homepage** | [gethomepage.dev](https://gethomepage.dev/) | Application dashboard automatically configured and accessible at `dashboard.<domain>`. |
-| **Keycloak** | [keycloak.org](https://www.keycloak.org/) | Identity Provider (IdP) for Single Sign-On (SSO) and WebAuthn/Passkey management. |
-| **Traefik** | [traefik.io](https://traefik.io/) | Ingress routing and reverse proxy for handling incoming requests. |
-| **Cert-Manager** | [cert-manager.io](https://cert-manager.io/) | Automated TLS certificate provisioning and management. |
-| **Pod Gateway** | [`tenants/pod-gateway/`](infrastructure/kubernetes/tenants/pod-gateway/) | Append-only personal data pods (`pod.<domain>`). Apps deposit each member's source data into a pod they cannot read; the member's home device pulls it and never deletes. Optional. See [`doc/pod-archive.md`](doc/pod-archive.md). |
+| Name | Source URL | License | Role in this Project |
+| :--- | :--- | :--- | :--- |
+| **Terraform** | [terraform.io](https://www.terraform.io/) | BUSL-1.1 ¹ | Infrastructure as Code tool used on the `hetzner` target to provision the VM and DNS; on the `local` target only the (optional) DNS zone is Hetzner-managed, the node itself is bootstrapped over SSH without Terraform. |
+| **Kubernetes** | [kubernetes.io](https://kubernetes.io/) | Apache-2.0 | Core container orchestration system that serves as the foundation for the cluster. |
+| **Argo CD** | [argoproj.github.io/cd](https://argoproj.github.io/cd/) | Apache-2.0 | GitOps continuous delivery tool that synchronizes cluster state with the configuration repository (accessible at `deploy.<domain>`). |
+| **Velero** | [velero.io](https://velero.io/) | Apache-2.0 | Cluster backup and disaster recovery solution. |
+| **Grafana** | [grafana.com](https://grafana.com/) | AGPL-3.0 | Operational dashboard for cluster monitoring and observability. |
+| **CloudNativePG** | [cloudnative-pg.io](https://cloudnative-pg.io/) | Apache-2.0 | High-availability PostgreSQL database clustering. |
+| **Garage** | [garagehq.deuxfleurs.fr](https://garagehq.deuxfleurs.fr/) | AGPL-3.0 | S3-compatible object storage backend. Not deployed when an external S3 provider is chosen at install time. |
+| **Homepage** | [gethomepage.dev](https://gethomepage.dev/) | GPL-3.0 | Application dashboard automatically configured and accessible at `dashboard.<domain>`. |
+| **Keycloak** | [keycloak.org](https://www.keycloak.org/) | Apache-2.0 | Identity Provider (IdP) for Single Sign-On (SSO) and WebAuthn/Passkey management. |
+| **Traefik** | [traefik.io](https://traefik.io/) | MIT | Ingress routing and reverse proxy for handling incoming requests. |
+| **Cert-Manager** | [cert-manager.io](https://cert-manager.io/) | Apache-2.0 | Automated TLS certificate provisioning and management. |
+| **Pod Gateway** | [`tenants/pod-gateway/`](infrastructure/kubernetes/tenants/pod-gateway/) | MIT (this repo) | Append-only personal data pods (`pod.<domain>`). Apps deposit each member's source data into a pod they cannot read; the member's home device pulls it and never deletes. Optional. See [`doc/pod-archive.md`](doc/pod-archive.md). |
 
 ### End User Applications
 
-| Name | Source URL | Role in this Project |
-| :--- | :--- | :--- |
-| **Collabora Online** | [collaboraonline.com](https://collaboraonline.com/) | Mature online editor with strong OpenDocument support. One of two mutually exclusive Nextcloud Office choices. |
-| **Euro-Office** | [euro-office.com](https://www.euro-office.com/) | European collaborative editor for Office and OpenDocument formats. The setup can install it instead of Collabora. |
-| **Excalidraw** | [excalidraw.com](https://excalidraw.com/) | Virtual collaborative whiteboard tool. |
-| **Forgejo** | [forgejo.org](https://forgejo.org/) | Git repository management and software collaboration. |
-| **Immich** | [immich.app](https://immich.app/) | High performance photo and video backup. Photos can run [Gallery](https://github.com/open-noodle/gallery) instead, a fork that keeps the photos in S3. |
-| **Jitsi Meet** | [jitsi.org](https://jitsi.org/) | Secure video conferencing and communication platform. |
-| **Nextcloud** | [nextcloud.com](https://nextcloud.com/) | File synchronization and collaboration. |
-| **Stalwart** | [stalw.art](https://stalw.art/) | Self-hosted mail server with OIDC directory integration. **Optional**, and not installed by default: mail is an opt-in capability ([`docs/adr/0049`](docs/adr/0049-mail-is-opt-in-and-notification-is-not-mail.md)) — onboarding hands out action-token links out of band and alerting pushes over HTTP, so nothing in the cluster needs a mail server. See [`doc/mail.md`](doc/mail.md). |
-| **Bulwark** | [github.com/bulwarkmail/webmail](https://github.com/bulwarkmail/webmail) | JMAP webmail client connected to Stalwart. Select Stalwart too — this is the one app that depends on it. |
+| Name | Source URL | License | Role in this Project |
+| :--- | :--- | :--- | :--- |
+| **Collabora Online** | [collaboraonline.com](https://collaboraonline.com/) | MPL-2.0 ² | Mature online editor with strong OpenDocument support. One of two mutually exclusive Nextcloud Office choices. |
+| **Euro-Office** | [euro-office.com](https://www.euro-office.com/) | AGPL-3.0 ³ | European collaborative editor for Office and OpenDocument formats. The setup can install it instead of Collabora. |
+| **Excalidraw** | [excalidraw.com](https://excalidraw.com/) | MIT | Virtual collaborative whiteboard tool. |
+| **Forgejo** | [forgejo.org](https://forgejo.org/) | GPL-3.0-or-later | Git repository management and software collaboration. |
+| **Immich** | [immich.app](https://immich.app/) | AGPL-3.0 (Gallery: AGPL-3.0) | High performance photo and video backup. Photos can run [Gallery](https://github.com/open-noodle/gallery) instead, a fork that keeps the photos in S3. |
+| **Jitsi Meet** | [jitsi.org](https://jitsi.org/) | Apache-2.0 | Secure video conferencing and communication platform. |
+| **Nextcloud** | [nextcloud.com](https://nextcloud.com/) | AGPL-3.0 | File synchronization and collaboration. |
+| **Stalwart** | [stalw.art](https://stalw.art/) | AGPL-3.0 + SELv1 ⁴ | Self-hosted mail server with OIDC directory integration. **Optional**, and not installed by default: mail is an opt-in capability ([`docs/adr/0049`](docs/adr/0049-mail-is-opt-in-and-notification-is-not-mail.md)) — onboarding hands out action-token links out of band and alerting pushes over HTTP, so nothing in the cluster needs a mail server. See [`doc/mail.md`](doc/mail.md). |
+| **Bulwark** | [github.com/bulwarkmail/webmail](https://github.com/bulwarkmail/webmail) | AGPL-3.0 | JMAP webmail client connected to Stalwart. Select Stalwart too — this is the one app that depends on it. |
+
+License notes:
+
+1. Terraform moved from MPL-2.0 to the Business Source License in 2023 and is no longer open source. It runs on the Operator's machine only and is never deployed. [OpenTofu](https://opentofu.org/) (MPL-2.0) is its open-source fork.
+2. The image deployed is CODE, the Collabora Online Development Edition. Collabora recommends its supported edition for production; this is advice, not a license term.
+3. Euro-Office is a fork of ONLYOFFICE. It dropped ONLYOFFICE's added AGPL §7 term requiring the ONLYOFFICE logo, and ONLYOFFICE disputes that. The claim concerns distributors of the code, not communities that self-host it.
+4. Stalwart's binary includes enterprise features under the proprietary Stalwart Enterprise License (SELv1). They stay off without a paid key, so a community runs the AGPL-3.0 Community Edition.
 
 ---
 
