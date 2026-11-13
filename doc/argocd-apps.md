@@ -26,7 +26,7 @@ Identity, management, observability, and cluster utilities all deploy together i
 * **`keycloak.yaml`**: Central Identity Provider (OIDC). Must be up before end-user apps register their OIDC clients.
 * **`dashboard.yaml`**, **`kube-prometheus-stack.yaml`**, **`loki-stack.yaml`**: homepage, monitoring, logging.
 * **`velero.yaml`**: backup controller (only depends on Garage from wave -5, not on Keycloak).
-* **`hermes.yaml`**, **`remediation.yaml`**, **`backup-replicator.yaml`**: the two-tier alert-remediation agents (Tier 2 Claude SRE + Tier 1 deterministic handlers) and backup utilities.
+* **`backup-replicator.yaml`**: off-cluster replication of the S3 backups. (`hermes.yaml` and `remediation.yaml`, the two in-cluster alert agents, were removed, `docs/adr/0063`.)
 * `argocd-ingress.yaml` carries no sync-wave annotation, which defaults to wave 0 as well. (`trivy-operator.yaml`, `trivy-dashboard.yaml` and `renovate-cronjob.yaml` were removed on 2026-11-09 — Renovate now runs as a GitHub App, and nothing read Trivy's reports while its scans competed with the members' applications for the one node.)
 * **`euro-office.yaml`**, when selected, starts its Document Server and creates
   the shared JWT here. This lets Nextcloud's wave-1 configuration hook wire the
@@ -36,7 +36,7 @@ Identity, management, observability, and cluster utilities all deploy together i
 * **`nextcloud.yaml`**, **`collabora.yaml`**, **`forgejo.yaml`**, **`immich.yaml`**, **`jitsi.yaml`**, **`bulwark.yaml`**, **`excalidraw.yaml`**, **`stalwart.yaml`**. Collabora is mutually exclusive with the wave-0 Euro-Office Application.
 * **`join.yaml`** (Member Invitations, `doc/tenant-join.md`) is always deployed, not optional, but sits here for the same reason: its client job needs Keycloak answering.
 * These are the final workloads. They rely on the foundational layers (CNPG for DBs, Garage for S3, Keycloak for SSO, Traefik for Ingress) being operational. **Stalwart stays in this wave** despite being "infrastructure" because it depends on Keycloak's OIDC/directory integration.
-* **`alertmanager-config.yaml`** also sits at wave 1 — unlike its neighbours it is not an `Application` but three raw `AlertmanagerConfig` CRs (push, heartbeat, remediation — see `doc/alerting.md`) applied directly by the root app, and its CRD only arrives with `kube-prometheus-stack` at wave 0. The root app's `SkipDryRunOnMissingResource=true` sync option exists largely for this resource (see the bootstrap section below).
+* **`alertmanager-config.yaml`** also sits at wave 1 — unlike its neighbours it is not an `Application` but two raw `AlertmanagerConfig` CRs (push and heartbeat — see `doc/alerting.md`) applied directly by the root app, and its CRD only arrives with `kube-prometheus-stack` at wave 0. The root app's `SkipDryRunOnMissingResource=true` sync option exists largely for this resource (see the bootstrap section below).
 
 ## Why the waves were flattened (`8496e89`)
 

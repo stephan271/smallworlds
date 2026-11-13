@@ -3,7 +3,7 @@
 The watchdog is a lightweight script that runs on an **external host** (like a cheap VPS, a Raspberry Pi at home, or a free-tier cloud function). It monitors the cluster from the outside.
 
 ## Why is this needed?
-If your single-node K3s cluster crashes entirely (e.g., VM kernel panic, OOM, Hetzner network issue), the internal Hermes AI agent cannot notify you because it is dead. The watchdog provides a simple external safety net.
+If your single-node K3s cluster crashes entirely (e.g., VM kernel panic, OOM, Hetzner network issue), nothing inside it can notify you because it is dead. The watchdog provides a simple external safety net.
 
 ## Installation
 

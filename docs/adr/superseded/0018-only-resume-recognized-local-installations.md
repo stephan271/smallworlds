@@ -1,0 +1,11 @@
+---
+status: superseded
+---
+
+# Only resume recognized installations on Local Cluster Nodes
+
+> **Superseded** by `docs/adr/0051` (the Setup Wizard replaced the Bootstrap
+> Launcher) and `docs/adr/0062` (the Operator Console is deleted). The text below
+> is kept as the record of the launcher-era decision.
+
+Ordinary Local bootstrap will target a dedicated node. It may resume or reconcile a SmallWorlds installation recognized as belonging to the selected Cluster Profile, while another profile requires an explicit import or profile switch. Unrelated Kubernetes installations and occupied SmallWorlds paths or ports are blockers, and existing persistent data requires a separate inventory and recovery plan. Normal setup will never uninstall foreign software, wipe unidentified data, or adopt unknown workloads.

@@ -1,7 +1,7 @@
 """Canary Follower: Ring 0 follows main and reports whether each commit holds.
 
 Runs on the Canary Cluster only (docs/adr/0060, design §3.4). Pure stdlib, run
-from a ConfigMap like Hermes and Remediation. /healthz answers while the
+from a ConfigMap like join and pod-gateway. /healthz answers while the
 process lives; /status shows the last verdict.
 """
 import json

@@ -10,9 +10,8 @@ Unlike a static dashboard, this setup is completely dynamic.
 - **Why?**: This allows the Homepage pod to scan the cluster for Ingress objects containing specific annotations (e.g., `gethomepage.dev/enabled: "true"`, `gethomepage.dev/group: "Applications"`). 
 - When a new tenant (like Immich or Nextcloud) is deployed, its Ingress contains these annotations, causing it to automatically appear on the dashboard without modifying the dashboard's configuration.
 
-### 2. Status Integration (`status-data.yaml`)
-- **Status ConfigMap**: This namespace houses the `status-data` ConfigMap.
-- **Hermes Integration**: As defined in the Hermes tenant, the automated AI agent directly patches this ConfigMap to update the cluster's public status page when it detects or resolves incidents. Added alongside the Hermes status-updates work (`d314855`).
+### 2. No status data
+A `status-data` ConfigMap used to live here (`d314855`), meant for Hermes to patch with incidents for a status panel. Hermes never had the rights to write it and Homepage never read it; it was removed with Hermes (`docs/adr/0063`).
 
 ## Notable changes per file (from git history)
 

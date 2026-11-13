@@ -1,5 +1,10 @@
 # AI Agent-Based Infrastructure Lifecycle Management for SmallWorlds
 
+> **Replaced (2026-11-13).** The Hermes and Remediation agents this describes were removed
+> (`docs/adr/0063`, last commit tagged `hermes-final`). Update steering now follows
+> `plans-and-walkthroughs/design-per-app-updates.md`. Kept as a record only.
+
+
 Build an autonomous agent system — **Hermes** — that manages the full operational lifecycle of the SmallWorlds K3s cluster. Hermes observes, decides, acts, and communicates — requesting human approval only for high-risk operations like major version upgrades.
 
 ## Resolved Design Decisions

@@ -10,7 +10,7 @@ status: accepted
 Installing SmallWorlds is a browser wizard that runs on the future Operator's own machine,
 collects the settings, drives `admin-tools/prepare-community-repo.sh` and
 `smallworlds-init.sh`, hands over the credentials, and stops. It never reimplements install
-logic. The Operator Console — the Bootstrap Launcher of `docs/adr/0001` together with the
+logic. The Operator Console — the Bootstrap Launcher of `docs/adr/superseded/0001` together with the
 in-cluster administration surface it grew into — is deactivated but not deleted.
 
 The launcher answered a real problem. Installing meant running two interactive shell
@@ -19,11 +19,11 @@ sense once the two-repo model of `docs/adr/0008` is already understood, and seve
 which fail minutes later rather than at the moment they are answered wrongly. What it
 answered that problem with was a second implementation of the install: some 63 000 lines of
 Go and Svelte across 25 internal packages, carrying a credential vault
-(`docs/adr/0010`), a SQLite workflow store (`docs/adr/0025`), a versioned capability
-catalog (`docs/adr/0019`), a resumable journey (`docs/adr/0021`), an
-inspect–plan–approve–execute–verify contract (`docs/adr/0022`), a lifecycle authority
-(`docs/adr/0009`), age-encrypted recovery bundles (`docs/adr/0036`), and a cross-platform
-signed release pipeline for five native archives (`docs/adr/0004`, `docs/adr/0046`). Every
+(`docs/adr/0010`), a SQLite workflow store (`docs/adr/superseded/0025`), a versioned capability
+catalog (`docs/adr/superseded/0019`), a resumable journey (`docs/adr/superseded/0021`), an
+inspect–plan–approve–execute–verify contract (`docs/adr/superseded/0022`), a lifecycle authority
+(`docs/adr/superseded/0009`), age-encrypted recovery bundles (`docs/adr/superseded/0036`), and a cross-platform
+signed release pipeline for five native archives (`docs/adr/superseded/0004`, `docs/adr/superseded/0046`). Every
 one of those is a defensible decision on its own terms. Together they are a permanent
 maintenance surface substantially larger than the thing being installed, and each release
 of this repository had to build and sign artifacts for it before an Operator could obtain a
@@ -46,7 +46,7 @@ to `0600` files by the scripts. It binds to loopback and is never exposed, so it
 authentication beyond a session token and a `Host` header check. It has no dependencies and
 no build step — Python standard library and plain HTML — so it ships as files in this
 repository and there is nothing to release. `docs/adr/0041`'s browser-first commitment is
-kept; `docs/adr/0031`'s promise to maintain the legacy scripts is superseded by making them
+kept; `docs/adr/superseded/0031`'s promise to maintain the legacy scripts is superseded by making them
 the only implementation.
 
 What the wizard adds over the scripts is not the form but the refusal: it will not submit

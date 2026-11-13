@@ -3,7 +3,7 @@
 How the cluster sends and receives mail, how to run it without the self-hosted
 mail server, and which addresses have to exist where. Related: `docs/adr/0049`
 (the decision this document implements), `doc/tenant-stalwart.md` (the mail
-server itself), `doc/tenant-hermes.md` (one of the senders).
+server itself).
 
 > **Implementation status.** Stalwart is **no longer installed by default**: it
 > left the master kustomization and became an entry in `OPTIONAL_APPS`, so a
@@ -24,7 +24,7 @@ server itself), `doc/tenant-hermes.md` (one of the senders).
 
 | Capability | Depends on it | Optional? |
 |---|---|---|
-| **Outbound transactional** — alerts, optional app notifications | Alertmanager, Hermes | Only if alerts go by mail rather than webhook |
+| **Outbound transactional** — optional app notifications, account e-mails | Keycloak | Only for `self-registration` or member-facing notifications |
 | **Member mailboxes** — `user@domain`, IMAP/JMAP, webmail | Bulwark, `mail-provisioner` | Yes — a Community Application |
 | **Inbound role addresses** — `postmaster@`, `abuse@`, DMARC reports | The domain itself | Effectively no, but needs almost nothing |
 
@@ -49,8 +49,7 @@ What still needs an egress channel is **alerting** and the `self-registration`
 onboarding mode, which sets `verifyEmail=true`
 (`tenants/keycloak/realm-config-job.yaml`) and is meaningless without a way to
 verify. Alertmanager no longer uses mail at all: since 2026-11-09 it pushes to an
-external ntfy topic and pings an external heartbeat (`doc/alerting.md`). Hermes
-still mails through Stalwart.
+external ntfy topic and pings an external heartbeat (`doc/alerting.md`).
 
 A fully mail-free cluster is therefore coherent, and is the expected shape of a
 LAN deployment: invitation onboarding, passkey login, push alerting, no
@@ -59,19 +58,18 @@ application notifications, or alerts routed by mail. See `docs/adr/0049`.
 
 ## 2. Who sends mail today
 
-Both senders talk to Stalwart's in-cluster service on plain port 25 with
+The one sender talks to Stalwart's in-cluster service on plain port 25 with
 no authentication and no TLS, which Stalwart accepts from the cluster subnets
 `10.42.0.0/16` and `10.43.0.0/16` (`doc/tenant-stalwart.md`).
 
 | Sender | Where | From address |
 |---|---|---|
 | Keycloak | `tenants/keycloak/values.yaml` (`KC_SMTP_*`) | `auth@<domain>` |
-| Hermes | `tenants/hermes/src/config.py`, `mailer.py` | `hermes@<domain>` |
 
-Hermes uses `smtplib.SMTP` directly with **neither `starttls()` nor `login()`**.
-This is the single most important constraint on the design: any scheme that
-requires each sender to authenticate to an external provider forces a rewrite of
-the component least suited to it.
+Hermes, the second sender (`smtplib.SMTP` with neither `starttls()` nor
+`login()`), was removed (`docs/adr/0063`). It was the reason the relay seam
+below asks no sender to authenticate; that contract still suits Keycloak and any
+application wired to it later.
 
 **Nextcloud, Immich and Forgejo have no SMTP configuration at all** and
 therefore silently send nothing. Wiring them to the endpoint in section 3 is
@@ -104,7 +102,7 @@ tenant manifest branches on whether the mail server is installed, and
 
 Why a relay pod rather than provider credentials templated into each consumer:
 
-- **Hermes needs no code change.** See section 2.
+- **No sender needs credentials or TLS.** See section 2.
 - **One credential in one place** instead of the provider password copied into
   a Helm values file, an `AlertmanagerConfig` CR and a Python ConfigMap.
 - **A queue.** Providers throttle and have outages; Postfix retries. Keycloak
@@ -246,7 +244,6 @@ jobs:
 |---|---|---|
 | ACME registration and expiry notices | `terraform/main.tf` (`acme_email`), `smallworlds-init.sh` | destination |
 | Alertmanager recipient | `apps/alertmanager-config.yaml` | destination |
-| Hermes incident reports | `tenants/hermes/src/config.py` | destination |
 | Nextcloud admin **username** | `tenants/nextcloud/nextcloud-secret-init-job.yaml` | identity |
 | Immich admin account | `tenants/immich/admin-init-job.yaml` | identity |
 
@@ -277,8 +274,7 @@ Therefore:
 ## 9. Remaining work
 
 - The notifier tenant: a ~40-line stdlib translator from Alertmanager's webhook
-  envelope to ntfy, in the pattern of `remediation`/`hermes`, plus replacing
-  Hermes' `mailer.py` with the equivalent `urllib` POST. Alertmanager has native
+  envelope to ntfy, in the stdlib/ConfigMap pattern of `join`. Alertmanager has native
   receivers for Telegram, Pushover and Discord if an adapter is not wanted;
   ntfy, Gotify and Matrix all need one. **The notification endpoint must run off
   the cluster it watches.**

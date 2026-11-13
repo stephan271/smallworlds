@@ -1,0 +1,11 @@
+---
+status: superseded
+---
+
+# Run the Bootstrap Launcher as an unprivileged background process
+
+> **Superseded** by `docs/adr/0051` (the Setup Wizard replaced the Bootstrap
+> Launcher) and `docs/adr/0062` (the Operator Console is deleted). The text below
+> is kept as the record of the launcher-era decision.
+
+The Bootstrap Launcher will enforce one per-user process, reconnect and reopen the browser when launched again, and continue Workflow Runs after the browser closes. It may stop after an idle period or an explicit quit only when no mutation is active; stopping during active work requires an explicit cancellation decision. The first release will neither install a privileged system service nor start automatically with the operating system, keeping elevation limited to the individual actions that require it.

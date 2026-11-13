@@ -21,7 +21,7 @@ bucket because S3 requires it, but the code path does not exist.
 ## Shape
 
 Pure Python standard library run straight from a ConfigMap-mounted volume in a
-stock `python:3.14-slim` image — the same pattern as `hermes` and `remediation`,
+stock `python:3.14-slim` image — the same pattern as `join` and `canary-follower`,
 so there is no image to build. SigV4 is signed by hand in `src/s3.py`; it must
 sign `region=garage` or Garage answers 400.
 

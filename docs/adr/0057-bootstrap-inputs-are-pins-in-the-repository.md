@@ -10,11 +10,11 @@ the K3s install script and the Argo CD install manifest — is named in one file
 SHA-256 each. Every bootstrap path reads that file, downloads the two files on
 the node, and refuses to continue if either is not byte for byte what was
 pinned. There is no bootstrap archive any more: nothing is built, cached,
-signed or attached to a release. This supersedes `docs/adr/0046`.
+signed or attached to a release. This supersedes `docs/adr/superseded/0046`.
 
 ## Why
 
-`docs/adr/0046` packaged those two files, with the bootstrap script, into a
+`docs/adr/superseded/0046` packaged those two files, with the bootstrap script, into a
 signed archive on each GitHub Release. Its consumer was the Bootstrap Launcher,
 a binary that had to verify what it downloaded against a key compiled into it.
 `docs/adr/0051` replaced the launcher with a wizard that runs from a checkout,

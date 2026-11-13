@@ -4,6 +4,13 @@
 **Date:** 2026-11-09
 **Decision record:** `docs/adr/0060-updates-move-through-three-release-rings.md`
 
+> **Continued in `plans-and-walkthroughs/design-per-app-updates.md`** (2026-11-13):
+> Ring 0 gets an AI agent for when it is stuck, and Rings 1 and 2 adopt per
+> application through the Update Desk instead of whole releases (§5 below is
+> partly replaced; see that document's §10). Technical terms used in both
+> documents (commit, tag, ref, pin, `targetRevision`, sync, hook, migration,
+> revert vs restore, …) are explained in its §2, "Words used in this document".
+
 ## 1. Why
 
 Every application SmallWorlds supports ships security fixes and features on its
@@ -532,7 +539,7 @@ overlays are being deleted. The live overlays are Ring 1's
 | `test-pr-locally.sh`, Playwright e2e, smoke-test job | exist; e2e gains a data-check layer and an in-cluster runner |
 | Seeders | partly (`seed-immich-photos.py`, `app-data.py`); new `admin-tools/canary/seed.py` covers every app |
 | Alerting (ntfy, healthchecks.io) | exists |
-| Remediation / Hermes | exist, `DRY_RUN`; not needed for this design |
+| Remediation / Hermes | removed 2026-11-13 (`docs/adr/0063`) |
 | Ring 0 server, overlay, install | new |
 | Canary Follower (refresh, verify, commit status, revert) | built 2026-11-10/11 (`tenants/canary-follower`): pre-update backup, follow, converge, smoke, e2e + data checks Job, quiet period, status, merge queue, revert |
 | PR-check workflow | new |

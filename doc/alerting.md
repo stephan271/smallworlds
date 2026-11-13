@@ -17,20 +17,20 @@ rules were right; delivery was missing. Members found the outage first.
 
 ```
 Prometheus ──► Alertmanager ──┬─► smallworlds-alerts      ──► ntfy topic ──► Operator's phone
-                              ├─► smallworlds-heartbeat   ──► healthchecks.io ── (silence) ──► Operator
-                              └─► smallworlds-remediation ──► remediation service (Tier 1)
+                              └─► smallworlds-heartbeat   ──► healthchecks.io ── (silence) ──► Operator
 ```
 
-Three `AlertmanagerConfig` resources, not one. prometheus-operator gives each
-its own top-level route with `continue: true`, so every alert is offered to all
-three, and each is validated on its own: a missing notification Secret rejects
-push and heartbeat but leaves the remediation hand-off working.
+Two `AlertmanagerConfig` resources, not one. prometheus-operator gives each
+its own top-level route with `continue: true`, so every alert is offered to
+both, and each is validated on its own: a receiver added later in a config of
+its own cannot silence the Operator's phone by being broken. (A third, the
+hand-off to the Tier 1 `remediation` service, was removed with that service,
+`docs/adr/0063`.)
 
 | Config | Receives | Sends to |
 |---|---|---|
 | `smallworlds-alerts` | every alert except severity `none`/`info` | `alerts-url` (ntfy, `?template=alertmanager`), repeats every 12 h while firing, sends *resolved* |
 | `smallworlds-heartbeat` | `Watchdog` only | `heartbeat-url`, every 5 minutes |
-| `smallworlds-remediation` | `KubePodCrashLooping` | `remediation` service (in-cluster, `DRY_RUN`) |
 
 Severity `none` is `Watchdog`; `info` is `InfoInhibitor` and similar. Both fire
 continuously by design, so they are discarded on the push route.
@@ -44,7 +44,7 @@ reaches the Operator.
 ## The Secret
 
 The two URLs are credentials (anyone who knows an ntfy topic can read it and
-post to it), so they are not in Git. All three configs read
+post to it), so they are not in Git. Both configs read
 `monitoring/smallworlds-notify`:
 
 | Key | Value |
@@ -87,7 +87,7 @@ was given no way to reach its Operator.
 
 ## Checking it works
 
-- `kubectl -n monitoring get alertmanagerconfig` lists the three configs.
+- `kubectl -n monitoring get alertmanagerconfig` lists the two configs.
   Rejected ones are logged by `kube-prometheus-stack-operator`
   (`kubectl -n monitoring logs deploy/kube-prometheus-stack-operator | grep -i alertmanagerconfig`).
 - The healthchecks.io check turns green within five minutes of the Secret
@@ -120,7 +120,5 @@ the Operator to look, and the descriptions point at the way back.
 
 ## Not covered yet
 
-- **Hermes** still mails through Stalwart (`doc/mail.md` §2); `docs/adr/0049`
-  moves it to the same ntfy topic.
 - Priority: every alert arrives at ntfy's default priority. Splitting critical
   alerts into a high-priority receiver needs a second URL in the Secret.

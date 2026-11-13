@@ -11,7 +11,7 @@ resources:
   - alerting.yaml
   - checks-job.yaml
 
-# Source runs straight from a ConfigMap (the Hermes/Remediation pattern). Every
+# Source runs straight from a ConfigMap (the stdlib/ConfigMap pattern of join and pod-gateway). Every
 # src/*.py must be listed; tests/test_follower.py checks that.
 configMapGenerator:
   - name: canary-follower-src
