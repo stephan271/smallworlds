@@ -622,6 +622,69 @@ class ConvergeRetryTest(unittest.TestCase):
         self.assertIn("keycloak: sync Error: ComparisonError", lagging[0])
 
 
+class SwitchoverKube(FakeArgoKube):
+    """An app whose next `degraded` syncs end Failed because a plain resource (no
+    hook) read Degraded while it rolled, and which is Synced and Healthy right
+    after. Ring 0, 2026-11-12: Postgres 16.13 -> 16.15 in immich; Argo CD's
+    built-in health check calls CNPG's "Switchover in progress" Degraded, the
+    sync failed, CNPG finished the switchover a moment later."""
+
+    def __init__(self, sha, degraded):
+        super().__init__(sha)
+        self.degraded = dict(degraded)
+
+    def _settle(self, app):
+        name = app["metadata"]["name"]
+        had_operation = "operation" in app
+        super()._settle(app)
+        if had_operation and self.degraded.get(name, 0) > 0:
+            self.degraded[name] -= 1
+            app["status"]["operationState"] = {
+                "phase": "Failed",
+                "message": "one or more synchronization tasks completed unsuccessfully",
+                "syncResult": {"resources": [
+                    {"kind": "Job", "name": "garage-init", "status": "Synced",
+                     "hookType": "Sync", "hookPhase": "Succeeded", "syncPhase": "Sync"},
+                    {"kind": "Cluster", "name": "database", "status": "Synced",
+                     "hookPhase": "Failed", "syncPhase": "Sync",
+                     "message": "cluster.postgresql.cnpg.io/database configured"}]}}
+
+
+class SwitchoverRetryTest(unittest.TestCase):
+    def converge(self, degraded):
+        clock = Clock()
+        kube = SwitchoverKube(SHA, degraded)
+        argo = ArgoCD(kube, "argocd", "smallworlds-root", clock, clock.sleep)
+        argo.follow(300)
+        return argo.converge(2700, 20), kube
+
+    def syncs(self, kube, name):
+        return [c for c in kube.calls if c[0] == "PATCH" and "operation" in c[2]
+                and c[1].endswith("/" + name)]
+
+    def test_a_resource_degraded_only_while_it_rolled_is_synced_again_and_converges(self):
+        (converged, lagging), kube = self.converge({"gallery": 1})
+        self.assertTrue(converged, lagging)
+        self.assertEqual(2, len(self.syncs(kube, "gallery")), "the first sync and one more")
+
+    def test_a_resource_that_keeps_failing_the_sync_fails_after_the_bounded_retries(self):
+        (converged, lagging), kube = self.converge({"gallery": 10})
+        self.assertFalse(converged)
+        self.assertIn("gallery: sync Failed: Cluster database", lagging[0])
+
+    def test_a_failed_hook_is_not_synced_again(self):
+        # A hook that failed is a verdict (stalwart-init, Ring 0 2026-11-10):
+        # syncing again would only hide it behind a retry.
+        clock = Clock()
+        kube = FakeArgoKube(SHA)
+        kube.fail["keycloak"] = ("Job", "stalwart-init", "Job has reached the specified backoff limit")
+        argo = ArgoCD(kube, "argocd", "smallworlds-root", clock, clock.sleep)
+        argo.follow(300)
+        converged, lagging = argo.converge(2700, 20)
+        self.assertFalse(converged)
+        self.assertEqual(1, len(self.syncs(kube, "keycloak")))
+
+
 
 CODEBERG_DOWN = (
     "ComparisonError: Failed to load target state: failed to generate manifest for source 1 of 1: "

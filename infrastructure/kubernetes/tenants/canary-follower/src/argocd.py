@@ -56,6 +56,25 @@ def _errored(app: dict) -> bool:
             and app.get("status", {}).get("operationState", {}).get("phase") == "Error")
 
 
+def _degraded_while_rolling(app: dict) -> bool:
+    """The last sync ended Failed only because a plain resource, not a hook, read
+    Degraded while the sync waited on it, and the app is Synced and Healthy now.
+    Argo CD's built-in health check calls a CNPG cluster in "Switchover in
+    progress" Degraded, so every Postgres minor update failed its sync although
+    CNPG finished a moment later (immich on Ring 0, 2026-11-12). Such a sync
+    stopped at that wave, so later waves and PostSync hooks may not have run:
+    the answer is to sync again, not to look away."""
+    state = app.get("status", {}).get("operationState", {})
+    if _operation_running(app) or state.get("phase") != "Failed":
+        return False
+    if _sync_status(app) != "Synced" or _health(app) != "Healthy":
+        return False
+    failed = [r for r in state.get("syncResult", {}).get("resources", [])
+              if r.get("hookPhase") in ("Failed", "Error") or r.get("status") == "SyncFailed"]
+    return bool(failed) and all(not r.get("hookType") and r.get("status") != "SyncFailed"
+                                for r in failed)
+
+
 # Argo CD could not render the target because an upstream registry or chart
 # repository did not answer (Ring 0, 2026-11-12: "Codeberg is under load", 403 on
 # the Forgejo chart). That is no verdict on the commit; the follower reports an
@@ -195,6 +214,11 @@ class ArgoCD:
                     resynced[name] = resynced.get(name, 0) + 1
                     log.info("%s: last operation ended in Error; syncing again (%d/%d)",
                              name, resynced[name], self.error_resyncs)
+                    self._sync(app)
+                elif _degraded_while_rolling(app) and resynced.get(name, 0) < self.error_resyncs:
+                    resynced[name] = resynced.get(name, 0) + 1
+                    log.info("%s: last sync failed on a resource that was Degraded only while it "
+                             "rolled; syncing again (%d/%d)", name, resynced[name], self.error_resyncs)
                     self._sync(app)
             lagging = []
             for a in self.list():

@@ -16,7 +16,12 @@ Ring 0's follower (`docs/adr/0060`, `plans-and-walkthroughs/design-update-strate
 4. It waits until every Application is Synced and Healthy (`CONVERGE_TIMEOUT_SECONDS`).
    An operation that ended in `Error` rather than `Failed` (Argo CD could not carry it
    out, e.g. a `ComparisonError` while the API server was busy) is synced again, up to
-   three times, before it counts against the commit.
+   three times, before it counts against the commit. So is a sync that ended `Failed`
+   only because a plain resource (not a hook) read Degraded while it rolled, once the
+   app is Synced and Healthy: Argo CD's built-in health check calls a CNPG cluster in
+   "Switchover in progress" Degraded, which failed every Postgres minor update
+   (immich, 2026-11-12) although CNPG finished a moment later. A failed hook is a
+   verdict and is never synced again.
    When the only Applications left behind could not even be rendered because an
    upstream registry or chart repository did not answer (a 403, 429 or 5xx, a timeout;
    Codeberg "under load" on 2026-11-12), the result is `error`, not `failure`: nothing

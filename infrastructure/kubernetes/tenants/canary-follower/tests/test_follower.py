@@ -79,7 +79,7 @@ class FakeArgoKube:
                     "syncResult": {"resources": [
                         {"kind": "ConfigMap", "name": "fine", "status": "Synced"},
                         {"kind": kind, "name": resource, "status": "Synced",
-                         "hookPhase": "Failed", "message": message}]}}
+                         "hookType": "Sync", "hookPhase": "Failed", "message": message}]}}
             else:
                 app["status"]["operationState"] = {"phase": "Succeeded"}
 
