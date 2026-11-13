@@ -4,6 +4,11 @@ status: proposed
 
 # Updates move through three release rings
 
+> **Partly replaced by `docs/adr/0065`:** Rings 1 and 2 no longer adopt whole
+> releases through a Renovate PR. They adopt Ring 0's verified state one
+> application at a time through the Update Desk. Ring 0 and everything below
+> about it still hold.
+
 Every update to a supported application passes through three **Release Rings**
 before a community's Operator is asked to adopt it. The design is
 `plans-and-walkthroughs/design-update-strategy.md`.

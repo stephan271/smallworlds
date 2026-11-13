@@ -139,7 +139,7 @@ The community-owned private repository that declares cluster-specific configurat
 _Avoid_: Community repo, private overlay
 
 **Release Ring**:
-One of three stages an update passes through: Ring 0 is the Canary Cluster, Ring 1 is smallworlds.network adopting every release on the day it is tagged, Ring 2 is every other community adopting under its Follow Policy (`docs/adr/0060`).
+One of three stages an update passes through: Ring 0 is the Canary Cluster, Ring 1 is smallworlds.network, Ring 2 is every other community. Rings 1 and 2 adopt Ring 0's verified state per Update Unit through the Update Desk (`docs/adr/0060`, `docs/adr/0065`).
 _Avoid_: Stage, channel, environment
 
 **Canary Cluster**:
@@ -147,8 +147,36 @@ The Ring 0 cluster: every supported application at once, example data that is ne
 _Avoid_: Staging (that is the ephemeral cluster of `test-pr-locally.sh`), reference instance, test cluster
 
 **Follow Policy**:
-The Operator's choice of when the GitOps Overlay is offered a new release: immediately, after two weeks, security fixes now and features later, or only when asked. It only proposes; adoption is always the Operator's merge.
+The Operator's choice of when the Update Desk tells them about an update: immediately, after two weeks on Ring 1, security fixes now and features later, or only when asked. It also sets the minimum soak before the Desk offers a state. It only notifies; adoption is always the Operator's action on the Desk (`docs/adr/0065`).
 _Avoid_: Update channel, auto-update
+
+**Update Desk**:
+The Operator-only page on the Private Network (`updates.<domain>`) that shows, per Update Unit, what this community runs, what Ring 1 runs and what Ring 0 has verified, and that updates or undoes one unit by committing Application Pins to the GitOps Overlay (`docs/adr/0065`).
+_Avoid_: Update dashboard, admin console, Member Dashboard (that one is Homepage, for members)
+
+**Update Unit**:
+What moves as one when a community updates: the Platform (every Platform Service), or one Community Application together with the applications it cannot work without, such as Nextcloud with its office suite. Defined in `infrastructure/kubernetes/update-units.yaml`.
+_Avoid_: App, tenant, component
+
+**Application Pin**:
+The line in a GitOps Overlay's `smallworlds-pins.yaml` that fixes one Update Unit to one commit of the base repository that Ring 0 has verified. Not the same as Bootstrap Pins (node install versions) or Renovate's digest pins (image checksums).
+_Avoid_: Version, ref, release
+
+**Verified Pair**:
+An Update Unit's content together with the Platform content that Ring 0 has run at the same time, in some verified commit. The Update Desk only offers states that keep every unit in a Verified Pair.
+_Avoid_: Compatible version, supported combination
+
+**Upgrade Stop**:
+A version of an application that an update must not skip, such as each Nextcloud major; the Update Desk moves a lagging community through it one verified step at a time.
+_Avoid_: Required version, migration step
+
+**Ring State**:
+The public record of what Ring 0 has verified (`ring0.json`, written by the Canary Follower) and what Ring 1 runs (`ring1.json`), on the base repository's `ring-state` branch.
+_Avoid_: Release manifest, status file
+
+**Ring 0 Steward**:
+The AI agent (Claude Code in a GitHub Actions workflow) that takes over when the Canary Follower reports Ring 0 stuck. It opens pull requests and comments, and never merges or touches a cluster (`docs/adr/0064`).
+_Avoid_: Hermes (removed, `docs/adr/0063`), SRE agent, bot
 
 **Git Provider**:
 The hosting system through which the Operator Console creates or updates a GitOps Overlay and, when supported, opens configuration proposals.
