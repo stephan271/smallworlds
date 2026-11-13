@@ -1,7 +1,7 @@
 
 # SmallWorlds
 
-> **Massive Transformative Purpose:** [Every community in control of its digital world.](strategy-paper.md#massive-transformative-purpose)
+> **Massive Transformative Purpose:** [Sovereignty now: every community in control of its digital world.](strategy-paper.md#massive-transformative-purpose)
 
 ## Talks
 
