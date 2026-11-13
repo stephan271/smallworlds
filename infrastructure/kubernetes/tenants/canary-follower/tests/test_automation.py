@@ -262,6 +262,8 @@ class FakeRepo:
         self.comments = []
         self.reverts = []
         self.opened = []
+        self.red = set()
+        self.approvals = set()
 
     def label_names(self):
         return self.labels
@@ -276,8 +278,13 @@ class FakeRepo:
         return self.files.get(number, [{"filename": f"tenants/{number}/kustomization.yaml",
                                         "patch": f"-  newTag: 1\n+  newTag: {number}"}])
 
-    def checks_passed(self, sha):
-        return sha in self.green
+    def readiness(self, sha):
+        if sha in self.green:
+            return "ready"
+        return "failed" if sha in self.red else "waiting"
+
+    def approved_by(self, number, login, head):
+        return (number, login, head) in self.approvals
 
     def merge(self, number, sha, title):
         self.merged.append((number, sha))

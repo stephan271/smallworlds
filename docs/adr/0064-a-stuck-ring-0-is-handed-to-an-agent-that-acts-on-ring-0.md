@@ -60,9 +60,14 @@ a project about running your own infrastructure.
 - The follower's token gains *Issues* on the Ring 0 overlay repository, and
   later *Contents* there for the automatic restore. The follower counts
   attempts and starts no verification while a Steward run is active.
-- The Steward's token covers *Contents*, *Pull requests* and *Issues* on the
-  base repository and *Issues* on the Ring 0 overlay. It has no *Workflows*
-  permission, so GitHub refuses any change it makes to a workflow file.
+- The Steward acts on GitHub as its own GitHub App, so the owner can approve its
+  PRs. The App has *Contents*, *Pull requests* and *Issues* on the base
+  repository and the Ring 0 overlay and no *Workflows* permission, so GitHub
+  refuses any change it makes to a workflow file; a ruleset keeps everyone but
+  repository admins off the base's `main`, so it cannot merge either.
+- A queued update that Ring 0 rejects and reverts also becomes an incident, one
+  the Steward works on through a PR only, without pausing Ring 0: otherwise that
+  application would wait for the next upstream release.
 - Ring 0's server runs a GitHub Actions runner under its own unprivileged user,
   registered to the private Ring 0 overlay repository only. Its only cluster
   credential is the `ring0-steward` ServiceAccount, whose RBAC enforces the

@@ -1,0 +1,124 @@
+# The Ring 0 Steward (design-per-app-updates.md §5.3, docs/adr/0064).
+#
+# Template: admin-tools/canary/steward/steward.yml in stephan271/smallworlds.
+# It runs as .github/workflows/steward.yml in the PRIVATE Ring 0 overlay
+# repository only, on the self-hosted runner on Ring 0's server
+# (admin-tools/canary/install-steward-runner.sh).
+#
+# The Canary Follower starts it by labelling an incident `steward-requested`
+# with its own token (a label set with GITHUB_TOKEN would start nothing). It ends
+# with a comment carrying `<!-- steward-done result=… -->` and removes
+# `steward-working`; the follower reads both.
+#
+# Repository settings it needs:
+#   secrets  CLAUDE_CODE_OAUTH_TOKEN   `claude setup-token` (Claude Pro)
+#            STEWARD_APP_PRIVATE_KEY   the Steward GitHub App's private key
+#   vars     STEWARD_APP_ID            the App's ID
+#            STEWARD_MODEL             optional; default claude-opus-5-5
+#            STEWARD_ARMED             "true" once its PRs may queue themselves
+name: Ring 0 Steward
+
+on:
+  issues:
+    types: [labeled]
+
+concurrency:
+  group: ring0-steward
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  steward:
+    if: github.event.label.name == 'steward-requested'
+    runs-on: [self-hosted, ring0-steward]
+    timeout-minutes: 150
+    env:
+      ISSUE: ${{ github.event.issue.number }}
+      OVERLAY: ${{ github.repository }}
+      STEWARD_ARMED: ${{ vars.STEWARD_ARMED || 'false' }}
+    steps:
+      - name: Mark the incident as being worked on
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue edit "$ISSUE" -R "$OVERLAY" --remove-label steward-requested --add-label steward-working
+
+      # Ring 0's overlay at the root of the workspace (read only: its token is
+      # this workflow's own), the base repository below it in smallworlds/.
+      - name: Ring 0's overlay (read)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          clean: true
+          persist-credentials: false
+
+      - name: The Steward's GitHub App token
+        id: app
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.STEWARD_APP_ID }}
+          private-key: ${{ secrets.STEWARD_APP_PRIVATE_KEY }}
+          owner: stephan271
+          repositories: smallworlds,my-canary-installation
+
+      - name: The base repository at main
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: stephan271/smallworlds
+          token: ${{ steps.app.outputs.token }}
+          path: smallworlds
+          fetch-depth: 0
+
+      - name: The incident and its evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf steward-work && mkdir -p steward-work
+          gh issue view "$ISSUE" -R "$OVERLAY" --comments > steward-work/incident.md
+          git -C smallworlds config user.name "smallworlds-steward[bot]"
+          git -C smallworlds config user.email "smallworlds-steward[bot]@users.noreply.github.com"
+          echo "GH_TOKEN=${{ steps.app.outputs.token }}" >> "$GITHUB_ENV"
+
+      - name: The Steward
+        id: claude
+        uses: anthropics/claude-code-action@4d75e5f390ee76b2e09c1980ecc99ff3a2e088c8 # v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.app.outputs.token }}
+          prompt: |
+            You are the Ring 0 Steward. Read smallworlds/admin-tools/canary/steward/PROMPT.md
+            first and follow it. The incident is issue #${{ github.event.issue.number }} in
+            ${{ github.repository }}; its text, evidence and earlier attempts are in
+            steward-work/incident.md. STEWARD_ARMED is ${{ env.STEWARD_ARMED }}.
+            End by writing steward-work/result.json.
+          claude_args: >-
+            --model ${{ vars.STEWARD_MODEL || 'claude-opus-5-5' }}
+            --max-turns 120
+            --allowedTools "Read,Edit,Write,Glob,Grep,Bash(kubectl:*),Bash(git:*),Bash(gh:*),Bash(jq:*),Bash(ls:*),Bash(grep:*),Bash(head:*),Bash(tail:*),Bash(diff:*),Bash(python3 -m unittest:*),Bash(python3 admin-tools/:*),Bash(bash admin-tools/:*),Bash(./admin-tools/:*)"
+            --disallowedTools "WebFetch,WebSearch"
+
+      - name: Report the result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+        run: |
+          result=not-run
+          summary="The Steward's run ended without a result."
+          if [ -s steward-work/result.json ] && jq -e . steward-work/result.json >/dev/null 2>&1; then
+            candidate=$(jq -r '.result // ""' steward-work/result.json)
+            case "$candidate" in
+              acted|pr|hold|needs-person) result=$candidate
+                summary=$(jq -r '.summary // ""' steward-work/result.json) ;;
+            esac
+          elif [ -n "${EXECUTION_FILE:-}" ] && [ -s "$EXECUTION_FILE" ] \
+               && grep -qiE 'authentication_error|invalid (oauth|bearer|api) ?(token|key)|OAuth token has expired' "$EXECUTION_FILE"; then
+            result=credential
+            summary="Claude refused the Steward's credential: renew CLAUDE_CODE_OAUTH_TOKEN with \`claude setup-token\`."
+          fi
+          printf '%s\n\n_Run: %s_\n\n<!-- steward-done result=%s -->\n' "$summary" \
+            "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" "$result" \
+            > steward-work/comment.md
+          gh issue comment "$ISSUE" -R "$OVERLAY" --body-file steward-work/comment.md
+          gh issue edit "$ISSUE" -R "$OVERLAY" --remove-label steward-working
