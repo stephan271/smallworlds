@@ -31,10 +31,10 @@ images:
   # database restore, not a revert: doc/tenant-immich.md, "Rolling Gallery back".
   - name: ghcr.io/immich-app/immich-server
     newName: ghcr.io/open-noodle/gallery-server
-    newTag: v5.10.0
+    newTag: v5.10.0@sha256:08b9818252bdef75eb599d7db6a97080cbd399056c6ee2787403e8310f234734
   - name: ghcr.io/immich-app/immich-machine-learning
     newName: ghcr.io/open-noodle/gallery-ml
-    newTag: v5.10.0
+    newTag: v5.10.0@sha256:6f7e2a6687a485a06f67030595bde5bedb0024b75ef936d738aa8937ed8e671e
 
 patches:
   # Everything about the bucket comes from garage-secret, next to the key
