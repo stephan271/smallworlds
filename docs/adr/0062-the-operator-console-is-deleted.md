@@ -48,6 +48,9 @@ follower (`docs/adr/0060`) now cover part of what the console was to observe.
   default telemetry (0029) or the overlay as source of truth (0008), the principle
   still holds through the code that implements it today. Their terms remain in
   `CONTEXT.md`, marked *(console; deleted)*.
+  *2026-11-13:* their status lines now say so. 32 are `superseded` (by this ADR
+  or `docs/adr/0051`); 14 stay `accepted` with a note naming what carries their
+  principle today. Their text is unchanged.
 - The installer no longer carries `CONSOLE_SESSION_KEY`. An old cache file that
   still has the line is harmless.
 - `admin-tools/release-notes.py` keeps `operator-console` among the tenants it does

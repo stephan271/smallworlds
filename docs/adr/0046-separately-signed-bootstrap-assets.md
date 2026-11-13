@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded
 ---
 
 # Acquire separately signed bootstrap assets from official GitHub Releases
