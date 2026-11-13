@@ -83,7 +83,7 @@ helmCharts:
     # registry refused every pull with 403 "under load" for hours on 2026-11-12.
     repo: oci://code.forgejo.org/forgejo-helm
     releaseName: forgejo
-    version: 17.1.1
+    version: 17.3.2
     valuesFile: values.yaml
 
 replacements:
