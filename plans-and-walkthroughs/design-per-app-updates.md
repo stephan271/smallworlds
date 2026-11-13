@@ -81,9 +81,7 @@ is stuck and to hand the case to the Ring 0 Steward.
 
 **GitHub Actions / workflow.** GitHub's built-in automation. A *workflow* is a
 file under `.github/workflows/` that says "when X happens, run these steps" on a
-temporary machine GitHub provides, or on a *self-hosted runner*: a small GitHub
-program on a machine of your own that waits for such work. The Ring 0 Steward
-runs as a workflow on a self-hosted runner on Ring 0's server (§5.3).
+temporary machine GitHub provides. The Ring 0 Steward runs as one.
 
 **Fine-grained token.** A GitHub password for a program, limited to named
 repositories and named permissions (for example: "contents, read and write, on
@@ -331,10 +329,8 @@ the Steward with "restore needed" in the evidence.
 ### 5.3 The Ring 0 Steward
 
 An AI agent that takes over a stuck Ring 0, run as a **GitHub Actions workflow
-with Claude Code** (`anthropics/claude-code-action`), signed in with Stephan's
-**Claude Pro subscription** (below). It may act on Ring 0 itself, and it tries at
-least three times before it hands the case to Stephan. It is a new start: it
-shares no code with Hermes.
+with Claude Code** (`anthropics/claude-code-action`, model `claude-opus-5-5`).
+It is a new start: it shares no code with Hermes.
 
 **Why GitHub Actions and not a pod on Ring 0.** Almost every reason Ring 0
 gets stuck is a change to the repository: a chart renamed a setting, an upstream
@@ -342,22 +338,8 @@ release is broken, a test assumed something the new version changed. The fix is
 a commit. Claude Code already reads code, renders manifests, runs tests and
 writes PRs, so there is no tool loop to build and maintain (Hermes's hand-written
 loop only had read-only tools and email). The evidence it needs comes from the
-follower, which is already inside the cluster. The credential lives in GitHub's
+follower, which is already inside the cluster. The API key lives in GitHub's
 secret store only: no community cluster ever needs an AI provider or key.
-
-**Where the workflow runs: a self-hosted runner on Ring 0's server.** The
-Steward needs Ring 0's Kubernetes API. A runner GitHub provides would have to
-reach it over the internet (port 6443 is still open on Ring 0 today, and should
-not stay open) or join Ring 0's tailnet, whose Headscale runs *inside* Ring 0
-and may be what broke. Instead, a GitHub Actions runner runs on the Contabo
-server as a systemd service under its own unprivileged user `steward`, outside
-k3s. It reaches the API on the server itself, needs no open port, and works
-while Argo CD or Headscale are down. It is registered to the private Ring 0
-overlay repository only, so no pull request from a stranger can ever run on it
-(a self-hosted runner on a public repository could be given work by anyone).
-The `steward` user cannot read `/etc/rancher/k3s/k3s.yaml`; its only cluster
-credential is the kubeconfig of the `ring0-steward` ServiceAccount (§5.4). The
-runner's own updates are part of keeping that server patched.
 
 **Trigger.** In the private Ring 0 overlay repository,
 `.github/workflows/steward.yml`: on an issue labelled `ring0-stuck`, and on a new
@@ -369,14 +351,6 @@ PRs) and the Ring 0 overlay (read). It follows the base's `CLAUDE.md` and a
 prompt file `steward/PROMPT.md` in the overlay repository.
 
 **What it may do:**
-- **Act on Ring 0** through the `ring0-steward` ServiceAccount (permissions in
-  §5.4): read everything but Secrets (Applications, pods, logs, events, CNPG
-  status, Jobs), and take the actions that leave nothing behind that git does
-  not say: delete a pod so its controller recreates it, delete a failed Job,
-  start a Job from a CronJob (an init job, the checks), ask Argo CD to refresh
-  or sync an Application, take a CNPG Backup. A restore it does not run
-  itself: it asks the follower for one (§5.2) by labelling the issue
-  `ring0-restore`, so the drilled runbook stays the only restore path.
 - **Fix forward:** a PR on the base repository, labelled `steward`, that changes
   manifests, configuration or (with review, §5.4) tests. Body: diagnosis,
   evidence quoted, what Ring 0 should show if the fix is right.
@@ -387,51 +361,19 @@ prompt file `steward/PROMPT.md` in the overlay repository.
   needs a person, for example "S2: Codeberg has been down for 6 hours, nothing
   to fix".
 
-**What it never does:** merge anything, push to `main`, edit
-`.github/workflows/`, act on any cluster but Ring 0, read a Secret or `exec`
-into a pod, delete data (a PVC, a namespace, a CNPG Cluster or Backup, an S3
-object), or act on the Ring 1 overlay or any community's overlay.
+**What it never does:** merge anything, touch a cluster, push to `main`, edit
+`.github/workflows/`, or act on the Ring 1 overlay or any community's overlay.
 
 **Token.** A fine-grained token: base repository with *Contents*, *Pull
 requests* and *Issues* (read and write), no *Workflows*; Ring 0 overlay with
 *Contents* (read) and *Issues* (read and write). Without *Workflows* permission,
 GitHub refuses any push that touches a workflow file.
 
-**Model credential: Stephan's Claude Pro subscription.** The action accepts an
-Anthropic API key (billed per token) or a subscription token. Stephan chose the
-subscription: `claude setup-token` on his own machine prints a long-lived token,
-stored as the secret `CLAUDE_CODE_OAUTH_TOKEN` in the Ring 0 overlay
-repository's Actions secrets and nowhere else, and passed to the action as
-`claude_code_oauth_token`. What follows from it:
-- Steward runs share the plan's usage limits with Stephan's own Claude use. A run
-  that stops because a limit was reached is not an attempt: the follower starts
-  it again after the limit resets.
-- The model is the strongest one the plan offers in Claude Code (Opus 5.5 if
-  Pro includes it, otherwise Sonnet 5.5), named in the workflow so it is a
-  deliberate choice.
-- The token expires. The workflow's first step checks it and, when it is
-  refused, the follower notifies Stephan at once instead of counting a failure.
-- If the Steward ever has to run without Stephan, or the limits get in the way,
-  the same workflow takes an API key with a monthly spend limit instead.
-
-**Attempts.** One **attempt** is one Steward run that ends with something to
-test, a cluster action, a PR, or both, followed by a full Ring 0 verification
-of the result. While a run is active (issue labelled `steward-working`), the
-follower starts no verification; when it ends, the follower verifies the head of
-`main` from the start, so the verdict never mixes the Steward's actions with a
-check that was already under way. A failed verification adds its evidence to
-the issue as a new comment, which starts the next attempt with everything the
-earlier ones tried.
-
 **How it ends.** The follower closes the issue when the head is green and the
-queue moves again. After **three** failed attempts on the same incident, the
-follower labels the issue `ring0-needs-person` and sends one ntfy notice
-("Ring 0 needs you: <issue link>"). It notifies earlier only when the next step
-is one the Steward is not allowed to take: a restore while `AUTO_RESTORE` is
-off, a change to a protected path that needs Stephan's review (§5.4), a Secret
-that has to change, or a credential that was refused. Waiting three attempts
-for those would only delay him. Budget: at most 6 runs per day and a turn limit
-per run, both in the workflow.
+queue moves again. After **two** Steward attempts on the same incident, or when
+the Steward says it needs a person, the follower sends one ntfy notice
+("Ring 0 needs you: <issue link>"). Budget: at most 6 runs per day and a turn
+limit per run, both in the workflow.
 
 ### 5.4 Guardrails: Ring 0 stays the judge
 
@@ -445,35 +387,13 @@ The agent must not be able to make Ring 0 green by weakening what judges it.
   only after an approving review from the repository owner. The rule lives in
   `mergequeue.py`, not in branch protection, so Renovate's own PRs to the same
   paths keep flowing.
-- **Two arming stages, for PRs only.** First *propose only*: Steward PRs carry
-  `steward` but not `ring0-queue`, and Stephan adds the label after reading
-  them; until he does, the attempt is paused, not failed. Cluster actions are
-  armed from the start, since they leave nothing behind (above). After about four
-  weeks with no wrong proposal, the Steward may add `ring0-queue` itself (except
-  for protected paths), and its three attempts then run without Stephan.
+- **Two arming stages.** First *propose only*: Steward PRs carry `steward` but
+  not `ring0-queue`, and Stephan adds the label after reading them. After about
+  four weeks with no wrong proposal, the Steward may add `ring0-queue` itself
+  (except for protected paths).
 - Whatever it reads (logs, upstream release notes, PR comments) is data, not
-  instructions. The prompt says so, and the token's and the ServiceAccount's
-  limits make that hold even if the agent is misled.
-- **Ring 0 is judged on what git says, not on what the Steward did.** Its
-  cluster actions are limited to ones that leave no lasting difference from
-  git: a deleted pod or Job is recreated from the manifests, and Argo CD's self
-  heal reverts any change to an Application's spec. So a green verdict after a
-  Steward action still means "this commit works as written". When an action
-  alone made Ring 0 green (a restart, a re-run Job), the Steward says in the
-  issue whether communities would hit the same problem, and if so it opens a
-  PR that makes the fix part of the manifests (a hook, an init job, a probe).
-  Ring 1 and Ring 2 get no Steward.
-- **The `ring0-steward` ServiceAccount** has one ClusterRole: `get`, `list` and
-  `watch` on every resource except `secrets`; `get` on `pods/log`; `delete` on
-  `pods` and `jobs`; `create` on `jobs` and on CNPG `backups`; `patch` on Argo
-  CD `applications` (refresh and sync). No `pods/exec`, no `secrets`, no
-  `delete` on anything that holds data. RBAC enforces this, whatever the
-  prompt says.
-- **Why no Secret and no `exec`, even on a cluster without member data.**
-  Ring 0's S3 key is account-wide at the shared provider, so it reaches Ring 1's
-  backups too. A Secret read or an `exec` into a pod that carries the key would
-  give a misled agent a way to delete them. This stays so until Ring 0 has a key
-  scoped to its own buckets, and even then the Steward has no need to read one.
+  instructions. The prompt says so, and the token's limits make that hold even
+  if the agent is misled.
 
 ### 5.5 Major updates
 
@@ -507,34 +427,15 @@ through `https://raw.githubusercontent.com/stephan271/smallworlds/ring-state/rin
 It is public: no token needed. Every update is a commit, so the branch's history
 is the record. Renovate and the PR checks ignore the branch.
 
-**When.** When a verification starts, when it moves to its next step, after
-every final verdict (`success` or `failure`) on `main`, and when the queue of
-waiting updates changes. That is a handful of commits per update, so roughly 50
-to 80 a day on `ring-state` while the queue is busy: a side branch nobody
-merges, so the number costs nothing. Each write replaces the file through
-GitHub's contents API, as one commit.
+**When.** After every final verdict (`success` or `failure`) on `main`.
 
-**What.** Built from git, not from the cluster, except the `now` section (below):
+**What.** Built from git, not from the cluster:
 
 ```json
 {
   "schema": 1,
   "updated": "2026-11-13T10:42:00Z",
   "head": {"commit": "05bdbcf…(40)", "state": "success", "green_since": "2026-11-13T09:10:00Z"},
-  "now": {
-    "state": "updating",
-    "commit": "7e21c40…(40)",
-    "pull": {"number": 58, "title": "Update gallery", "units": ["photos"]},
-    "step": "checks",
-    "step_since": "2026-11-13T10:31:00Z",
-    "started": "2026-11-13T10:12:00Z",
-    "queued": [
-      {"number": 57, "title": "Update nextcloud", "units": ["nextcloud"], "since": "2026-11-12T22:04:00Z"},
-      {"number": 54, "title": "Update Docker image ghcr.io/bulwarkmail/webmail to v1.21.2",
-       "units": ["mail"], "since": "2026-11-12T19:40:00Z"}
-    ],
-    "stuck": null
-  },
   "verified": [
     {"commit": "05bdbcf…", "verified_at": "2026-11-13T09:10:00Z",
      "units": {"platform": "a1…", "photos": "9c…", "nextcloud": "47…", "…": "…"}}
@@ -561,43 +462,6 @@ GitHub's contents API, as one commit.
   the way `admin-tools/release-notes.py` already does (*exists*).
 - `undo` is `restore` when the unit is migrating and an application or
   PostgreSQL image changed, otherwise `revert`.
-
-**`now`: what Ring 0 is doing at this moment.** The rest of the file says what
-Ring 0 *has* verified. `now` says whether it is busy, so that an Operator can
-tell "Ring 0 has nothing newer" apart from "Ring 0 is checking something newer
-right now", and does not adopt a state that Ring 0 is about to replace.
-
-| `state` | When | What the Desk shows |
-|---|---|---|
-| `up-to-date` | The head of `main` is `success` and no update is queued | "Ring 0 is up to date (verified 10:42)" |
-| `updating` | A verification is running, or the head is green and a queued update is about to be merged | "Ring 0 is checking *Update gallery* (#58): checks, 11 min. 2 more waiting." |
-| `stuck` | One of S1–S5 (§5.1) holds | "Ring 0 is stuck since 09:30 (rejected update, being looked at). Nothing new arrives until it is resolved." |
-
-- `step` is the follower's current step: `backup`, `sync`, `converge`, `smoke`,
-  `checks`, `quiet`, or `revert` / `restore` after a rejection. `verify()`
-  already runs them in this order; it reports each one as it starts.
-- `pull` is the queued PR whose squash commit is being verified, or `null` when
-  the commit came from a person's push.
-- `units` of a PR are the Update Units its changed files belong to (§7.2). The
-  Desk uses them to mark a row "newer version being checked on Ring 0 now" and
-  "newer version waiting on Ring 0".
-- `queued` lists the open PRs labelled `ring0-queue`, oldest first. Majors and
-  other PRs that are not queued are left out: they are not on their way.
-- `stuck` is `{"condition": "S1", "since": "…", "summary": "…"}`. It names no
-  issue link: the evidence issue lives in the private Ring 0 overlay repository
-  (§5.1). Until stuck detection is built (phase S1 in §11), the follower sets it
-  for a `failure` on the head and for an `error` that used up its retries.
-- **Freshness.** `raw.githubusercontent.com` may serve a file up to five minutes
-  old. The Desk shows `updated` next to the banner ("as of 10:42") and treats a
-  `now` older than two follower intervals plus the longest step as "Ring 0 has
-  not reported; its state is unknown", never as up to date.
-
-**Back-fill.** The first time the follower writes `ring0.json`, it fills
-`verified` from the `ring0/verified` statuses already on `main`'s history (180
-days), computing each commit's fingerprints from git. Without it the Desk would
-start with no Verified Pairs and offer nothing. The back-fill also has to reach
-the `main` commit that Ring 1's current tag `v1.3.0` was cut from, or Ring 1's
-own state is not a Verified Pair (§7.4).
 
 **`ring1.json`.** The same shape, written by a workflow in the Ring 1 overlay
 repository on every push to its `main`. It reads the overlay's Application Pins
@@ -673,7 +537,7 @@ repository with a `targetRevision` that is not a 40-character commit hash.
 
 Kustomize fetches a remote reference by commit hash with `git fetch`, and
 GitHub serves any commit reachable from a branch. This has to be confirmed with
-Argo CD's repo server on Ring 0 before anything depends on it (§11, phase D3).
+Argo CD's repo server on Ring 0 before anything depends on it (§11, phase 4).
 
 ### 7.4 Verified Pairs: which combinations are allowed
 
@@ -738,32 +602,7 @@ for its read-only page.
 
 ### 8.2 What it shows
 
-**At the top, Ring 0's banner**, from `ring0.json`'s `now` (§6): up to date,
-updating (which update, which step, for how long, how many wait behind it), or
-stuck, always with "as of" and the time.
-
-**Then one row per Update Unit** this community runs, plus the Platform, with a
-badge that says where the row stands:
-
-| Badge | Meaning | Offers |
-|---|---|---|
-| **Current** | Yours is Ring 0's newest verified content | nothing |
-| **Update ready** | Ring 0 verified newer content, it is a Verified Pair and has passed the minimum soak | *Update* |
-| **Soaking** | Ring 0 verified newer content, but less than the minimum soak ago | the time left until it is offered |
-| **Being checked** | Ring 0 is verifying newer content for this unit right now, or it is queued there | nothing yet; the row says it may change soon |
-| **Drift** | not Synced, not Healthy, or running something other than its pin | a link to the Application and what differs |
-
-A row can carry two badges (*Update ready* and *Being checked*: something is
-verified, and something newer is on its way). Rows that are not *Current* sort
-first.
-
-While the Desk is read-only and the community has no pin file yet (phase D2 in
-§11), "Yours" comes from what the cluster runs: each Application's images and
-chart versions, compared with `contents.versions` in `ring0.json`. That finds
-every version difference, but not a change to manifests alone (a setting, a
-resource limit). Once the pins exist, the fingerprints replace the comparison.
-
-The columns:
+One row per Update Unit this community runs, plus the Platform:
 
 | | Yours | Ring 1 (real members) | Ring 0 (verified) | Database | Undo |
 |---|---|---|---|---|---|
@@ -865,7 +704,7 @@ Tags stay, with a smaller job:
 | ADR 0060: Ring 2 adopts a release by merging a Renovate PR | Ring 2 adopts per Update Unit through its Desk |
 | design-update-strategy §5.1: Follow Policy as an overlay Renovate rule | Follow Policy as Desk notices and minimum soak (§8.5) |
 | design-update-strategy §4.3: weekly releases with meaningful numbers | tags as install baselines (§9) |
-| Roadmap steps 4–5, implementation_plan_hermes.md: an in-cluster agent manages updates | a Ring 0 Steward in GitHub Actions: Ring 0 actions and PRs, never merges (§5.3) |
+| Roadmap steps 4–5, implementation_plan_hermes.md: an in-cluster agent manages updates | a Ring 0 Steward in GitHub, PRs only (§5.3) |
 
 Unchanged: Ring 0 and everything the follower does today, pre-update backups,
 post-update alerts, "only Ring 0 rolls back automatically", and the overlay as
@@ -873,33 +712,18 @@ the one source of truth for what a community runs.
 
 ## 11. Implementation order
 
-Two tracks, independent of each other. The **Desk track** gives every Operator
-the page to see and adopt Ring 0's state. The **Steward track** keeps Ring 0
-moving when it gets stuck. The Desk does not need the Steward: without it, a
-stuck Ring 0 shows as *stuck* on the Desk's banner and waits for Stephan, as it
-does today. Each phase is useful on its own.
+Each phase is useful on its own.
 
 | # | Phase | Done when |
 |---|---|---|
 | 0 | **Observe.** Two weeks of the queue as it is; record every stuck case and what unblocked it. Drill the Gallery restore by hand (§5.2 precondition). | A list of real stuck cases, which becomes the Steward's test set |
-| 1 | **Remove Hermes and Remediation** (§4, ADR 0063). *Done 2026-11-13, tag `hermes-final`.* Group digest/pin updates weekly (§5.6): still open. | Ring 0 green without them |
-
-**Desk track**
-
-| # | Phase | Done when |
-|---|---|---|
-| D1 | **Units and Ring State** (§6, §7.2): `update-units.yaml` and its test; the follower writes `ring0.json` with `now`, `verified`, `contents` and the back-fill. | `ring0.json` shows Ring 0 checking a queued update while it happens, and its history reaches `v1.3.0`'s commit |
-| D2 | **Update Desk, read-only** (§8.1–8.2): the tenant, `updates.<domain>`, the banner and the badges. "Yours" from the running images, no pin file yet. No overlay changes. | Stephan sees from the Desk on Ring 1 which applications are behind and whether Ring 0 is busy |
-| D3 | **Application Pins** (§7.1–7.3): confirm commit-hash refs through Argo CD on Ring 0; `pins.py`; the never-`HEAD` render test. Move Ring 1 from `v1.3.0` to pins at the tag's `main` commit (Stephan runs it). The Desk switches "Yours" to the pins. | Ring 1's rendered manifests differ from `v1.3.0` only in `targetRevision` values; nothing restarts |
-| D4 | **Desk actions** (§8.3–8.4), Verified Pairs, Upgrade Stops, the git token. First real update: one Community Application on Ring 1. | One unit updated, undone, updated again through the Desk |
-| D5 | **Notices and `ring1.json`** (§8.5, §6); remove the Follow Policy's Renovate rule; Wizard and `prepare-community-repo.sh` ask for the Desk token. Docs: `doc/tenant-update-desk.md`, `CLAUDE.md`, `README.md`. | A Ring 2 install from the wizard gets its first notice |
-
-**Steward track**
-
-| # | Phase | Done when |
-|---|---|---|
-| S1 | **Follower: stuck detection and evidence** (§5.1); `now.stuck` from S1–S5 instead of the stand-in. Then automatic restore on Ring 0 (§5.2) behind `AUTO_RESTORE`, after the drill in phase 0. | A provoked failure opens a `ring0-stuck` issue with a usable bundle |
-| S2 | **Ring 0 Steward**, propose-only for PRs (§5.3–5.4): the self-hosted runner on Ring 0's server, the `ring0-steward` ServiceAccount, the attempt counter and `steward-working` pause in the follower, the protected-path rule in `mergequeue.py`, the subscription token. | It fixes a provoked failure within three attempts; after ~4 weeks, arm its PRs |
+| 1 | **Remove Hermes and Remediation** (§4, ADR 0063). Group digest/pin updates weekly (§5.6). | Ring 0 green without them; tag `hermes-final` |
+| 2 | **Follower: stuck detection and evidence** (§5.1). Then automatic restore on Ring 0 (§5.2) behind `AUTO_RESTORE`. | A provoked failure opens a `ring0-stuck` issue with a usable bundle |
+| 3 | **Ring 0 Steward**, propose-only (§5.3–5.4). Protected-path rule in `mergequeue.py`. | It proposes a correct fix for a provoked failure; after ~4 weeks, arm it |
+| 4 | **Ring State and Application Pins** (§6, §7): `update-units.yaml`, `ring0.json`, `pins.py`, render test. Confirm commit-hash refs with Argo CD on Ring 0. Move Ring 1 from `v1.3.0` to pins at the tag's `main` commit. | Ring 1's rendered manifests differ from `v1.3.0` only in `targetRevision` values; nothing restarts |
+| 5 | **Update Desk, read-only** (§8.1–8.2): the three columns and drift. | Stephan reads Ring 1's state from it |
+| 6 | **Desk actions** (§8.3–8.4), Verified Pairs, Upgrade Stops. First real update: one Community Application on Ring 1. | One unit updated, undone, updated again through the Desk |
+| 7 | **Notices and `ring1.json`** (§8.5, §6); remove the Follow Policy's Renovate rule; Wizard and `prepare-community-repo.sh` ask for the Desk token. Docs: `doc/tenant-update-desk.md`, `CLAUDE.md`, `README.md`. | A Ring 2 install from the wizard gets its first notice |
 
 ## 12. Open questions
 
@@ -914,4 +738,4 @@ does today. Each phase is useful on its own.
 - Retention of `ring0-before-*` backups once the follower restores by itself:
   three per namespace (*exists*) may be too few when several updates fail in a
   row.
-- The Steward's monthly cost, measured in phase S2, decides the daily run limit.
+- The Steward's monthly cost, measured in phase 3, decides the daily run limit.

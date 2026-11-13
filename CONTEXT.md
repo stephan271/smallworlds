@@ -175,7 +175,7 @@ The public record of what Ring 0 has verified (`ring0.json`, written by the Cana
 _Avoid_: Release manifest, status file
 
 **Ring 0 Steward**:
-The AI agent (Claude Code in a GitHub Actions workflow on Ring 0's server) that takes over when the Canary Follower reports Ring 0 stuck. It acts on Ring 0 within narrow limits, opens pull requests and comments, tries three times before calling a person, and never merges or touches any other cluster (`docs/adr/0064`).
+The AI agent (Claude Code in a GitHub Actions workflow) that takes over when the Canary Follower reports Ring 0 stuck. It opens pull requests and comments, and never merges or touches a cluster (`docs/adr/0064`).
 _Avoid_: Hermes (removed, `docs/adr/0063`), SRE agent, bot
 
 **Git Provider**:
