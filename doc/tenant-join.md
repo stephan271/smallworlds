@@ -21,7 +21,7 @@ wave 1, at `join.<domain>`.
 
 Both halves are served by one pod: Python standard library, source from the
 `join-src` ConfigMap, pages from `join-static`, running in a stock
-`python:3.14-slim` image, as Hermes does. Invitations live in SQLite on the
+`python:3.14-slim` image, as the Canary Follower and `pod-gateway` do. Invitations live in SQLite on the
 `join-data` claim, which is deliberately not backed up. Losing it loses open
 invitations, never a member.
 

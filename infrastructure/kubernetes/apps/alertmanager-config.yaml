@@ -1,10 +1,11 @@
 # Where alerts go (docs/adr/0049: system notification is not mail).
 #
-# Three AlertmanagerConfigs rather than one. prometheus-operator gives each its
-# own top-level route with `continue: true`, so every alert is offered to all
-# three, and each is validated on its own: a cluster whose notification Secret
-# is missing loses push and heartbeat, but the remediation hand-off keeps
-# working, and a broken remediation route cannot silence the operator's phone.
+# Two AlertmanagerConfigs rather than one. prometheus-operator gives each its
+# own top-level route with `continue: true`, so every alert is offered to both,
+# and each is validated on its own: a receiver added later in a config of its
+# own cannot silence the operator's phone by being broken. (A third config, the
+# hand-off to the Tier 1 remediation service, was removed with that service,
+# docs/adr/0063.)
 #
 # The two outward URLs are secrets — anyone holding an ntfy topic name can read
 # the alerts — so they never appear here. The installer plants them as
@@ -81,32 +82,3 @@ spec:
             name: smallworlds-notify
             key: heartbeat-url
           sendResolved: false
----
-# Tier 1 remediation: hand KubePodCrashLooping to the deterministic handler
-# service (which confirms OOMKilled and opens a right-sizing PR). The operator
-# still gets the same alert by push through smallworlds-alerts, so nothing is
-# hidden while Tier 1 runs in DRY_RUN.
-apiVersion: monitoring.coreos.com/v1alpha1
-kind: AlertmanagerConfig
-metadata:
-  name: smallworlds-remediation
-  namespace: monitoring
-  labels:
-    alertmanagerConfig: smallworlds
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
-spec:
-  route:
-    receiver: tier1-webhook
-    groupBy: ["alertname", "namespace"]
-    groupWait: 30s
-    groupInterval: 5m
-    repeatInterval: 4h
-    matchers:
-      - name: alertname
-        value: KubePodCrashLooping
-  receivers:
-    - name: tier1-webhook
-      webhookConfigs:
-        - url: http://remediation.remediation.svc.cluster.local:8080/webhook
-          sendResolved: true

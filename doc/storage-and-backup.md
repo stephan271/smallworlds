@@ -128,7 +128,7 @@ both, since which volume a static PV uses is decided by its `local.path`:
 | **Stalwart** | All mail data *and blobs* stored in PostgreSQL (`@type: PostgreSql` store in `stalwart-config`) | CNPG `database` (stalwart ns), 20 Gi ×2 | — |
 | **Keycloak** | — (realm/SPI mounted from ConfigMaps) | CNPG `keycloak-db` (pgvecto.rs image), 20 Gi ×2 | — |
 | **Bulwark** | Admin state → `bulwark-data` PVC (512 Mi, local-path) | — | — |
-| **Jitsi, Excalidraw, Collabora, Euro-Office, Dashboard, Hermes, Remediation** | Stateless (config via ConfigMaps/Secrets; users' Euro-Office source documents remain in Nextcloud) | — | — |
+| **Jitsi, Excalidraw, Collabora, Euro-Office, Dashboard** | Stateless (config via ConfigMaps/Secrets; users' Euro-Office source documents remain in Nextcloud) | — | — |
 | **Monitoring** | Prometheus 20 Gi, Alertmanager 2 Gi, Loki 20 Gi (all local-path StatefulSet claims) | — | Grafana ephemeral |
 | **Garage itself** | 120 Gi static PV, layout capacity assigned **100 G** by `garage-init-job`, `replicationFactor: 1` | — | — |
 | **k3s control plane** | Embedded datastore under `/mnt/smallworlds-data/k3s` | — | — |
@@ -298,7 +298,7 @@ What still remains, ranked:
 | CNPG clusters (20 Gi each) | **Special procedure, but zero-downtime** | On a non-expandable storage class, follow the CNPG resize dance: raise `spec.storage.size`, then one instance at a time (replica first, primary after switchover) delete the pod **and its PVC** so the operator recreates it at the new size and re-clones from the primary. `instances: 2` makes this rolling. |
 | Prometheus / Loki / Alertmanager | Same as local-path | `volumeClaimTemplates` are immutable; orphan-delete the StatefulSet and recreate the claim, or accept losing metrics/log history. |
 | Garage capacity overall | Layout + PV + volume together | Growing usable S3 space = grow the Hetzner volume, then the layout assignment (and optionally the PV number). Multi-node Garage is natively supported (see below). |
-| Node (vertical) | Reboot required | Change `server_type` in `infrastructure/terraform/main.tf` → `terraform apply`. Hermes currently only *reports* resource pressure (its tools are read-only + `send_report`); an `open_pr` tool that proposes such changes automatically is planned but not implemented. |
+| Node (vertical) | Reboot required | Change `server_type` in `infrastructure/terraform/main.tf` → `terraform apply`. Nothing proposes this automatically; memory and disk pressure reach the Operator as alerts (`doc/alerting.md`). |
 | Node (horizontal) | **Major undertaking** | See below. |
 
 ### Adding a worker node (horizontal scaling)

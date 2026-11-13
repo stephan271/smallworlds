@@ -30,7 +30,7 @@ spec:
       containers:
         - name: join
           # Pure Python stdlib, run straight from a ConfigMap-mounted volume —
-          # no image build, no pip, starts offline (same as Hermes).
+          # no image build, no pip, starts offline (same as pod-gateway).
           image: python:3.14-slim@sha256:b877e50bd90de10af8d82c57a022fc2e0dc731c5320d762a27986facfc3355c1
           command: ["python", "-u", "/app/main.py"]
           ports:

@@ -1,5 +1,10 @@
 # Walkthrough: Phase 2 - Backup and Restore System
 
+> **Replaced (2026-11-13).** The Hermes and Remediation agents this describes were removed
+> (`docs/adr/0063`, last commit tagged `hermes-final`). Update steering now follows
+> `plans-and-walkthroughs/design-per-app-updates.md`. Kept as a record only.
+
+
 We've successfully implemented Phase 2 of the Hermes AI implementation plan, bringing robust backup and restore capabilities to the SmallWorlds cluster.
 
 ## What Was Completed

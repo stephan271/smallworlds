@@ -1,6 +1,6 @@
 """Keycloak, as the `join` service account, over the in-cluster Service.
 
-Standard library only (urllib), like the Hermes and Remediation agents. The
+Standard library only (urllib), like the rest of join. The
 account holds manage-users, view-users and query-users and nothing else
 (tenants/join/join-keycloak-setup-job.yaml).
 """

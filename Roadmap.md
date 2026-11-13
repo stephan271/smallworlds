@@ -115,7 +115,7 @@ The vision for SmallWorlds infrastructure is to move towards a fully autonomous,
 - **Action:** Establish pipelines where the agent can run tests, lint manifests, and create Pull Requests (in Forgejo). Human approval is still required at this stage for the agent's PRs.
 
 ### Step 4: The SRE Agent Platform
-- **✅ Initial implementation exists:** Hermes agent with observability and cluster integrations.
+- **Replaced (2026-11-13):** the in-cluster Hermes agent was removed (`docs/adr/0063`). Agent work now happens beside Ring 0, in GitHub, through pull requests only: the Ring 0 Steward (`docs/adr/0064`, `plans-and-walkthroughs/design-per-app-updates.md`).
 - **Goal:** Deploy a localized LLM-powered agent to manage operations.
 - **Action:** Introduce an agent framework (like the Hermes Agent or an open-source equivalent) that has access to:
   1. The cluster's observability stack (to detect failing pods, OOM errors, or network issues).
@@ -123,7 +123,7 @@ The vision for SmallWorlds infrastructure is to move towards a fully autonomous,
   3. The Kubernetes API (for real-time safe remediation, like restarting stuck pods).
 
 ### Step 5: Autonomous Lifecycle Management
-- **✅ Initial implementation exists:** remediation and escalation; fully autonomous lifecycle management remains future work.
+- **Replaced (2026-11-13):** the in-cluster remediation service was removed (`docs/adr/0063`). Continuous updates run through Ring 0's merge queue and the Ring 0 Steward; communities adopt them per application on the Update Desk (`docs/adr/0065`).
 - **Goal:** Closed-loop self-healing and continuous updates.
 - **Action:** Empower the agent to handle routine maintenance autonomously without human intervention.
   - **App Updates:** The agent detects a new release of Nextcloud, tests the upgrade in a temporary namespace, and automatically pushes the update to production if health checks pass.

@@ -436,7 +436,7 @@
                 <div>
                     <span class="tag">Canary Follower</span>
                     <h3>Follows and verifies main</h3>
-                    <p><code>tenants/canary-follower</code> (Ring 0 only; stdlib Python from a ConfigMap, the Hermes/Remediation pattern) polls <code>main</code>. On a new commit it hard-refreshes every Application and runs a full sync &mdash; Argo CD neither notices a new commit in a remote Kustomize base nor runs hooks without that &mdash; waits for <code>Synced</code>/<code>Healthy</code>, smoke-tests every Ingress host from inside the cluster, waits out a quiet period with no <code>critical</code> alert, and reports the result as the GitHub commit status <code>ring0/verified</code>.</p>
+                    <p><code>tenants/canary-follower</code> (Ring 0 only; stdlib Python from a ConfigMap, the pattern of <code>join</code> and <code>pod-gateway</code>) polls <code>main</code>. On a new commit it hard-refreshes every Application and runs a full sync &mdash; Argo CD neither notices a new commit in a remote Kustomize base nor runs hooks without that &mdash; waits for <code>Synced</code>/<code>Healthy</code>, smoke-tests every Ingress host from inside the cluster, waits out a quiet period with no <code>critical</code> alert, and reports the result as the GitHub commit status <code>ring0/verified</code>.</p>
                 </div>
             </div>
 

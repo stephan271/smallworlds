@@ -132,12 +132,6 @@
     },
     {
       "matchFileNames": [
-        "infrastructure/kubernetes/tenants/hermes/**"
-      ],
-      "groupName": "hermes"
-    },
-    {
-      "matchFileNames": [
         "infrastructure/kubernetes/tenants/immich/**"
       ],
       "groupName": "immich"
@@ -173,12 +167,6 @@
         "infrastructure/kubernetes/tenants/pod-gateway/**"
       ],
       "groupName": "pod-gateway"
-    },
-    {
-      "matchFileNames": [
-        "infrastructure/kubernetes/tenants/remediation/**"
-      ],
-      "groupName": "remediation"
     },
     {
       "matchFileNames": [

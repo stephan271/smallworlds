@@ -1,5 +1,10 @@
 # Status Panel for SmallWorlds Dashboard
 
+> **Not built; data source removed (2026-11-13).** The `status-data` ConfigMap this
+> plan reads was never written by anything and was removed with Hermes (`docs/adr/0063`).
+> Kept as a record only.
+
+
 Add a dynamic, community-facing status panel to the existing SmallWorlds dashboard at `smallworlds.network`. The panel shows per-app health, active incidents, and planned maintenance windows. Status data is served from a separate ConfigMap (`status.json`) that Hermes Agent (or an admin) can update via `kubectl patch` without Git commits.
 
 ## Proposed Changes
