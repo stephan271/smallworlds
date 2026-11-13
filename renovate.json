@@ -43,6 +43,17 @@
       "minimumReleaseAge": null
     },
     {
+      "description": "Title a PR by what it updates. Renovate's defaults give a pin the action 'Pin' and the group topic 'dependencies', so an application's group whose first upgrade was a pin was titled 'Pin dependencies' although it also carried real updates (#51 Postgres 16.13 -> 16.15 in immich, #57 the Nextcloud chart 9.2.0 -> 9.4.1). Every group PR is now 'Update <group>'; the table in its body still tells pins from updates.",
+      "matchUpdateTypes": [
+        "pin",
+        "pinDigest"
+      ],
+      "commitMessageAction": "Update",
+      "group": {
+        "commitMessageTopic": "{{{groupName}}}"
+      }
+    },
+    {
       "description": "Ring 0's merge queue (tenants/canary-follower/src/mergequeue.py): the Canary Follower squash-merges PRs with this label one at a time while main is green on Ring 0, and reverts one Ring 0 rejects. Never majors, and never what Ring 0 does not run (it could not verify it): those stay for a person to merge.",
       "matchUpdateTypes": [
         "minor",
