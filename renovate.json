@@ -252,6 +252,18 @@
       "groupName": "kubectl image for init jobs"
     },
     {
+      "description": "The python base image of our own stdlib services (join, pod-gateway, canary-follower, Immich's pod export and admin init, Stalwart's mail provisioner). Grouped per application, one Python release became one PR and one Ring 0 run per tenant (#50, #51, #60, #61 for 3.15); our code is the same stdlib-only code everywhere, so the image moves in one PR. After the per-application rules, so it wins.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "python",
+        "docker.io/python",
+        "docker.io/library/python"
+      ],
+      "groupName": "python base image"
+    },
+    {
       "matchDatasources": [
         "helm"
       ],
