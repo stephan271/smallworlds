@@ -6,7 +6,7 @@ helmCharts:
   - name: jitsi-meet
     repo: https://jitsi-contrib.github.io/jitsi-helm/
     releaseName: jitsi
-    version: 2.20.0
+    version: 2.22.2
     valuesFile: values.yaml
 
 bases:

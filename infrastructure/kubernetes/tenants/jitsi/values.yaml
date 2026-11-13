@@ -41,7 +41,7 @@ web:
 
   extraContainers:
     - name: jitsi-oidc-adapter
-      image: ghcr.io/jitsi-contrib/jitsi-oidc-adapter:v20260328
+      image: ghcr.io/jitsi-contrib/jitsi-oidc-adapter:v20260328@sha256:c4a28b215f5ea4893e308cd3f15b1f1c6954231ab784cac6362f420e6648a745
       imagePullPolicy: IfNotPresent
       ports:
         - name: http
