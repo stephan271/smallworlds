@@ -70,7 +70,7 @@ Init job images are pinned to `alpine/k8s:<version>` (not `bitnami/kubectl:lates
 
 These share an unusual deployment pattern: **pure Python 3.14 stdlib, no third-party deps, no Dockerfile** — source runs straight from a ConfigMap-mounted volume (`kustomize configMapGenerator`) inside a stock `python:3.14-slim` image via `python -u /app/main.py`, with `PYTHONPATH=/app` set explicitly (ConfigMap volumes symlink through a timestamped `..data` dir, which breaks default import resolution otherwise). Editing a module is just editing the `.py` file and letting Kustomize regenerate the ConfigMap — no image build/push step, and the pod starts offline/deterministically. ConfigMap keys are flat, so every source file must be listed in `configMapGenerator`; each service has a test that checks it.
 
-No AI agent runs inside any cluster. The in-cluster Hermes (Tier 2) and Remediation (Tier 1) agents were removed (`docs/adr/0063`, tag `hermes-final`). Update steering — the Ring 0 Steward in GitHub Actions and the per-application Update Desk — is designed in `plans-and-walkthroughs/design-per-app-updates.md` (`docs/adr/0064`, `0065`; proposed, not built).
+No AI agent runs inside any cluster. The in-cluster Hermes (Tier 2) and Remediation (Tier 1) agents were removed (`docs/adr/0063`, tag `hermes-final`). The Ring 0 Steward (`docs/adr/0064`) is Claude Code in a GitHub Actions workflow on a runner beside Ring 0's k3s, acting on Ring 0 only through the `ring0-steward` ServiceAccount; see the Ring 0 section below. The per-application Update Desk is designed in `plans-and-walkthroughs/design-per-app-updates.md` (`docs/adr/0065`; proposed, not built).
 
 ## Member Invitations (`tenants/join`)
 
@@ -223,6 +223,15 @@ never turn on Renovate's own `automerge` (`admin-tools/test-renovate-groups.py` 
 it would land several updates between two verifications. Changes to `e2e-tests/` or
 `admin-tools/canary/` are what Ring 0 runs on the next commit, so a broken test stops the
 queue. Details: `tenants/canary-follower/README.md`.
+
+When Ring 0 cannot move on by itself (a rejected head it did not revert, errors past
+their retries, a queue idle for a day, a queued PR red for 12 hours, or a rejected and
+reverted update), the follower opens an **incident** with evidence in the private overlay
+repository and asks the **Ring 0 Steward** (`admin-tools/canary/steward/`, ADR 0064): it
+acts on Ring 0 within `steward-rbac.yaml` (no Secrets, no exec) and fixes forward through
+PRs labelled `steward` from its own GitHub App, three attempts before `Ring0NeedsPerson`.
+`admin-tools/canary/` and `tenants/canary-follower/` are protected paths: a Steward PR
+touching them waits for the owner's approval, so it cannot loosen what judges it.
 
 ## Local end-to-end staging (`admin-tools/test-pr-locally.sh`)
 

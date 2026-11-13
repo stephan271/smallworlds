@@ -8,6 +8,8 @@ without it the follower verifies and only logs, and merges nothing.
 """
 import json
 import logging
+import urllib.error
+import urllib.parse
 import urllib.request
 
 log = logging.getLogger("github")
@@ -77,17 +79,30 @@ class GitHub:
         """The pull requests a commit on main came from (a squash merge's PR)."""
         return self._request("GET", f"/commits/{sha}/pulls")
 
-    def checks_passed(self, sha: str) -> bool:
-        """Every status and check run on a PR head has passed, and the PR checks
-        have run at all (a head with nothing reported yet is not green)."""
+    def readiness(self, sha: str) -> str:
+        """'ready', 'waiting' (something still runs, or Renovate's release-age
+        wait), or 'failed' (a check or status concluded red): the merge queue
+        merges only ready PRs, and only a failed one counts towards S4."""
         combined = self._request("GET", f"/commits/{sha}/status")
-        if combined.get("total_count", 0) and combined.get("state") != "success":
-            return False
+        states = [s.get("state") for s in combined.get("statuses", [])]
         runs = self._request("GET", f"/commits/{sha}/check-runs?per_page=100").get("check_runs", [])
-        if not runs:
-            return False
-        return all(r.get("status") == "completed"
-                   and r.get("conclusion") in ("success", "neutral", "skipped") for r in runs)
+        if "failure" in states or "error" in states or any(
+                r.get("status") == "completed"
+                and r.get("conclusion") not in ("success", "neutral", "skipped") for r in runs):
+            return "failed"
+        if not runs or "pending" in states or any(r.get("status") != "completed" for r in runs):
+            return "waiting"
+        return "ready"
+
+    def approved_by(self, number: int, login: str, head_sha: str) -> bool:
+        """`login`'s newest review on the PR approves its current head."""
+        newest = None
+        for review in self._request("GET", f"/pulls/{number}/reviews?per_page=100"):
+            if review.get("user", {}).get("login") == login and review.get("state") in (
+                    "APPROVED", "CHANGES_REQUESTED", "DISMISSED"):
+                newest = review
+        return (newest is not None and newest["state"] == "APPROVED"
+                and newest.get("commit_id") == head_sha)
 
     def merge(self, number: int, head_sha: str, title: str) -> str:
         """Squash-merge: one commit on main per update, which one revert undoes."""
@@ -123,3 +138,31 @@ class GitHub:
         self._request("POST", "/git/refs", {"ref": f"refs/heads/{branch}", "sha": sha})
         return self._request("POST", "/pulls", {"title": title, "head": branch, "base": base,
                                                 "body": body})["number"]
+
+    # ------------------------------------------------------------ incidents
+    # Used on the private Ring 0 overlay repository (design §5.1): the evidence
+    # holds logs, which may name Ring 0's own addresses and accounts.
+
+    def issues(self, label: str, state: str = "open") -> list[dict]:
+        found = self._request("GET", f"/issues?state={state}&labels={label}&per_page=100")
+        return [i for i in found if "pull_request" not in i]
+
+    def issue(self, number: int) -> dict:
+        return self._request("GET", f"/issues/{number}")
+
+    def create_issue(self, title: str, body: str, labels: list[str]) -> int:
+        return self._request("POST", "/issues", {"title": title, "body": body,
+                                                 "labels": labels})["number"]
+
+    def edit_issue(self, number: int, **fields) -> None:
+        self._request("PATCH", f"/issues/{number}", fields)
+
+    def remove_label(self, number: int, name: str) -> None:
+        try:
+            self._request("DELETE", f"/issues/{number}/labels/{urllib.parse.quote(name)}")
+        except urllib.error.HTTPError as error:
+            if error.code != 404:  # not there: nothing to remove
+                raise
+
+    def comments(self, number: int) -> list[dict]:
+        return self._request("GET", f"/issues/{number}/comments?per_page=100")

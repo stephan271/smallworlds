@@ -57,6 +57,28 @@ class Settings:
     queue_label: str = "ring0-queue"
     queue_author: str = "renovate[bot]"
 
+    # The Ring 0 Steward (incidents.py; design-per-app-updates.md §5). Incidents
+    # are issues in the private Ring 0 overlay repository; the follower's token
+    # needs Issues (read and write) there. STEWARD off: incidents are still
+    # opened and closed, the Steward is never asked.
+    overlay_repo: str = "stephan271/my-canary-installation"
+    incidents: str = "false"
+    steward: str = "false"
+    steward_login: str = "smallworlds-steward[bot]"
+    owner_login: str = "stephan271"
+    protected_paths: str = ("e2e-tests/,admin-tools/canary/,infrastructure/kubernetes/tenants/canary-follower/,"
+                            "renovate.json,.github/")
+    steward_attempts: int = 3
+    steward_runs_per_day: int = 6
+    steward_request_timeout_seconds: int = 3600
+    steward_working_timeout_seconds: int = 10800
+    steward_retry_seconds: int = 10800
+    stuck_queue_seconds: int = 86400
+    unmergeable_seconds: int = 43200
+    # Restoring a migrating tenant on Ring 0 by itself (design §5.2) is not built;
+    # until it is, an S1 that needs a restore tells the Operator at once.
+    auto_restore: str = "false"
+
     @staticmethod
     def on(value: str) -> bool:
         return value.strip().lower() in ("1", "true", "yes", "on")
@@ -69,6 +91,10 @@ class Settings:
     @property
     def migrating(self) -> list[str]:
         return [t.strip() for t in self.migrating_tenants.split(",") if t.strip()]
+
+    @property
+    def protected(self) -> tuple[str, ...]:
+        return tuple(p.strip() for p in self.protected_paths.split(",") if p.strip())
 
     @property
     def base_repo_url(self) -> str:

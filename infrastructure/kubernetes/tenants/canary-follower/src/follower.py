@@ -8,6 +8,11 @@ Steps: a pre-update backup when the commit touches a migrating tenant, follow,
 converge, smoke, the e2e and data checks Job, a quiet period. After a verdict
 the merge queue merges the next update (success) or reacts to the rejection.
 
+When Ring 0 cannot move on by itself, incidents.py hands the case to the Ring 0
+Steward. While the Steward is about to act or acts on Ring 0, the follower
+verifies and merges nothing; afterwards it verifies main's head again from the
+start, even when that head already has a verdict.
+
 States:
   success  every step passed
   failure  Ring 0 did not take the commit: not converged, smoke or alert
@@ -65,7 +70,7 @@ class Follower:
     def __init__(self, settings, github, argocd, kube,
                  smoke=checks.smoke, quiet=checks.quiet, hosts=checks.ingress_hosts,
                  settle=checks.settle,
-                 backups=None, checks_job=None, queue=None, clock=time.monotonic):
+                 backups=None, checks_job=None, queue=None, incidents=None, clock=time.monotonic):
         self.s = settings
         self.github = github
         self.argocd = argocd
@@ -77,6 +82,7 @@ class Follower:
         self.backups = backups
         self.checks_job = checks_job
         self.queue = queue
+        self.incidents = incidents
         self.last_sha: str | None = None
         self.last_outcome: Outcome | None = None
         self.last_action: str | None = None
@@ -97,8 +103,33 @@ class Follower:
                 and self.clock() - at >= self.s.error_retry_seconds)
 
     def tick(self) -> Outcome | None:
+        incidents = self.incidents
+        reverify = None
+        if incidents is not None:
+            try:
+                incidents.refresh()
+                if incidents.paused():
+                    self.last_action = "paused: the Ring 0 Steward is working on Ring 0"
+                    return None
+                reverify = incidents.take_reverify()
+            except Exception as error:
+                # Most likely the token cannot read the overlay's issues yet.
+                log.warning("reading the incidents failed (%s: %s); following without them",
+                            type(error).__name__, error)
+                incidents = None
+        outcome = self._tick(reverify)
+        if incidents is not None:
+            try:
+                incidents.review(self, outcome)
+            except Exception:
+                log.exception("reviewing the incidents failed")
+        return outcome
+
+    def _tick(self, reverify: str | None = None) -> Outcome | None:
         sha = self.github.head_sha(self.s.branch)
-        if sha == self.last_sha:
+        if sha == reverify:
+            log.info("%s: verifying again after the Ring 0 Steward acted", sha[:12])
+        elif sha == self.last_sha:
             if not self._retry_due(sha):
                 self._advance(sha)
                 return None
@@ -140,11 +171,22 @@ class Follower:
         return outcome
 
     def _advance(self, sha: str) -> None:
-        """Merge the next queued update, only while this head is green."""
+        """Merge the next queued update, only while this head is green; while
+        Ring 0 is stuck on a red head, only the Steward's fix forward."""
         if self.queue is None:
             return
         outcome = self.last_outcome
-        if outcome is None or outcome.sha != sha or outcome.state != "success":
+        if outcome is None or outcome.sha != sha:
+            return
+        if outcome.state != "success":
+            if (outcome.state in FINAL_STATES and self.incidents is not None
+                    and self.incidents.has_open_cluster()):
+                try:
+                    if (merged := self.queue.advance_fix()) is not None:
+                        self.last_action = f"merged the Steward's fix #{merged}"
+                except Exception as error:
+                    log.exception("merging the Steward's fix failed")
+                    self.last_action = f"merge queue failed: {type(error).__name__}: {error}"
             return
         # Green, but only for itself: a commit that landed on main meanwhile
         # (a person's push during the hour of checks) has not been verified,

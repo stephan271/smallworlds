@@ -101,16 +101,74 @@ green again:
 `GET /status` shows the last action (`merged #41`, `reverted by #57`, …) and why the
 queue is waiting.
 
+## When Ring 0 is stuck: incidents and the Ring 0 Steward
+
+When Ring 0 cannot move on by itself, the follower opens an **incident**: an issue
+in the private `stephan271/my-canary-installation` (`OVERLAY_REPO`), never in the
+public base, because its evidence holds Ring 0's logs (`src/incidents.py`,
+`src/evidence.py`; design-per-app-updates.md §5).
+
+| Incident | When | Kind |
+|---|---|---|
+| S1 | `main`'s head was rejected and not reverted | cluster |
+| S2 | an error outlasted `ERROR_RETRIES` | cluster |
+| S3 | queued updates exist, nothing merged for a day | cluster |
+| S4 | a queued PR stayed unmergeable or red for 12 hours | pr |
+| R  | a queued update was rejected and reverted | pr |
+
+The issue holds the evidence: the change and its diff, the Applications that are
+not Synced and Healthy with their last operation, the Warning events and failing
+pods in their namespaces with the end of each log, and the end of the checks Job's
+log. Obvious secrets are masked. Its first line is a hidden marker with the
+incident's state, so a restarted follower carries on.
+
+With `STEWARD: "true"`, the follower then asks the **Ring 0 Steward** (Claude Code
+in a GitHub Actions workflow on Ring 0's own server, `admin-tools/canary/steward/`)
+by labelling the issue `steward-requested`:
+
+- For a **cluster** incident the follower verifies and merges nothing from that
+  moment until the Steward's run ends, so a verdict never mixes with its actions.
+  If it acted on Ring 0, the follower verifies `main`'s head again from the start;
+  if it opened a fix (a PR labelled `steward` with the line `Ring0-Incident: #N`),
+  the merge queue merges that fix even though the head is red (`advance_fix`), and
+  only that.
+- For a **pr** incident Ring 0 keeps moving; the verdict on the Steward's PR, once
+  merged, decides.
+- One **attempt** is one run that left something to test, and the verdict on it.
+  A failed attempt adds fresh evidence to the issue and asks again. After
+  `STEWARD_ATTEMPTS` (3) failed attempts, or at once when the next step is not the
+  Steward's (a restore while automatic restore is off, a refused credential), the
+  issue is labelled `ring0-needs-person` and the warning `Ring0NeedsPerson`
+  reaches ntfy.
+- A run that ended without a result (a usage limit, a workflow that never
+  started) is not an attempt; it is retried after three hours, and three of them
+  go to a person too. At most `STEWARD_RUNS_PER_DAY` (6) runs a day.
+- The incident closes by itself when Ring 0 is green again (S1, S2), the queue
+  merges again (S3), the PR is no longer stuck (S4), or the Steward's fix passed
+  (R).
+
+The Steward's PRs join the merge queue like Renovate's when they carry
+`ring0-queue` and come from `STEWARD_LOGIN`. One that touches `PROTECTED_PATHS`
+(the tests, the canary checks, this follower, `renovate.json`, `.github/`) waits
+for `OWNER_LOGIN`'s approving review of its current head.
+
+The Steward reaches Ring 0 only as the ServiceAccount `ring0-steward`
+(`steward-rbac.yaml`): it reads everything but Secrets, deletes pods and Jobs,
+creates Jobs and CNPG Backups, and patches Applications to sync them. No
+`exec`, no Secrets: Ring 0's S3 key reaches Ring 1's backups. Setting it up:
+`admin-tools/canary/steward/README.md`.
+
 ## Deploying it (Ring 0 only)
 
 The tenant is **not** in the base's root kustomization. The canary overlay adds
 `apps/canary-follower.yaml` to its root resources; no other overlay may.
 
-The token is a fine-grained GitHub token on `stephan271/smallworlds` only, with
+The token is a fine-grained GitHub token on `stephan271/smallworlds`, with
 **Commit statuses**, **Contents**, **Pull requests**, **Issues** (labels) and
 **Workflows** (a Renovate PR that pins GitHub Actions changes `.github/workflows/`, and
-GitHub refuses to merge that without it): read and write. It lives on Ring 0 only,
-which holds no member data.
+GitHub refuses to merge that without it): read and write; and on
+`stephan271/my-canary-installation` with **Issues**: read and write, for the
+incidents. It lives on Ring 0 only, which holds no member data.
 
 The checks Job needs the Secret `canary-checks`: join's service account (which mints
 the e2e test users' onboarding links, as the Invitation Desk does) and the seeder's
@@ -132,7 +190,7 @@ kubectl -n canary-follower rollout restart deployment/canary-follower
 Without the token the follower still syncs and verifies, only logs its verdicts, and
 merges nothing. Switches in `config.yaml`: `PRE_UPDATE_BACKUPS`, `CHECKS_CRONJOB`
 (empty: no checks Job, and the status says e2e and data checks were not run),
-`MERGE_QUEUE`, `AUTO_REVERT`.
+`MERGE_QUEUE`, `AUTO_REVERT`, `INCIDENTS`, `STEWARD`.
 
 To run the checks by hand against `main`:
 

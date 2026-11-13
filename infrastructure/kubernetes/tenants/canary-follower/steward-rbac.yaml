@@ -1,0 +1,101 @@
+# The Ring 0 Steward's only way into Ring 0 (design-per-app-updates.md §5.3–5.4,
+# docs/adr/0064). Its workflow runs on a self-hosted runner on Ring 0's server
+# as the unprivileged user `steward`, whose kubeconfig holds the token below
+# (admin-tools/canary/install-steward-runner.sh writes it).
+#
+# What it may do is what leaves no lasting difference from git: read, delete a
+# pod or a Job (its controller or the follower recreates it), start a Job from a
+# CronJob, take a CNPG Backup, ask Argo CD to refresh or sync. What it must never
+# reach, RBAC enforces whatever the prompt says:
+#   - no Secrets: Ring 0's S3 key is account-wide and reaches Ring 1's backups;
+#   - no pods/exec or pods/attach, for the same reason (env holds the keys);
+#   - no delete on anything that holds data (PVCs, namespaces, CNPG Clusters,
+#     Backups) and no create/update on workloads or configuration.
+# Kubernetes RBAC cannot say "everything except Secrets", so reading is listed
+# by group; core resources one by one.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ring0-steward
+  namespace: canary-follower
+---
+# A long-lived token for the runner's kubeconfig. Ring 0 only; rotating it is
+# deleting this Secret (Argo CD recreates it) and running the install script's
+# kubeconfig step again.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ring0-steward-token
+  namespace: canary-follower
+  annotations:
+    kubernetes.io/service-account.name: ring0-steward
+type: kubernetes.io/service-account-token
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ring0-steward
+rules:
+  # Read: everything but Secrets.
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "services", "endpoints", "configmaps", "events",
+                "namespaces", "nodes", "persistentvolumeclaims", "persistentvolumes",
+                "serviceaccounts", "replicationcontrollers", "resourcequotas", "limitranges"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps", "batch", "autoscaling", "policy", "networking.k8s.io", "discovery.k8s.io",
+                "events.k8s.io", "storage.k8s.io", "apiextensions.k8s.io", "rbac.authorization.k8s.io",
+                "metrics.k8s.io", "argoproj.io", "postgresql.cnpg.io", "barmancloud.cnpg.io",
+                "cert-manager.io", "acme.cert-manager.io", "traefik.io", "monitoring.coreos.com",
+                "velero.io"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+  # Act, within what leaves nothing behind.
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["delete"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "delete"]
+  - apiGroups: ["postgresql.cnpg.io"]
+    resources: ["backups"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ring0-steward
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ring0-steward
+subjects:
+  - kind: ServiceAccount
+    name: ring0-steward
+    namespace: canary-follower
+---
+# Refresh and sync: a patch of the Application's annotation or operation. The
+# Applications' specs are the root Application's, whose self-heal puts any other
+# change back.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ring0-steward
+  namespace: argocd
+rules:
+  - apiGroups: ["argoproj.io"]
+    resources: ["applications"]
+    verbs: ["patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ring0-steward
+  namespace: argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ring0-steward
+subjects:
+  - kind: ServiceAccount
+    name: ring0-steward
+    namespace: canary-follower

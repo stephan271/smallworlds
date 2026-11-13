@@ -33,3 +33,15 @@ data:
   # the token's contents and pull-request permissions (README).
   MERGE_QUEUE: "true"
   AUTO_REVERT: "true"
+  # Incidents and the Ring 0 Steward (src/incidents.py, design-per-app-updates.md
+  # §5). INCIDENTS opens and closes the issues in OVERLAY_REPO (the token needs
+  # Issues there too); STEWARD also asks the Steward's workflow to act on them.
+  # Its PRs arrive as STEWARD_LOGIN; on PROTECTED_PATHS they need OWNER_LOGIN's
+  # approval before the queue merges them.
+  OVERLAY_REPO: "stephan271/my-canary-installation"
+  INCIDENTS: "true"
+  STEWARD: "false"
+  STEWARD_LOGIN: "smallworlds-steward[bot]"
+  OWNER_LOGIN: "stephan271"
+  STEWARD_ATTEMPTS: "3"
+  STEWARD_RUNS_PER_DAY: "6"
