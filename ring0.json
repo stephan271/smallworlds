@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-14T16:17:44Z",
+ "updated": "2026-11-14T16:19:50Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -298,8 +298,8 @@
    ],
    "operation": {
     "phase": "Running",
-    "finished": "2026-11-14T16:13:42Z",
-    "message": "one or more synchronization tasks completed unsuccessfully, reason: error when patching \"/dev/shm/1801919515\": ServiceAccount \"keycloak-keycloakx\" is invalid: metadata.labels: Invalid value: \"26.8.2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc49\": a valid label must be an empty string or \u2026"
+    "finished": "2026-11-14T16:19:10Z",
+    "message": "one or more synchronization tasks completed unsuccessfully, reason: error when patching \"/dev/shm/126667996\": ServiceAccount \"keycloak-keycloakx\" is invalid: metadata.labels: Invalid value: \"26.8.2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc49\": a valid label must be an empty string or c\u2026"
    },
    "wave": 0
   },
@@ -544,7 +544,6 @@
    "version": null,
    "revision": "116030ca2da5a59c1cc7661a4ea3a55c44d6734c",
    "images": [
-    "docker.io/alpine/k8s:1.37.1@sha256:712dc5385d1c1a3f83b747fa9e40f64d433a97f72ff42f9755ff7dd1f62846e4",
     "docker.io/library/nextcloud:35.0.2-apache",
     "docker.io/redis:6.2-alpine@sha256:3f9c6e23ed6bea3b41d0ef709fc164c1a0b7c00d5a21a60e0e9c33ada5496881",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
@@ -553,9 +552,9 @@
     "rclone/rclone:1.74@sha256:623378ad0ff3ebd5cebf77720843c0e02edfe46e2d5b5ac6bed54c6371780dfb"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/nextcloud-oidc-config"
+    "phase": "Succeeded",
+    "finished": "2026-11-14T16:17:50Z",
+    "message": null
    },
    "wave": 1
   },
