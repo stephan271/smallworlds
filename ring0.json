@@ -1,20 +1,20 @@
 {
  "schema": 1,
- "updated": "2026-11-14T13:49:11Z",
+ "updated": "2026-11-14T13:57:27Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "9ce441e1be0b4810e64a03ddb4fe1658a481c408",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-14T13:41:54Z"
+  "commit": "0e171a8208e58dfc805ced155c4b3a705aec538c",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
   "commit": "9ce441e1be0b4810e64a03ddb4fe1658a481c408",
   "pull": null,
-  "step": "checks",
-  "step_since": "2026-11-14T13:49:07Z",
+  "step": "quiet",
+  "step_since": "2026-11-14T13:55:40Z",
   "started": "2026-11-14T13:41:54Z",
   "queued": [
    {
@@ -191,7 +191,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "9ce441e1be0b4810e64a03ddb4fe1658a481c408",
+   "revision": "0e171a8208e58dfc805ced155c4b3a705aec538c",
    "images": [
     "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970"
    ],
@@ -334,7 +334,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "9ce441e1be0b4810e64a03ddb4fe1658a481c408",
+   "revision": "0e171a8208e58dfc805ced155c4b3a705aec538c",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
@@ -524,6 +524,17 @@
   }
  ],
  "commits": [
+  {
+   "commit": "0e171a8208e58dfc805ced155c4b3a705aec538c",
+   "title": "Show only open PRs under the board's 'not on Ring 0' cards",
+   "author": "stephan271",
+   "date": "2026-11-14T13:56:00Z",
+   "pull": null,
+   "cards": [
+    "repository"
+   ],
+   "verdict": null
+  },
   {
    "commit": "9ce441e1be0b4810e64a03ddb4fe1658a481c408",
    "title": "Remove the Pages starter workflow that overwrote the Ring 0 board",
@@ -887,21 +898,6 @@
     "state": "success",
     "description": "Ring 0: backup 5 databases, converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 m\u2026",
     "date": "2026-11-13T11:15:25Z"
-   }
-  },
-  {
-   "commit": "6d8ed2e08cc441e9e759574faa2534a951b91175",
-   "title": "Update canary-follower (#50)",
-   "author": "renovate[bot]",
-   "date": "2026-11-13T10:00:50Z",
-   "pull": 50,
-   "cards": [
-    "canary-follower"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
-    "date": "2026-11-13T10:39:09Z"
    }
   }
  ],
