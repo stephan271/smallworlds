@@ -11,8 +11,9 @@ the merge queue merges the next update (success) or reacts to the rejection.
 States:
   success  every step passed
   failure  Ring 0 did not take the commit: not converged, smoke or alert
-  error    the commit could not be judged: main moved on mid-way, or the
-           follower itself failed. Not a verdict on the commit.
+  error    the commit could not be judged: main moved on mid-way, alerts
+           cannot be delivered, or the follower itself failed. Not a verdict
+           on the commit.
 """
 import logging
 import time
@@ -243,8 +244,16 @@ class Follower:
                 steps.append(summary)
 
             firing = self._quiet(s.alertmanager_url, s.quiet_seconds, s.quiet_interval_seconds)
+            blamed = [name for name in firing if name not in checks.DELIVERY_ALERTS]
+            if blamed:
+                return self._finish(sha, "failure", "Critical alert: " + _list(blamed), steps)
             if firing:
-                return self._finish(sha, "failure", "Critical alert: " + _list(firing), steps)
+                # Alertmanager cannot deliver: that is the notification path, not
+                # the commit. Rejecting it offered reverts of four unrelated
+                # commits in a row (Ring 0, 2026-11-13); an error is retried and
+                # keeps the queue waiting without blaming anyone.
+                return self._finish(sha, "error", "Alerts cannot be delivered: " + _list(firing),
+                                    steps)
             steps.append(f"quiet {s.quiet_seconds // 60} min")
 
             shown = [step for step in steps if not step.startswith("synced ")]

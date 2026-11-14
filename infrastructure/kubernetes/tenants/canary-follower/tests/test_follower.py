@@ -284,6 +284,23 @@ class FollowerTest(unittest.TestCase):
         self.assertEqual("failure", outcome.state)
         self.assertIn("CNPGBackupStale", outcome.description)
 
+    def test_alerts_that_cannot_be_delivered_are_no_verdict(self):
+        # Ring 0, 2026-11-13: ntfy refused an oversized group, and the critical
+        # delivery alert rejected four unrelated commits in a row.
+        follower, gh, kube, _ = make(quiet_result=["AlertmanagerClusterFailedToSendAlerts"],
+                                     paths=["README.md"])
+        outcome = follower.tick()
+        self.assertEqual("error", outcome.state)
+        self.assertIn("Alerts cannot be delivered: AlertmanagerClusterFailedToSendAlerts",
+                      outcome.description)
+
+    def test_a_real_alert_beside_a_delivery_alert_still_fails_the_commit(self):
+        follower, gh, kube, _ = make(quiet_result=["AlertmanagerFailedToSendAlerts", "CNPGBackupStale"])
+        outcome = follower.tick()
+        self.assertEqual("failure", outcome.state)
+        self.assertIn("Critical alert: CNPGBackupStale", outcome.description)
+        self.assertNotIn("Alertmanager", outcome.description)
+
     def test_a_follower_crash_is_reported_as_error(self):
         follower, gh, kube, _ = make()
         del kube.apps["smallworlds-root"]

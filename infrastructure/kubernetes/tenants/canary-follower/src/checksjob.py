@@ -53,11 +53,21 @@ class ChecksJob:
                 "spec": spec}
 
     def _clear(self) -> None:
-        """One run at a time: a follower restarted mid-run leaves its Job behind."""
+        """One run at a time: a follower restarted mid-run leaves its Job behind.
+
+        Failed Jobs of earlier runs go too. Their verdict is already posted, and
+        each keeps a KubeJobFailed alert firing until its TTL (three days): on
+        Ring 0, 2026-11-13, five of them grouped into one notification too large
+        for ntfy, and the delivery failure became a critical alert that rejected
+        every commit after them. Succeeded Jobs raise nothing and stay."""
         for job in self.kube.get(f"{self.jobs}?labelSelector=app={APP_LABEL}").get("items", []):
-            if not job.get("status", {}).get("active"):
+            status = job.get("status", {})
+            if status.get("active"):
+                log.info("stopping the earlier checks Job %s", job["metadata"]["name"])
+            elif status.get("failed"):
+                log.info("removing the failed checks Job %s", job["metadata"]["name"])
+            else:
                 continue
-            log.info("stopping the earlier checks Job %s", job["metadata"]["name"])
             self.kube.delete(f"{self.jobs}/{job['metadata']['name']}")
 
     def _summary(self, name: str) -> tuple[bool, str]:

@@ -210,6 +210,18 @@ class ChecksJobTest(unittest.TestCase):
         job.run(SHA)
         self.assertIn("canary-checks-old", kube.deleted)
 
+    def test_failed_jobs_of_earlier_runs_are_removed_and_passed_ones_kept(self):
+        # Each failed Job keeps KubeJobFailed firing for its three-day TTL; five
+        # of them made one notification too large for ntfy (Ring 0, 2026-11-13).
+        job, kube = self.make()
+        kube.jobs["canary-checks-failed"] = {"metadata": {"name": "canary-checks-failed"},
+                                             "status": {"failed": 1}}
+        kube.jobs["canary-checks-passed"] = {"metadata": {"name": "canary-checks-passed"},
+                                             "status": {"succeeded": 1}}
+        job.run(SHA)
+        self.assertIn("canary-checks-failed", kube.deleted)
+        self.assertNotIn("canary-checks-passed", kube.deleted)
+
 
 RENOVATE = "renovate[bot]"
 

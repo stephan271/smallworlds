@@ -51,6 +51,13 @@ spec:
             name: smallworlds-notify
             key: alerts-url
           sendResolved: true
+          # ntfy refuses a rendered message over 4096 bytes (`40041 message or
+          # title is too large`), and its template lists every label of every
+          # alert, ~0.7 KB each. A group of five failed Jobs was enough: every
+          # send failed, AlertmanagerClusterFailedToSendAlerts went critical,
+          # and nothing reached the phone (Ring 0, 2026-11-13). The rest of a
+          # larger group stays visible in Alertmanager.
+          maxAlerts: 3
     - name: discard
 ---
 # Dead man's switch. Watchdog fires for as long as Prometheus and Alertmanager
