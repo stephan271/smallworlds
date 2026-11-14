@@ -1,21 +1,28 @@
 {
  "schema": 1,
- "updated": "2026-11-14T14:34:43Z",
+ "updated": "2026-11-14T14:53:18Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "0e171a8208e58dfc805ced155c4b3a705aec538c",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-14T14:20:42Z"
+  "commit": "402cfc6a46f40d6acab634ea898f96ea2f397d02",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "0e171a8208e58dfc805ced155c4b3a705aec538c",
-  "pull": null,
-  "step": "quiet",
-  "step_since": "2026-11-14T14:32:46Z",
-  "started": "2026-11-14T14:20:41Z",
+  "commit": "402cfc6a46f40d6acab634ea898f96ea2f397d02",
+  "pull": {
+   "number": 74,
+   "title": "Update keycloak (#74)",
+   "cards": [
+    "keycloak",
+    "repository"
+   ]
+  },
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -24,15 +31,6 @@
      "kube-prometheus-stack"
     ],
     "since": "2026-11-14T09:32:22Z"
-   },
-   {
-    "number": 74,
-    "title": "Update keycloak",
-    "cards": [
-     "keycloak",
-     "repository"
-    ],
-    "since": "2026-11-14T11:33:34Z"
    },
    {
     "number": 77,
@@ -44,7 +42,7 @@
    }
   ],
   "stuck": null,
-  "action": "merged #66",
+  "action": "merged #74",
   "waiting": null
  },
  "applications": [
@@ -525,6 +523,18 @@
  ],
  "commits": [
   {
+   "commit": "402cfc6a46f40d6acab634ea898f96ea2f397d02",
+   "title": "Update keycloak (#74)",
+   "author": "renovate[bot]",
+   "date": "2026-11-14T14:52:51Z",
+   "pull": 74,
+   "cards": [
+    "keycloak",
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "0e171a8208e58dfc805ced155c4b3a705aec538c",
    "title": "Show only open PRs under the board's 'not on Ring 0' cards",
    "author": "stephan271",
@@ -534,9 +544,9 @@
     "repository"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-14T14:20:42Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
+    "date": "2026-11-14T14:52:46Z"
    }
   },
   {
@@ -879,30 +889,6 @@
     "description": "Ring 0: backup 1 databases, converged, load settled after 6 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 m\u2026",
     "date": "2026-11-13T12:01:10Z"
    }
-  },
-  {
-   "commit": "b90c4796dab85cc80f8b22c1b1a59fe61a5921c1",
-   "title": "Update Docker image docker.io/alpine/k8s to v1.37.1 (#52)",
-   "author": "renovate[bot]",
-   "date": "2026-11-13T10:39:14Z",
-   "pull": 52,
-   "cards": [
-    "bulwark",
-    "euro-office",
-    "forgejo",
-    "immich",
-    "jitsi",
-    "join",
-    "keycloak",
-    "nextcloud",
-    "smallworlds-root",
-    "stalwart"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: backup 5 databases, converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 m\u2026",
-    "date": "2026-11-13T11:15:25Z"
-   }
   }
  ],
  "pulls": [
@@ -946,22 +932,6 @@
    ],
    "cards": [
     "kube-prometheus-stack"
-   ]
-  },
-  {
-   "number": 74,
-   "title": "Update keycloak",
-   "author": "renovate[bot]",
-   "created": "2026-11-14T11:33:34Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "keycloak",
-    "repository"
    ]
   },
   {
