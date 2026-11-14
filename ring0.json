@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-14T12:55:16Z",
+ "updated": "2026-11-14T12:57:20Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -20,8 +20,8 @@
     "pod-gateway"
    ]
   },
-  "step": "settle",
-  "step_since": "2026-11-14T12:54:54Z",
+  "step": "checks",
+  "step_since": "2026-11-14T12:56:55Z",
   "started": "2026-11-14T12:50:54Z",
   "queued": [
    {
