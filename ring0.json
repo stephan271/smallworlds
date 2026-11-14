@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-14T17:13:37Z",
+ "updated": "2026-11-14T17:36:13Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -1063,6 +1063,20 @@
    "labels": [],
    "cards": [
     "canary-follower",
+    "repository"
+   ]
+  },
+  {
+   "number": 81,
+   "title": "Fix Keycloak's image pin, and teach Renovate to keep tag and digest together",
+   "author": "stephan271",
+   "created": "2026-11-14T17:35:35Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "keycloak",
     "repository"
    ]
   }
