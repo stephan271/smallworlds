@@ -1,28 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-14T13:01:29Z",
+ "updated": "2026-11-14T13:22:06Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "e6201b0473b01a58f0cb62e1b099a0783ab16ccf",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-14T12:50:54Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
+  "date": "2026-11-14T13:20:56Z"
  },
  "now": {
   "state": "updating",
   "commit": "e6201b0473b01a58f0cb62e1b099a0783ab16ccf",
-  "pull": {
-   "number": 62,
-   "title": "Update Docker image python to v3.15 (#62)",
-   "cards": [
-    "join",
-    "pod-gateway"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-14T13:00:55Z",
-  "started": "2026-11-14T12:50:54Z",
+  "pull": null,
+  "step": "merge",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 66,
@@ -52,7 +45,7 @@
   ],
   "stuck": null,
   "action": "merged #62",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -542,9 +535,9 @@
     "pod-gateway"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-14T12:50:54Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
+    "date": "2026-11-14T13:20:56Z"
    }
   },
   {
