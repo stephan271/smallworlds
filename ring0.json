@@ -1,0 +1,1007 @@
+{
+ "schema": 1,
+ "updated": "2026-11-14T12:01:11Z",
+ "repository": "stephan271/smallworlds",
+ "branch": "main",
+ "head": {
+  "commit": "d0dd3bf066dac6099081b6cac4a7ad94b4146daa",
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-14T12:00:50Z"
+ },
+ "now": {
+  "state": "updating",
+  "commit": "d0dd3bf066dac6099081b6cac4a7ad94b4146daa",
+  "pull": {
+   "number": 75,
+   "title": "Publish Ring 0's state and draw it as a public, read-only board",
+   "cards": [
+    "canary-follower",
+    "repository"
+   ]
+  },
+  "step": "sync",
+  "step_since": "2026-11-14T12:00:51Z",
+  "started": "2026-11-14T12:00:50Z",
+  "queued": [
+   {
+    "number": 62,
+    "title": "Update Docker image python to v3.15",
+    "cards": [
+     "join",
+     "pod-gateway"
+    ],
+    "since": "2026-11-13T11:31:19Z"
+   },
+   {
+    "number": 66,
+    "title": "Update init jobs",
+    "cards": [
+     "smallworlds-root"
+    ],
+    "since": "2026-11-13T13:14:28Z"
+   },
+   {
+    "number": 73,
+    "title": "Update Helm chart kube-prometheus-stack to v87.21.0",
+    "cards": [
+     "kube-prometheus-stack"
+    ],
+    "since": "2026-11-14T09:32:22Z"
+   },
+   {
+    "number": 74,
+    "title": "Update keycloak",
+    "cards": [
+     "keycloak",
+     "repository"
+    ],
+    "since": "2026-11-14T11:33:34Z"
+   }
+  ],
+  "stuck": null,
+  "action": null,
+  "waiting": null
+ },
+ "applications": [
+  {
+   "name": "cert-manager",
+   "group": "platform",
+   "health": "Healthy",
+   "sync": "Synced",
+   "source": "chart",
+   "chart": "cert-manager",
+   "version": "v1.21.3",
+   "revision": null,
+   "images": [
+    "quay.io/jetstack/cert-manager-cainjector:v1.21.3",
+    "quay.io/jetstack/cert-manager-controller:v1.21.3",
+    "quay.io/jetstack/cert-manager-webhook:v1.21.3"
+   ],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T11:39:28Z",
+    "message": null
+   },
+   "wave": -10
+  },
+  {
+   "name": "cloudnative-pg",
+   "group": "platform",
+   "health": "Healthy",
+   "sync": "Synced",
+   "source": "chart",
+   "chart": "cloudnative-pg",
+   "version": "0.29.1",
+   "revision": null,
+   "images": [
+    "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1"
+   ],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T11:38:50Z",
+    "message": null
+   },
+   "wave": -10
+  },
+  {
+   "name": "traefik",
+   "group": "platform",
+   "health": "Healthy",
+   "sync": "Synced",
+   "source": "chart",
+   "chart": "traefik",
+   "version": "34.5.0",
+   "revision": null,
+   "images": [
+    "docker.io/traefik:v3.3.4"
+   ],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T11:39:05Z",
+    "message": null
+   },
+   "wave": -10
+  },
+  {
+   "name": "cert-manager-webhook-hetzner",
+   "group": "platform",
+   "health": "Healthy",
+   "sync": "Synced",
+   "source": "chart",
+   "chart": "cert-manager-webhook-hetzner",
+   "version": "0.9.1",
+   "revision": null,
+   "images": [
+    "docker.io/hetzner/cert-manager-webhook-hetzner:v0.9.1"
+   ],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T11:38:49Z",
+    "message": null
+   },
+   "wave": -9
+  },
+  {
+   "name": "cnpg-barman-plugin",
+   "group": "platform",
+   "health": "Healthy",
+   "sync": "Synced",
+   "source": "base",
+   "chart": null,
+   "version": null,
+   "revision": "d0dd3bf066dac6099081b6cac4a7ad94b4146daa",
+   "images": [
+    "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
+   ],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T11:38:50Z",
+    "message": null
+   },
+   "wave": -9
+  },
+  {
+   "name": "dashboard",
+   "group": "apps",
+   "health": "Healthy",
+   "sync": "Synced",
+   "source": "overlay",
+   "chart": null,
+   "version": null,
+   "revision": "c6a54ba57e563b3d7e539c1781605e40cd4c23ef",
+   "images": [
+    "ghcr.io/gethomepage/homepage:v1.13.2@sha256:a0b71c8e757298d02560186bab9fbe3fc2d375c523a62cc1019177b37e48aa28"
+   ],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T11:38:49Z",
+    "message": null
+   },
+   "wave": 0
+  },
+  {
+   "name": "euro-office",
+   "group": "apps",
+   "health": "Healthy",
+   "sync": "Synced",
+   "source": "overlay",
+   "chart": null,
+   "version": null,
+   "revision": "c6a54ba57e563b3d7e539c1781605e40cd4c23ef",
+   "images": [
+    "ghcr.io/euro-office/documentserver:v9.3.4-hotfix.1@sha256:889e681923d2dcc8bdfb92fe128d10e185fcff880d302b6a0c0c7bf339499290"
+   ],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T11:39:22Z",
+    "message": null
+   },
+   "wave": 0
+  },
+  {
+   "name": "headscale",
+   "group": "platform",
+   "health": "Healthy",
+   "sync": "Synced",
+   "source": "base",
+   "chart": null,
+   "version": null,
+   "revision": "e8bae59e88962ae07a6689c6e331d03056458bc7",
+   "images": [
+    "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970"
+   ],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T11:38:52Z",
+    "message": null
+   },
+   "wave": 0
+  },
+  {
+   "name": "keycloak",
+   "group": "platform",
+   "health": "Healthy",
+   "sync": "Synced",
+   "source": "overlay",
+   "chart": null,
+   "version": null,
+   "revision": "c6a54ba57e563b3d7e539c1781605e40cd4c23ef",
+   "images": [
+    "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
+    "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
+    "ghcr.io/tensorchord/cloudnative-pgvecto.rs:16.4-v0.3.0",
+    "quay.io/keycloak/keycloak@sha256:0aae0de7fca85525f727d3354df17896092de8bb26ae4c12d89c77e5df8cbce4"
+   ],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T11:41:23Z",
+    "message": null
+   },
+   "wave": 0
+  },
+  {
+   "name": "kube-prometheus-stack",
+   "group": "platform",
+   "health": "Healthy",
+   "sync": "Synced",
+   "source": "chart",
+   "chart": "kube-prometheus-stack",
+   "version": "87.10.1",
+   "revision": null,
+   "images": [
+    "docker.io/grafana/grafana:13.1.0",
+    "quay.io/kiwigrid/k8s-sidecar:2.8.1",
+    "quay.io/prometheus-operator/prometheus-config-reloader:v0.92.1",
+    "quay.io/prometheus-operator/prometheus-operator:v0.92.1",
+    "quay.io/prometheus/alertmanager:v0.33.1",
+    "quay.io/prometheus/node-exporter:v1.11.1-distroless",
+    "quay.io/prometheus/prometheus:v3.13.0-distroless",
+    "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.19.1"
+   ],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T11:40:37Z",
+    "message": null
+   },
+   "wave": 0
+  },
+  {
+   "name": "loki-stack",
+   "group": "platform",
+   "health": "Healthy",
+   "sync": "Synced",
+   "source": "chart",
+   "chart": "loki-stack",
+   "version": "2.10.3",
+   "revision": null,
+   "images": [
+    "docker.io/grafana/promtail:3.5.1",
+    "grafana/loki:2.6.1"
+   ],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T11:39:05Z",
+    "message": null
+   },
+   "wave": 0
+  },
+  {
+   "name": "smallworlds-root",
+   "group": "machinery",
+   "health": "Progressing",
+   "sync": "Synced",
+   "source": "overlay",
+   "chart": null,
+   "version": null,
+   "revision": "c6a54ba57e563b3d7e539c1781605e40cd4c23ef",
+   "images": [],
+   "operation": {
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of scheduling.k8s.io/PriorityClass/smallworlds-monitoring"
+   },
+   "wave": 0
+  },
+  {
+   "name": "velero",
+   "group": "platform",
+   "health": "Healthy",
+   "sync": "Synced",
+   "source": "base",
+   "chart": null,
+   "version": null,
+   "revision": "d0dd3bf066dac6099081b6cac4a7ad94b4146daa",
+   "images": [
+    "docker.io/velero/velero:v1.18.1",
+    "velero/velero-plugin-for-aws:v1.14.2@sha256:0751144c1c8e52d52c48717fbd13ad5a3061e612ae4d7ad744a946cd5b139d1a"
+   ],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T11:40:01Z",
+    "message": null
+   },
+   "wave": 0
+  },
+  {
+   "name": "bulwark",
+   "group": "apps",
+   "health": "Healthy",
+   "sync": "Synced",
+   "source": "overlay",
+   "chart": null,
+   "version": null,
+   "revision": "c6a54ba57e563b3d7e539c1781605e40cd4c23ef",
+   "images": [
+    "ghcr.io/bulwarkmail/webmail:1.21.2@sha256:037b85b1433233d2d7eebb83f928df5ecc3b4adc91dc7e4c55f0a2f69024e754"
+   ],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T11:39:46Z",
+    "message": null
+   },
+   "wave": 1
+  },
+  {
+   "name": "canary-follower",
+   "group": "machinery",
+   "health": "Progressing",
+   "sync": "Synced",
+   "source": "base",
+   "chart": null,
+   "version": null,
+   "revision": "d0dd3bf066dac6099081b6cac4a7ad94b4146daa",
+   "images": [
+    "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
+   ],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T12:00:14Z",
+    "message": null
+   },
+   "wave": 1
+  },
+  {
+   "name": "excalidraw",
+   "group": "apps",
+   "health": "Healthy",
+   "sync": "Synced",
+   "source": "overlay",
+   "chart": null,
+   "version": null,
+   "revision": "c6a54ba57e563b3d7e539c1781605e40cd4c23ef",
+   "images": [
+    "excalidraw/excalidraw:latest@sha256:f7ee194addd607bf831d2af0f0a34463dd4225e426cf35199ef0b12a803398e9"
+   ],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T11:38:43Z",
+    "message": null
+   },
+   "wave": 1
+  },
+  {
+   "name": "forgejo",
+   "group": "apps",
+   "health": "Healthy",
+   "sync": "Synced",
+   "source": "overlay",
+   "chart": null,
+   "version": null,
+   "revision": "c6a54ba57e563b3d7e539c1781605e40cd4c23ef",
+   "images": [
+    "code.forgejo.org/forgejo/forgejo:15.0.11-rootless",
+    "docker.io/redis:6.2-alpine@sha256:3f9c6e23ed6bea3b41d0ef709fc164c1a0b7c00d5a21a60e0e9c33ada5496881",
+    "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
+    "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
+    "ghcr.io/cloudnative-pg/postgresql:16",
+    "rclone/rclone:1.74@sha256:623378ad0ff3ebd5cebf77720843c0e02edfe46e2d5b5ac6bed54c6371780dfb"
+   ],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T11:41:18Z",
+    "message": null
+   },
+   "wave": 1
+  },
+  {
+   "name": "immich",
+   "group": "apps",
+   "health": "Healthy",
+   "sync": "Synced",
+   "source": "overlay",
+   "chart": null,
+   "version": null,
+   "revision": "c6a54ba57e563b3d7e539c1781605e40cd4c23ef",
+   "images": [
+    "docker.io/redis:6.2-alpine@sha256:3f9c6e23ed6bea3b41d0ef709fc164c1a0b7c00d5a21a60e0e9c33ada5496881",
+    "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
+    "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
+    "ghcr.io/open-noodle/gallery-ml:v5.10.0@sha256:6f7e2a6687a485a06f67030595bde5bedb0024b75ef936d738aa8937ed8e671e",
+    "ghcr.io/open-noodle/gallery-server:v5.10.0@sha256:08b9818252bdef75eb599d7db6a97080cbd399056c6ee2787403e8310f234734",
+    "ghcr.io/tensorchord/cloudnative-vectorchord:16.15-1.1.1@sha256:f5a17fa05faf25e81304ee95e9f920d8ae077ac4a4ef0a1251e09c7197cbb236",
+    "rclone/rclone:1.74@sha256:623378ad0ff3ebd5cebf77720843c0e02edfe46e2d5b5ac6bed54c6371780dfb"
+   ],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T11:41:35Z",
+    "message": null
+   },
+   "wave": 1
+  },
+  {
+   "name": "jitsi",
+   "group": "apps",
+   "health": "Healthy",
+   "sync": "Synced",
+   "source": "overlay",
+   "chart": null,
+   "version": null,
+   "revision": "c6a54ba57e563b3d7e539c1781605e40cd4c23ef",
+   "images": [
+    "ghcr.io/jitsi-contrib/jitsi-oidc-adapter:v20260328@sha256:c4a28b215f5ea4893e308cd3f15b1f1c6954231ab784cac6362f420e6648a745",
+    "jitsi/jicofo:stable-11031",
+    "jitsi/jvb:stable-11031",
+    "jitsi/prosody:stable-11031",
+    "jitsi/web:stable-11031"
+   ],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T11:39:46Z",
+    "message": null
+   },
+   "wave": 1
+  },
+  {
+   "name": "join",
+   "group": "apps",
+   "health": "Healthy",
+   "sync": "Synced",
+   "source": "overlay",
+   "chart": null,
+   "version": null,
+   "revision": "c6a54ba57e563b3d7e539c1781605e40cd4c23ef",
+   "images": [
+    "python:3.14-slim@sha256:b877e50bd90de10af8d82c57a022fc2e0dc731c5320d762a27986facfc3355c1"
+   ],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T11:41:17Z",
+    "message": null
+   },
+   "wave": 1
+  },
+  {
+   "name": "nextcloud",
+   "group": "apps",
+   "health": "Healthy",
+   "sync": "Synced",
+   "source": "overlay",
+   "chart": null,
+   "version": null,
+   "revision": "c6a54ba57e563b3d7e539c1781605e40cd4c23ef",
+   "images": [
+    "docker.io/library/nextcloud:35.0.2-apache",
+    "docker.io/redis:6.2-alpine@sha256:3f9c6e23ed6bea3b41d0ef709fc164c1a0b7c00d5a21a60e0e9c33ada5496881",
+    "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
+    "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
+    "ghcr.io/cloudnative-pg/postgresql:16",
+    "rclone/rclone:1.74@sha256:623378ad0ff3ebd5cebf77720843c0e02edfe46e2d5b5ac6bed54c6371780dfb"
+   ],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T11:41:57Z",
+    "message": null
+   },
+   "wave": 1
+  },
+  {
+   "name": "pod-gateway",
+   "group": "apps",
+   "health": "Healthy",
+   "sync": "Synced",
+   "source": "overlay",
+   "chart": null,
+   "version": null,
+   "revision": "c6a54ba57e563b3d7e539c1781605e40cd4c23ef",
+   "images": [
+    "python:3.14-slim@sha256:b877e50bd90de10af8d82c57a022fc2e0dc731c5320d762a27986facfc3355c1"
+   ],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T11:39:44Z",
+    "message": null
+   },
+   "wave": 1
+  },
+  {
+   "name": "stalwart",
+   "group": "apps",
+   "health": "Healthy",
+   "sync": "Synced",
+   "source": "overlay",
+   "chart": null,
+   "version": null,
+   "revision": "c6a54ba57e563b3d7e539c1781605e40cd4c23ef",
+   "images": [
+    "docker.io/alpine/k8s:1.37.1@sha256:712dc5385d1c1a3f83b747fa9e40f64d433a97f72ff42f9755ff7dd1f62846e4",
+    "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
+    "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
+    "ghcr.io/cloudnative-pg/postgresql:16",
+    "python:3.14-alpine@sha256:26730869004e2b9c4b9ad09cab8625e81d256d1ce97e72df5520e806b1709f92",
+    "stalwartlabs/stalwart:v0.16.27@sha256:2c9af6bfccb361b9f286d6cd0bb50acb2aaeffc06f5257354c0ce4dff9f02b58"
+   ],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T11:40:46Z",
+    "message": null
+   },
+   "wave": 1
+  }
+ ],
+ "commits": [
+  {
+   "commit": "d0dd3bf066dac6099081b6cac4a7ad94b4146daa",
+   "title": "Publish Ring 0's state and draw it as a public, read-only board",
+   "author": "stephan271",
+   "date": "2026-11-14T11:59:28Z",
+   "pull": 75,
+   "cards": [
+    "canary-follower",
+    "repository"
+   ],
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-14T12:00:50Z"
+   }
+  },
+  {
+   "commit": "2f8b6f9b8241639417d7fc27240d94f978f0d6e1",
+   "title": "Publish Ring 0's state and draw it as a public, read-only board",
+   "author": "stephan271",
+   "date": "2026-11-14T11:56:36Z",
+   "pull": null,
+   "cards": [
+    "canary-follower",
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "e8bae59e88962ae07a6689c6e331d03056458bc7",
+   "title": "Update gallery (#58)",
+   "author": "renovate[bot]",
+   "date": "2026-11-14T11:32:11Z",
+   "pull": 58,
+   "cards": [
+    "immich"
+   ],
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-14T11:37:13Z"
+   }
+  },
+  {
+   "commit": "efe72ab9371c3073f0260f8286bb2abae27f67f5",
+   "title": "Update nextcloud (#57)",
+   "author": "renovate[bot]",
+   "date": "2026-11-14T10:53:46Z",
+   "pull": 57,
+   "cards": [
+    "nextcloud"
+   ],
+   "verdict": {
+    "state": "success",
+    "description": "Ring 0: backup 1 databases, converged, load settled after 1 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 m\u2026",
+    "date": "2026-11-14T11:32:06Z"
+   }
+  },
+  {
+   "commit": "1c20a926e4e7e9aa7443f45667228efd5a1fb309",
+   "title": "Update e2e tests (#56)",
+   "author": "renovate[bot]",
+   "date": "2026-11-14T10:10:02Z",
+   "pull": 56,
+   "cards": [
+    "canary-follower"
+   ],
+   "verdict": {
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 4 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
+    "date": "2026-11-14T10:48:37Z"
+   }
+  },
+  {
+   "commit": "de52113136677a35288541bd9796eb24ca1a0ae6",
+   "title": "Update Docker image mcr.microsoft.com/playwright to v1.65.1 (#72)",
+   "author": "renovate[bot]",
+   "date": "2026-11-14T09:31:00Z",
+   "pull": 72,
+   "cards": [
+    "canary-follower"
+   ],
+   "verdict": {
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
+    "date": "2026-11-14T10:09:57Z"
+   }
+  },
+  {
+   "commit": "ddef28aa7decb51ab1765e53cc210d3f04d52ba9",
+   "title": "Update Docker image ghcr.io/bulwarkmail/webmail to v1.21.2 (#54)",
+   "author": "renovate[bot]",
+   "date": "2026-11-14T08:49:21Z",
+   "pull": 54,
+   "cards": [
+    "bulwark"
+   ],
+   "verdict": {
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 4 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
+    "date": "2026-11-14T09:30:53Z"
+   }
+  },
+  {
+   "commit": "804d58c2b80aa22d0855efb833b32db025fcc396",
+   "title": "Stop a failed alert delivery from rejecting Ring 0 commits",
+   "author": "stephan271",
+   "date": "2026-11-14T08:07:39Z",
+   "pull": 71,
+   "cards": [
+    "canary-follower",
+    "smallworlds-root"
+   ],
+   "verdict": {
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
+    "date": "2026-11-14T08:44:11Z"
+   }
+  },
+  {
+   "commit": "131a7ee8b5182b215c0a247ce3ff1cdbec4e9507",
+   "title": "Stop a failed alert delivery from rejecting Ring 0 commits",
+   "author": "stephan271",
+   "date": "2026-11-14T08:03:16Z",
+   "pull": null,
+   "cards": [
+    "canary-follower",
+    "smallworlds-root"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "811eed0f1bb063273a7f30e84d630bcfdc15bccc",
+   "title": "Show what Ring 0 is doing now, and let the Steward act on Ring 0",
+   "author": "stephan271",
+   "date": "2026-11-13T15:29:51Z",
+   "pull": null,
+   "cards": [
+    "repository"
+   ],
+   "verdict": {
+    "state": "failure",
+    "description": "Critical alert: AlertmanagerClusterFailedToSendAlerts",
+    "date": "2026-11-13T15:42:03Z"
+   }
+  },
+  {
+   "commit": "87dc3aca48710d9af2ed3ecfa27369da03e34931",
+   "title": "Remove Hermes and Remediation; plan per-application updates",
+   "author": "stephan271",
+   "date": "2026-11-13T15:29:39Z",
+   "pull": 59,
+   "cards": [
+    "canary-follower",
+    "dashboard",
+    "hermes",
+    "join",
+    "pod-gateway",
+    "remediation",
+    "repository",
+    "smallworlds-root"
+   ],
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-13T15:29:55Z"
+   }
+  },
+  {
+   "commit": "17cabcb475f44df4d6fc82793d269f4d0a08963d",
+   "title": "Open the purpose with \"Sovereignty now\"",
+   "author": "stephan271",
+   "date": "2026-11-13T15:28:39Z",
+   "pull": null,
+   "cards": [
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "4c12ccb6cef6fd2b107327a66994da8bab4fd335",
+   "title": "List each component's license in the README",
+   "author": "stephan271",
+   "date": "2026-11-13T14:53:36Z",
+   "pull": null,
+   "cards": [
+    "repository"
+   ],
+   "verdict": {
+    "state": "failure",
+    "description": "Critical alert: AlertmanagerClusterFailedToSendAlerts",
+    "date": "2026-11-13T15:04:46Z"
+   }
+  },
+  {
+   "commit": "4b34023a8192fd31343972943cee45688c4152b1",
+   "title": "Revert \"Update Helm chart kube-prometheus-stack to v87.21.0\" (#67)",
+   "author": "stephan271",
+   "date": "2026-11-13T13:43:36Z",
+   "pull": 67,
+   "cards": [
+    "kube-prometheus-stack"
+   ],
+   "verdict": {
+    "state": "failure",
+    "description": "Critical alert: AlertmanagerClusterFailedToSendAlerts",
+    "date": "2026-11-13T13:56:52Z"
+   }
+  },
+  {
+   "commit": "09171c5c5dabcb143595a8b13bd6a6073e4ea8b4",
+   "title": "Update Helm chart kube-prometheus-stack to v87.21.0 (#65)",
+   "author": "renovate[bot]",
+   "date": "2026-11-13T13:12:55Z",
+   "pull": 65,
+   "cards": [
+    "kube-prometheus-stack"
+   ],
+   "verdict": {
+    "state": "failure",
+    "description": "Critical alert: AlertmanagerClusterFailedToSendAlerts",
+    "date": "2026-11-13T13:43:27Z"
+   }
+  },
+  {
+   "commit": "56f562dd1d720ff1823524303f83cf5872845fd5",
+   "title": "Update jitsi (#55)",
+   "author": "renovate[bot]",
+   "date": "2026-11-13T12:34:30Z",
+   "pull": 55,
+   "cards": [
+    "jitsi"
+   ],
+   "verdict": {
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
+    "date": "2026-11-13T13:12:47Z"
+   }
+  },
+  {
+   "commit": "dab5df01acdc5551bc9fca109509593d246c3524",
+   "title": "Title Renovate PRs by their group, not \"Pin dependencies\"",
+   "author": "stephan271",
+   "date": "2026-11-13T11:35:48Z",
+   "pull": null,
+   "cards": [
+    "repository"
+   ],
+   "verdict": {
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
+    "date": "2026-11-13T12:34:25Z"
+   }
+  },
+  {
+   "commit": "67def2e894dd4d7ce1e7000e036d8e54ec01af41",
+   "title": "Move the python base image in one PR across tenants",
+   "author": "stephan271",
+   "date": "2026-11-13T11:30:17Z",
+   "pull": null,
+   "cards": [
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "af587a66dd6a5d5de13c6d275dbd533513303613",
+   "title": "Pin dependencies (#53)",
+   "author": "renovate[bot]",
+   "date": "2026-11-13T11:20:37Z",
+   "pull": 53,
+   "cards": [
+    "forgejo"
+   ],
+   "verdict": {
+    "state": "success",
+    "description": "Ring 0: backup 1 databases, converged, load settled after 6 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 m\u2026",
+    "date": "2026-11-13T12:01:10Z"
+   }
+  },
+  {
+   "commit": "b90c4796dab85cc80f8b22c1b1a59fe61a5921c1",
+   "title": "Update Docker image docker.io/alpine/k8s to v1.37.1 (#52)",
+   "author": "renovate[bot]",
+   "date": "2026-11-13T10:39:14Z",
+   "pull": 52,
+   "cards": [
+    "bulwark",
+    "euro-office",
+    "forgejo",
+    "immich",
+    "jitsi",
+    "join",
+    "keycloak",
+    "nextcloud",
+    "smallworlds-root",
+    "stalwart"
+   ],
+   "verdict": {
+    "state": "success",
+    "description": "Ring 0: backup 5 databases, converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 m\u2026",
+    "date": "2026-11-13T11:15:25Z"
+   }
+  },
+  {
+   "commit": "6d8ed2e08cc441e9e759574faa2534a951b91175",
+   "title": "Update canary-follower (#50)",
+   "author": "renovate[bot]",
+   "date": "2026-11-13T10:00:50Z",
+   "pull": 50,
+   "cards": [
+    "canary-follower"
+   ],
+   "verdict": {
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
+    "date": "2026-11-13T10:39:09Z"
+   }
+  },
+  {
+   "commit": "9e9d3981e01800bb14bef2db30e2a5bfca9f8379",
+   "title": "Let Ring 0 settle before its checks, and stop clicking a disabled button",
+   "author": "stephan271",
+   "date": "2026-11-13T09:24:59Z",
+   "pull": null,
+   "cards": [
+    "canary-follower"
+   ],
+   "verdict": {
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
+    "date": "2026-11-13T09:55:40Z"
+   }
+  },
+  {
+   "commit": "5905085631052d13db44d86af980f6ac5de56580",
+   "title": "Shorten Ring 0's quiet period from 30 to 20 minutes",
+   "author": "stephan271",
+   "date": "2026-11-13T09:19:07Z",
+   "pull": null,
+   "cards": [
+    "canary-follower",
+    "repository"
+   ],
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-13T09:24:15Z"
+   }
+  },
+  {
+   "commit": "b8a9d36016a19225f38446f658319d4e15ca17c0",
+   "title": "Move superseded ADRs into docs/adr/superseded/",
+   "author": "stephan271",
+   "date": "2026-11-13T09:05:35Z",
+   "pull": null,
+   "cards": [
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "dbb8acb9880a942ce89007df29c07cf88cd35667",
+   "title": "Say which Operator Console decisions still hold",
+   "author": "stephan271",
+   "date": "2026-11-13T08:59:33Z",
+   "pull": null,
+   "cards": [
+    "repository"
+   ],
+   "verdict": null
+  }
+ ],
+ "pulls": [
+  {
+   "number": 62,
+   "title": "Update Docker image python to v3.15",
+   "author": "renovate[bot]",
+   "created": "2026-11-13T11:31:19Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "join",
+    "pod-gateway"
+   ]
+  },
+  {
+   "number": 63,
+   "title": "Update Docker image rclone/rclone to v1.76",
+   "author": "renovate[bot]",
+   "created": "2026-11-13T11:31:26Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "backup-replicator"
+   ]
+  },
+  {
+   "number": 64,
+   "title": "Update Helm chart garage to v0.9.0",
+   "author": "renovate[bot]",
+   "created": "2026-11-13T11:31:36Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "garage",
+    "garage-backup"
+   ]
+  },
+  {
+   "number": 66,
+   "title": "Update init jobs",
+   "author": "renovate[bot]",
+   "created": "2026-11-13T13:14:28Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "smallworlds-root"
+   ]
+  },
+  {
+   "number": 73,
+   "title": "Update Helm chart kube-prometheus-stack to v87.21.0",
+   "author": "renovate[bot]",
+   "created": "2026-11-14T09:32:22Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "kube-prometheus-stack"
+   ]
+  },
+  {
+   "number": 74,
+   "title": "Update keycloak",
+   "author": "renovate[bot]",
+   "created": "2026-11-14T11:33:34Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "keycloak",
+    "repository"
+   ]
+  }
+ ]
+}
