@@ -318,7 +318,7 @@ function openDetail(name) {
   } else {
     body.push(h("p", {}, name === "repository"
       ? "Changes here touch nothing Ring 0 runs (documentation, scripts, Terraform). Ring 0 still verifies the commit."
-      : "Ring 0 does not run this. Changes to it are still verified as part of their commit."));
+      : "Ring 0 does not run this, so it cannot verify an update to it. Such a PR is not queued: it waits until a person merges or closes it."));
   }
   const pulls = [...f.queued, ...f.rejected, ...f.other];
   body.push(h("h3", {}, "Open pull requests"),
@@ -341,11 +341,14 @@ function draw() {
   for (const app of data.applications) {
     document.getElementById(GROUP_TITLES[app.group] || "cards-platform").append(card(cardFacts(app.name)));
   }
+  // A card Ring 0 does not run is shown only while a PR is open for it: that
+  // update cannot be verified here and waits for a person. Commits alone
+  // (e.g. the removal of something that no longer exists) do not keep it.
   const elsewhere = new Set();
-  for (const item of [...data.pulls, ...data.commits]) {
+  for (const item of data.pulls) {
     for (const c of item.cards) if (!known.has(c)) elsewhere.add(c);
   }
-  const repo = elsewhere.delete("repository");
+  const repo = elsewhere.delete("repository") || data.commits.some((c) => c.cards.includes("repository"));
   document.getElementById("cards-machinery").append(...(repo ? [card(cardFacts("repository"))] : []));
   document.getElementById("sec-elsewhere").hidden = elsewhere.size === 0;
   document.getElementById("cards-elsewhere").replaceChildren(...[...elsewhere].sort().map((n) => card(cardFacts(n))));
