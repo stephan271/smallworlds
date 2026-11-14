@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-14T13:26:13Z",
+ "updated": "2026-11-14T13:28:18Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -39,6 +39,14 @@
      "repository"
     ],
     "since": "2026-11-14T11:33:34Z"
+   },
+   {
+    "number": 76,
+    "title": "Update github actions",
+    "cards": [
+     "repository"
+    ],
+    "since": "2026-11-14T13:27:06Z"
    }
   ],
   "stuck": null,
@@ -189,7 +197,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "e6201b0473b01a58f0cb62e1b099a0783ab16ccf",
+   "revision": "652882a45fe7de87972ee56fa89505932462dcc8",
    "images": [
     "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970"
    ],
@@ -955,6 +963,21 @@
    ],
    "cards": [
     "keycloak",
+    "repository"
+   ]
+  },
+  {
+   "number": 76,
+   "title": "Update github actions",
+   "author": "renovate[bot]",
+   "created": "2026-11-14T13:27:06Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
     "repository"
    ]
   }
