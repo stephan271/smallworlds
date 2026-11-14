@@ -1,8 +1,11 @@
-"""E2E with full OIDC and the data checks, run as a Job on Ring 0 (design §3.5 steps 3–4).
+"""A check run as a Job on Ring 0: the e2e with full OIDC and the data checks
+(design §3.5 steps 3–4, CronJob `canary-checks`), and the storage checks
+(CronJob `canary-storage-checks`, checks/storage-checks.sh).
 
-The Job is cut from the suspended CronJob `canary-checks` (checks-job.yaml next to
-this tenant), so its image and resources live in a manifest Renovate can update,
-not in Python. The follower only names the commit: CHECK_SHA is set on every
+The Job is cut from a suspended CronJob (checks-job.yaml, storage-checks-job.yaml
+next to this tenant), so its image and resources live in a manifest Renovate can
+update, not in Python. Its label `app` is the CronJob's name, so each kind clears
+only its own earlier Jobs. The follower only names the commit: CHECK_SHA is set on every
 container, and the Job fetches that commit's e2e-tests/ and admin-tools/canary/,
 so the checks always match the code they verify.
 
@@ -16,8 +19,6 @@ import logging
 import time
 
 log = logging.getLogger("checksjob")
-
-APP_LABEL = "canary-checks"
 
 # A pod that cannot start: no Secret, no image. Nothing will change by waiting
 # out the Job's deadline (an hour, Ring 0's first night: no Secret canary-checks).
@@ -37,6 +38,7 @@ class ChecksJob:
         self.sleep = sleep
         self.now = now
         self.jobs = f"/apis/batch/v1/namespaces/{namespace}/jobs"
+        self.label = cronjob
 
     def _job(self, sha: str) -> dict:
         template = self.kube.get(f"/apis/batch/v1/namespaces/{self.namespace}/cronjobs/{self.cronjob}")
@@ -45,9 +47,9 @@ class ChecksJob:
         for container in pod.get("initContainers", []) + pod.get("containers", []):
             env = [e for e in container.get("env", []) if e.get("name") != "CHECK_SHA"]
             container["env"] = env + [{"name": "CHECK_SHA", "value": sha}]
-        name = f"{APP_LABEL}-{sha[:12]}-{int(self.now()) % 1000000:06d}"
+        name = f"{self.label}-{sha[:12]}-{int(self.now()) % 1000000:06d}"
         labels = {**template["spec"]["jobTemplate"].get("metadata", {}).get("labels", {}),
-                  "app": APP_LABEL, "smallworlds.network/sha": sha[:12]}
+                  "app": self.label, "smallworlds.network/sha": sha[:12]}
         return {"apiVersion": "batch/v1", "kind": "Job",
                 "metadata": {"name": name, "namespace": self.namespace, "labels": labels},
                 "spec": spec}
@@ -60,7 +62,7 @@ class ChecksJob:
         Ring 0, 2026-11-13, five of them grouped into one notification too large
         for ntfy, and the delivery failure became a critical alert that rejected
         every commit after them. Succeeded Jobs raise nothing and stay."""
-        for job in self.kube.get(f"{self.jobs}?labelSelector=app={APP_LABEL}").get("items", []):
+        for job in self.kube.get(f"{self.jobs}?labelSelector=app={self.label}").get("items", []):
             status = job.get("status", {})
             if status.get("active"):
                 log.info("stopping the earlier checks Job %s", job["metadata"]["name"])
@@ -106,7 +108,7 @@ class ChecksJob:
         job = self._job(sha)
         name = job["metadata"]["name"]
         self.kube.create(self.jobs, job)
-        log.info("checks Job %s started", name)
+        log.info("Job %s started", name)
         started = self.clock()
         deadline = started + self.timeout
         while True:

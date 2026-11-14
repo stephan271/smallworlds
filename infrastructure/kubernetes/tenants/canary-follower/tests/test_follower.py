@@ -484,6 +484,11 @@ class PackagingTest(unittest.TestCase):
         present = {p.name for p in (TENANT / "src").glob("*.py")}
         self.assertEqual(present, listed)
 
+    def test_every_checks_script_is_in_the_configmap(self):
+        listed = set(re.findall(r"checks/([\w-]+\.sh)", (TENANT / "kustomization.yaml").read_text()))
+        present = {p.name for p in (TENANT / "checks").glob("*.sh")}
+        self.assertEqual(present, listed)
+
     def test_settings_read_integers_from_the_environment(self):
         s = settings_module.from_environment({"QUIET_SECONDS": "60", "BRANCH": "x"})
         self.assertEqual(60, s.quiet_seconds)

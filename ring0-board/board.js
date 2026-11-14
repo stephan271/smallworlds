@@ -9,11 +9,11 @@ const REFRESH_MS = 60_000;
 // means it stopped reporting, and the board says so instead of looking calm.
 const STALE_MS = 2.5 * 3600_000;
 
-const STEPS = ["backup", "sync", "converge", "settle", "smoke", "checks", "quiet"];
+const STEPS = ["backup", "sync", "converge", "settle", "smoke", "checks", "storage", "quiet"];
 const STEP_TEXT = {
   start: "starting", backup: "pre-update backup", sync: "syncing", converge: "waiting for every app to be healthy",
   settle: "letting the node settle", smoke: "smoke test of every address", checks: "end-to-end and data checks",
-  quiet: "quiet period (no critical alert)",
+  storage: "storage checks (Garage, replicator)", quiet: "quiet period (no critical alert)",
 };
 
 const ROLES = {

@@ -50,6 +50,11 @@ class Settings:
     checks_cronjob: str = ""
     checks_namespace: str = "canary-follower"
     checks_timeout_seconds: int = 3600
+    # Storage checks (checks/storage-checks.sh): the Garage instances and the
+    # replicator Ring 0 keeps unused, so that their updates are verified. After
+    # the checks above, same namespace. Empty: not run.
+    storage_checks_cronjob: str = ""
+    storage_checks_timeout_seconds: int = 1500
 
     # Merge queue (mergequeue.py).
     merge_queue: str = "false"
