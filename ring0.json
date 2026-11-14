@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-14T14:55:23Z",
+ "updated": "2026-11-14T14:59:32Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "402cfc6a46f40d6acab634ea898f96ea2f397d02",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-14T14:57:56Z"
  },
  "now": {
   "state": "updating",
@@ -20,9 +20,9 @@
     "repository"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-14T14:58:42Z",
+  "started": "2026-11-14T14:57:56Z",
   "queued": [
    {
     "number": 73,
@@ -288,7 +288,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-14T14:21:16Z",
+    "finished": "2026-11-14T14:59:23Z",
     "message": null
    },
    "wave": 0
@@ -540,7 +540,11 @@
     "keycloak",
     "repository"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-14T14:57:56Z"
+   }
   },
   {
    "commit": "0e171a8208e58dfc805ced155c4b3a705aec538c",
