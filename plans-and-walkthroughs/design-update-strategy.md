@@ -95,17 +95,6 @@ only place where anything happens without a human.
   Until a second account exists, turn on versioning or object lock for Ring 1's
   buckets where the provider offers it, and never point a Ring 0 restore drill
   (§9) at Ring 1's prefix.
-
-  **Garage stays, unused (2026-11-14).** In-house Garage is the default mode
-  (`docs/adr/0053`), so Ring 0 also runs both Garage instances and the offsite
-  replicator, beside the provider and on small volumes, with the replicator's
-  nightly run suspended (overlay generated with `--keep-garage`,
-  `admin-tools/generate_storage_patches.py`). No application stores anything
-  there. After the e2e and data checks, the storage checks
-  (`tenants/canary-follower/checks/storage-checks.sh`) write to and read back
-  from both instances, check that the object written on the first run is still
-  there, and run one replicator Job on a test bucket. So Garage and replicator
-  updates go through the merge queue like any other (§3.2, table).
 - **GitOps Overlay:** Ring 0 has one, like every install
   (`my-community.canary-config`), with every reference at `?ref=HEAD`; it is
   written once and never bumped. Argo CD's root Application needs it, and it
@@ -162,7 +151,6 @@ Two choices are exclusive by construction, so one side of each runs on Ring 0:
 |---|---|---|---|
 | Photos | **Gallery** | Ring 1 runs Gallery, and Gallery is `tenants/immich` plus patches, so it exercises the Immich manifests too (`docs/adr/0054`) | A fresh-install run of `test-pr-locally.sh` whenever `tenants/immich` changes |
 | Office | **Euro-Office** | Ring 1 runs Euro-Office | A fresh-install run whenever `tenants/collabora` changes |
-| Object storage | **External S3**, and Garage kept beside it, unused | Ring 1 uses a provider; Garage is the default for everyone else (`docs/adr/0053`) | The storage checks on every commit (§3.1, "Garage stays, unused"): Garage and the replicator with test data, not under an application's load |
 
 The release notes say which variant was soaked on Ring 0. "Collabora: fresh
 install tested, not soaked" is honest and is enough for an Operator to decide.

@@ -87,9 +87,6 @@ def main() -> None:
         if s.on(s.pre_update_backups) else None,
         checks_job=ChecksJob(kube, s.checks_namespace, s.checks_cronjob, s.checks_timeout_seconds)
         if s.checks_cronjob else None,
-        storage_job=ChecksJob(kube, s.checks_namespace, s.storage_checks_cronjob,
-                              s.storage_checks_timeout_seconds)
-        if s.storage_checks_cronjob else None,
         # Merging and reverting write to the repository: never without a token.
         queue=MergeQueue(github, s.branch, s.queue_label, s.queue_author,
                          merge=s.on(s.merge_queue), revert=s.on(s.auto_revert))
