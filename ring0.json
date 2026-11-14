@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-14T13:36:41Z",
+ "updated": "2026-11-14T13:38:46Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -11,17 +11,11 @@
  },
  "now": {
   "state": "updating",
-  "commit": "652882a45fe7de87972ee56fa89505932462dcc8",
-  "pull": {
-   "number": 66,
-   "title": "Update init jobs (#66)",
-   "cards": [
-    "smallworlds-root"
-   ]
-  },
-  "step": "converge",
-  "step_since": "2026-11-14T13:32:49Z",
-  "started": "2026-11-14T13:31:06Z",
+  "commit": "9ce441e1be0b4810e64a03ddb4fe1658a481c408",
+  "pull": null,
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -471,7 +465,6 @@
    "version": null,
    "revision": "c6a54ba57e563b3d7e539c1781605e40cd4c23ef",
    "images": [
-    "docker.io/alpine/k8s:1.37.1@sha256:712dc5385d1c1a3f83b747fa9e40f64d433a97f72ff42f9755ff7dd1f62846e4",
     "docker.io/library/nextcloud:35.0.2-apache",
     "docker.io/redis:6.2-alpine@sha256:3f9c6e23ed6bea3b41d0ef709fc164c1a0b7c00d5a21a60e0e9c33ada5496881",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
@@ -480,9 +473,9 @@
     "rclone/rclone:1.74@sha256:623378ad0ff3ebd5cebf77720843c0e02edfe46e2d5b5ac6bed54c6371780dfb"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/nextcloud-oidc-config"
+    "phase": "Succeeded",
+    "finished": "2026-11-14T13:36:41Z",
+    "message": null
    },
    "wave": 1
   },
@@ -552,9 +545,9 @@
     "smallworlds-root"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-14T13:31:06Z"
+    "state": "error",
+    "description": "Superseded before verified: canary-follower@9ce441e1be0b, cnpg-barman-plugin@9ce441e1be0b, headscale@9ce441e1be0b +1 more",
+    "date": "2026-11-14T13:36:53Z"
    }
   },
   {
