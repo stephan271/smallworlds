@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-14T12:49:01Z",
+ "updated": "2026-11-14T12:51:06Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "e6201b0473b01a58f0cb62e1b099a0783ab16ccf",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-14T12:50:54Z"
  },
  "now": {
   "state": "updating",
@@ -20,9 +20,9 @@
     "pod-gateway"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-14T12:50:55Z",
+  "started": "2026-11-14T12:50:54Z",
   "queued": [
    {
     "number": 66,
@@ -141,7 +141,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "2902f6e6d09acc1a6f73f49f59f061f47ffb0df9",
+   "revision": "e6201b0473b01a58f0cb62e1b099a0783ab16ccf",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
@@ -198,7 +198,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "2902f6e6d09acc1a6f73f49f59f061f47ffb0df9",
+   "revision": "e6201b0473b01a58f0cb62e1b099a0783ab16ccf",
    "images": [
     "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970"
    ],
@@ -288,8 +288,8 @@
    "revision": "c6a54ba57e563b3d7e539c1781605e40cd4c23ef",
    "images": [],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-14T12:10:11Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 0
@@ -302,7 +302,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "2902f6e6d09acc1a6f73f49f59f061f47ffb0df9",
+   "revision": "e6201b0473b01a58f0cb62e1b099a0783ab16ccf",
    "images": [
     "docker.io/velero/velero:v1.18.1",
     "velero/velero-plugin-for-aws:v1.14.2@sha256:0751144c1c8e52d52c48717fbd13ad5a3061e612ae4d7ad744a946cd5b139d1a"
@@ -541,7 +541,11 @@
     "join",
     "pod-gateway"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-14T12:50:54Z"
+   }
   },
   {
    "commit": "2902f6e6d09acc1a6f73f49f59f061f47ffb0df9",
