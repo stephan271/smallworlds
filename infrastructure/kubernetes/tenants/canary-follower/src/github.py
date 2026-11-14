@@ -6,8 +6,10 @@ merge queue polls more than that. Writing needs the fine-grained token in the
 Secret canary-follower-github (commit statuses, contents, pull requests: write);
 without it the follower verifies and only logs, and merges nothing.
 """
+import base64
 import json
 import logging
+import urllib.error
 import urllib.request
 
 log = logging.getLogger("github")
@@ -52,6 +54,53 @@ class GitHub:
             if entry.get("context") == self.context:
                 return entry.get("state")
         return None
+
+    def verdict(self, sha: str) -> dict | None:
+        """The newest status of our context: state, description and when."""
+        for entry in self._request("GET", f"/commits/{sha}/statuses?per_page=100"):
+            if entry.get("context") == self.context:
+                return {"state": entry.get("state"), "description": entry.get("description"),
+                        "date": entry.get("updated_at") or entry.get("created_at")}
+        return None
+
+    def commits(self, branch: str, count: int) -> list[dict]:
+        return self._request("GET", f"/commits?sha={branch}&per_page={count}")
+
+    # ------------------------------------------------------------ ring-state branch
+
+    def branch_exists(self, branch: str) -> bool:
+        try:
+            self._request("GET", f"/git/ref/heads/{branch}")
+            return True
+        except urllib.error.HTTPError as error:
+            if error.code == 404:
+                return False
+            raise
+
+    def file_sha(self, path: str, branch: str) -> str | None:
+        """The blob sha of a file on a branch, or None if either is missing."""
+        try:
+            return self._request("GET", f"/contents/{path}?ref={branch}")["sha"]
+        except urllib.error.HTTPError as error:
+            if error.code == 404:
+                return None
+            raise
+
+    def put_file(self, path: str, branch: str, text: str, message: str, sha: str | None) -> str:
+        """Replace a file in one commit; returns the new blob sha."""
+        body = {"message": message, "branch": branch,
+                "content": base64.b64encode(text.encode()).decode()}
+        if sha:
+            body["sha"] = sha
+        return self._request("PUT", f"/contents/{path}", body)["content"]["sha"]
+
+    def create_orphan_branch(self, branch: str, files: dict[str, str], message: str) -> None:
+        """A branch whose first commit has no parent: it shares nothing with main."""
+        tree = self._request("POST", "/git/trees", {"tree": [
+            {"path": p, "mode": "100644", "type": "blob", "content": c} for p, c in files.items()]})
+        commit = self._request("POST", "/git/commits", {"message": message, "tree": tree["sha"],
+                                                        "parents": []})
+        self._request("POST", "/git/refs", {"ref": f"refs/heads/{branch}", "sha": commit["sha"]})
 
     def set_status(self, sha: str, state: str, description: str) -> None:
         description = description if len(description) <= 140 else description[:139] + "…"

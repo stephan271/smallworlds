@@ -502,6 +502,13 @@ and the Steward splits it.
 Every community's Update Desk needs to know what Ring 0 has verified, without
 access to Ring 0. The follower publishes it.
 
+*Partly built (2026-11-14):* the follower writes `ring0.json` with `head` and `now`
+in the shape below, plus three sections for the public Ring 0 board
+(`ring0-board/`): `applications` (Argo CD's report on each Application),
+`commits` and `pulls`, each naming the Applications it touches. `verified`,
+`contents`, the Update Units and the back-fill are still phase D1. `now.step`
+also takes `settle`, and `waiting` / `retry` / `merge` between verifications.
+
 **Where.** Branch `ring-state` of the base repository, file `ring0.json`, read
 through `https://raw.githubusercontent.com/stephan271/smallworlds/ring-state/ring0.json`.
 It is public: no token needed. Every update is a commit, so the branch's history

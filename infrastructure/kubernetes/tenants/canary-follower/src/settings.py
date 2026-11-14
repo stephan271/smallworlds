@@ -55,6 +55,13 @@ class Settings:
     merge_queue: str = "false"
     auto_revert: str = "false"
     queue_label: str = "ring0-queue"
+
+    # Ring State (ringstate.py): ring0.json on this branch, for the public Ring 0
+    # board. Looked at every interval, written only on a change or at the heartbeat.
+    ring_state: str = "false"
+    ring_state_branch: str = "ring-state"
+    ring_state_interval_seconds: int = 120
+    ring_state_heartbeat_seconds: int = 3600
     queue_author: str = "renovate[bot]"
 
     @staticmethod

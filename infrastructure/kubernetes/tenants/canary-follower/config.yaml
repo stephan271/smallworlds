@@ -33,3 +33,6 @@ data:
   # the token's contents and pull-request permissions (README).
   MERGE_QUEUE: "true"
   AUTO_REVERT: "true"
+  # ring0.json on the branch ring-state, the data of the public Ring 0 board
+  # (src/ringstate.py, ring0-board/). Needs the token's contents permission.
+  RING_STATE: "true"
