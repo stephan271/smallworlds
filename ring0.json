@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-14T16:07:54Z",
+ "updated": "2026-11-14T16:09:58Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -149,6 +149,61 @@
    "wave": -9
   },
   {
+   "name": "garage",
+   "group": "platform",
+   "health": "Healthy",
+   "sync": "Synced",
+   "source": "chart",
+   "chart": "garage",
+   "version": "0.7.1",
+   "revision": null,
+   "images": [
+    "dxflrs/garage:v2.3.0"
+   ],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T16:09:40Z",
+    "message": null
+   },
+   "wave": -5
+  },
+  {
+   "name": "garage-backup",
+   "group": "platform",
+   "health": "Healthy",
+   "sync": "Synced",
+   "source": "chart",
+   "chart": "garage",
+   "version": "0.7.1",
+   "revision": null,
+   "images": [
+    "dxflrs/garage:v2.3.0"
+   ],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T16:09:38Z",
+    "message": null
+   },
+   "wave": -5
+  },
+  {
+   "name": "backup-replicator",
+   "group": "platform",
+   "health": "Healthy",
+   "sync": "Synced",
+   "source": "base",
+   "chart": null,
+   "version": null,
+   "revision": "402cfc6a46f40d6acab634ea898f96ea2f397d02",
+   "images": [],
+   "operation": {
+    "phase": "Succeeded",
+    "finished": "2026-11-14T16:09:19Z",
+    "message": null
+   },
+   "wave": 0
+  },
+  {
    "name": "dashboard",
    "group": "apps",
    "health": "Healthy",
@@ -223,8 +278,8 @@
    ],
    "operation": {
     "phase": "Running",
-    "finished": "2026-11-14T16:06:59Z",
-    "message": "one or more synchronization tasks completed unsuccessfully, reason: error when patching \"/dev/shm/670271806\": Service \"keycloak-keycloakx-headless\" is invalid: metadata.labels: Invalid value: \"26.8.2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc49\": a valid label must be an empty string or\u2026"
+    "finished": "2026-11-14T16:09:21Z",
+    "message": "one or more synchronization tasks completed unsuccessfully, reason: error when patching \"/dev/shm/1866601815\": Ingress.networking.k8s.io \"keycloak-keycloakx\" is invalid: metadata.labels: Invalid value: \"26.8.2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc49\": a valid label must be an empty\u2026"
    },
    "wave": 0
   },
@@ -282,11 +337,11 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "c6a54ba57e563b3d7e539c1781605e40cd4c23ef",
+   "revision": "116030ca2da5a59c1cc7661a4ea3a55c44d6734c",
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-14T14:59:23Z",
+    "finished": "2026-11-14T16:09:22Z",
     "message": null
    },
    "wave": 0
