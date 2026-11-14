@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-14T13:59:32Z",
+ "updated": "2026-11-14T14:16:03Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -11,11 +11,11 @@
  },
  "now": {
   "state": "updating",
-  "commit": "9ce441e1be0b4810e64a03ddb4fe1658a481c408",
+  "commit": "0e171a8208e58dfc805ced155c4b3a705aec538c",
   "pull": null,
-  "step": "quiet",
-  "step_since": "2026-11-14T13:55:40Z",
-  "started": "2026-11-14T13:41:54Z",
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -545,9 +545,9 @@
     "repository"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-14T13:41:54Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
+    "date": "2026-11-14T14:15:40Z"
    }
   },
   {
