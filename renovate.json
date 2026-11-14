@@ -24,6 +24,19 @@
   "ignorePaths": [
     "**/node_modules/**"
   ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Keycloak's chart runs the image named by image.digest and copies image.tag into the label app.kubernetes.io/version. Renovate's helm-values manager ignores the digest field and appends the digest to the tag, which is not a valid label: every Keycloak sync failed (#74, 2026-11-14) and the old digest would have kept the old image. This updates tag and digest as a pair.",
+      "managerFilePatterns": [
+        "/^infrastructure/kubernetes/tenants/keycloak/values\\.yaml$/"
+      ],
+      "matchStrings": [
+        "repository: (?<depName>quay\\.io/keycloak/keycloak)\\s+tag: \"(?<currentValue>[^\"@]+)\"\\s+digest: \"(?<currentDigest>sha256:[a-f0-9]{64})\""
+      ],
+      "datasourceTemplate": "docker"
+    }
+  ],
   "packageRules": [
     {
       "description": "Release Rings (docs/adr/0060): an upstream release waits three days, so one the upstream project withdraws never reaches main. Where a registry gives no release date (ghcr.io, code.forgejo.org, every digest), the update is not held forever (minimumReleaseAgeBehaviour timestamp-optional): Ring 0 still verifies it before anything else moves. Renovate itself never merges: Ring 0's merge queue does, one update at a time while main is green (the ring0-queue rule below).",
@@ -275,6 +288,19 @@
       "description": "Provided-scope Jakarta APIs must match the Keycloak runtime (EE 10 / ws.rs 3.1 for Keycloak 25); bump manually together with Keycloak",
       "matchPackageNames": [
         "jakarta.ws.rs:jakarta.ws.rs-api"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Keycloak's image in its chart values is the custom regex manager's (customManagers), never helm-values': see there.",
+      "matchManagers": [
+        "helm-values"
+      ],
+      "matchFileNames": [
+        "infrastructure/kubernetes/tenants/keycloak/values.yaml"
+      ],
+      "matchPackageNames": [
+        "quay.io/keycloak/keycloak"
       ],
       "enabled": false
     }
