@@ -1,21 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-14T12:22:05Z",
+ "updated": "2026-11-14T12:42:45Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "2902f6e6d09acc1a6f73f49f59f061f47ffb0df9",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-14T12:09:32Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
+  "date": "2026-11-14T12:40:43Z"
  },
  "now": {
   "state": "updating",
   "commit": "2902f6e6d09acc1a6f73f49f59f061f47ffb0df9",
   "pull": null,
-  "step": "quiet",
-  "step_since": "2026-11-14T12:20:43Z",
-  "started": "2026-11-14T12:09:32Z",
+  "step": "merge",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 62,
@@ -54,7 +54,7 @@
   ],
   "stuck": null,
   "action": null,
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -543,9 +543,9 @@
     "repository"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-14T12:09:32Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
+    "date": "2026-11-14T12:40:43Z"
    }
   },
   {
