@@ -1,28 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-14T17:50:50Z",
+ "updated": "2026-11-14T17:52:55Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "2aa5d4ec40fcfec35c81d38e19a93717e2bd9336",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-14T17:39:28Z"
+  "state": "failure",
+  "description": "Checks failed: e2e: test users not provisioned; data 4/4 apps intact; touches keycloak: restore, do not revert",
+  "date": "2026-11-14T17:52:24Z"
  },
  "now": {
-  "state": "updating",
+  "state": "stuck",
   "commit": "2aa5d4ec40fcfec35c81d38e19a93717e2bd9336",
-  "pull": {
-   "number": 81,
-   "title": "Fix Keycloak's image pin, and teach Renovate to keep tag and digest together",
-   "cards": [
-    "keycloak",
-    "repository"
-   ]
-  },
-  "step": "checks",
-  "step_since": "2026-11-14T17:49:53Z",
-  "started": "2026-11-14T17:39:27Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 63,
@@ -66,8 +59,12 @@
     "since": "2026-11-14T14:53:57Z"
    }
   ],
-  "stuck": null,
-  "action": "revert offered in #80, for a person to merge",
+  "stuck": {
+   "condition": "S1",
+   "since": "2026-11-14T17:52:24Z",
+   "summary": "Checks failed: e2e: test users not provisioned; data 4/4 apps intact; touches keycloak: restore, do not revert"
+  },
+  "action": "not reverted: restore from the pre-update backup",
   "waiting": null
  },
  "applications": [
@@ -613,9 +610,9 @@
     "repository"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-14T17:39:28Z"
+    "state": "failure",
+    "description": "Checks failed: e2e: test users not provisioned; data 4/4 apps intact; touches keycloak: restore, do not revert",
+    "date": "2026-11-14T17:52:24Z"
    }
   },
   {
