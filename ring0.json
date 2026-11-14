@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-14T17:09:30Z",
+ "updated": "2026-11-14T17:13:37Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -294,9 +294,9 @@
     "quay.io/keycloak/keycloak@sha256:0aae0de7fca85525f727d3354df17896092de8bb26ae4c12d89c77e5df8cbce4"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": "2026-11-14T17:07:53Z",
-    "message": "one or more synchronization tasks completed unsuccessfully, reason: error when patching \"/dev/shm/1900894630\": ServiceAccount \"keycloak-keycloakx\" is invalid: metadata.labels: Invalid value: \"26.8.2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc49\": a valid label must be an empty string or \u2026"
+    "phase": "Failed",
+    "finished": "2026-11-14T17:13:12Z",
+    "message": "one or more synchronization tasks completed unsuccessfully, reason: error when patching \"/dev/shm/1458584524\": StatefulSet.apps \"keycloak-keycloakx\" is invalid: metadata.labels: Invalid value: \"26.8.2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc49\": a valid label must be an empty string o\u2026"
    },
    "wave": 0
   },
