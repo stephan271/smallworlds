@@ -1,22 +1,46 @@
 {
  "schema": 1,
- "updated": "2026-11-14T16:09:58Z",
+ "updated": "2026-11-14T16:13:34Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "402cfc6a46f40d6acab634ea898f96ea2f397d02",
-  "state": "failure",
-  "description": "Not converged: keycloak: still running an earlier sync; touches keycloak: restore, do not revert",
-  "date": "2026-11-14T15:45:19Z"
+  "commit": "4529983127b6d91364447b3747d16ce89ed308fb",
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-14T16:13:14Z"
  },
  "now": {
-  "state": "stuck",
-  "commit": "402cfc6a46f40d6acab634ea898f96ea2f397d02",
-  "pull": null,
-  "step": null,
-  "step_since": null,
-  "started": null,
+  "state": "updating",
+  "commit": "4529983127b6d91364447b3747d16ce89ed308fb",
+  "pull": {
+   "number": 79,
+   "title": "Keep Garage on Ring 0, unused, so its updates are verified too",
+   "cards": [
+    "canary-follower",
+    "repository"
+   ]
+  },
+  "step": "sync",
+  "step_since": "2026-11-14T16:13:15Z",
+  "started": "2026-11-14T16:13:14Z",
   "queued": [
+   {
+    "number": 63,
+    "title": "Update Docker image rclone/rclone to v1.76",
+    "cards": [
+     "backup-replicator"
+    ],
+    "since": "2026-11-13T11:31:26Z"
+   },
+   {
+    "number": 64,
+    "title": "Update Helm chart garage to v0.9.0",
+    "cards": [
+     "garage",
+     "garage-backup"
+    ],
+    "since": "2026-11-13T11:31:36Z"
+   },
    {
     "number": 73,
     "title": "Update Helm chart kube-prometheus-stack to v87.21.0",
@@ -42,12 +66,8 @@
     "since": "2026-11-14T14:53:57Z"
    }
   ],
-  "stuck": {
-   "condition": "S1",
-   "since": "2026-11-14T15:45:19Z",
-   "summary": "Not converged: keycloak: still running an earlier sync; touches keycloak: restore, do not revert"
-  },
-  "action": "not reverted: restore from the pre-update backup",
+  "stuck": null,
+  "action": null,
   "waiting": null
  },
  "applications": [
@@ -278,8 +298,8 @@
    ],
    "operation": {
     "phase": "Running",
-    "finished": "2026-11-14T16:09:21Z",
-    "message": "one or more synchronization tasks completed unsuccessfully, reason: error when patching \"/dev/shm/1866601815\": Ingress.networking.k8s.io \"keycloak-keycloakx\" is invalid: metadata.labels: Invalid value: \"26.8.2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc49\": a valid label must be an empty\u2026"
+    "finished": null,
+    "message": "waiting for deletion of hook batch/Job/pre-update-backup"
    },
    "wave": 0
   },
@@ -332,7 +352,7 @@
   {
    "name": "smallworlds-root",
    "group": "machinery",
-   "health": "Healthy",
+   "health": "Progressing",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -340,9 +360,9 @@
    "revision": "116030ca2da5a59c1cc7661a4ea3a55c44d6734c",
    "images": [],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-14T16:09:22Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of storage.k8s.io/StorageClass/static-local and 4 more resources"
    },
    "wave": 0
   },
@@ -354,7 +374,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "402cfc6a46f40d6acab634ea898f96ea2f397d02",
+   "revision": "4529983127b6d91364447b3747d16ce89ed308fb",
    "images": [
     "docker.io/velero/velero:v1.18.1",
     "velero/velero-plugin-for-aws:v1.14.2@sha256:0751144c1c8e52d52c48717fbd13ad5a3061e612ae4d7ad744a946cd5b139d1a"
@@ -388,18 +408,18 @@
   {
    "name": "canary-follower",
    "group": "machinery",
-   "health": "Healthy",
+   "health": "Progressing",
    "sync": "Synced",
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "402cfc6a46f40d6acab634ea898f96ea2f397d02",
+   "revision": "4529983127b6d91364447b3747d16ce89ed308fb",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-14T15:00:20Z",
+    "finished": "2026-11-14T16:12:39Z",
     "message": null
    },
    "wave": 1
@@ -583,6 +603,34 @@
   }
  ],
  "commits": [
+  {
+   "commit": "4529983127b6d91364447b3747d16ce89ed308fb",
+   "title": "Keep Garage on Ring 0, unused, so its updates are verified too",
+   "author": "stephan271",
+   "date": "2026-11-14T16:12:08Z",
+   "pull": 79,
+   "cards": [
+    "canary-follower",
+    "repository"
+   ],
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-14T16:13:14Z"
+   }
+  },
+  {
+   "commit": "c42e15859f01bd75d0d0b8b69605a121f263a06e",
+   "title": "Keep Garage on Ring 0, unused, so its updates are verified too",
+   "author": "stephan271",
+   "date": "2026-11-14T15:33:07Z",
+   "pull": null,
+   "cards": [
+    "canary-follower",
+    "repository"
+   ],
+   "verdict": null
+  },
   {
    "commit": "402cfc6a46f40d6acab634ea898f96ea2f397d02",
    "title": "Update keycloak (#74)",
@@ -928,32 +976,6 @@
     "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
     "date": "2026-11-13T12:34:25Z"
    }
-  },
-  {
-   "commit": "67def2e894dd4d7ce1e7000e036d8e54ec01af41",
-   "title": "Move the python base image in one PR across tenants",
-   "author": "stephan271",
-   "date": "2026-11-13T11:30:17Z",
-   "pull": null,
-   "cards": [
-    "repository"
-   ],
-   "verdict": null
-  },
-  {
-   "commit": "af587a66dd6a5d5de13c6d275dbd533513303613",
-   "title": "Pin dependencies (#53)",
-   "author": "renovate[bot]",
-   "date": "2026-11-13T11:20:37Z",
-   "pull": 53,
-   "cards": [
-    "forgejo"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: backup 1 databases, converged, load settled after 6 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 m\u2026",
-    "date": "2026-11-13T12:01:10Z"
-   }
   }
  ],
  "pulls": [
@@ -963,9 +985,11 @@
    "author": "renovate[bot]",
    "created": "2026-11-13T11:31:26Z",
    "draft": false,
-   "queued": false,
+   "queued": true,
    "rejected": false,
-   "labels": [],
+   "labels": [
+    "ring0-queue"
+   ],
    "cards": [
     "backup-replicator"
    ]
@@ -976,9 +1000,11 @@
    "author": "renovate[bot]",
    "created": "2026-11-13T11:31:36Z",
    "draft": false,
-   "queued": false,
+   "queued": true,
    "rejected": false,
-   "labels": [],
+   "labels": [
+    "ring0-queue"
+   ],
    "cards": [
     "garage",
     "garage-backup"
@@ -1027,20 +1053,6 @@
    ],
    "cards": [
     "velero"
-   ]
-  },
-  {
-   "number": 79,
-   "title": "Keep Garage on Ring 0, unused, so its updates are verified too",
-   "author": "stephan271",
-   "created": "2026-11-14T15:33:28Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "canary-follower",
-    "repository"
    ]
   }
  ]
