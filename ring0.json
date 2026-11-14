@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-14T14:53:18Z",
+ "updated": "2026-11-14T14:55:23Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -39,6 +39,14 @@
      "repository"
     ],
     "since": "2026-11-14T13:33:03Z"
+   },
+   {
+    "number": 78,
+    "title": "Update velero",
+    "cards": [
+     "velero"
+    ],
+    "since": "2026-11-14T14:53:57Z"
    }
   ],
   "stuck": null,
@@ -132,7 +140,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "0e171a8208e58dfc805ced155c4b3a705aec538c",
+   "revision": "402cfc6a46f40d6acab634ea898f96ea2f397d02",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
@@ -189,7 +197,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "0e171a8208e58dfc805ced155c4b3a705aec538c",
+   "revision": "402cfc6a46f40d6acab634ea898f96ea2f397d02",
    "images": [
     "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970"
    ],
@@ -293,7 +301,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "0e171a8208e58dfc805ced155c4b3a705aec538c",
+   "revision": "402cfc6a46f40d6acab634ea898f96ea2f397d02",
    "images": [
     "docker.io/velero/velero:v1.18.1",
     "velero/velero-plugin-for-aws:v1.14.2@sha256:0751144c1c8e52d52c48717fbd13ad5a3061e612ae4d7ad744a946cd5b139d1a"
@@ -332,7 +340,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "0e171a8208e58dfc805ced155c4b3a705aec538c",
+   "revision": "402cfc6a46f40d6acab634ea898f96ea2f397d02",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
@@ -947,6 +955,21 @@
    ],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 78,
+   "title": "Update velero",
+   "author": "renovate[bot]",
+   "created": "2026-11-14T14:53:57Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "velero"
    ]
   }
  ]
