@@ -1,31 +1,29 @@
 {
  "schema": 1,
- "updated": "2026-11-14T12:42:45Z",
+ "updated": "2026-11-14T12:46:54Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "2902f6e6d09acc1a6f73f49f59f061f47ffb0df9",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
-  "date": "2026-11-14T12:40:43Z"
+  "commit": "e6201b0473b01a58f0cb62e1b099a0783ab16ccf",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "2902f6e6d09acc1a6f73f49f59f061f47ffb0df9",
-  "pull": null,
-  "step": "merge",
+  "commit": "e6201b0473b01a58f0cb62e1b099a0783ab16ccf",
+  "pull": {
+   "number": 62,
+   "title": "Update Docker image python to v3.15 (#62)",
+   "cards": [
+    "join",
+    "pod-gateway"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
-   {
-    "number": 62,
-    "title": "Update Docker image python to v3.15",
-    "cards": [
-     "join",
-     "pod-gateway"
-    ],
-    "since": "2026-11-13T11:31:19Z"
-   },
    {
     "number": 66,
     "title": "Update init jobs",
@@ -53,8 +51,8 @@
    }
   ],
   "stuck": null,
-  "action": null,
-  "waiting": "no queued update is ready"
+  "action": "merged #62",
+  "waiting": null
  },
  "applications": [
   {
@@ -534,6 +532,18 @@
  ],
  "commits": [
   {
+   "commit": "e6201b0473b01a58f0cb62e1b099a0783ab16ccf",
+   "title": "Update Docker image python to v3.15 (#62)",
+   "author": "renovate[bot]",
+   "date": "2026-11-14T12:45:52Z",
+   "pull": 62,
+   "cards": [
+    "join",
+    "pod-gateway"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "2902f6e6d09acc1a6f73f49f59f061f47ffb0df9",
    "title": "Add GitHub Actions workflow for GitHub Pages deployment",
    "author": "stephan271",
@@ -897,36 +907,9 @@
     "description": "Ring 0 is syncing and verifying this commit",
     "date": "2026-11-13T09:24:15Z"
    }
-  },
-  {
-   "commit": "b8a9d36016a19225f38446f658319d4e15ca17c0",
-   "title": "Move superseded ADRs into docs/adr/superseded/",
-   "author": "stephan271",
-   "date": "2026-11-13T09:05:35Z",
-   "pull": null,
-   "cards": [
-    "repository"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
-  {
-   "number": 62,
-   "title": "Update Docker image python to v3.15",
-   "author": "renovate[bot]",
-   "created": "2026-11-13T11:31:19Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "join",
-    "pod-gateway"
-   ]
-  },
   {
    "number": 63,
    "title": "Update Docker image rclone/rclone to v1.76",
