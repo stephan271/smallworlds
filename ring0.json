@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-14T15:01:38Z",
+ "updated": "2026-11-14T15:03:43Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -225,8 +225,8 @@
    ],
    "operation": {
     "phase": "Running",
-    "finished": "2026-11-14T15:00:45Z",
-    "message": "one or more objects failed to apply, reason: error when patching \"/dev/shm/1135556467\": ServiceAccount \"keycloak-keycloakx\" is invalid: metadata.labels: Invalid value: \"26.8.2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc49\": a valid label must be an empty string or consist of alphanumeric\u2026"
+    "finished": "2026-11-14T15:01:50Z",
+    "message": "one or more objects failed to apply, reason: error when patching \"/dev/shm/3938233346\": Ingress.networking.k8s.io \"keycloak-keycloakx\" is invalid: metadata.labels: Invalid value: \"26.8.2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc49\": a valid label must be an empty string or consist of a\u2026"
    },
    "wave": 0
   },
@@ -241,7 +241,6 @@
    "revision": null,
    "images": [
     "docker.io/grafana/grafana:13.1.0",
-    "ghcr.io/jkroepke/kube-webhook-certgen:1.8.4",
     "quay.io/kiwigrid/k8s-sidecar:2.8.1",
     "quay.io/prometheus-operator/prometheus-config-reloader:v0.92.1",
     "quay.io/prometheus-operator/prometheus-operator:v0.92.1",
@@ -251,9 +250,9 @@
     "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.19.1"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/kube-prometheus-stack-admission-create"
+    "phase": "Succeeded",
+    "finished": "2026-11-14T15:02:24Z",
+    "message": null
    },
    "wave": 0
   },
@@ -304,14 +303,13 @@
    "version": null,
    "revision": "402cfc6a46f40d6acab634ea898f96ea2f397d02",
    "images": [
-    "docker.io/alpine/k8s:1.37.1@sha256:712dc5385d1c1a3f83b747fa9e40f64d433a97f72ff42f9755ff7dd1f62846e4",
     "docker.io/velero/velero:v1.18.1",
     "velero/velero-plugin-for-aws:v1.14.2@sha256:0751144c1c8e52d52c48717fbd13ad5a3061e612ae4d7ad744a946cd5b139d1a"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/velero-garage-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-14T15:01:44Z",
+    "message": null
    },
    "wave": 0
   },
@@ -325,13 +323,12 @@
    "version": null,
    "revision": "c6a54ba57e563b3d7e539c1781605e40cd4c23ef",
    "images": [
-    "docker.io/alpine/k8s:1.37.1@sha256:712dc5385d1c1a3f83b747fa9e40f64d433a97f72ff42f9755ff7dd1f62846e4",
     "ghcr.io/bulwarkmail/webmail:1.21.2@sha256:037b85b1433233d2d7eebb83f928df5ecc3b4adc91dc7e4c55f0a2f69024e754"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-14T15:01:45Z",
+    "message": null
    },
    "wave": 1
   },
@@ -384,7 +381,6 @@
    "revision": "c6a54ba57e563b3d7e539c1781605e40cd4c23ef",
    "images": [
     "code.forgejo.org/forgejo/forgejo:15.0.11-rootless",
-    "docker.io/alpine/k8s:1.37.1@sha256:712dc5385d1c1a3f83b747fa9e40f64d433a97f72ff42f9755ff7dd1f62846e4",
     "docker.io/redis:6.2-alpine@sha256:3f9c6e23ed6bea3b41d0ef709fc164c1a0b7c00d5a21a60e0e9c33ada5496881",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -392,9 +388,9 @@
     "rclone/rclone:1.74@sha256:623378ad0ff3ebd5cebf77720843c0e02edfe46e2d5b5ac6bed54c6371780dfb"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/garage-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-14T15:03:14Z",
+    "message": null
    },
    "wave": 1
   },
@@ -408,7 +404,6 @@
    "version": null,
    "revision": "c6a54ba57e563b3d7e539c1781605e40cd4c23ef",
    "images": [
-    "docker.io/alpine/k8s:1.37.1@sha256:712dc5385d1c1a3f83b747fa9e40f64d433a97f72ff42f9755ff7dd1f62846e4",
     "docker.io/redis:6.2-alpine@sha256:3f9c6e23ed6bea3b41d0ef709fc164c1a0b7c00d5a21a60e0e9c33ada5496881",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -418,9 +413,9 @@
     "rclone/rclone:1.74@sha256:623378ad0ff3ebd5cebf77720843c0e02edfe46e2d5b5ac6bed54c6371780dfb"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/garage-init and 1 more hooks"
+    "phase": "Succeeded",
+    "finished": "2026-11-14T15:03:21Z",
+    "message": null
    },
    "wave": 1
   },
@@ -434,7 +429,6 @@
    "version": null,
    "revision": "c6a54ba57e563b3d7e539c1781605e40cd4c23ef",
    "images": [
-    "docker.io/alpine/k8s:1.37.1@sha256:712dc5385d1c1a3f83b747fa9e40f64d433a97f72ff42f9755ff7dd1f62846e4",
     "ghcr.io/jitsi-contrib/jitsi-oidc-adapter:v20260328@sha256:c4a28b215f5ea4893e308cd3f15b1f1c6954231ab784cac6362f420e6648a745",
     "jitsi/jicofo:stable-11031",
     "jitsi/jvb:stable-11031",
@@ -442,9 +436,9 @@
     "jitsi/web:stable-11031"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-14T15:01:57Z",
+    "message": null
    },
    "wave": 1
   },
@@ -458,13 +452,12 @@
    "version": null,
    "revision": "c6a54ba57e563b3d7e539c1781605e40cd4c23ef",
    "images": [
-    "docker.io/alpine/k8s:1.37.1@sha256:712dc5385d1c1a3f83b747fa9e40f64d433a97f72ff42f9755ff7dd1f62846e4",
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-14T15:03:10Z",
+    "message": null
    },
    "wave": 1
   },
@@ -478,7 +471,6 @@
    "version": null,
    "revision": "c6a54ba57e563b3d7e539c1781605e40cd4c23ef",
    "images": [
-    "docker.io/alpine/k8s:1.37.1@sha256:712dc5385d1c1a3f83b747fa9e40f64d433a97f72ff42f9755ff7dd1f62846e4",
     "docker.io/library/nextcloud:35.0.2-apache",
     "docker.io/redis:6.2-alpine@sha256:3f9c6e23ed6bea3b41d0ef709fc164c1a0b7c00d5a21a60e0e9c33ada5496881",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
@@ -487,9 +479,9 @@
     "rclone/rclone:1.74@sha256:623378ad0ff3ebd5cebf77720843c0e02edfe46e2d5b5ac6bed54c6371780dfb"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for healthy state of /ServiceAccount/setup-sa and 1 more resources"
+    "phase": "Succeeded",
+    "finished": "2026-11-14T15:03:29Z",
+    "message": null
    },
    "wave": 1
   },
@@ -530,9 +522,9 @@
     "stalwartlabs/stalwart:v0.16.27@sha256:2c9af6bfccb361b9f286d6cd0bb50acb2aaeffc06f5257354c0ce4dff9f02b58"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for healthy state of /ServiceAccount/setup-sa and 1 more resources"
+    "phase": "Succeeded",
+    "finished": "2026-11-14T15:02:50Z",
+    "message": null
    },
    "wave": 1
   }
