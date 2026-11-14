@@ -220,7 +220,10 @@ verdict is the commit status `ring0/verified`. While the head is green, the foll
 Ring 0 runs; `renovate.json`), one per verified commit, and reverts a rejected one unless
 it touches a migrating tenant. So `main` moves without a person: pull before working, and
 never turn on Renovate's own `automerge` (`admin-tools/test-renovate-groups.py` fails) —
-it would land several updates between two verifications. Changes to `e2e-tests/` or
+it would land several updates between two verifications. Ring 0 also keeps Garage and the
+replicator running, unused, beside its external provider (overlay `--keep-garage`), and
+`checks/storage-checks.sh` writes to and reads back from them on every commit — so their
+updates are queued too. Changes to `e2e-tests/` or
 `admin-tools/canary/` are what Ring 0 runs on the next commit, so a broken test stops the
 queue. Details: `tenants/canary-follower/README.md`. The follower also publishes
 `ring0.json` to the branch `ring-state` (never merge it, never edit it by hand), which

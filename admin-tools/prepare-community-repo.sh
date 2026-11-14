@@ -320,6 +320,16 @@ else
     S3_ENDPOINT="" S3_REGION="" S3_BUCKET_PREFIX="" S3_BACKUP_ENDPOINT="" S3_BACKUP_REGION=""
 fi
 
+# Ring 0 only (plans-and-walkthroughs/design-update-strategy.md §3.2): keep both
+# Garage instances and the replicator running, unused, beside the provider, so
+# that updates to them can be verified there. Never asked — an operator has no
+# use for it. Set KEEP_GARAGE_FOR_TESTS=y once; the record keeps it.
+KEEP_GARAGE_FOR_TESTS="${KEEP_GARAGE_FOR_TESTS:-${STORED_KEEP_GARAGE_FOR_TESTS:-n}}"
+KEEP_GARAGE_FLAG=()
+if [[ "$OBJECT_STORAGE" == "external" && "$KEEP_GARAGE_FOR_TESTS" == "y" ]]; then
+    KEEP_GARAGE_FLAG=(--keep-garage)
+fi
+
 # Refuse an unusable answer here, before any file of the overlay is touched.
 python3 "$SCRIPT_DIR/generate_storage_patches.py" --check --app root --mode "$OBJECT_STORAGE" \
     --endpoint "$S3_ENDPOINT" --region "$S3_REGION" --bucket-prefix "$S3_BUCKET_PREFIX" \
@@ -331,7 +341,8 @@ apply_storage_patches() {
     python3 "$SCRIPT_DIR/generate_storage_patches.py" \
         --app "$1" --mode "$OBJECT_STORAGE" --kustomization-file "$2" \
         --endpoint "$S3_ENDPOINT" --region "$S3_REGION" --bucket-prefix "$S3_BUCKET_PREFIX" \
-        --backup-endpoint "$S3_BACKUP_ENDPOINT" --backup-region "$S3_BACKUP_REGION"
+        --backup-endpoint "$S3_BACKUP_ENDPOINT" --backup-region "$S3_BACKUP_REGION" \
+        "${KEEP_GARAGE_FLAG[@]}"
 }
 
 sw_step_ok repo-init
@@ -570,6 +581,7 @@ STORED_S3_REGION="${S3_REGION}"
 STORED_S3_BUCKET_PREFIX="${S3_BUCKET_PREFIX}"
 STORED_S3_BACKUP_ENDPOINT="${S3_BACKUP_ENDPOINT}"
 STORED_S3_BACKUP_REGION="${S3_BACKUP_REGION}"
+STORED_KEEP_GARAGE_FOR_TESTS="${KEEP_GARAGE_FOR_TESTS}"
 EOF
 for app in "${OPTIONAL_APPS[@]}"; do
     var_name="$(app_pref_var "$app")"

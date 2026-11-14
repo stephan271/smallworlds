@@ -132,8 +132,10 @@ class FakeJobsKube:
             return self.cronjob
         if "/pods?" in path:
             return {"items": [{"metadata": {"name": "pod-1"}}]}
-        if path.endswith("/jobs?labelSelector=app=canary-checks"):
-            return {"items": list(self.jobs.values())}
+        if "/jobs?labelSelector=app=" in path:
+            label = path.rsplit("=", 1)[1]
+            return {"items": [j for j in self.jobs.values()
+                              if j.get("metadata", {}).get("labels", {}).get("app", label) == label]}
         name = path.rsplit("/", 1)[1]
         self.reads += 1
         job = self.jobs[name]
@@ -209,6 +211,21 @@ class ChecksJobTest(unittest.TestCase):
         kube.jobs["canary-checks-old"] = {"metadata": {"name": "canary-checks-old"}, "status": {"active": 1}}
         job.run(SHA)
         self.assertIn("canary-checks-old", kube.deleted)
+
+    def test_each_kind_of_check_clears_only_its_own_jobs(self):
+        # The storage checks run right after the e2e checks: clearing by a
+        # shared label would delete the e2e Job's record of a failure.
+        clock = Clock()
+        kube = FakeJobsKube(log="CHECKS storage: Garage v2.3.0, rclone 1.74 ok\n")
+        kube.jobs["canary-checks-failed"] = {"metadata": {"name": "canary-checks-failed",
+                                                          "labels": {"app": "canary-checks"}},
+                                             "status": {"failed": 1}}
+        storage = ChecksJob(kube, "canary-follower", "canary-storage-checks", 1500,
+                            clock=clock, sleep=clock.sleep, now=lambda: 1700000000)
+        self.assertEqual((True, "storage: Garage v2.3.0, rclone 1.74 ok"), storage.run(SHA))
+        created = next(j for n, j in kube.jobs.items() if n.startswith("canary-storage-checks-"))
+        self.assertEqual("canary-storage-checks", created["metadata"]["labels"]["app"])
+        self.assertNotIn("canary-checks-failed", kube.deleted)
 
     def test_failed_jobs_of_earlier_runs_are_removed_and_passed_ones_kept(self):
         # Each failed Job keeps KubeJobFailed firing for its three-day TTL; five
@@ -438,10 +455,11 @@ class FakeBackups:
         return [f"{t}/database" for t in tenants]
 
 
-def wired(paths=(), checks=None, backups=None, **kwargs):
+def wired(paths=(), checks=None, backups=None, storage=None, **kwargs):
     follower, gh, kube, seen = make(paths=paths, **kwargs)
     follower.queue = FakeQueue()
     follower.checks_job = checks
+    follower.storage_job = storage
     follower.backups = backups
     return follower, gh, kube
 
@@ -487,6 +505,36 @@ class FollowerAutomationTest(unittest.TestCase):
         self.assertEqual([SHA], follower.queue.rejected)
         follower.tick()
         self.assertEqual(0, follower.queue.advanced, "nothing merged onto a red head")
+
+    def test_the_storage_checks_follow_the_e2e_checks_into_the_status(self):
+        storage = FakeChecks(summary="storage: Garage v2.4.1, rclone 1.76 ok")
+        follower, gh, kube = wired(checks=FakeChecks(), storage=storage)
+        outcome = follower.tick()
+        self.assertEqual("success", outcome.state)
+        self.assertEqual([SHA], storage.ran)
+        self.assertIn("data 4/4 apps intact, storage: Garage v2.4.1, rclone 1.76 ok", outcome.description)
+
+    def test_failed_storage_checks_reject_the_commit(self):
+        follower, gh, kube = wired(checks=FakeChecks(),
+                                   storage=FakeChecks(False, "storage: garage-system: could not create a key"))
+        outcome = follower.tick()
+        self.assertEqual("failure", outcome.state)
+        self.assertIn("Storage checks failed: storage: garage-system: could not create a key",
+                      outcome.description)
+        self.assertEqual([SHA], follower.queue.rejected)
+
+    def test_storage_checks_that_could_not_run_are_no_verdict(self):
+        follower, gh, kube = wired(checks=FakeChecks(),
+                                   storage=FakeChecks(None, "storage: could not start a replicator Job"))
+        outcome = follower.tick()
+        self.assertEqual("error", outcome.state)
+        self.assertEqual([], follower.queue.rejected)
+
+    def test_storage_checks_wait_for_the_e2e_checks_to_pass(self):
+        storage = FakeChecks()
+        follower, gh, kube = wired(checks=FakeChecks(False, "e2e 1 failed"), storage=storage)
+        follower.tick()
+        self.assertEqual([], storage.ran)
 
     def test_a_restarted_pod_on_a_red_head_merges_nothing(self):
         follower, gh, kube = wired(statuses={SHA: "failure"})

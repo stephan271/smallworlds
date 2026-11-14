@@ -45,6 +45,17 @@ Ring 0's follower (`docs/adr/0060`, `plans-and-walkthroughs/design-update-strate
    members' photos, files, repository and mail, read back with a fresh passkey
    sign-in. Its summary line goes into the status. A pod that cannot start (a missing
    Secret, an image that will not pull) is given up on after five minutes, as an error.
+   **Storage checks:** then a Job cut from `canary-storage-checks`
+   (`storage-checks-job.yaml`, `checks/storage-checks.sh`). Ring 0 keeps both Garage
+   instances and the offsite replicator running beside its external provider, unused
+   (below); this Job is their only user. On each instance it makes a key and the
+   bucket `ring0-probe` with the init jobs' own `garage` commands, reads back the
+   object written on the first run (its content is also kept in the ConfigMap
+   `canary-storage-probe`, so lost data cannot pass by being written afresh), and
+   writes and reads one for this commit. Then one Job from the replicator's
+   suspended CronJob copies `ring0-probe` from `garage-backup` to the operational
+   instance, and this commit's object must arrive. Without the Application
+   `garage` it passes with a note.
 9. **Quiet:** no `critical` alert in Alertmanager for `QUIET_SECONDS`.
 10. It posts the verdict as the commit status `ring0/verified`.
 11. **Merge queue:** while the head is green, it squash-merges the oldest Renovate PR
@@ -164,7 +175,7 @@ kubectl -n canary-follower rollout restart deployment/canary-follower
 Without the token the follower still syncs and verifies, only logs its verdicts, and
 merges nothing. Switches in `config.yaml`: `PRE_UPDATE_BACKUPS`, `CHECKS_CRONJOB`
 (empty: no checks Job, and the status says e2e and data checks were not run),
-`MERGE_QUEUE`, `AUTO_REVERT`.
+`STORAGE_CHECKS_CRONJOB` (empty: no storage checks), `MERGE_QUEUE`, `AUTO_REVERT`.
 
 To run the checks by hand against `main`:
 
@@ -172,6 +183,31 @@ To run the checks by hand against `main`:
 kubectl -n canary-follower create job --from=cronjob/canary-checks by-hand-$(date +%s)
 kubectl -n canary-follower logs -f job/by-hand-…
 ```
+
+### Garage, kept unused
+
+Ring 0's overlay is generated with `--keep-garage` (set `KEEP_GARAGE_FOR_TESTS=y`
+once for `prepare-community-repo.sh`; the record keeps it). It keeps the
+`garage`, `garage-backup` and `backup-replicator` Applications that external mode
+would drop, puts both instances on 1 Gi + 2 Gi claims of the default storage class
+(the base's static volumes name directories a single-disk server does not have),
+and suspends the replicator's nightly run. Both instances need their
+`garage-auth-secret`, which an install in external mode does not create:
+
+```bash
+for ns in garage-system garage-backup-system; do
+  kubectl create namespace "$ns" --dry-run=client -o yaml | kubectl apply -f -
+  kubectl -n "$ns" create secret generic garage-auth-secret \
+    --from-literal=rpcSecret="$(openssl rand -hex 32)" \
+    --from-literal=adminToken="$(openssl rand -base64 32)" \
+    --dry-run=client -o yaml | kubectl apply -f -
+done
+```
+
+The storage checks' Roles live in those namespaces and in `backup-replicator`, so
+the Applications have to exist before this tenant syncs. `tests/live-storage-checks.sh`
+runs the checks against two real Garage containers and the replicator's own script
+in Docker (`GARAGE_IMAGE=dxflrs/garage:vX` tries another release).
 
 ## Tests
 

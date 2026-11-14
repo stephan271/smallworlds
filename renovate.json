@@ -54,7 +54,7 @@
       }
     },
     {
-      "description": "Ring 0's merge queue (tenants/canary-follower/src/mergequeue.py): the Canary Follower squash-merges PRs with this label one at a time while main is green on Ring 0, and reverts one Ring 0 rejects. Never majors, and never what Ring 0 does not run (it could not verify it): those stay for a person to merge.",
+      "description": "Ring 0's merge queue (tenants/canary-follower/src/mergequeue.py): the Canary Follower squash-merges PRs with this label one at a time while main is green on Ring 0, and reverts one Ring 0 rejects. Never majors, and never what Ring 0 does not run (it could not verify it): those stay for a person to merge. Garage and the replicator are in the queue: Ring 0 keeps them running, unused, and its storage checks write to and read back from them (checks/storage-checks.sh, design-update-strategy §3.2).",
       "matchUpdateTypes": [
         "minor",
         "patch",
@@ -64,9 +64,6 @@
       ],
       "matchFileNames": [
         "!infrastructure/terraform/**",
-        "!infrastructure/kubernetes/apps/garage.yaml",
-        "!infrastructure/kubernetes/apps/garage-backup.yaml",
-        "!infrastructure/kubernetes/tenants/backup-replicator/**",
         "!infrastructure/kubernetes/tenants/collabora/**"
       ],
       "addLabels": [

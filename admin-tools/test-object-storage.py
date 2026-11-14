@@ -66,6 +66,21 @@ class GeneratorTest(unittest.TestCase):
         longest = max(storage.bucket_names("a" * 30, "pod-gateway").values(), key=len)
         self.assertLessEqual(len(longest), 63)
 
+    def test_keep_garage_only_changes_the_root(self):
+        for app in ("nextcloud", "immich", "pod-gateway", "keycloak"):
+            self.assertEqual(storage.generate_patches(app, PRIMARY, BACKUP, PREFIX, keep_garage=True),
+                             storage.generate_patches(app, PRIMARY, BACKUP, PREFIX), app)
+        kept = storage.generate_patches("root", PRIMARY, BACKUP, PREFIX, keep_garage=True)
+        self.assertNotIn("name: garage\n    patch: |-\n      $patch: delete", kept)
+        self.assertIn("name: garage-backup-data-pv", kept)
+
+    def test_keep_garage_needs_external_mode(self):
+        result = subprocess.run([sys.executable, str(ROOT / "admin-tools" / "generate_storage_patches.py"),
+                                 "--check", "--app", "root", "--mode", "garage", "--keep-garage"],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("--keep-garage", result.stderr)
+
     def test_rerun_replaces_and_garage_removes(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "kustomization.yaml"
@@ -115,15 +130,63 @@ class RenderTest(unittest.TestCase):
     """The overlay a real install would produce, with the remote base swapped
     for this checkout."""
 
-    def overlay(self, app, base):
+    def overlay(self, app, base, keep_garage=False):
         # Inside the repo, so the relative path to the base stays short and
         # kustomize's load restrictions are not in play.
         tmp = Path(tempfile.mkdtemp(prefix=".storage-test-", dir=ROOT))
         self.addCleanup(shutil.rmtree, tmp, True)
         path = tmp / "kustomization.yaml"
         path.write_text(f"resources:\n  - {os.path.relpath(base, tmp)}\n")
-        storage.apply_to_kustomization(path, storage.generate_patches(app, PRIMARY, BACKUP, PREFIX))
+        storage.apply_to_kustomization(
+            path, storage.generate_patches(app, PRIMARY, BACKUP, PREFIX, keep_garage=keep_garage))
         return tmp
+
+    def inner(self, patches, base):
+        """Render `base` with the patches an Application carries for Argo CD."""
+        tmp = Path(tempfile.mkdtemp(prefix=".storage-test-", dir=ROOT))
+        self.addCleanup(shutil.rmtree, tmp, True)
+        (tmp / "kustomization.yaml").write_text(yaml.safe_dump({
+            "resources": [os.path.relpath(base, tmp)], "patches": patches}))
+        return _render(tmp)
+
+    def test_ring0_keeps_garage_unused_on_default_claims(self):
+        """--keep-garage (design-update-strategy §3.2): the provider is used as
+        in external mode, but Garage and the replicator stay, so that their
+        updates can be verified on Ring 0."""
+        docs = _render(self.overlay("root", K8S, keep_garage=True))
+        for application in storage.GARAGE_ONLY_APPLICATIONS:
+            self.assertIsNotNone(_find(docs, "Application", application), application)
+        for volume in storage.GARAGE_ONLY_VOLUMES:
+            self.assertIsNone(_find(docs, "PersistentVolume", volume), volume)
+        self.assertEqual(_find(docs, "Application", "velero")["spec"]["source"]["kustomize"]["patches"][0]
+                         ["target"]["kind"], "BackupStorageLocation")
+
+        replicator = _find(docs, "Application", "backup-replicator")["spec"]["source"]["kustomize"]["patches"]
+        cronjob = _find(self.inner(replicator, K8S / "tenants" / "backup-replicator"), "CronJob", "backup-replicator")
+        self.assertIs(cronjob["spec"]["suspend"], True)
+
+        # The parameters have to name values the chart really reads: Helm
+        # ignores unknown ones silently (apps/garage.yaml has the scar).
+        for name in storage.KEPT_GARAGE_INSTANCES:
+            with self.subTest(application=name):
+                source = _find(docs, "Application", name)["spec"]["source"]
+                self.assertEqual({p["name"]: p["value"] for p in source["helm"]["parameters"]},
+                                 dict(storage.KEPT_GARAGE_PARAMETERS))
+                tmp = Path(tempfile.mkdtemp(prefix=".storage-test-", dir=ROOT))
+                self.addCleanup(shutil.rmtree, tmp, True)
+                (tmp / "values.yaml").write_text(source["helm"]["values"])
+                command = ["helm", "template", name, source["chart"], "--repo", source["repoURL"],
+                           "--version", source["targetRevision"], "-f", str(tmp / "values.yaml")]
+                for parameter in source["helm"]["parameters"]:
+                    command += ["--set", f"{parameter['name']}={parameter['value']}"]
+                result = subprocess.run(command, capture_output=True, text=True, timeout=300)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                rendered = [d for d in yaml.safe_load_all(result.stdout) if d]
+                claims = {c["metadata"]["name"]: c["spec"] for c in
+                          next(d for d in rendered if d["kind"] == "StatefulSet")["spec"]["volumeClaimTemplates"]}
+                self.assertEqual({n: (c.get("storageClassName"), c["resources"]["requests"]["storage"])
+                                  for n, c in claims.items()},
+                                 {"meta": ("local-path", "1Gi"), "data": ("local-path", "2Gi")})
 
     def test_database_backups_follow_the_backup_side(self):
         for app, store, bucket in (("keycloak", "postgres-backups-keycloak", "sw-demo-postgres-backups-keycloak"),
