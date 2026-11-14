@@ -1,30 +1,28 @@
 {
  "schema": 1,
- "updated": "2026-11-14T13:22:06Z",
+ "updated": "2026-11-14T13:26:13Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "e6201b0473b01a58f0cb62e1b099a0783ab16ccf",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
-  "date": "2026-11-14T13:20:56Z"
+  "commit": "652882a45fe7de87972ee56fa89505932462dcc8",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "e6201b0473b01a58f0cb62e1b099a0783ab16ccf",
-  "pull": null,
-  "step": "merge",
+  "commit": "652882a45fe7de87972ee56fa89505932462dcc8",
+  "pull": {
+   "number": 66,
+   "title": "Update init jobs (#66)",
+   "cards": [
+    "smallworlds-root"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
-   {
-    "number": 66,
-    "title": "Update init jobs",
-    "cards": [
-     "smallworlds-root"
-    ],
-    "since": "2026-11-13T13:14:28Z"
-   },
    {
     "number": 73,
     "title": "Update Helm chart kube-prometheus-stack to v87.21.0",
@@ -44,8 +42,8 @@
    }
   ],
   "stuck": null,
-  "action": "merged #62",
-  "waiting": "no queued update is ready"
+  "action": "merged #66",
+  "waiting": null
  },
  "applications": [
   {
@@ -525,6 +523,17 @@
  ],
  "commits": [
   {
+   "commit": "652882a45fe7de87972ee56fa89505932462dcc8",
+   "title": "Update init jobs (#66)",
+   "author": "renovate[bot]",
+   "date": "2026-11-14T13:26:04Z",
+   "pull": 66,
+   "cards": [
+    "smallworlds-root"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "e6201b0473b01a58f0cb62e1b099a0783ab16ccf",
    "title": "Update Docker image python to v3.15 (#62)",
    "author": "renovate[bot]",
@@ -888,22 +897,6 @@
     "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
     "date": "2026-11-13T09:55:40Z"
    }
-  },
-  {
-   "commit": "5905085631052d13db44d86af980f6ac5de56580",
-   "title": "Shorten Ring 0's quiet period from 30 to 20 minutes",
-   "author": "stephan271",
-   "date": "2026-11-13T09:19:07Z",
-   "pull": null,
-   "cards": [
-    "canary-follower",
-    "repository"
-   ],
-   "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-13T09:24:15Z"
-   }
   }
  ],
  "pulls": [
@@ -932,21 +925,6 @@
    "cards": [
     "garage",
     "garage-backup"
-   ]
-  },
-  {
-   "number": 66,
-   "title": "Update init jobs",
-   "author": "renovate[bot]",
-   "created": "2026-11-13T13:14:28Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "smallworlds-root"
    ]
   },
   {
