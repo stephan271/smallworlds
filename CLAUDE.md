@@ -222,7 +222,9 @@ it touches a migrating tenant. So `main` moves without a person: pull before wor
 never turn on Renovate's own `automerge` (`admin-tools/test-renovate-groups.py` fails) —
 it would land several updates between two verifications. Changes to `e2e-tests/` or
 `admin-tools/canary/` are what Ring 0 runs on the next commit, so a broken test stops the
-queue. Details: `tenants/canary-follower/README.md`.
+queue. Details: `tenants/canary-follower/README.md`. The follower also publishes
+`ring0.json` to the branch `ring-state` (never merge it, never edit it by hand), which
+the public, read-only Ring 0 board (`ring0-board/`, GitHub Pages) draws as cards.
 
 ## Local end-to-end staging (`admin-tools/test-pr-locally.sh`)
 

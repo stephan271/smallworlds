@@ -26,6 +26,7 @@ configMapGenerator:
       - src/kube.py
       - src/main.py
       - src/mergequeue.py
+      - src/ringstate.py
       - src/settings.py
   - name: canary-checks-scripts
     namespace: canary-follower

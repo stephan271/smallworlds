@@ -19,6 +19,7 @@ from follower import Follower
 from github import GitHub
 from kube import Kube
 from mergequeue import MergeQueue
+from ringstate import RingState
 
 log = logging.getLogger("main")
 
@@ -92,6 +93,12 @@ def main() -> None:
         if writes and (s.on(s.merge_queue) or s.on(s.auto_revert)) else None,
     )
     serve(follower, s.http_port)
+    # The public board's data (ringstate.py). Its own thread: a verification
+    # blocks tick() for an hour, and the board should see every step of it.
+    if writes and s.on(s.ring_state):
+        threading.Thread(target=RingState(s, github, kube, follower).run, daemon=True).start()
+        log.info("publishing ring0.json to %s every %ss", s.ring_state_branch,
+                 s.ring_state_interval_seconds)
     log.info("following %s@%s every %ss; statuses %s; backups %s; checks %s; merge queue %s; revert %s",
              s.github_repo, s.branch, s.poll_seconds, "on" if writes else "OFF (no token, log only)",
              "on" if follower.backups else "off", s.checks_cronjob or "off",

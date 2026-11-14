@@ -109,6 +109,30 @@ green again:
 `GET /status` shows the last action (`merged #41`, `reverted by #57`, …) and why the
 queue is waiting.
 
+## Ring State and the public board
+
+With `RING_STATE: "true"` a thread of the follower (`src/ringstate.py`) publishes
+`ring0.json` to the branch `ring-state` of the base repository: what Ring 0 is
+doing now (the step of the running verification, the queue, stuck or not), each
+Argo CD Application's health, sync state, chart version and images, `main`'s last
+25 commits with their verdicts, and the open PRs. Every commit and PR names the
+Applications its files belong to (`cards`). The shape follows design §6
+(`plans-and-walkthroughs/design-per-app-updates.md`); the Update Units and
+fingerprints of phase D1 are not in it yet.
+
+It looks every `RING_STATE_INTERVAL_SECONDS` (120) and writes, as one commit, only
+when something but the timestamp changed, or after `RING_STATE_HEARTBEAT_SECONDS`
+(3600) so a reader can tell a quiet Ring 0 from a silent follower. The first write
+creates the branch without history. Nothing private goes in: no log, no Secret,
+only what Argo CD reports and what GitHub already shows. A failed write is logged
+and tried again; it never stops the follower.
+
+The board itself is `ring0-board/` (static HTML/CSS/JS, deployed to GitHub Pages
+by `.github/workflows/ring0-board.yml`). It reads the file from
+`raw.githubusercontent.com`, which may serve it up to five minutes late, and says
+so when the file is more than two and a half hours old. To try a change to the
+page locally, serve the folder and pass a file: `index.html?data=sample.json`.
+
 ## Deploying it (Ring 0 only)
 
 The tenant is **not** in the base's root kustomization. The canary overlay adds

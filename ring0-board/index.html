@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ring 0 Board</title>
+  <meta name="description" content="What the SmallWorlds canary cluster (Ring 0) is running, checking and waiting for. Read-only.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='none' stroke='%232f7d5b' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="board.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <div class="title-row">
+        <h1>Ring 0 Board</h1>
+        <p class="as-of" id="as-of" aria-live="polite">Loading…</p>
+      </div>
+      <p class="lede">What the SmallWorlds canary cluster runs, checks and is waiting for. Every change
+        to <code>main</code> lands on Ring 0 first and is verified there before anything else takes it.
+        Read-only; refreshes every minute.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section id="banner" class="banner" aria-live="polite"></section>
+    <p id="problem" class="problem" hidden></p>
+
+    <div class="legend" aria-label="Legend">
+      <span><i class="dot ok"></i>Healthy</span>
+      <span><i class="dot busy"></i>Being checked now</span>
+      <span><i class="dot wait"></i>Update waiting / syncing</span>
+      <span><i class="dot bad"></i>Unhealthy or last change rejected</span>
+    </div>
+
+    <section aria-labelledby="h-apps">
+      <h2 id="h-apps">Community applications</h2>
+      <div class="cards" id="cards-apps"></div>
+    </section>
+    <section aria-labelledby="h-platform">
+      <h2 id="h-platform">Platform</h2>
+      <div class="cards" id="cards-platform"></div>
+    </section>
+    <section aria-labelledby="h-machinery">
+      <h2 id="h-machinery">Ring 0 machinery</h2>
+      <div class="cards" id="cards-machinery"></div>
+    </section>
+    <section aria-labelledby="h-elsewhere" id="sec-elsewhere" hidden>
+      <h2 id="h-elsewhere">Changed, but not running on Ring 0</h2>
+      <div class="cards" id="cards-elsewhere"></div>
+    </section>
+
+    <div class="columns">
+      <section aria-labelledby="h-pulls">
+        <h2 id="h-pulls">Open pull requests</h2>
+        <ol class="list" id="pulls"></ol>
+      </section>
+      <section aria-labelledby="h-commits">
+        <h2 id="h-commits">Recent changes on main</h2>
+        <ol class="list" id="commits"></ol>
+      </section>
+    </div>
+  </main>
+
+  <footer class="wrap foot">
+    <p>Data: <a id="data-link" href="#">ring0.json</a>, written by the Canary Follower on Ring 0
+      (<code>infrastructure/kubernetes/tenants/canary-follower</code>). GitHub may serve it up to five minutes late.</p>
+  </footer>
+
+  <dialog id="detail" aria-labelledby="detail-title">
+    <div class="dialog-head">
+      <h2 id="detail-title"></h2>
+      <button type="button" class="close" id="detail-close" aria-label="Close">✕</button>
+    </div>
+    <div id="detail-body"></div>
+  </dialog>
+
+  <script src="board.js"></script>
+</body>
+</html>

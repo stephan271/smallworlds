@@ -66,7 +66,8 @@ class Follower:
     def __init__(self, settings, github, argocd, kube,
                  smoke=checks.smoke, quiet=checks.quiet, hosts=checks.ingress_hosts,
                  settle=checks.settle,
-                 backups=None, checks_job=None, queue=None, clock=time.monotonic):
+                 backups=None, checks_job=None, queue=None, clock=time.monotonic,
+                 wallclock=time.time):
         self.s = settings
         self.github = github
         self.argocd = argocd
@@ -82,6 +83,10 @@ class Follower:
         self.last_outcome: Outcome | None = None
         self.last_action: str | None = None
         self.clock = clock
+        self.wallclock = wallclock
+        # The verification running now, for ring0.json's `now` (ringstate.py):
+        # commit, step, and since when (UTC, ISO 8601). None between them.
+        self.current: dict | None = None
         # sha -> (verifications that ended in error, when the last one did).
         # An error is no verdict on the commit (GitHub, the object store or npm
         # was away), so the head is verified again after a while rather than
@@ -186,9 +191,25 @@ class Follower:
         self.github.set_status(sha, state, description)
         return outcome
 
+    def _step(self, name: str) -> None:
+        if self.current is not None:
+            self.current.update(step=name, step_since=self._now())
+
+    def _now(self) -> str:
+        return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(self.wallclock()))
+
     def verify(self, sha: str) -> Outcome:
-        s = self.s
         steps: list[str] = []
+        started = self._now()
+        self.current = {"commit": sha, "step": "start", "step_since": started,
+                        "started": started, "done": steps}
+        try:
+            return self._verify(sha, steps)
+        finally:
+            self.current = None
+
+    def _verify(self, sha: str, steps: list[str]) -> Outcome:
+        s = self.s
         self.github.set_status(sha, "pending", "Ring 0 is syncing and verifying this commit")
         try:
             if self.backups is not None:
@@ -196,6 +217,7 @@ class Follower:
                 # Changes unreadable: back up every migrating tenant rather than guess.
                 touched = s.migrating if touched is None else touched
                 if touched:
+                    self._step("backup")
                     try:
                         taken = self.backups.before(sha, touched)
                     except BackupFailed as error:
@@ -204,10 +226,12 @@ class Follower:
                     if taken:
                         steps.append(f"backup {len(taken)} databases")
 
+            self._step("sync")
             synced, deferred = self.argocd.follow(s.refresh_timeout_seconds)
             steps.append(f"synced {len(synced)} Applications"
                          + (f", {len(deferred)} after their running sync" if deferred else ""))
 
+            self._step("converge")
             converged, lagging = self.argocd.converge(s.converge_timeout_seconds,
                                                       s.converge_interval_seconds, deferred)
             if not converged:
@@ -224,11 +248,13 @@ class Follower:
                                     "Superseded before verified: " + _list(stale), steps,
                                     superseded=True)
 
+            self._step("settle")
             note = self._settle(s.prometheus_url, s.settle_load_percent / 100,
                                 s.settle_timeout_seconds, s.settle_interval_seconds)
             if note:
                 steps.append(note)
 
+            self._step("smoke")
             hosts = self._hosts(self.kube)
             failed = self._smoke(hosts, s.smoke_attempts, s.smoke_retry_seconds)
             if failed:
@@ -236,6 +262,7 @@ class Follower:
             steps.append(f"smoke {len(hosts)} hosts")
 
             if self.checks_job is not None:
+                self._step("checks")
                 passed, summary = self.checks_job.run(sha)
                 if passed is None:
                     return self._finish(sha, "error", "Checks could not run: " + summary, steps)
@@ -243,6 +270,7 @@ class Follower:
                     return self._finish(sha, "failure", "Checks failed: " + summary, steps)
                 steps.append(summary)
 
+            self._step("quiet")
             firing = self._quiet(s.alertmanager_url, s.quiet_seconds, s.quiet_interval_seconds)
             blamed = [name for name in firing if name not in checks.DELIVERY_ALERTS]
             if blamed:
