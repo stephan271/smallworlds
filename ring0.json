@@ -1,21 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-14T13:38:46Z",
+ "updated": "2026-11-14T13:42:56Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "9ce441e1be0b4810e64a03ddb4fe1658a481c408",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-14T13:41:54Z"
  },
  "now": {
   "state": "updating",
   "commit": "9ce441e1be0b4810e64a03ddb4fe1658a481c408",
   "pull": null,
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-14T13:41:55Z",
+  "started": "2026-11-14T13:41:54Z",
   "queued": [
    {
     "number": 73,
@@ -282,7 +282,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-14T13:32:05Z",
+    "finished": "2026-11-14T13:42:43Z",
     "message": null
    },
    "wave": 0
@@ -533,7 +533,11 @@
    "cards": [
     "repository"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-14T13:41:54Z"
+   }
   },
   {
    "commit": "652882a45fe7de87972ee56fa89505932462dcc8",
