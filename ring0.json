@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-14T15:59:38Z",
+ "updated": "2026-11-14T16:03:46Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -213,7 +213,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "c6a54ba57e563b3d7e539c1781605e40cd4c23ef",
+   "revision": "116030ca2da5a59c1cc7661a4ea3a55c44d6734c",
    "images": [
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -222,8 +222,8 @@
    ],
    "operation": {
     "phase": "Running",
-    "finished": "2026-11-14T15:58:16Z",
-    "message": "one or more objects failed to apply, reason: error when patching \"/dev/shm/1844440623\": Ingress.networking.k8s.io \"keycloak-keycloakx\" is invalid: metadata.labels: Invalid value: \"26.8.2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc49\": a valid label must be an empty string or consist of a\u2026"
+    "finished": null,
+    "message": null
    },
    "wave": 0
   },
