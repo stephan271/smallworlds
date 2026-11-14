@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-14T15:53:27Z",
+ "updated": "2026-11-14T15:59:38Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -222,8 +222,8 @@
    ],
    "operation": {
     "phase": "Running",
-    "finished": "2026-11-14T15:53:15Z",
-    "message": "one or more objects failed to apply, reason: error when patching \"/dev/shm/907637253\": ServiceAccount \"keycloak-keycloakx\" is invalid: metadata.labels: Invalid value: \"26.8.2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc49\": a valid label must be an empty string or consist of alphanumeric \u2026"
+    "finished": "2026-11-14T15:58:16Z",
+    "message": "one or more objects failed to apply, reason: error when patching \"/dev/shm/1844440623\": Ingress.networking.k8s.io \"keycloak-keycloakx\" is invalid: metadata.labels: Invalid value: \"26.8.2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc49\": a valid label must be an empty string or consist of a\u2026"
    },
    "wave": 0
   },
