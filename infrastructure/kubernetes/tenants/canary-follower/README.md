@@ -59,7 +59,15 @@ Ring 0's follower (`docs/adr/0060`, `plans-and-walkthroughs/design-update-strate
 | `pending` | being synced and verified |
 | `success` | every step passed |
 | `failure` | Ring 0 did not take the commit: not converged, smoke, checks or a critical alert |
-| `error` | the commit could not be judged: `main` moved on, the pre-update backup failed, an upstream did not answer, or the follower failed |
+| `error` | the commit could not be judged: `main` moved on, the pre-update backup failed, an upstream did not answer, alerts cannot be delivered, or the follower failed |
+
+The quiet check rejects a commit on any critical alert **except** Alertmanager's own
+delivery alerts (`AlertmanagerClusterFailedToSendAlerts`, `AlertmanagerFailedToSendAlerts`,
+`checks.DELIVERY_ALERTS`): those report an `error`. They are about the path to the
+phone, not the commit; on 2026-11-13 ntfy refused one oversized group and the critical
+alert that followed rejected four unrelated commits in a row and offered their reverts.
+The checks Job removes failed Jobs of earlier runs before it starts, for the same
+reason: each one keeps a `KubeJobFailed` alert firing for the Job's three-day TTL.
 
 The status is also the follower's memory. A restarted pod skips a commit that has a
 final state and verifies again one left at `pending`. An `error` is no verdict on

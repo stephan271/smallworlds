@@ -16,6 +16,12 @@ log = logging.getLogger("checks")
 
 ACME_SOLVER_LABEL = "acme.cert-manager.io/http01-solver"
 
+# Critical alerts that say Alertmanager cannot hand alerts on (ntfy refusing a
+# message, an unreachable receiver). They are about the notification path, so
+# the follower reports them as no verdict rather than rejecting the commit.
+DELIVERY_ALERTS = frozenset({"AlertmanagerClusterFailedToSendAlerts",
+                             "AlertmanagerFailedToSendAlerts"})
+
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, *args, **kwargs):
