@@ -1,28 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-14T16:59:09Z",
+ "updated": "2026-11-14T17:01:14Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "4529983127b6d91364447b3747d16ce89ed308fb",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-14T16:13:14Z"
+  "state": "failure",
+  "description": "Not converged: keycloak: still running an earlier sync",
+  "date": "2026-11-14T16:59:14Z"
  },
  "now": {
-  "state": "updating",
+  "state": "stuck",
   "commit": "4529983127b6d91364447b3747d16ce89ed308fb",
-  "pull": {
-   "number": 79,
-   "title": "Keep Garage on Ring 0, unused, so its updates are verified too",
-   "cards": [
-    "canary-follower",
-    "repository"
-   ]
-  },
-  "step": "converge",
-  "step_since": "2026-11-14T16:14:13Z",
-  "started": "2026-11-14T16:13:14Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 63,
@@ -66,8 +59,12 @@
     "since": "2026-11-14T14:53:57Z"
    }
   ],
-  "stuck": null,
-  "action": null,
+  "stuck": {
+   "condition": "S1",
+   "since": "2026-11-14T16:59:14Z",
+   "summary": "Not converged: keycloak: still running an earlier sync"
+  },
+  "action": "revert offered in #80, for a person to merge",
   "waiting": null
  },
  "applications": [
@@ -614,9 +611,9 @@
     "repository"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-14T16:13:14Z"
+    "state": "failure",
+    "description": "Not converged: keycloak: still running an earlier sync",
+    "date": "2026-11-14T16:59:14Z"
    }
   },
   {
@@ -1053,6 +1050,20 @@
    ],
    "cards": [
     "velero"
+   ]
+  },
+  {
+   "number": 80,
+   "title": "Revert \"Keep Garage on Ring 0, unused, so its updates are verified too\"",
+   "author": "stephan271",
+   "created": "2026-11-14T16:59:23Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "canary-follower",
+    "repository"
    ]
   }
  ]
