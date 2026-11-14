@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-14T15:24:26Z",
+ "updated": "2026-11-14T15:28:35Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -225,8 +225,8 @@
    ],
    "operation": {
     "phase": "Running",
-    "finished": "2026-11-14T15:22:59Z",
-    "message": "one or more objects failed to apply, reason: error when patching \"/dev/shm/722891327\": StatefulSet.apps \"keycloak-keycloakx\" is invalid: metadata.labels: Invalid value: \"26.8.2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc49\": a valid label must be an empty string or consist of alphanumeri\u2026"
+    "finished": "2026-11-14T15:28:01Z",
+    "message": "one or more objects failed to apply, reason: error when patching \"/dev/shm/1799702416\": Service \"keycloak-keycloakx-headless\" is invalid: metadata.labels: Invalid value: \"26.8.2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc49\": a valid label must be an empty string or consist of alphanumer\u2026"
    },
    "wave": 0
   },
