@@ -1,28 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-14T15:45:09Z",
+ "updated": "2026-11-14T15:47:15Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "402cfc6a46f40d6acab634ea898f96ea2f397d02",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-14T14:57:56Z"
+  "state": "failure",
+  "description": "Not converged: keycloak: still running an earlier sync; touches keycloak: restore, do not revert",
+  "date": "2026-11-14T15:45:19Z"
  },
  "now": {
-  "state": "updating",
+  "state": "stuck",
   "commit": "402cfc6a46f40d6acab634ea898f96ea2f397d02",
-  "pull": {
-   "number": 74,
-   "title": "Update keycloak (#74)",
-   "cards": [
-    "keycloak",
-    "repository"
-   ]
-  },
-  "step": "converge",
-  "step_since": "2026-11-14T14:59:59Z",
-  "started": "2026-11-14T14:57:56Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -49,8 +42,12 @@
     "since": "2026-11-14T14:53:57Z"
    }
   ],
-  "stuck": null,
-  "action": "merged #74",
+  "stuck": {
+   "condition": "S1",
+   "since": "2026-11-14T15:45:19Z",
+   "summary": "Not converged: keycloak: still running an earlier sync; touches keycloak: restore, do not revert"
+  },
+  "action": "not reverted: restore from the pre-update backup",
   "waiting": null
  },
  "applications": [
@@ -541,9 +538,9 @@
     "repository"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-14T14:57:56Z"
+    "state": "failure",
+    "description": "Not converged: keycloak: still running an earlier sync; touches keycloak: restore, do not revert",
+    "date": "2026-11-14T15:45:19Z"
    }
   },
   {
