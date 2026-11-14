@@ -50,7 +50,7 @@ spec:
               # Playwright with Chromium, Node.js and python3 (seed.py). Keep
               # the version at e2e-tests/package-lock.json's @playwright/test;
               # run-checks.sh downloads the matching browser if they drift.
-              image: mcr.microsoft.com/playwright:v1.65.0-noble@sha256:9beb546099e11f52d62e505537914870e01a67e0e6b00ae41da4775324e73dbe
+              image: mcr.microsoft.com/playwright:v1.65.1-noble@sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579
               command: ["bash", "/scripts/run-checks.sh"]
               env:
                 - name: REPO
