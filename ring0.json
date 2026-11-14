@@ -1,19 +1,26 @@
 {
  "schema": 1,
- "updated": "2026-11-14T17:36:13Z",
+ "updated": "2026-11-14T17:38:18Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "4529983127b6d91364447b3747d16ce89ed308fb",
-  "state": "failure",
-  "description": "Not converged: keycloak: still running an earlier sync",
-  "date": "2026-11-14T16:59:14Z"
+  "commit": "2aa5d4ec40fcfec35c81d38e19a93717e2bd9336",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
-  "state": "stuck",
-  "commit": "4529983127b6d91364447b3747d16ce89ed308fb",
-  "pull": null,
-  "step": null,
+  "state": "updating",
+  "commit": "2aa5d4ec40fcfec35c81d38e19a93717e2bd9336",
+  "pull": {
+   "number": 81,
+   "title": "Fix Keycloak's image pin, and teach Renovate to keep tag and digest together",
+   "cards": [
+    "keycloak",
+    "repository"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
@@ -59,11 +66,7 @@
     "since": "2026-11-14T14:53:57Z"
    }
   ],
-  "stuck": {
-   "condition": "S1",
-   "since": "2026-11-14T16:59:14Z",
-   "summary": "Not converged: keycloak: still running an earlier sync"
-  },
+  "stuck": null,
   "action": "revert offered in #80, for a person to merge",
   "waiting": null
  },
@@ -211,7 +214,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "4529983127b6d91364447b3747d16ce89ed308fb",
+   "revision": "2aa5d4ec40fcfec35c81d38e19a93717e2bd9336",
    "images": [],
    "operation": {
     "phase": "Succeeded",
@@ -601,6 +604,30 @@
  ],
  "commits": [
   {
+   "commit": "2aa5d4ec40fcfec35c81d38e19a93717e2bd9336",
+   "title": "Fix Keycloak's image pin, and teach Renovate to keep tag and digest together",
+   "author": "stephan271",
+   "date": "2026-11-14T17:36:39Z",
+   "pull": 81,
+   "cards": [
+    "keycloak",
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "cf8c7a3b6c9d792e64c26052c93d9dc2293e59e2",
+   "title": "Fix Keycloak's image pin, and teach Renovate to keep tag and digest together",
+   "author": "stephan271",
+   "date": "2026-11-14T17:35:31Z",
+   "pull": null,
+   "cards": [
+    "keycloak",
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "4529983127b6d91364447b3747d16ce89ed308fb",
    "title": "Keep Garage on Ring 0, unused, so its updates are verified too",
    "author": "stephan271",
@@ -943,36 +970,6 @@
     "description": "Critical alert: AlertmanagerClusterFailedToSendAlerts",
     "date": "2026-11-13T13:43:27Z"
    }
-  },
-  {
-   "commit": "56f562dd1d720ff1823524303f83cf5872845fd5",
-   "title": "Update jitsi (#55)",
-   "author": "renovate[bot]",
-   "date": "2026-11-13T12:34:30Z",
-   "pull": 55,
-   "cards": [
-    "jitsi"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
-    "date": "2026-11-13T13:12:47Z"
-   }
-  },
-  {
-   "commit": "dab5df01acdc5551bc9fca109509593d246c3524",
-   "title": "Title Renovate PRs by their group, not \"Pin dependencies\"",
-   "author": "stephan271",
-   "date": "2026-11-13T11:35:48Z",
-   "pull": null,
-   "cards": [
-    "repository"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
-    "date": "2026-11-13T12:34:25Z"
-   }
   }
  ],
  "pulls": [
@@ -1050,34 +1047,6 @@
    ],
    "cards": [
     "velero"
-   ]
-  },
-  {
-   "number": 80,
-   "title": "Revert \"Keep Garage on Ring 0, unused, so its updates are verified too\"",
-   "author": "stephan271",
-   "created": "2026-11-14T16:59:23Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "canary-follower",
-    "repository"
-   ]
-  },
-  {
-   "number": 81,
-   "title": "Fix Keycloak's image pin, and teach Renovate to keep tag and digest together",
-   "author": "stephan271",
-   "created": "2026-11-14T17:35:35Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "keycloak",
-    "repository"
    ]
   }
  ]
