@@ -66,7 +66,7 @@ class Follower:
     def __init__(self, settings, github, argocd, kube,
                  smoke=checks.smoke, quiet=checks.quiet, hosts=checks.ingress_hosts,
                  settle=checks.settle,
-                 backups=None, checks_job=None, storage_job=None, queue=None, clock=time.monotonic,
+                 backups=None, checks_job=None, queue=None, clock=time.monotonic,
                  wallclock=time.time):
         self.s = settings
         self.github = github
@@ -78,7 +78,6 @@ class Follower:
         self._hosts = hosts
         self.backups = backups
         self.checks_job = checks_job
-        self.storage_job = storage_job
         self.queue = queue
         self.last_sha: str | None = None
         self.last_outcome: Outcome | None = None
@@ -269,15 +268,6 @@ class Follower:
                     return self._finish(sha, "error", "Checks could not run: " + summary, steps)
                 if not passed:
                     return self._finish(sha, "failure", "Checks failed: " + summary, steps)
-                steps.append(summary)
-
-            if self.storage_job is not None:
-                self._step("storage")
-                passed, summary = self.storage_job.run(sha)
-                if passed is None:
-                    return self._finish(sha, "error", "Storage checks could not run: " + summary, steps)
-                if not passed:
-                    return self._finish(sha, "failure", "Storage checks failed: " + summary, steps)
                 steps.append(summary)
 
             self._step("quiet")

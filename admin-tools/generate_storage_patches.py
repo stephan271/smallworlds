@@ -12,14 +12,6 @@ that have no business existing without Garage. Those are patched here.
 The patches live between two marker comments so a re-run replaces them instead
 of appending a second copy, and choosing Garage again removes them.
 
-`--keep-garage` is for Ring 0 only (plans-and-walkthroughs/design-update-strategy.md
-§3.2): the cluster uses the provider exactly as above, but keeps both Garage
-instances and the replicator running, unused, so that updates to them can be
-verified there (tenants/canary-follower/checks/storage-checks.sh). Their static
-volumes are still dropped — a rented single-disk server has neither the
-directories nor the second disk they name — and Garage gets small claims of the
-default storage class instead; the replicator's nightly run is suspended.
-
 See docs/adr/0053-object-storage-is-in-house-or-external.md.
 """
 import argparse
@@ -42,17 +34,6 @@ SHARED_OBJECTSTORE_APPS = ("nextcloud", "immich", "forgejo", "stalwart")
 # Recovery Points are offsite from the moment they are written.
 GARAGE_ONLY_APPLICATIONS = ("garage", "garage-backup", "backup-replicator")
 GARAGE_ONLY_VOLUMES = ("garage-data-pv", "garage-backup-data-pv", "garage-backup-meta-pv")
-
-# --keep-garage: Garage on claims of k3s's default class (its provisioner
-# creates the directory, writable by Garage's non-root user), sized for the
-# test objects that are all it ever holds there.
-KEPT_GARAGE_INSTANCES = ("garage", "garage-backup")
-KEPT_GARAGE_PARAMETERS = (
-    ("persistence.meta.storageClass", "local-path"),
-    ("persistence.meta.size", "1Gi"),
-    ("persistence.data.storageClass", "local-path"),
-    ("persistence.data.size", "2Gi"),
-)
 
 # Longest suffix the init jobs append is "-postgres-backups-keycloak" (26), and
 # a bucket name may be 63 characters.
@@ -129,50 +110,9 @@ def _objectstore_patch(name, bucket, endpoint_url, region):
     """)
 
 
-def _kept_garage_patches():
-    """Root patches for --keep-garage, in place of deleting the Applications.
-    Same indentation as generate_patches' own blocks, before its final indent."""
-    patches = ""
-    for application in KEPT_GARAGE_INSTANCES:
-        patches += (
-            "- target:\n"
-            "    group: argoproj.io\n"
-            "    kind: Application\n"
-            f"    name: {application}\n"
-            "  patch: |-\n"
-            "    - op: add\n"
-            "      path: /spec/source/helm/parameters\n"
-            "      value:\n")
-        for name, value in KEPT_GARAGE_PARAMETERS:
-            patches += f"        - name: {name}\n          value: {value}\n"
-    # Its source is the base's tenant directory, so the patch rides on the
-    # Application, as Velero's does. The storage checks cut a Job from the
-    # suspended CronJob, with their own bucket list.
-    patches += textwrap.dedent("""\
-      - target:
-          group: argoproj.io
-          kind: Application
-          name: backup-replicator
-        patch: |-
-          - op: add
-            path: /spec/source/kustomize
-            value:
-              patches:
-                - target:
-                    kind: CronJob
-                    name: backup-replicator
-                  patch: |-
-                    - op: add
-                      path: /spec/suspend
-                      value: true
-    """)
-    return patches
-
-
-def generate_patches(app, primary, backup, prefix, keep_garage=False):
+def generate_patches(app, primary, backup, prefix):
     """Patches for one overlay kustomization. `primary` and `backup` are
-    (endpoint, region) pairs; `app` is a tenant name or "root". `keep_garage`
-    (Ring 0 only) keeps the Garage instances and the replicator, unused."""
+    (endpoint, region) pairs; `app` is a tenant name or "root"."""
     validate_prefix(prefix)
     p_url, p_host, p_port, p_ssl = parse_endpoint(primary[0])
     b_url, _, _, _ = parse_endpoint(backup[0])
@@ -235,7 +175,7 @@ def generate_patches(app, primary, backup, prefix, keep_garage=False):
         """)
 
     if app == "root":
-        for application in () if keep_garage else GARAGE_ONLY_APPLICATIONS:
+        for application in GARAGE_ONLY_APPLICATIONS:
             patches += textwrap.dedent(f"""\
               - target:
                   group: argoproj.io
@@ -260,8 +200,6 @@ def generate_patches(app, primary, backup, prefix, keep_garage=False):
                   metadata:
                     name: {volume}
             """)
-        if keep_garage:
-            patches += _kept_garage_patches()
         # Velero is a core app: its Application points at the upstream tenant
         # directory rather than at an overlay one, so the patch has to ride on
         # the Application itself.
@@ -331,23 +269,16 @@ def main():
     parser.add_argument("--backup-endpoint", default="",
                         help="where Recovery Points go; defaults to --endpoint")
     parser.add_argument("--backup-region", default="")
-    parser.add_argument("--keep-garage", action="store_true",
-                        help="Ring 0 only: keep Garage and the replicator running, unused, "
-                             "so that updates to them can be verified (external mode only)")
     args = parser.parse_args()
     if not args.check and not args.kustomization_file:
         parser.error("--kustomization-file is required unless --check is given")
 
     patches = ""
-    if args.keep_garage and args.mode != "external":
-        print("Error: --keep-garage only makes sense with --mode external", file=sys.stderr)
-        return 2
     if args.mode == "external":
         primary = (args.endpoint, args.region)
         backup = (args.backup_endpoint or args.endpoint, args.backup_region or args.region)
         try:
-            patches = generate_patches(args.app, primary, backup, args.bucket_prefix,
-                                       keep_garage=args.keep_garage)
+            patches = generate_patches(args.app, primary, backup, args.bucket_prefix)
         except StorageConfigError as error:
             print(f"Error: {error}", file=sys.stderr)
             return 2

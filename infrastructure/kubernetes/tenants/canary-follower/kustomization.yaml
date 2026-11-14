@@ -10,7 +10,6 @@ resources:
   - deployment.yaml
   - alerting.yaml
   - checks-job.yaml
-  - storage-checks-job.yaml
 
 # Source runs straight from a ConfigMap (the stdlib/ConfigMap pattern of join and pod-gateway). Every
 # src/*.py must be listed; tests/test_follower.py checks that.
@@ -33,4 +32,3 @@ configMapGenerator:
     namespace: canary-follower
     files:
       - checks/run-checks.sh
-      - checks/storage-checks.sh

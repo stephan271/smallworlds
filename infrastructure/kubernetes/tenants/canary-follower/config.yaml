@@ -28,9 +28,6 @@ data:
   # E2E with full OIDC and the data checks, as a Job cut from checks-job.yaml.
   CHECKS_CRONJOB: "canary-checks"
   CHECKS_TIMEOUT_SECONDS: "3600"
-  # The Garage instances and the replicator Ring 0 keeps unused beside its
-  # provider, written to and read back, as a Job cut from storage-checks-job.yaml.
-  STORAGE_CHECKS_CRONJOB: "canary-storage-checks"
   # One Renovate update at a time while main is green; a rejected one is
   # reverted unless it touches a migrating tenant (src/mergequeue.py). Both need
   # the token's contents and pull-request permissions (README).
