@@ -72,6 +72,23 @@ spec:
               kc add-roles -r smallworlds --uusername service-account-join --cclientid realm-management \
                 --rolename manage-users --rolename view-users --rolename query-users
 
+              # From Keycloak 26.8.2 the Admin REST API accepts only tokens that
+              # carry the built-in client scope kc-admin-api (it adds the admin
+              # API as an audience). The upgrade gives it to admin-cli and the
+              # admin console only; without it every admin call of join's — the
+              # public join page as much as the Desk — is answered 401. It is
+              # assigned to this client alone, never as a realm default, so no
+              # member app's token gets the admin audience. Assigning it twice
+              # is a no-op. An older Keycloak has no such scope and needs none.
+              ADMIN_API_SCOPE=$(kc get client-scopes -r smallworlds --fields id,name --format csv --noquotes \
+                | sed -n 's/^\([^,]*\),kc-admin-api$/\1/p')
+              if [[ -n "$ADMIN_API_SCOPE" ]]; then
+                echo "Giving 'join' the client scope kc-admin-api..."
+                kc update clients/$JOIN_UUID/default-client-scopes/$ADMIN_API_SCOPE -r smallworlds
+              else
+                echo "This Keycloak has no client scope kc-admin-api (before 26.8.2) — nothing to assign."
+              fi
+
               DESK_REDIRECT="https://$JOIN_HOST/desk/callback"
               DESK_SIGNED_OUT="https://$JOIN_HOST/desk/signed-out"
               DESK_UUID=$(client_uuid master join-desk)

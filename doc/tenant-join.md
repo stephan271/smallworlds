@@ -121,7 +121,7 @@ start-up, and the changed annotation is what restarts it.
 
 | Client | Realm | Created by | Used for |
 | :--- | :--- | :--- | :--- |
-| `join` | smallworlds | `bases/keycloak-client-job` (secret `keycloak-secret`) | service account (`manage-users`, `view-users`, `query-users`); redirect `https://join.<domain>/*` |
+| `join` | smallworlds | `bases/keycloak-client-job` (secret `keycloak-secret`) | service account (`manage-users`, `view-users`, `query-users`) plus the client scope `kc-admin-api`, without which Keycloak 26.8.2+ answers every admin call 401 (`doc/tenant-keycloak.md`); redirect `https://join.<domain>/*` |
 | `join-desk` | master | `join-keycloak-setup-job.yaml` | the Desk's sign-in (public, PKCE); redirect `/desk/callback`, sign-out `/desk/signed-out` |
 
 - `join` talks to Keycloak over `keycloak-keycloakx-http.keycloak`, never
