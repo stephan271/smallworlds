@@ -1,28 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-15T17:48:14Z",
+ "updated": "2026-11-15T17:52:26Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "f96cb8dee97643784aac6768518bb6ec0a374b20",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-15T17:30:24Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 4 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
+  "date": "2026-11-15T17:52:03Z"
  },
  "now": {
   "state": "updating",
   "commit": "f96cb8dee97643784aac6768518bb6ec0a374b20",
-  "pull": {
-   "number": 98,
-   "title": "End drill 1, and let the Steward fix forward with its own revert",
-   "cards": [
-    "canary-follower",
-    "excalidraw"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-15T17:47:03Z",
-  "started": "2026-11-15T17:30:24Z",
+  "pull": null,
+  "step": "merge",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -585,9 +578,9 @@
     "excalidraw"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-15T17:30:24Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 4 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
+    "date": "2026-11-15T17:52:03Z"
    }
   },
   {
