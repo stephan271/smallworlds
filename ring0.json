@@ -1,28 +1,27 @@
 {
  "schema": 1,
- "updated": "2026-11-15T11:35:48Z",
+ "updated": "2026-11-15T11:42:04Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "9b54875bd889d461033242cb88933c233276fcdd",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-15T11:20:33Z"
+  "commit": "93b72ebec7c0ad9bdf7f1b18a15953e2d9a04b96",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "9b54875bd889d461033242cb88933c233276fcdd",
+  "commit": "93b72ebec7c0ad9bdf7f1b18a15953e2d9a04b96",
   "pull": {
-   "number": 64,
-   "title": "Update Helm chart garage to v0.9.0 (#64)",
+   "number": 77,
+   "title": "Update Terraform hcloud to v1.70.2 (#77)",
    "cards": [
-    "garage",
-    "garage-backup"
+    "repository"
    ]
   },
-  "step": "quiet",
-  "step_since": "2026-11-15T11:35:26Z",
-  "started": "2026-11-15T11:20:33Z",
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -31,14 +30,6 @@
      "kube-prometheus-stack"
     ],
     "since": "2026-11-14T09:32:22Z"
-   },
-   {
-    "number": 77,
-    "title": "Update Terraform hcloud to v1.70.2",
-    "cards": [
-     "repository"
-    ],
-    "since": "2026-11-14T13:33:03Z"
    },
    {
     "number": 78,
@@ -59,7 +50,7 @@
    }
   ],
   "stuck": null,
-  "action": "merged #64",
+  "action": "merged #77",
   "waiting": null
  },
  "applications": [
@@ -600,6 +591,17 @@
  ],
  "commits": [
   {
+   "commit": "93b72ebec7c0ad9bdf7f1b18a15953e2d9a04b96",
+   "title": "Update Terraform hcloud to v1.70.2 (#77)",
+   "author": "renovate[bot]",
+   "date": "2026-11-15T11:40:32Z",
+   "pull": 77,
+   "cards": [
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "9b54875bd889d461033242cb88933c233276fcdd",
    "title": "Update Helm chart garage to v0.9.0 (#64)",
    "author": "renovate[bot]",
@@ -610,9 +612,9 @@
     "garage-backup"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-15T11:20:33Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
+    "date": "2026-11-15T11:40:26Z"
    }
   },
   {
@@ -947,21 +949,6 @@
     "description": "Ring 0: converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
     "date": "2026-11-14T10:09:57Z"
    }
-  },
-  {
-   "commit": "ddef28aa7decb51ab1765e53cc210d3f04d52ba9",
-   "title": "Update Docker image ghcr.io/bulwarkmail/webmail to v1.21.2 (#54)",
-   "author": "renovate[bot]",
-   "date": "2026-11-14T08:49:21Z",
-   "pull": 54,
-   "cards": [
-    "bulwark"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 4 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
-    "date": "2026-11-14T09:30:53Z"
-   }
   }
  ],
  "pulls": [
@@ -978,21 +965,6 @@
    ],
    "cards": [
     "kube-prometheus-stack"
-   ]
-  },
-  {
-   "number": 77,
-   "title": "Update Terraform hcloud to v1.70.2",
-   "author": "renovate[bot]",
-   "created": "2026-11-14T13:33:03Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "repository"
    ]
   },
   {
@@ -1052,6 +1024,21 @@
    ],
    "cards": [
     "forgejo"
+   ]
+  },
+  {
+   "number": 87,
+   "title": "Update Docker image docker.io/redis to v8",
+   "author": "renovate[bot]",
+   "created": "2026-11-15T11:41:25Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [
+    "ring0-major"
+   ],
+   "cards": [
+    "nextcloud"
    ]
   }
  ]
