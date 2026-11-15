@@ -1,27 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-15T19:12:07Z",
+ "updated": "2026-11-15T19:22:36Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "141de7d060e9f2547b78f62d1c546a46d24df246",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-15T19:03:10Z"
+  "state": "failure",
+  "description": "Checks failed: e2e 18 passed, 3 failed, 9 skipped; data 4/4 apps intact",
+  "date": "2026-11-15T19:21:19Z"
  },
  "now": {
-  "state": "updating",
+  "state": "stuck",
   "commit": "141de7d060e9f2547b78f62d1c546a46d24df246",
-  "pull": {
-   "number": 99,
-   "title": "Turn off Bulwark's automatic sign-in redirect",
-   "cards": [
-    "bulwark"
-   ]
-  },
-  "step": "checks",
-  "step_since": "2026-11-15T19:11:15Z",
-  "started": "2026-11-15T19:03:09Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -32,8 +26,12 @@
     "since": "2026-11-14T09:32:22Z"
    }
   ],
-  "stuck": null,
-  "action": "revert offered in #97, for a person to merge",
+  "stuck": {
+   "condition": "S1",
+   "since": "2026-11-15T19:21:19Z",
+   "summary": "Checks failed: e2e 18 passed, 3 failed, 9 skipped; data 4/4 apps intact"
+  },
+  "action": "revert offered in #100, for a person to merge",
   "waiting": "no queued update is ready"
  },
  "applications": [
@@ -583,9 +581,9 @@
     "bulwark"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-15T19:03:10Z"
+    "state": "failure",
+    "description": "Checks failed: e2e 18 passed, 3 failed, 9 skipped; data 4/4 apps intact",
+    "date": "2026-11-15T19:21:19Z"
    }
   },
   {
@@ -1016,6 +1014,19 @@
    ],
    "cards": [
     "nextcloud"
+   ]
+  },
+  {
+   "number": 100,
+   "title": "Revert \"Turn off Bulwark's automatic sign-in redirect\"",
+   "author": "stephan271",
+   "created": "2026-11-15T19:21:25Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "bulwark"
    ]
   }
  ]
