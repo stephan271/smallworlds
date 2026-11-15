@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-15T14:23:03Z",
+ "updated": "2026-11-15T14:27:12Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -1024,6 +1024,21 @@
    ],
    "cards": [
     "stalwart"
+   ]
+  },
+  {
+   "number": 93,
+   "title": "Update Forgejo's Redis to v8 (major, Steward)",
+   "author": "smallworlds-steward[bot]",
+   "created": "2026-11-15T14:25:09Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [
+    "steward"
+   ],
+   "cards": [
+    "forgejo"
    ]
   }
  ]
