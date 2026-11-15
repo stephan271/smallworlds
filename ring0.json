@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-15T13:57:55Z",
+ "updated": "2026-11-15T14:00:02Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -180,7 +180,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "a20676f1ee7ccfd6769621f848394a8ecc7c4c82",
+   "revision": "4bf80c3e43953db9e9b8ef8655760e1e890e9168",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
@@ -237,7 +237,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "a20676f1ee7ccfd6769621f848394a8ecc7c4c82",
+   "revision": "4bf80c3e43953db9e9b8ef8655760e1e890e9168",
    "images": [
     "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970"
    ],
@@ -319,7 +319,7 @@
   {
    "name": "smallworlds-root",
    "group": "machinery",
-   "health": "Healthy",
+   "health": "Progressing",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -336,19 +336,19 @@
   {
    "name": "velero",
    "group": "platform",
-   "health": "Healthy",
+   "health": "Progressing",
    "sync": "Synced",
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "a20676f1ee7ccfd6769621f848394a8ecc7c4c82",
+   "revision": "4bf80c3e43953db9e9b8ef8655760e1e890e9168",
    "images": [
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-15T13:35:22Z",
+    "finished": "2026-11-15T13:59:26Z",
     "message": null
    },
    "wave": 0
