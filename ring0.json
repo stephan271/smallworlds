@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-15T12:15:30Z",
+ "updated": "2026-11-15T12:17:36Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "89cde5d0d2e2332f7a437fe756094129be5170ef",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-15T12:15:49Z"
  },
  "now": {
   "state": "updating",
@@ -19,9 +19,9 @@
     "velero"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "converge",
+  "step_since": "2026-11-15T12:17:23Z",
+  "started": "2026-11-15T12:15:49Z",
   "queued": [
    {
     "number": 73,
@@ -69,8 +69,8 @@
     "quay.io/jetstack/cert-manager-webhook:v1.21.3"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-15T11:47:42Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": -10
@@ -89,7 +89,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-15T11:47:06Z",
+    "finished": "2026-11-15T12:17:35Z",
     "message": null
    },
    "wave": -10
@@ -127,7 +127,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-15T11:47:05Z",
+    "finished": "2026-11-15T12:17:36Z",
     "message": null
    },
    "wave": -9
@@ -145,8 +145,8 @@
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-15T11:47:06Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": -9
@@ -164,8 +164,8 @@
     "dxflrs/garage:v2.4.1"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-15T11:47:08Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": -5
@@ -183,8 +183,8 @@
     "dxflrs/garage:v2.4.1"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-15T11:47:09Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": -5
@@ -203,7 +203,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-15T11:46:52Z",
+    "finished": "2026-11-15T12:17:21Z",
     "message": null
    },
    "wave": 0
@@ -222,7 +222,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-15T11:47:05Z",
+    "finished": "2026-11-15T12:17:36Z",
     "message": null
    },
    "wave": 0
@@ -240,9 +240,9 @@
     "ghcr.io/euro-office/documentserver:v9.3.4-hotfix.1@sha256:889e681923d2dcc8bdfb92fe128d10e185fcff880d302b6a0c0c7bf339499290"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-15T11:47:35Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of /ServiceAccount/euro-office-secret-init and 2 more resources"
    },
    "wave": 0
   },
@@ -259,8 +259,8 @@
     "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-15T11:47:09Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 0
@@ -345,7 +345,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-15T11:46:21Z",
+    "finished": "2026-11-15T12:16:37Z",
     "message": null
    },
    "wave": 0
@@ -383,9 +383,9 @@
     "ghcr.io/bulwarkmail/webmail:1.21.2@sha256:037b85b1433233d2d7eebb83f928df5ecc3b4adc91dc7e4c55f0a2f69024e754"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-15T11:48:25Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of /ServiceAccount/setup-sa and 1 more resources"
    },
    "wave": 1
   },
@@ -402,8 +402,8 @@
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-15T11:47:09Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 1
@@ -422,7 +422,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-15T11:46:58Z",
+    "finished": "2026-11-15T12:17:30Z",
     "message": null
    },
    "wave": 1
@@ -446,8 +446,8 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-15T11:49:53Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 1
@@ -472,8 +472,8 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-15T11:50:17Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 1
@@ -495,8 +495,8 @@
     "jitsi/web:stable-11031"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-15T11:48:31Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 1
@@ -539,8 +539,8 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-15T11:50:48Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 1
@@ -599,7 +599,11 @@
    "cards": [
     "velero"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-15T12:15:49Z"
+   }
   },
   {
    "commit": "93b72ebec7c0ad9bdf7f1b18a15953e2d9a04b96",
