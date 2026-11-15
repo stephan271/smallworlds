@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-15T08:00:49Z",
+ "updated": "2026-11-15T08:44:02Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -1075,6 +1075,21 @@
    "cards": [
     "immich",
     "stalwart"
+   ]
+  },
+  {
+   "number": 83,
+   "title": "Give join and bulk-invite the kc-admin-api scope Keycloak 26.8.2 requires",
+   "author": "stephan271",
+   "created": "2026-11-15T08:43:15Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "join",
+    "keycloak",
+    "repository"
    ]
   }
  ]
