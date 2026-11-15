@@ -1,19 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-15T14:27:12Z",
+ "updated": "2026-11-15T14:35:31Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "4bf80c3e43953db9e9b8ef8655760e1e890e9168",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 4 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
-  "date": "2026-11-15T14:22:07Z"
+  "commit": "0f7cbc89718984a5b3dd906454ade7bd9405fbdb",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "4bf80c3e43953db9e9b8ef8655760e1e890e9168",
-  "pull": null,
-  "step": "merge",
+  "commit": "0f7cbc89718984a5b3dd906454ade7bd9405fbdb",
+  "pull": {
+   "number": 90,
+   "title": "Unpack the Steward's runner as steward from root's download",
+   "cards": [
+    "canary-follower"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
@@ -174,7 +180,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "4bf80c3e43953db9e9b8ef8655760e1e890e9168",
+   "revision": "0f7cbc89718984a5b3dd906454ade7bd9405fbdb",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
@@ -231,7 +237,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "4bf80c3e43953db9e9b8ef8655760e1e890e9168",
+   "revision": "0f7cbc89718984a5b3dd906454ade7bd9405fbdb",
    "images": [
     "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970"
    ],
@@ -335,7 +341,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "4bf80c3e43953db9e9b8ef8655760e1e890e9168",
+   "revision": "0f7cbc89718984a5b3dd906454ade7bd9405fbdb",
    "images": [
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
@@ -374,7 +380,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "4bf80c3e43953db9e9b8ef8655760e1e890e9168",
+   "revision": "0f7cbc89718984a5b3dd906454ade7bd9405fbdb",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
@@ -568,6 +574,17 @@
  ],
  "commits": [
   {
+   "commit": "0f7cbc89718984a5b3dd906454ade7bd9405fbdb",
+   "title": "Unpack the Steward's runner as steward from root's download",
+   "author": "stephan271",
+   "date": "2026-11-15T14:34:33Z",
+   "pull": 90,
+   "cards": [
+    "canary-follower"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "4bf80c3e43953db9e9b8ef8655760e1e890e9168",
    "title": "Update Helm chart velero to v12.2.5 (#88)",
    "author": "renovate[bot]",
@@ -598,6 +615,17 @@
    }
   },
   {
+   "commit": "d446b79c6031ba65205b1b478b2f9c8ff126b5be",
+   "title": "Install gh from GitHub's apt source on the Steward's runner",
+   "author": "stephan271",
+   "date": "2026-11-15T12:58:28Z",
+   "pull": null,
+   "cards": [
+    "canary-follower"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "b71a9236edf2cfb8b617dc5e207cb8a89a41f13b",
    "title": "Read the incident through REST in the Steward's workflow",
    "author": "stephan271",
@@ -624,6 +652,17 @@
    "title": "Wait out a busy API server while the checks Job runs",
    "author": "stephan271",
    "date": "2026-11-15T12:57:34Z",
+   "pull": null,
+   "cards": [
+    "canary-follower"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "76d9785414d3ebc54bc5a053a0f8b7e71d5620d3",
+   "title": "Unpack the Steward's runner as steward from root's download",
+   "author": "stephan271",
+   "date": "2026-11-15T12:50:15Z",
    "pull": null,
    "cards": [
     "canary-follower"
@@ -875,52 +914,6 @@
     "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
     "date": "2026-11-14T14:52:46Z"
    }
-  },
-  {
-   "commit": "9ce441e1be0b4810e64a03ddb4fe1658a481c408",
-   "title": "Remove the Pages starter workflow that overwrote the Ring 0 board",
-   "author": "stephan271",
-   "date": "2026-11-14T13:31:41Z",
-   "pull": null,
-   "cards": [
-    "repository"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
-    "date": "2026-11-14T14:15:40Z"
-   }
-  },
-  {
-   "commit": "652882a45fe7de87972ee56fa89505932462dcc8",
-   "title": "Update init jobs (#66)",
-   "author": "renovate[bot]",
-   "date": "2026-11-14T13:26:04Z",
-   "pull": 66,
-   "cards": [
-    "smallworlds-root"
-   ],
-   "verdict": {
-    "state": "error",
-    "description": "Superseded before verified: canary-follower@9ce441e1be0b, cnpg-barman-plugin@9ce441e1be0b, headscale@9ce441e1be0b +1 more",
-    "date": "2026-11-14T13:36:53Z"
-   }
-  },
-  {
-   "commit": "e6201b0473b01a58f0cb62e1b099a0783ab16ccf",
-   "title": "Update Docker image python to v3.15 (#62)",
-   "author": "renovate[bot]",
-   "date": "2026-11-14T12:45:52Z",
-   "pull": 62,
-   "cards": [
-    "join",
-    "pod-gateway"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
-    "date": "2026-11-14T13:20:56Z"
-   }
   }
  ],
  "pulls": [
@@ -996,19 +989,6 @@
    ],
    "cards": [
     "dashboard"
-   ]
-  },
-  {
-   "number": 90,
-   "title": "Unpack the Steward's runner as steward from root's download",
-   "author": "stephan271",
-   "created": "2026-11-15T12:50:19Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "canary-follower"
    ]
   },
   {
