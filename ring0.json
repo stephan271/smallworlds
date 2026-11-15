@@ -1,27 +1,27 @@
 {
  "schema": 1,
- "updated": "2026-11-15T13:51:38Z",
+ "updated": "2026-11-15T13:57:55Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "a20676f1ee7ccfd6769621f848394a8ecc7c4c82",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-15T13:32:27Z"
+  "commit": "4bf80c3e43953db9e9b8ef8655760e1e890e9168",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "a20676f1ee7ccfd6769621f848394a8ecc7c4c82",
+  "commit": "4bf80c3e43953db9e9b8ef8655760e1e890e9168",
   "pull": {
-   "number": 91,
-   "title": "Switch the Ring 0 Steward on, and wait out a busy API server",
+   "number": 88,
+   "title": "Update Helm chart velero to v12.2.5 (#88)",
    "cards": [
-    "canary-follower"
+    "velero"
    ]
   },
-  "step": "quiet",
-  "step_since": "2026-11-15T13:51:22Z",
-  "started": "2026-11-15T13:32:27Z",
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -30,18 +30,10 @@
      "kube-prometheus-stack"
     ],
     "since": "2026-11-14T09:32:22Z"
-   },
-   {
-    "number": 88,
-    "title": "Update Helm chart velero to v12.2.5",
-    "cards": [
-     "velero"
-    ],
-    "since": "2026-11-15T12:11:49Z"
    }
   ],
   "stuck": null,
-  "action": null,
+  "action": "merged #88",
   "waiting": null
  },
  "applications": [
@@ -582,6 +574,17 @@
  ],
  "commits": [
   {
+   "commit": "4bf80c3e43953db9e9b8ef8655760e1e890e9168",
+   "title": "Update Helm chart velero to v12.2.5 (#88)",
+   "author": "renovate[bot]",
+   "date": "2026-11-15T13:56:28Z",
+   "pull": 88,
+   "cards": [
+    "velero"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "a20676f1ee7ccfd6769621f848394a8ecc7c4c82",
    "title": "Switch the Ring 0 Steward on, and wait out a busy API server",
    "author": "stephan271",
@@ -591,9 +594,9 @@
     "canary-follower"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-15T13:32:27Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 7 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
+    "date": "2026-11-15T13:56:22Z"
    }
   },
   {
@@ -920,21 +923,6 @@
     "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
     "date": "2026-11-14T13:20:56Z"
    }
-  },
-  {
-   "commit": "2902f6e6d09acc1a6f73f49f59f061f47ffb0df9",
-   "title": "Add GitHub Actions workflow for GitHub Pages deployment",
-   "author": "stephan271",
-   "date": "2026-11-14T12:01:55Z",
-   "pull": null,
-   "cards": [
-    "repository"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
-    "date": "2026-11-14T12:40:43Z"
-   }
   }
  ],
  "pulls": [
@@ -997,21 +985,6 @@
    ]
   },
   {
-   "number": 88,
-   "title": "Update Helm chart velero to v12.2.5",
-   "author": "renovate[bot]",
-   "created": "2026-11-15T12:11:49Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "velero"
-   ]
-  },
-  {
    "number": 89,
    "title": "Update Docker image ghcr.io/gethomepage/homepage to v2",
    "author": "renovate[bot]",
@@ -1037,6 +1010,21 @@
    "labels": [],
    "cards": [
     "canary-follower"
+   ]
+  },
+  {
+   "number": 92,
+   "title": "Update Docker image stalwartlabs/stalwart to v1",
+   "author": "renovate[bot]",
+   "created": "2026-11-15T13:57:19Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [
+    "ring0-major"
+   ],
+   "cards": [
+    "stalwart"
    ]
   }
  ]
