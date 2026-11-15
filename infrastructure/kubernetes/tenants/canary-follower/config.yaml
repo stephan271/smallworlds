@@ -49,5 +49,7 @@ data:
   STEWARD: "false"
   STEWARD_LOGIN: "smallworlds-steward[bot]"
   OWNER_LOGIN: "stephan271"
+  # Majors go to the Steward one at a time while Ring 0 is idle (design §5.5).
+  STEWARD_MAJORS: "true"
   STEWARD_ATTEMPTS: "3"
   STEWARD_RUNS_PER_DAY: "6"

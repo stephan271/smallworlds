@@ -84,6 +84,19 @@
       ]
     },
     {
+      "description": "Majors of what Ring 0 runs (design-per-app-updates.md \u00a75.5): never ring0-queue. The Canary Follower hands the oldest to the Ring 0 Steward while Ring 0 is idle; the Steward prepares it in a PR of its own (labelled steward), and that PR is what the queue merges. The same paths as ring0-queue: what Ring 0 does not run, it cannot verify.",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "matchFileNames": [
+        "!infrastructure/terraform/**",
+        "!infrastructure/kubernetes/tenants/collabora/**"
+      ],
+      "addLabels": [
+        "ring0-major"
+      ]
+    },
+    {
       "description": "One PR per application: an application's images and chart move together, so a failure on Ring 0 reverts one application. admin-tools/test-renovate-groups.py checks that every tenant and every chart-bearing Application has a group.",
       "matchFileNames": [
         "infrastructure/kubernetes/tenants/backup-replicator/**"

@@ -80,6 +80,10 @@ class Settings:
     owner_login: str = "stephan271"
     protected_paths: str = ("e2e-tests/,admin-tools/canary/,infrastructure/kubernetes/tenants/canary-follower/,"
                             "renovate.json,.github/")
+    # Majors (design §5.5): offered to the Steward one at a time while Ring 0 is
+    # idle. Its PR joins the queue when armed; a person hears of it only when it
+    # fails. Needs STEWARD; Renovate labels majors ring0-major.
+    steward_majors: str = "true"
     steward_attempts: int = 3
     steward_runs_per_day: int = 6
     steward_request_timeout_seconds: int = 3600

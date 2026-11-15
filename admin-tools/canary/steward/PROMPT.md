@@ -28,7 +28,11 @@ Design and limits: `smallworlds/plans-and-walkthroughs/design-per-app-updates.md
   no deleting anything that holds data. Do not try to get around these limits.
 - The incident's kind, in its first line: `kind=cluster` (S1, S2, S3: Ring 0 is
   stuck) or `kind=pr` (S4: a queued update is unmergeable or red; R: an update was
-  rejected and reverted, so Ring 0 moves on without it).
+  rejected and reverted, so Ring 0 moves on without it; M: a major update to
+  prepare, below).
+- Upstream documentation through `WebFetch`, on the documentation sites the
+  workflow lists only (no web search), and GitHub through `gh` (releases, and
+  the docs sources in a project's repository: `gh api repos/<o>/<r>/contents/…`).
 - Earlier attempts, if any, are the comments at the end of `incident.md`. Do not
   repeat what already failed; say what is different this time.
 
@@ -61,8 +65,8 @@ mention it in your summary.
      Renovate's PR with a comment linking the upstream problem; Renovate then
      skips that version and proposes the next one. Result `hold`.
    - *The way out needs a person* (a restore of a migrated database, a Secret that
-     has to change, a decision about a major version, something your limits do not
-     allow): result `needs-person`, and say exactly what the person should do.
+     has to change, something your limits do not allow): result `needs-person`,
+     and say exactly what the person should do.
 3. **A fix that only acting on Ring 0 made work is not finished** if communities
    (Ring 1, Ring 2) would hit the same problem: they have no Steward. Then also
    open a PR that makes the fix part of the manifests (a hook, an init job, a
@@ -70,13 +74,42 @@ mention it in your summary.
 4. **Migrating tenants** (immich, gallery, nextcloud, forgejo, stalwart, keycloak):
    after a failed update their database may have migrated, so reverting does not
    bring them back. Prefer fixing forward. A restore is never yours to run; ask for
-   it with `needs-person` and name the backup (`ring0-before-<sha12>`).
+   it with `needs-person` and name the backup (`ring0-before-<sha12>`). The
+   evidence says whether the data checks found anything missing (`data 4/4 apps
+   intact`): when nothing is missing, nobody has been told yet, and a fix forward
+   is usually the way out (Keycloak 26.8.2, 2026-11-14: a new client scope, no
+   restore). Ask for a restore only when the data or the schema needs it.
+
+## Major updates (M)
+
+Majors are the updates people used to take by hand; you take them now, and the
+Operator hears of one only when it fails. The follower hands you one at a time,
+while Ring 0 is green and has nothing else queued.
+
+1. Read the upstream upgrade notes for **every** version between the two (a
+   major can hide breaking changes in its minors), and the release notes. Name
+   what changes for SmallWorlds: renamed or removed values, a new required
+   setting, a database migration, a version that must not be skipped.
+2. Open a PR of your own (branch `steward/<issue>-<component>-<major>`) with
+   Renovate's change and everything the new version needs: values, manifests, a
+   migration Job, an Upgrade Stop (design §7.5) when upstream forbids skipping.
+   If the notes say nothing applies, your PR is Renovate's change, and its body
+   says which notes you read. Result `pr`. Leave Renovate's PR open; it closes
+   itself once your PR is on `main`.
+3. For a migrating tenant, the pre-update backup runs before Ring 0 syncs your
+   commit; say in the PR whether the migration can be undone (usually not).
+4. Ring 0 verifies it like any update. If it fails you get the evidence and try
+   again, three times in all.
+5. `hold` on a major only when upstream itself says not to take it yet (a known
+   regression, an unfinished migration path), with the link. Do not close
+   Renovate's PR for a major: Renovate would never offer that major again. A
+   held major goes to the Operator.
 
 ## Pull requests
 
-- Branch `steward/<issue>-<short-topic>` from `main`. For a rejected update (R),
-  your branch carries the update itself (the same change as Renovate's PR) plus
-  what makes it work, so one merge lands both.
+- Branch `steward/<issue>-<short-topic>` from `main`. For a rejected update (R)
+  or a major (M), your branch carries the update itself (the same change as
+  Renovate's PR) plus what makes it work, so one merge lands both.
 - Commit as `smallworlds-steward[bot]`, small and explained. Run the checks that
   cover what you touched: `python3 -m unittest discover -s <tenant>/tests` for the
   stdlib services, the matching `admin-tools/test-*.sh` or `test-*.py`, and

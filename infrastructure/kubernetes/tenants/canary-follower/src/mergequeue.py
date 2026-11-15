@@ -28,6 +28,10 @@ main is red when it is the fix for a stuck Ring 0 (advance_fix). It never merges
 itself. A Steward PR that touches what judges Ring 0 (PROTECTED) waits for the
 repository owner's approving review of its current head, so the agent cannot
 make Ring 0 green by weakening the checks.
+
+Majors (design-per-app-updates.md §5.5) never carry the queue label. Renovate
+labels them `ring0-major`; next_major() offers the oldest to the Steward, which
+prepares it in a PR of its own, and that PR is what the queue merges.
 """
 import hashlib
 import logging
@@ -37,6 +41,8 @@ log = logging.getLogger("mergequeue")
 
 REJECTED = "ring0-rejected-"
 STEWARD = "steward"
+MAJOR = "ring0-major"          # renovate.json: majors of what Ring 0 runs
+PREPARE = "steward-prepare"    # a major handed to the Steward (incidents.py, M)
 
 
 def fingerprint(files: list[dict]) -> str:
@@ -78,6 +84,7 @@ class MergeQueue:
         # Skipped until Renovate pushes a new head, so one refusal does not
         # block every update behind it.
         self.refused: dict[int, str] = {}
+        self.prepared: set[int] = set()
 
     def _queued(self, pull: dict) -> bool:
         labels = {l["name"] for l in pull.get("labels", [])}
@@ -97,6 +104,21 @@ class MergeQueue:
 
     def _fail(self, number: int, why: str) -> None:
         self.failing.setdefault(number, (self.now(), why))
+
+    def next_major(self) -> dict | None:
+        """The oldest open Renovate major not yet handed to the Steward."""
+        for pull in sorted(self.github.open_pulls(self.branch), key=lambda p: p["number"]):
+            labels = {l["name"] for l in pull.get("labels", [])}
+            if (pull.get("user", {}).get("login") == self.author and not pull.get("draft")
+                    and MAJOR in labels and PREPARE not in labels and pull["number"] not in self.prepared):
+                return pull
+        return None
+
+    def mark_major(self, number: int) -> None:
+        """Handed to the Steward: the label keeps it from being offered again,
+        also after a restart."""
+        self.prepared.add(number)
+        self.github.add_label(number, PREPARE)
 
     def take_rejection(self) -> dict | None:
         rejection, self.last_rejection = self.last_rejection, None

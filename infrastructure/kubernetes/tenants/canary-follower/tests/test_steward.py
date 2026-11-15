@@ -19,7 +19,8 @@ import evidence  # noqa: E402
 import settings as settings_module  # noqa: E402
 from follower import Outcome  # noqa: E402
 from github import GitHub  # noqa: E402
-from incidents import NEEDS_PERSON, REJECTED_UPDATE, REQUESTED, STUCK, WORKING, Incidents  # noqa: E402
+from incidents import (MAJOR_UPDATE, NEEDS_PERSON, REJECTED_UPDATE, REQUESTED, STUCK, WORKING,  # noqa: E402
+                       Incidents)
 from main import metrics  # noqa: E402
 from mergequeue import MergeQueue  # noqa: E402
 from test_automation import RENOVATE, FakeRepo, pull  # noqa: E402
@@ -109,10 +110,18 @@ class FakeQueue:
         self.last_merge = now()
         self.failing = {}
         self.waiting = None
+        self.majors = []   # open Renovate majors, oldest first
+        self.marked = []
 
     def take_rejection(self):
         rejection, self.rejection = self.rejection, None
         return rejection
+
+    def next_major(self):
+        return next((p for p in self.majors if p["number"] not in self.marked), None)
+
+    def mark_major(self, number):
+        self.marked.append(number)
 
 
 class FakeEvidence:
@@ -158,7 +167,9 @@ class Ring0:
 
     def workflow_runs(self, result):
         """What the Steward's workflow does: swap the labels, work, report, finish."""
-        number = self.only()["number"]
+        self.workflow_runs_on(self.only()["number"], result)
+
+    def workflow_runs_on(self, number, result):
         self.overlay.remove_label(number, REQUESTED)
         self.overlay.add_label(number, WORKING)
         self.now.t += 60
@@ -169,8 +180,9 @@ class Ring0:
         self.tick()
 
 
-def failed(sha=SHA, restore=(), state="failure"):
-    return Outcome(sha, state, "Checks failed: e2e 1 failed", ["converged", "smoke 9 hosts"],
+def failed(sha=SHA, restore=(), state="failure", data=None):
+    description = "Checks failed: e2e 1 failed" + (f"; data {data} apps intact" if data else "")
+    return Outcome(sha, state, description, ["converged", "smoke 9 hosts"],
                    restore_only=list(restore))
 
 
@@ -201,13 +213,28 @@ class IncidentTest(unittest.TestCase):
         self.assertNotIn(REQUESTED, ring0.overlay.labels(ring0.only()["number"]))
         self.assertFalse(ring0.incidents.paused())
 
-    def test_a_restore_tells_the_operator_at_once_and_the_steward_still_looks(self):
+    def test_a_migrating_tenant_with_its_data_intact_is_the_stewards_first(self):
+        # Keycloak 26.8.2 (2026-11-14): rejected, "restore, do not revert", data
+        # 4/4 intact, and a fix forward was all it needed. Nobody is woken for it.
         ring0 = Ring0()
-        ring0.tick(failed(restore=["gallery"]))
+        ring0.tick(failed(restore=["keycloak"], data="4/4"))
+        labels = ring0.overlay.labels(ring0.only()["number"])
+        self.assertNotIn(NEEDS_PERSON, labels)
+        self.assertIn(REQUESTED, labels)
+        self.assertIn("keycloak", ring0.only()["body"])
+
+    def test_lost_data_tells_the_operator_at_once_and_the_steward_still_looks(self):
+        ring0 = Ring0()
+        ring0.tick(failed(restore=["gallery"], data="3/4"))
         labels = ring0.overlay.labels(ring0.only()["number"])
         self.assertIn(NEEDS_PERSON, labels)
         self.assertIn(REQUESTED, labels)
         self.assertIn("gallery", ring0.only()["body"])
+
+    def test_without_the_steward_a_restore_goes_to_a_person_at_once(self):
+        ring0 = Ring0(steward="false")
+        ring0.tick(failed(restore=["gallery"], data="4/4"))
+        self.assertIn(NEEDS_PERSON, ring0.overlay.labels(ring0.only()["number"]))
 
     def test_after_the_steward_acts_the_head_is_verified_again(self):
         ring0 = Ring0()
@@ -374,10 +401,138 @@ class IncidentTest(unittest.TestCase):
         self.assertEqual(1, len(asked))
 
 
+def green(sha=SHA):
+    return Outcome(sha, "success", "Ring 0: converged | checks passed")
+
+
+def major(number, title="Update Helm chart garage to v1.0.0"):
+    return pull(number, title, labels=("ring0-major",))
+
+
+class MajorTest(unittest.TestCase):
+    """Majors go to the Steward, are merged by the queue once its PR carries
+    ring0-queue, and reach a person only when they fail (design §5.5)."""
+
+    def idle(self, **overrides):
+        ring0 = Ring0(**overrides)
+        ring0.queue.majors = [major(70), major(72, "Update immich to v3")]
+        return ring0
+
+    def test_an_idle_ring0_hands_the_oldest_major_to_the_steward(self):
+        ring0 = self.idle()
+        ring0.tick(green())
+        issue = ring0.only()
+        self.assertIn("key=M:#70 kind=pr", issue["body"])
+        self.assertIn(MAJOR_UPDATE, ring0.overlay.labels(issue["number"]))
+        self.assertIn(REQUESTED, ring0.overlay.labels(issue["number"]))
+        self.assertEqual([70], ring0.queue.marked, "Renovate's PR is marked, so it is offered once")
+        ring0.incidents.refresh()
+        self.assertFalse(ring0.incidents.paused(), "preparing a major never pauses Ring 0")
+
+    def test_no_major_while_updates_wait_or_ring0_is_not_green(self):
+        busy = self.idle()
+        busy.queue.candidates = 1
+        busy.tick(green())
+        red = self.idle()
+        red.tick(failed())
+        self.assertFalse([i for i in busy.overlay.items.values()])
+        self.assertNotIn("M:#", red.only()["body"])
+
+    def test_one_major_at_a_time(self):
+        ring0 = self.idle()
+        ring0.tick(green())
+        ring0.tick(green())
+        self.assertEqual(1, len(ring0.overlay.items))
+        ring0.workflow_runs("pr")
+        ring0.tick(green())
+        self.assertEqual(1, len(ring0.overlay.items), "the next waits until this one is through")
+
+    def test_without_steward_majors_none_is_offered(self):
+        ring0 = self.idle(steward_majors="false")
+        ring0.tick(green())
+        self.assertFalse(ring0.overlay.items)
+        ring0 = self.idle(steward="false")
+        ring0.tick(green())
+        self.assertFalse(ring0.overlay.items, "nobody would prepare it")
+
+    def _merged_fix(self, ring0, number, sha):
+        ring0.base.head = sha
+        ring0.base.pulls[sha] = [{"labels": [{"name": "steward"}], "merged_at": "x",
+                                  "body": f"Garage 1.0.\n\nRing0-Incident: #{number}\n"}]
+
+    def test_a_major_that_ring0_verifies_closes_without_telling_anyone(self):
+        ring0 = self.idle()
+        ring0.tick(green())
+        number = ring0.only()["number"]
+        ring0.workflow_runs("pr")
+        self.assertIn("phase=waiting-pr", ring0.only()["body"])
+        self._merged_fix(ring0, number, "c" * 40)
+        ring0.tick(verdict=green("c" * 40))
+        issue = ring0.overlay.items[number]
+        self.assertEqual("closed", issue["state"])
+        self.assertNotIn(NEEDS_PERSON, ring0.overlay.labels(number))
+        self.assertIn("major", issue["comments"][-1]["body"])
+
+    def test_a_major_that_keeps_failing_goes_to_a_person_after_three_attempts(self):
+        ring0 = self.idle()
+        ring0.tick(green())
+        number = ring0.only()["number"]
+        for attempt in range(3):
+            ring0.workflow_runs_on(number, "pr")
+            sha = f"{attempt}" * 40
+            self._merged_fix(ring0, number, sha)
+            # Not a migrating app: the merge queue reverted it before the review.
+            ring0.queue.rejection = {"sha": sha, "pull": ring0.base.pulls[sha][0], "reverted": True,
+                                     "fingerprint": f"fp{attempt}", "description": "Checks failed"}
+            ring0.tick(verdict=failed(sha))
+            ring0.base.head = "d" * 40  # the revert
+            ring0.tick(green("d" * 40))
+        self.assertIn(NEEDS_PERSON, ring0.overlay.labels(number))
+        self.assertIn("3 attempts", ring0.overlay.items[number]["comments"][-1]["body"])
+        self.assertFalse([i for i in ring0.overlay.items.values() if "R:" in i["body"]],
+                         "the Steward's own major is not a second, reverted-update incident")
+        opened = [i for i in ring0.overlay.items.values() if i["state"] == "open"]
+        self.assertIn("M:#72", opened[-1]["body"], "one major waiting for a person does not block the next")
+
+    def test_a_major_held_back_tells_a_person_because_renovate_drops_it(self):
+        ring0 = self.idle()
+        ring0.tick(green())
+        number = ring0.only()["number"]
+        ring0.workflow_runs("hold")
+        self.assertIn(NEEDS_PERSON, ring0.overlay.labels(number))
+
+    def test_a_failed_major_of_a_migrating_app_continues_as_its_s1(self):
+        ring0 = self.idle()
+        ring0.tick(green())
+        number = ring0.only()["number"]
+        ring0.workflow_runs("pr")
+        self._merged_fix(ring0, number, "e" * 40)
+        ring0.queue.rejection = {"sha": "e" * 40, "pull": ring0.base.pulls["e" * 40][0], "reverted": False,
+                                 "fingerprint": "fp", "description": "Checks failed"}
+        ring0.tick(verdict=failed("e" * 40, restore=["immich"], data="4/4"))
+        self.assertEqual("closed", ring0.overlay.items[number]["state"])
+        s1 = ring0.only()
+        self.assertIn(f"S1:{'e' * 12}", s1["body"])
+        self.assertIn(f"#{s1['number']}", ring0.overlay.items[number]["comments"][-1]["body"])
+
+
 class MergeQueueStewardTest(unittest.TestCase):
     def queue(self, repo):
         return MergeQueue(repo, "main", "ring0-queue", RENOVATE, steward=STEWARD, owner="stephan271",
                           protected=("e2e-tests/", ".github/"))
+
+    def test_majors_are_offered_oldest_first_once_and_never_merged_by_the_queue(self):
+        repo = FakeRepo([major(72), major(70), pull(71, "Update cert-manager", labels=()),
+                         pull(73, "Someone's major", labels=("ring0-major",), user="someone")],
+                        green={"head70", "head72"})
+        q = self.queue(repo)
+        self.assertEqual(70, q.next_major()["number"])
+        q.mark_major(70)
+        self.assertIn((70, "steward-prepare"), repo.labelled)
+        self.assertEqual(72, q.next_major()["number"])
+        repo.pulls[72]["labels"].append({"name": "steward-prepare"})
+        self.assertIsNone(q.next_major(), "a marked PR is not offered again, even after a restart")
+        self.assertIsNone(q.advance(), "a major without ring0-queue is never merged")
 
     def test_a_queued_steward_pr_is_merged_like_an_update(self):
         repo = FakeRepo([pull(60, "Fix Gallery's probe", labels=("ring0-queue", "steward"), user=STEWARD)],

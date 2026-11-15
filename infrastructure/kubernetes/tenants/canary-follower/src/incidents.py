@@ -15,6 +15,9 @@ Kinds:
            S4  a queued update stayed unmergeable or red for 12 hours
            R   a queued update was rejected and reverted (it waits for the
                next upstream release unless the Steward makes it work)
+           M   a major update, handed over while Ring 0 is idle: the Steward
+               prepares it in a PR of its own, the merge queue merges it like
+               any update, and a person hears of it only if it fails (§5.5)
 
 Life of an incident (phase in the marker):
   new         opened; the Steward is asked (label steward-requested) when the
@@ -33,7 +36,10 @@ Life of an incident (phase in the marker):
 
 One attempt is one run that left something to test, and the verdict on it.
 After `attempts` failed ones the incident goes to a person, or sooner when the
-next step is not the Steward's to take (a restore, a credential).
+next step is not the Steward's to take (a credential, or a restore after the
+data checks found data missing). A migrating tenant whose data is intact is the
+Steward's first: on 2026-11-14 Keycloak 26.8.2 was rejected with "restore, do
+not revert", 4/4 apps intact, and a fix forward was all it took.
 """
 import datetime
 import logging
@@ -47,6 +53,7 @@ log = logging.getLogger("incidents")
 
 STUCK = "ring0-stuck"
 REJECTED_UPDATE = "ring0-rejected-update"
+MAJOR_UPDATE = "ring0-major-update"
 REQUESTED = "steward-requested"
 WORKING = "steward-working"
 NEEDS_PERSON = "ring0-needs-person"
@@ -55,8 +62,20 @@ STEWARD_LABEL = "steward"
 _MARK = re.compile(r"<!-- ring0-incident (.*?) -->")
 _DONE = re.compile(r"<!-- steward-done result=([a-z-]+) -->")
 _LINK = re.compile(r"(?im)^Ring0-Incident:\s*#?(\d+)\s*$")
+_DATA = re.compile(r"data (\d+)/(\d+) apps intact")
 
 RESULTS = ("acted", "pr", "hold", "needs-person", "credential", "not-run")
+
+
+def data_lost(outcome) -> bool:
+    """The data checks (seed.py check) found an application's example data
+    missing. False when they passed or did not run: only a loss means a
+    restore, and only a restore is a reason to wake someone before the Steward
+    has looked."""
+    for text in [outcome.description, *outcome.steps]:
+        if found := _DATA.search(text or ""):
+            return int(found.group(1)) < int(found.group(2))
+    return False
 
 
 def _iso(timestamp: str) -> float:
@@ -106,7 +125,7 @@ class Incidents:
 
     def refresh(self) -> None:
         found = {}
-        for label in (STUCK, REJECTED_UPDATE):
+        for label in (STUCK, REJECTED_UPDATE, MAJOR_UPDATE):
             for issue in self.overlay.issues(label):
                 if (incident := Incident.parse(issue)) is not None:
                     found[incident.number] = incident
@@ -171,7 +190,7 @@ class Incidents:
         cluster_text = self.evidence.cluster() if (cluster and self.evidence) else ""
         change = evidence_module.change_section(self.base, sha, pull)
         body = incident.marker() + "\n" + evidence_module.bundle(header, change, cluster_text)
-        label = STUCK if kind == "cluster" else REJECTED_UPDATE
+        label = STUCK if kind == "cluster" else MAJOR_UPDATE if key.startswith("M:") else REJECTED_UPDATE
         incident.number = self.overlay.create_issue(title[:200], body, [label])
         incident.body, incident.labels = body, {label}
         self.open.append(incident)
@@ -236,10 +255,19 @@ class Incidents:
                            if restore else ""),
                         head, self._pull_of(head), cluster=True)
                     if restore and not self.s.on(self.s.auto_restore):
-                        self._label(incident, NEEDS_PERSON)
-                        self.overlay.comment(incident.number, "**Restore needed** and automatic restore is "
-                                             "off: the Operator is told now. The Steward still looks for a "
-                                             "fix forward.")
+                        if data_lost(outcome):
+                            self._label(incident, NEEDS_PERSON)
+                            self.overlay.comment(incident.number, "**Restore needed:** the data checks found "
+                                                 "data missing and automatic restore is off, so the Operator "
+                                                 "is told now. The Steward still looks for a fix forward.")
+                        elif not self.s.on(self.s.steward):
+                            self._label(incident, NEEDS_PERSON)
+                            self.overlay.comment(incident.number, "**A person is needed:** fix forward or "
+                                                 "restore; the Steward is off.")
+                        else:
+                            self.overlay.comment(incident.number, "The data checks found nothing missing: "
+                                                 "the Steward tries to fix forward first, and asks for a "
+                                                 "restore only if one is needed.")
             attempts = follower.errors.get(head, (0, 0.0))[0]
             if outcome.state == "error" and attempts > self.s.error_retries:
                 key = f"S2:{head[:12]}"
@@ -266,6 +294,33 @@ class Incidents:
                                "on top of its branch, or a fix on main), or close it if the update is "
                                "not wanted.", None, self.base.pull(number), cluster=False)
 
+        if self._ready_for_major(outcome, head, queue):
+            pull = queue.next_major()
+            if pull is not None and not self._exists(f"M:#{pull['number']}"):
+                number = pull["number"]
+                self._open(f"M:#{number}", "pr", f"Ring 0 major: {pull['title']} (#{number})",
+                           f"## M: a major update to prepare\n\nRenovate's PR #{number} is a major update. "
+                           "Ring 0 is green and has nothing else queued. Read the upstream upgrade notes "
+                           "for every version between the two, then open a PR of your own (label `steward`, "
+                           "a `Ring0-Incident:` line) with Renovate's change and whatever the new version "
+                           "needs: changed values, a migration Job, an Upgrade Stop. If it is safe as it "
+                           "is, your PR is Renovate's change and your reading of the notes. Ring 0 "
+                           "verifies it like any update. If upstream says this version must not be "
+                           "taken yet, hold it back.", None, pull, cluster=False)
+                queue.mark_major(number)
+
+    def _ready_for_major(self, outcome, head, queue) -> bool:
+        """One major at a time, only while Ring 0 is green on main's head and
+        nothing else is queued: a major is verified alone, like every update."""
+        if queue is None or not (self.s.on(self.s.steward) and self.s.on(self.s.steward_majors)):
+            return False
+        if outcome is None or outcome.sha != head or outcome.state != "success" or outcome.superseded:
+            return False
+        if queue.candidates or self.has_open_cluster():
+            return False
+        # A major waiting for a person does not hold back the next one.
+        return not any(i.key.startswith("M:") and i.phase != "person" for i in self.open)
+
     def _pull_of(self, sha: str) -> dict | None:
         try:
             pulls = [p for p in self.base.pulls_of(sha) if p.get("merged_at")]
@@ -285,6 +340,8 @@ class Incidents:
             if number not in queue.failing:
                 return f"#{number} is no longer stuck (merged, closed or ready)."
         if linked == incident.number and verdict is not None and verdict.state == "success":
+            if incident.key.startswith("M:"):
+                return f"the major update is on main as `{verdict.sha[:12]}` and Ring 0 verified it."
             return f"the Steward's fix `{verdict.sha[:12]}` passed Ring 0's verification."
         return None
 
@@ -322,6 +379,13 @@ class Incidents:
                 verdict is not None and verdict.sha == head)
             if (ours and verdict is not None and not verdict.superseded
                     and verdict.state in ("failure", "error")):
+                # A failed major that was not reverted (a migrating app) leaves
+                # Ring 0 stuck: its S1 carries on from here, so two Steward runs
+                # never work on the same failure.
+                s1 = next((i for i in self.open if i.key == f"S1:{verdict.sha[:12]}"), None)
+                if incident.key.startswith("M:") and s1 is not None:
+                    self._close(incident, f"Ring 0 rejected it and could not revert it; continued in #{s1.number}.")
+                    return
                 self._failed_attempt(incident, verdict)
 
     def _request(self, incident: Incident) -> None:
@@ -362,6 +426,11 @@ class Incidents:
             self._set(incident, "verifying")
         elif result in ("acted", "pr"):
             self._set(incident, "waiting-pr")
+        elif result == "hold" and incident.key.startswith("M:"):
+            # Renovate does not propose a major again once its PR is closed:
+            # held back, it would silently never arrive. That is a failure too.
+            self._person(incident, "the Steward held this major back (see its comment); Renovate will "
+                         "not offer it again until it is reopened from the Dependency Dashboard.")
         elif result == "hold" and incident.kind == "pr":
             self._close(incident, "the Steward held this version back; the next upstream release "
                         "will be tried.")

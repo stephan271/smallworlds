@@ -39,6 +39,15 @@ jobs:
       ISSUE: ${{ github.event.issue.number }}
       OVERLAY: ${{ github.repository }}
       STEWARD_ARMED: ${{ vars.STEWARD_ARMED || 'false' }}
+      # Upstream documentation it may read (WebFetch, these domains only; no
+      # web search). Majors need their upgrade notes, and most projects keep
+      # them on a documentation site, not in GitHub releases (Keycloak 26.8.2's
+      # admin API audience was only in its upgrading guide, 2026-11-14). What it
+      # reads there is data, never instructions (PROMPT.md); a misled run is
+      # still bounded by the token and the ServiceAccount. A component whose
+      # notes live elsewhere: add its domain here.
+      STEWARD_DOCS: >-
+        WebFetch(domain:www.keycloak.org),WebFetch(domain:docs.nextcloud.com),WebFetch(domain:immich.app),WebFetch(domain:forgejo.org),WebFetch(domain:stalw.art),WebFetch(domain:jitsi.github.io),WebFetch(domain:cert-manager.io),WebFetch(domain:cloudnative-pg.io),WebFetch(domain:garagehq.deuxfleurs.fr),WebFetch(domain:velero.io),WebFetch(domain:doc.traefik.io),WebFetch(domain:argo-cd.readthedocs.io),WebFetch(domain:grafana.com),WebFetch(domain:prometheus-operator.dev),WebFetch(domain:headscale.net),WebFetch(domain:raw.githubusercontent.com)
     steps:
       - name: Mark the incident as being worked on
         env:
@@ -95,8 +104,8 @@ jobs:
           claude_args: >-
             --model ${{ vars.STEWARD_MODEL || 'claude-opus-5-5' }}
             --max-turns 120
-            --allowedTools "Read,Edit,Write,Glob,Grep,Bash(kubectl:*),Bash(git:*),Bash(gh:*),Bash(jq:*),Bash(ls:*),Bash(grep:*),Bash(head:*),Bash(tail:*),Bash(diff:*),Bash(python3 -m unittest:*),Bash(python3 admin-tools/:*),Bash(bash admin-tools/:*),Bash(./admin-tools/:*)"
-            --disallowedTools "WebFetch,WebSearch"
+            --allowedTools "Read,Edit,Write,Glob,Grep,Bash(kubectl:*),Bash(git:*),Bash(gh:*),Bash(jq:*),Bash(ls:*),Bash(grep:*),Bash(head:*),Bash(tail:*),Bash(diff:*),Bash(python3 -m unittest:*),Bash(python3 admin-tools/:*),Bash(bash admin-tools/:*),Bash(./admin-tools/:*),${{ env.STEWARD_DOCS }}"
+            --disallowedTools "WebSearch"
 
       - name: Report the result
         if: always()

@@ -158,6 +158,7 @@ public base, because its evidence holds Ring 0's logs (`src/incidents.py`,
 | S3 | queued updates exist, nothing merged for a day | cluster |
 | S4 | a queued PR stayed unmergeable or red for 12 hours | pr |
 | R  | a queued update was rejected and reverted | pr |
+| M  | a major update, while Ring 0 is green and nothing else is queued | pr |
 
 The issue holds the evidence: the change and its diff, the Applications that are
 not Synced and Healthy with their last operation, the Warning events and failing
@@ -180,9 +181,23 @@ by labelling the issue `steward-requested`:
 - One **attempt** is one run that left something to test, and the verdict on it.
   A failed attempt adds fresh evidence to the issue and asks again. After
   `STEWARD_ATTEMPTS` (3) failed attempts, or at once when the next step is not the
-  Steward's (a restore while automatic restore is off, a refused credential), the
-  issue is labelled `ring0-needs-person` and the warning `Ring0NeedsPerson`
-  reaches ntfy.
+  Steward's (a refused credential, or a restore while automatic restore is off
+  **and** the data checks found data missing), the issue is labelled
+  `ring0-needs-person` and the warning `Ring0NeedsPerson` reaches ntfy. A
+  migrating tenant whose data is intact goes to the Steward first: Keycloak
+  26.8.2 (2026-11-14) was rejected with "restore, do not revert", 4/4 apps
+  intact, and needed only a fix forward.
+- **Majors** (`STEWARD_MAJORS`, design §5.5): Renovate labels them `ring0-major`
+  and never `ring0-queue`. While `main`'s head is green, nothing else is queued
+  and no cluster incident is open, the follower opens an M incident for the
+  oldest one (label `ring0-major-update`) and marks Renovate's PR
+  `steward-prepare`, so it is offered once. The Steward prepares it in a PR of its
+  own, which the queue merges like any update once it carries `ring0-queue`; a
+  verified one closes the incident without telling anyone. A failed one is tried
+  again, three times in all; a migrating app's failure that cannot be reverted
+  continues as its S1. A major the Steward holds back goes to a person, since
+  Renovate would not offer it again. One at a time, and one waiting for a person
+  does not hold back the next.
 - A run that ended without a result (a usage limit, a workflow that never
   started) is not an attempt; it is retried after three hours, and three of them
   go to a person too. At most `STEWARD_RUNS_PER_DAY` (6) runs a day.

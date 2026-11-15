@@ -237,6 +237,11 @@ acts on Ring 0 within `steward-rbac.yaml` (no Secrets, no exec) and fixes forwar
 PRs labelled `steward` from its own GitHub App, three attempts before `Ring0NeedsPerson`.
 `admin-tools/canary/` and `tenants/canary-follower/` are protected paths: a Steward PR
 touching them waits for the owner's approval, so it cannot loosen what judges it.
+Majors are the Steward's too: Renovate labels them `ring0-major` (never `ring0-queue`),
+and while Ring 0 is idle the follower hands over the oldest; the Steward's own PR for it
+is what the queue merges, and a person hears of a major only when it fails. A rejected
+migrating tenant whose data checks pass is not a restore by itself — it goes to the
+Steward first (design-per-app-updates.md §5.3, §5.5).
 
 ## Local end-to-end staging (`admin-tools/test-pr-locally.sh`)
 

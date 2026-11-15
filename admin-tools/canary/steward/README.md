@@ -29,15 +29,19 @@ ones. Steps 1–2 give you incidents with evidence and no AI at all.
 
 2. **Deploy this branch's follower** (it comes with `main`). `INCIDENTS: "true"`,
    `STEWARD: "false"` in `config.yaml`: incidents are opened, filled and closed;
-   nobody is asked. Create the five labels once, so they have colours:
+   nobody is asked. Create the labels once, so they have colours:
 
    ```bash
    for l in ring0-stuck:b60205 ring0-rejected-update:d93f0b steward-requested:1d76db \
-            steward-working:0e8a16 ring0-needs-person:e11d21; do
+            steward-working:0e8a16 ring0-needs-person:e11d21 ring0-major-update:fbca04; do
      gh label create "${l%%:*}" --color "${l##*:}" -R stephan271/my-canary-installation --force
    done
    gh label create steward --color 5319e7 -R stephan271/smallworlds --force \
      --description "Opened by the Ring 0 Steward"
+   gh label create ring0-major --color fbca04 -R stephan271/smallworlds --force \
+     --description "A major update; the Ring 0 Steward prepares it (renovate.json)"
+   gh label create steward-prepare --color c5def5 -R stephan271/smallworlds --force \
+     --description "Handed to the Ring 0 Steward"
    ```
 
 3. **The Steward's GitHub App.** GitHub → Settings → Developer settings → GitHub
@@ -117,6 +121,17 @@ EOF
 ```
 
 With `STEWARD: "true"` the follower asks the Steward within one poll (5 minutes).
+
+## Majors
+
+With `STEWARD` on, majors come too (`STEWARD_MAJORS: "true"`, the default): one
+at a time while Ring 0 is idle, prepared by the Steward from the upstream upgrade
+notes in a PR of its own. Before arming, you add `ring0-queue` to that PR after
+reading it; once `STEWARD_ARMED` is `true`, it does so itself and you hear of a
+major only when it fails three times, cannot be reverted and needs a restore, or
+was held back. The notes come from the documentation sites in `STEWARD_DOCS`
+(`steward.yml`); add a component's site there when its notes live elsewhere.
+`STEWARD_MAJORS: "false"` leaves majors to you, as before.
 
 ## When it needs you
 
