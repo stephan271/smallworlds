@@ -1,27 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-15T12:02:58Z",
+ "updated": "2026-11-15T12:07:09Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "93b72ebec7c0ad9bdf7f1b18a15953e2d9a04b96",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-15T11:45:35Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
+  "date": "2026-11-15T12:05:35Z"
  },
  "now": {
   "state": "updating",
   "commit": "93b72ebec7c0ad9bdf7f1b18a15953e2d9a04b96",
-  "pull": {
-   "number": 77,
-   "title": "Update Terraform hcloud to v1.70.2 (#77)",
-   "cards": [
-    "repository"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-15T12:00:34Z",
-  "started": "2026-11-15T11:45:35Z",
+  "pull": null,
+  "step": "merge",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -51,7 +45,7 @@
   ],
   "stuck": null,
   "action": "merged #77",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -600,9 +594,9 @@
     "repository"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-15T11:45:35Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
+    "date": "2026-11-15T12:05:35Z"
    }
   },
   {
