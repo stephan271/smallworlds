@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-15T06:09:37Z",
+ "updated": "2026-11-15T06:59:01Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -57,6 +57,15 @@
      "velero"
     ],
     "since": "2026-11-14T14:53:57Z"
+   },
+   {
+    "number": 82,
+    "title": "Update Docker image python to v3.15",
+    "cards": [
+     "immich",
+     "stalwart"
+    ],
+    "since": "2026-11-15T06:57:13Z"
    }
   ],
   "stuck": {
@@ -1050,6 +1059,22 @@
    ],
    "cards": [
     "velero"
+   ]
+  },
+  {
+   "number": 82,
+   "title": "Update Docker image python to v3.15",
+   "author": "renovate[bot]",
+   "created": "2026-11-15T06:57:13Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "immich",
+    "stalwart"
    ]
   }
  ]
