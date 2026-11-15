@@ -1,27 +1,28 @@
 {
  "schema": 1,
- "updated": "2026-11-15T12:32:17Z",
+ "updated": "2026-11-15T12:38:30Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "89cde5d0d2e2332f7a437fe756094129be5170ef",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-15T12:15:49Z"
+  "commit": "1f8d40b740628d67a3c6df967f65b588cd71d1f0",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "89cde5d0d2e2332f7a437fe756094129be5170ef",
+  "commit": "1f8d40b740628d67a3c6df967f65b588cd71d1f0",
   "pull": {
-   "number": 78,
-   "title": "Update velero (#78)",
+   "number": 82,
+   "title": "Update Docker image python to v3.15 (#82)",
    "cards": [
-    "velero"
+    "immich",
+    "stalwart"
    ]
   },
-  "step": "quiet",
-  "step_since": "2026-11-15T12:31:26Z",
-  "started": "2026-11-15T12:15:49Z",
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -30,15 +31,6 @@
      "kube-prometheus-stack"
     ],
     "since": "2026-11-14T09:32:22Z"
-   },
-   {
-    "number": 82,
-    "title": "Update Docker image python to v3.15",
-    "cards": [
-     "immich",
-     "stalwart"
-    ],
-    "since": "2026-11-15T06:57:13Z"
    },
    {
     "number": 88,
@@ -50,7 +42,7 @@
    }
   ],
   "stuck": null,
-  "action": "merged #78",
+  "action": "merged #82",
   "waiting": null
  },
  "applications": [
@@ -591,6 +583,18 @@
  ],
  "commits": [
   {
+   "commit": "1f8d40b740628d67a3c6df967f65b588cd71d1f0",
+   "title": "Update Docker image python to v3.15 (#82)",
+   "author": "renovate[bot]",
+   "date": "2026-11-15T12:36:32Z",
+   "pull": 82,
+   "cards": [
+    "immich",
+    "stalwart"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "89cde5d0d2e2332f7a437fe756094129be5170ef",
    "title": "Update velero (#78)",
    "author": "renovate[bot]",
@@ -600,9 +604,9 @@
     "velero"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-15T12:15:49Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
+    "date": "2026-11-15T12:36:27Z"
    }
   },
   {
@@ -938,21 +942,6 @@
     "description": "Ring 0: backup 1 databases, converged, load settled after 1 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 m\u2026",
     "date": "2026-11-14T11:32:06Z"
    }
-  },
-  {
-   "commit": "1c20a926e4e7e9aa7443f45667228efd5a1fb309",
-   "title": "Update e2e tests (#56)",
-   "author": "renovate[bot]",
-   "date": "2026-11-14T10:10:02Z",
-   "pull": 56,
-   "cards": [
-    "canary-follower"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 4 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
-    "date": "2026-11-14T10:48:37Z"
-   }
   }
  ],
  "pulls": [
@@ -969,22 +958,6 @@
    ],
    "cards": [
     "kube-prometheus-stack"
-   ]
-  },
-  {
-   "number": 82,
-   "title": "Update Docker image python to v3.15",
-   "author": "renovate[bot]",
-   "created": "2026-11-15T06:57:13Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "immich",
-    "stalwart"
    ]
   },
   {
@@ -1043,6 +1016,21 @@
    ],
    "cards": [
     "velero"
+   ]
+  },
+  {
+   "number": 89,
+   "title": "Update Docker image ghcr.io/gethomepage/homepage to v2",
+   "author": "renovate[bot]",
+   "created": "2026-11-15T12:37:26Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [
+    "ring0-major"
+   ],
+   "cards": [
+    "dashboard"
    ]
   }
  ]
