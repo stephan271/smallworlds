@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-15T15:54:49Z",
+ "updated": "2026-11-15T16:28:09Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -24,6 +24,14 @@
      "kube-prometheus-stack"
     ],
     "since": "2026-11-14T09:32:22Z"
+   },
+   {
+    "number": 93,
+    "title": "Update Forgejo's Redis to v8 (major, Steward)",
+    "cards": [
+     "forgejo"
+    ],
+    "since": "2026-11-15T14:25:09Z"
    }
   ],
   "stuck": null,
@@ -1010,9 +1018,10 @@
    "author": "smallworlds-steward[bot]",
    "created": "2026-11-15T14:25:09Z",
    "draft": false,
-   "queued": false,
+   "queued": true,
    "rejected": false,
    "labels": [
+    "ring0-queue",
     "steward"
    ],
    "cards": [
