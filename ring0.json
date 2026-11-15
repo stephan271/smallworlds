@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-15T14:00:02Z",
+ "updated": "2026-11-15T14:02:08Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "4bf80c3e43953db9e9b8ef8655760e1e890e9168",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-15T14:01:33Z"
  },
  "now": {
   "state": "updating",
@@ -19,9 +19,9 @@
     "velero"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-15T14:01:34Z",
+  "started": "2026-11-15T14:01:33Z",
   "queued": [
    {
     "number": 73,
@@ -123,7 +123,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "a20676f1ee7ccfd6769621f848394a8ecc7c4c82",
+   "revision": "4bf80c3e43953db9e9b8ef8655760e1e890e9168",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
@@ -319,7 +319,7 @@
   {
    "name": "smallworlds-root",
    "group": "machinery",
-   "health": "Progressing",
+   "health": "Healthy",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -327,16 +327,16 @@
    "revision": "116030ca2da5a59c1cc7661a4ea3a55c44d6734c",
    "images": [],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-15T13:33:10Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of /Namespace/bulwark and 24 more resources"
    },
    "wave": 0
   },
   {
    "name": "velero",
    "group": "platform",
-   "health": "Progressing",
+   "health": "Healthy",
    "sync": "Synced",
    "source": "base",
    "chart": null,
@@ -380,7 +380,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "a20676f1ee7ccfd6769621f848394a8ecc7c4c82",
+   "revision": "4bf80c3e43953db9e9b8ef8655760e1e890e9168",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
@@ -582,7 +582,11 @@
    "cards": [
     "velero"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-15T14:01:33Z"
+   }
   },
   {
    "commit": "a20676f1ee7ccfd6769621f848394a8ecc7c4c82",
