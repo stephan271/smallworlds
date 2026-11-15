@@ -1,19 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-15T17:03:56Z",
+ "updated": "2026-11-15T17:10:15Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "4cc5a9a2215c1a4d3eef9d98b5592f454214ae9f",
-  "state": "success",
-  "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
-  "date": "2026-11-15T16:54:53Z"
+  "commit": "316940e251c7f36e817f69df94cea05c8f88710d",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "4cc5a9a2215c1a4d3eef9d98b5592f454214ae9f",
-  "pull": null,
-  "step": "merge",
+  "commit": "316940e251c7f36e817f69df94cea05c8f88710d",
+  "pull": {
+   "number": 94,
+   "title": "Point Excalidraw's Service at port 8080",
+   "cards": [
+    "excalidraw"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
@@ -117,7 +123,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "4cc5a9a2215c1a4d3eef9d98b5592f454214ae9f",
+   "revision": "316940e251c7f36e817f69df94cea05c8f88710d",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
@@ -231,7 +237,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "4cc5a9a2215c1a4d3eef9d98b5592f454214ae9f",
+   "revision": "316940e251c7f36e817f69df94cea05c8f88710d",
    "images": [
     "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970"
    ],
@@ -335,7 +341,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "4cc5a9a2215c1a4d3eef9d98b5592f454214ae9f",
+   "revision": "316940e251c7f36e817f69df94cea05c8f88710d",
    "images": [
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
@@ -374,7 +380,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "4cc5a9a2215c1a4d3eef9d98b5592f454214ae9f",
+   "revision": "316940e251c7f36e817f69df94cea05c8f88710d",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
@@ -568,6 +574,17 @@
  ],
  "commits": [
   {
+   "commit": "316940e251c7f36e817f69df94cea05c8f88710d",
+   "title": "Point Excalidraw's Service at port 8080",
+   "author": "stephan271",
+   "date": "2026-11-15T17:08:40Z",
+   "pull": 94,
+   "cards": [
+    "excalidraw"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "4cc5a9a2215c1a4d3eef9d98b5592f454214ae9f",
    "title": "Update Forgejo's Redis to v8 (major, Steward) (#93)",
    "author": "smallworlds-steward[bot]",
@@ -581,6 +598,17 @@
     "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
     "date": "2026-11-15T16:54:53Z"
    }
+  },
+  {
+   "commit": "4b43cabf5a76867fe30563a6f8642523d9f0f3dd",
+   "title": "Point Excalidraw's Service at port 8080",
+   "author": "stephan271",
+   "date": "2026-11-15T14:41:24Z",
+   "pull": null,
+   "cards": [
+    "excalidraw"
+   ],
+   "verdict": null
   },
   {
    "commit": "0f7cbc89718984a5b3dd906454ade7bd9405fbdb",
@@ -884,34 +912,6 @@
     "description": "Not converged: keycloak: still running an earlier sync",
     "date": "2026-11-14T16:59:14Z"
    }
-  },
-  {
-   "commit": "c42e15859f01bd75d0d0b8b69605a121f263a06e",
-   "title": "Keep Garage on Ring 0, unused, so its updates are verified too",
-   "author": "stephan271",
-   "date": "2026-11-14T15:33:07Z",
-   "pull": null,
-   "cards": [
-    "canary-follower",
-    "repository"
-   ],
-   "verdict": null
-  },
-  {
-   "commit": "402cfc6a46f40d6acab634ea898f96ea2f397d02",
-   "title": "Update keycloak (#74)",
-   "author": "renovate[bot]",
-   "date": "2026-11-14T14:52:51Z",
-   "pull": 74,
-   "cards": [
-    "keycloak",
-    "repository"
-   ],
-   "verdict": {
-    "state": "failure",
-    "description": "Not converged: keycloak: still running an earlier sync; touches keycloak: restore, do not revert",
-    "date": "2026-11-14T15:45:19Z"
-   }
   }
  ],
  "pulls": [
@@ -987,19 +987,6 @@
    ],
    "cards": [
     "stalwart"
-   ]
-  },
-  {
-   "number": 94,
-   "title": "Point Excalidraw's Service at port 8080",
-   "author": "stephan271",
-   "created": "2026-11-15T14:41:27Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "excalidraw"
    ]
   },
   {
