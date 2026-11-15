@@ -1,32 +1,51 @@
 {
  "schema": 1,
- "updated": "2026-11-15T11:06:39Z",
+ "updated": "2026-11-15T11:10:48Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "7566a34a5b22b546c0bcd38a09472c0475bb8348",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-15T10:51:41Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.3.0, rclone\u2026",
+  "date": "2026-11-15T11:10:23Z"
  },
  "now": {
   "state": "updating",
   "commit": "7566a34a5b22b546c0bcd38a09472c0475bb8348",
-  "pull": {
-   "number": 84,
-   "title": "Hand a stuck Ring 0 to the Steward, let it take majors through, and shorten the quiet period",
-   "cards": [
-    "canary-follower",
-    "repository"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-15T11:05:22Z",
-  "started": "2026-11-15T10:51:41Z",
-  "queued": [],
+  "pull": null,
+  "step": "merge",
+  "step_since": null,
+  "started": null,
+  "queued": [
+   {
+    "number": 77,
+    "title": "Update Terraform hcloud to v1.70.2",
+    "cards": [
+     "repository"
+    ],
+    "since": "2026-11-14T13:33:03Z"
+   },
+   {
+    "number": 78,
+    "title": "Update velero",
+    "cards": [
+     "velero"
+    ],
+    "since": "2026-11-14T14:53:57Z"
+   },
+   {
+    "number": 82,
+    "title": "Update Docker image python to v3.15",
+    "cards": [
+     "immich",
+     "stalwart"
+    ],
+    "since": "2026-11-15T06:57:13Z"
+   }
+  ],
   "stuck": null,
   "action": null,
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -576,9 +595,9 @@
     "repository"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-15T10:51:41Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.3.0, rclone\u2026",
+    "date": "2026-11-15T11:10:23Z"
    }
   },
   {
@@ -964,9 +983,11 @@
    "author": "renovate[bot]",
    "created": "2026-11-14T13:33:03Z",
    "draft": false,
-   "queued": false,
+   "queued": true,
    "rejected": false,
-   "labels": [],
+   "labels": [
+    "ring0-queue"
+   ],
    "cards": [
     "repository"
    ]
@@ -977,9 +998,11 @@
    "author": "renovate[bot]",
    "created": "2026-11-14T14:53:57Z",
    "draft": false,
-   "queued": false,
+   "queued": true,
    "rejected": false,
-   "labels": [],
+   "labels": [
+    "ring0-queue"
+   ],
    "cards": [
     "velero"
    ]
@@ -990,9 +1013,11 @@
    "author": "renovate[bot]",
    "created": "2026-11-15T06:57:13Z",
    "draft": false,
-   "queued": false,
+   "queued": true,
    "rejected": false,
-   "labels": [],
+   "labels": [
+    "ring0-queue"
+   ],
    "cards": [
     "immich",
     "stalwart"
