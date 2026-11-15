@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-15T14:41:50Z",
+ "updated": "2026-11-15T14:43:56Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -19,8 +19,8 @@
     "canary-follower"
    ]
   },
-  "step": "settle",
-  "step_since": "2026-11-15T14:41:07Z",
+  "step": "checks",
+  "step_since": "2026-11-15T14:42:38Z",
   "started": "2026-11-15T14:37:26Z",
   "queued": [
    {
