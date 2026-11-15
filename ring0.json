@@ -1,19 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-15T12:07:09Z",
+ "updated": "2026-11-15T12:11:20Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "93b72ebec7c0ad9bdf7f1b18a15953e2d9a04b96",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
-  "date": "2026-11-15T12:05:35Z"
+  "commit": "89cde5d0d2e2332f7a437fe756094129be5170ef",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "93b72ebec7c0ad9bdf7f1b18a15953e2d9a04b96",
-  "pull": null,
-  "step": "merge",
+  "commit": "89cde5d0d2e2332f7a437fe756094129be5170ef",
+  "pull": {
+   "number": 78,
+   "title": "Update velero (#78)",
+   "cards": [
+    "velero"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
@@ -26,14 +32,6 @@
     "since": "2026-11-14T09:32:22Z"
    },
    {
-    "number": 78,
-    "title": "Update velero",
-    "cards": [
-     "velero"
-    ],
-    "since": "2026-11-14T14:53:57Z"
-   },
-   {
     "number": 82,
     "title": "Update Docker image python to v3.15",
     "cards": [
@@ -44,8 +42,8 @@
    }
   ],
   "stuck": null,
-  "action": "merged #77",
-  "waiting": "no queued update is ready"
+  "action": "merged #78",
+  "waiting": null
  },
  "applications": [
   {
@@ -585,6 +583,17 @@
  ],
  "commits": [
   {
+   "commit": "89cde5d0d2e2332f7a437fe756094129be5170ef",
+   "title": "Update velero (#78)",
+   "author": "renovate[bot]",
+   "date": "2026-11-15T12:10:45Z",
+   "pull": 78,
+   "cards": [
+    "velero"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "93b72ebec7c0ad9bdf7f1b18a15953e2d9a04b96",
    "title": "Update Terraform hcloud to v1.70.2 (#77)",
    "author": "renovate[bot]",
@@ -932,21 +941,6 @@
     "description": "Ring 0: converged, load settled after 4 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
     "date": "2026-11-14T10:48:37Z"
    }
-  },
-  {
-   "commit": "de52113136677a35288541bd9796eb24ca1a0ae6",
-   "title": "Update Docker image mcr.microsoft.com/playwright to v1.65.1 (#72)",
-   "author": "renovate[bot]",
-   "date": "2026-11-14T09:31:00Z",
-   "pull": 72,
-   "cards": [
-    "canary-follower"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
-    "date": "2026-11-14T10:09:57Z"
-   }
   }
  ],
  "pulls": [
@@ -963,21 +957,6 @@
    ],
    "cards": [
     "kube-prometheus-stack"
-   ]
-  },
-  {
-   "number": 78,
-   "title": "Update velero",
-   "author": "renovate[bot]",
-   "created": "2026-11-14T14:53:57Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "velero"
    ]
   },
   {
