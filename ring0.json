@@ -1,27 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-15T17:16:35Z",
+ "updated": "2026-11-15T17:20:48Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "316940e251c7f36e817f69df94cea05c8f88710d",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-15T17:10:19Z"
+  "state": "failure",
+  "description": "Smoke failed: whiteboard.canary.smallworlds.network: HTTP 502",
+  "date": "2026-11-15T17:20:00Z"
  },
  "now": {
-  "state": "updating",
+  "state": "stuck",
   "commit": "316940e251c7f36e817f69df94cea05c8f88710d",
-  "pull": {
-   "number": 94,
-   "title": "Point Excalidraw's Service at port 8080",
-   "cards": [
-    "excalidraw"
-   ]
-  },
-  "step": "settle",
-  "step_since": "2026-11-15T17:15:47Z",
-  "started": "2026-11-15T17:10:19Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -32,8 +26,12 @@
     "since": "2026-11-14T09:32:22Z"
    }
   ],
-  "stuck": null,
-  "action": "merged #93",
+  "stuck": {
+   "condition": "S1",
+   "since": "2026-11-15T17:20:00Z",
+   "summary": "Smoke failed: whiteboard.canary.smallworlds.network: HTTP 502"
+  },
+  "action": "revert offered in #97, for a person to merge",
   "waiting": "no queued update is ready"
  },
  "applications": [
@@ -583,9 +581,9 @@
     "excalidraw"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-15T17:10:19Z"
+    "state": "failure",
+    "description": "Smoke failed: whiteboard.canary.smallworlds.network: HTTP 502",
+    "date": "2026-11-15T17:20:00Z"
    }
   },
   {
@@ -1021,6 +1019,19 @@
    ],
    "cards": [
     "nextcloud"
+   ]
+  },
+  {
+   "number": 97,
+   "title": "Revert \"Point Excalidraw's Service at port 8080\"",
+   "author": "stephan271",
+   "created": "2026-11-15T17:20:07Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "excalidraw"
    ]
   }
  ]
