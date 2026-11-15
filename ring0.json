@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-15T12:46:51Z",
+ "updated": "2026-11-15T12:51:01Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "1f8d40b740628d67a3c6df967f65b588cd71d1f0",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-15T12:41:36Z"
+  "state": "error",
+  "description": "Follower error: HTTPError: HTTP Error 503: Service Unavailable; touches immich, stalwart: restore, do not revert",
+  "date": "2026-11-15T12:49:02Z"
  },
  "now": {
   "state": "updating",
@@ -20,9 +20,9 @@
     "stalwart"
    ]
   },
-  "step": "settle",
-  "step_since": "2026-11-15T12:46:29Z",
-  "started": "2026-11-15T12:41:36Z",
+  "step": "retry",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -593,9 +593,9 @@
     "stalwart"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-15T12:41:36Z"
+    "state": "error",
+    "description": "Follower error: HTTPError: HTTP Error 503: Service Unavailable; touches immich, stalwart: restore, do not revert",
+    "date": "2026-11-15T12:49:02Z"
    }
   },
   {
@@ -1035,6 +1035,19 @@
    ],
    "cards": [
     "dashboard"
+   ]
+  },
+  {
+   "number": 90,
+   "title": "Unpack the Steward's runner as steward from root's download",
+   "author": "stephan271",
+   "created": "2026-11-15T12:50:19Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "canary-follower"
    ]
   }
  ]
