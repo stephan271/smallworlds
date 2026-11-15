@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-15T17:37:39Z",
+ "updated": "2026-11-15T17:41:54Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -20,8 +20,8 @@
     "excalidraw"
    ]
   },
-  "step": "settle",
-  "step_since": "2026-11-15T17:35:56Z",
+  "step": "checks",
+  "step_since": "2026-11-15T17:39:59Z",
   "started": "2026-11-15T17:30:24Z",
   "queued": [
    {
