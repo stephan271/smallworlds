@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-15T12:17:36Z",
+ "updated": "2026-11-15T12:19:42Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -69,8 +69,8 @@
     "quay.io/jetstack/cert-manager-webhook:v1.21.3"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
+    "phase": "Succeeded",
+    "finished": "2026-11-15T12:18:30Z",
     "message": null
    },
    "wave": -10
@@ -108,7 +108,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-15T11:47:18Z",
+    "finished": "2026-11-15T12:17:58Z",
     "message": null
    },
    "wave": -10
@@ -145,8 +145,8 @@
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
+    "phase": "Succeeded",
+    "finished": "2026-11-15T12:17:37Z",
     "message": null
    },
    "wave": -9
@@ -164,8 +164,8 @@
     "dxflrs/garage:v2.4.1"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
+    "phase": "Succeeded",
+    "finished": "2026-11-15T12:17:42Z",
     "message": null
    },
    "wave": -5
@@ -183,8 +183,8 @@
     "dxflrs/garage:v2.4.1"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
+    "phase": "Succeeded",
+    "finished": "2026-11-15T12:17:42Z",
     "message": null
    },
    "wave": -5
@@ -240,9 +240,9 @@
     "ghcr.io/euro-office/documentserver:v9.3.4-hotfix.1@sha256:889e681923d2dcc8bdfb92fe128d10e185fcff880d302b6a0c0c7bf339499290"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for healthy state of /ServiceAccount/euro-office-secret-init and 2 more resources"
+    "phase": "Succeeded",
+    "finished": "2026-11-15T12:18:25Z",
+    "message": null
    },
    "wave": 0
   },
@@ -259,8 +259,8 @@
     "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
+    "phase": "Succeeded",
+    "finished": "2026-11-15T12:17:42Z",
     "message": null
    },
    "wave": 0
@@ -275,15 +275,17 @@
    "version": null,
    "revision": "ec904a43207fd46955192445b2f8076a876a5d09",
    "images": [
+    "docker.io/alpine/k8s:1.37.1@sha256:712dc5385d1c1a3f83b747fa9e40f64d433a97f72ff42f9755ff7dd1f62846e4",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
     "ghcr.io/tensorchord/cloudnative-pgvecto.rs:16.4-v0.3.0",
+    "quay.io/keycloak/keycloak:26.8.2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc496969a319a76bbf0",
     "quay.io/keycloak/keycloak@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc496969a319a76bbf0"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-15T11:50:36Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/keycloak-realm-config"
    },
    "wave": 0
   },
@@ -298,6 +300,7 @@
    "revision": null,
    "images": [
     "docker.io/grafana/grafana:13.1.0",
+    "ghcr.io/jkroepke/kube-webhook-certgen:1.8.4",
     "quay.io/kiwigrid/k8s-sidecar:2.8.1",
     "quay.io/prometheus-operator/prometheus-config-reloader:v0.92.1",
     "quay.io/prometheus-operator/prometheus-operator:v0.92.1",
@@ -307,9 +310,9 @@
     "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.19.1"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-15T11:49:18Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of /ServiceAccount/kube-prometheus-stack-alertmanager and 110 more resources"
    },
    "wave": 0
   },
@@ -328,7 +331,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-15T11:47:17Z",
+    "finished": "2026-11-15T12:18:06Z",
     "message": null
    },
    "wave": 0
@@ -365,7 +368,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-15T12:13:38Z",
+    "finished": "2026-11-15T12:19:20Z",
     "message": null
    },
    "wave": 0
@@ -383,9 +386,9 @@
     "ghcr.io/bulwarkmail/webmail:1.21.2@sha256:037b85b1433233d2d7eebb83f928df5ecc3b4adc91dc7e4c55f0a2f69024e754"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for healthy state of /ServiceAccount/setup-sa and 1 more resources"
+    "phase": "Succeeded",
+    "finished": "2026-11-15T12:19:27Z",
+    "message": null
    },
    "wave": 1
   },
@@ -402,8 +405,8 @@
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
+    "phase": "Succeeded",
+    "finished": "2026-11-15T12:17:44Z",
     "message": null
    },
    "wave": 1
@@ -438,6 +441,7 @@
    "revision": "ec904a43207fd46955192445b2f8076a876a5d09",
    "images": [
     "code.forgejo.org/forgejo/forgejo:15.0.11-rootless",
+    "docker.io/alpine/k8s:1.37.1@sha256:712dc5385d1c1a3f83b747fa9e40f64d433a97f72ff42f9755ff7dd1f62846e4",
     "docker.io/redis:6.2-alpine@sha256:3f9c6e23ed6bea3b41d0ef709fc164c1a0b7c00d5a21a60e0e9c33ada5496881",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -448,7 +452,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": null
+    "message": "waiting for completion of hook batch/Job/garage-init"
    },
    "wave": 1
   },
@@ -462,6 +466,7 @@
    "version": null,
    "revision": "ec904a43207fd46955192445b2f8076a876a5d09",
    "images": [
+    "docker.io/alpine/k8s:1.37.1@sha256:712dc5385d1c1a3f83b747fa9e40f64d433a97f72ff42f9755ff7dd1f62846e4",
     "docker.io/redis:6.2-alpine@sha256:3f9c6e23ed6bea3b41d0ef709fc164c1a0b7c00d5a21a60e0e9c33ada5496881",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -474,7 +479,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": null
+    "message": "waiting for completion of hook batch/Job/immich-secret-init and 1 more hooks"
    },
    "wave": 1
   },
@@ -495,8 +500,8 @@
     "jitsi/web:stable-11031"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
+    "phase": "Succeeded",
+    "finished": "2026-11-15T12:19:28Z",
     "message": null
    },
    "wave": 1
@@ -511,12 +516,13 @@
    "version": null,
    "revision": "ec904a43207fd46955192445b2f8076a876a5d09",
    "images": [
+    "docker.io/alpine/k8s:1.37.1@sha256:712dc5385d1c1a3f83b747fa9e40f64d433a97f72ff42f9755ff7dd1f62846e4",
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-15T11:50:19Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/join-keycloak-setup"
    },
    "wave": 1
   },
@@ -530,6 +536,7 @@
    "version": null,
    "revision": "ec904a43207fd46955192445b2f8076a876a5d09",
    "images": [
+    "docker.io/alpine/k8s:1.37.1@sha256:712dc5385d1c1a3f83b747fa9e40f64d433a97f72ff42f9755ff7dd1f62846e4",
     "docker.io/library/nextcloud:35.0.2-apache",
     "docker.io/redis:6.2-alpine@sha256:3f9c6e23ed6bea3b41d0ef709fc164c1a0b7c00d5a21a60e0e9c33ada5496881",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
@@ -541,7 +548,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": null
+    "message": "waiting for completion of hook batch/Job/garage-init"
    },
    "wave": 1
   },
@@ -559,7 +566,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-15T11:47:54Z",
+    "finished": "2026-11-15T12:18:50Z",
     "message": null
    },
    "wave": 1
@@ -582,9 +589,9 @@
     "stalwartlabs/stalwart:v0.16.27@sha256:2c9af6bfccb361b9f286d6cd0bb50acb2aaeffc06f5257354c0ce4dff9f02b58"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-15T11:49:31Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/stalwart-secret-init"
    },
    "wave": 1
   }
