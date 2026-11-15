@@ -1,19 +1,26 @@
 {
  "schema": 1,
- "updated": "2026-11-15T10:46:29Z",
+ "updated": "2026-11-15T10:48:36Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "55d27d9e1cecd712b76720d7b21388698459e33d",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.3.0, rclone\u2026",
-  "date": "2026-11-15T10:46:12Z"
+  "commit": "7566a34a5b22b546c0bcd38a09472c0475bb8348",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
-  "state": "up-to-date",
-  "commit": "55d27d9e1cecd712b76720d7b21388698459e33d",
-  "pull": null,
-  "step": null,
+  "state": "updating",
+  "commit": "7566a34a5b22b546c0bcd38a09472c0475bb8348",
+  "pull": {
+   "number": 84,
+   "title": "Hand a stuck Ring 0 to the Steward, let it take majors through, and shorten the quiet period",
+   "cards": [
+    "canary-follower",
+    "repository"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [],
@@ -165,7 +172,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "55d27d9e1cecd712b76720d7b21388698459e33d",
+   "revision": "7566a34a5b22b546c0bcd38a09472c0475bb8348",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
@@ -222,7 +229,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "55d27d9e1cecd712b76720d7b21388698459e33d",
+   "revision": "7566a34a5b22b546c0bcd38a09472c0475bb8348",
    "images": [
     "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970"
    ],
@@ -559,6 +566,18 @@
  ],
  "commits": [
   {
+   "commit": "7566a34a5b22b546c0bcd38a09472c0475bb8348",
+   "title": "Hand a stuck Ring 0 to the Steward, let it take majors through, and shorten the quiet period",
+   "author": "stephan271",
+   "date": "2026-11-15T10:46:50Z",
+   "pull": 84,
+   "cards": [
+    "canary-follower",
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "55d27d9e1cecd712b76720d7b21388698459e33d",
    "title": "Update Docker image rclone/rclone to v1.76 (#63)",
    "author": "renovate[bot]",
@@ -572,6 +591,18 @@
     "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.3.0, rclone\u2026",
     "date": "2026-11-15T10:46:12Z"
    }
+  },
+  {
+   "commit": "fea57091602d97ec57bbd67a3bbc78a2b605eaac",
+   "title": "Shorten Ring 0's quiet period to 5 minutes, and ask CNPG about WAL archiving",
+   "author": "stephan271",
+   "date": "2026-11-15T09:54:40Z",
+   "pull": null,
+   "cards": [
+    "canary-follower",
+    "repository"
+   ],
+   "verdict": null
   },
   {
    "commit": "e5db00d2bee18ee36e30dfaabbbf018a010a84c3",
@@ -589,6 +620,30 @@
     "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
     "date": "2026-11-15T10:08:28Z"
    }
+  },
+  {
+   "commit": "70dcb9f030e68e2998bbcf98f34dcb6196bf12f7",
+   "title": "Let the Steward take majors through, and wake a person only on failure",
+   "author": "stephan271",
+   "date": "2026-11-15T08:55:20Z",
+   "pull": null,
+   "cards": [
+    "canary-follower",
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "f3ac405f8429bf3456ec4c2a5434d9ee2ca859cc",
+   "title": "Hand a stuck Ring 0 to the Ring 0 Steward",
+   "author": "stephan271",
+   "date": "2026-11-15T08:47:37Z",
+   "pull": null,
+   "cards": [
+    "canary-follower",
+    "repository"
+   ],
+   "verdict": null
   },
   {
    "commit": "38ec4bbbd7bb8d73104cc43d89cd7cfade47dd31",
@@ -869,66 +924,6 @@
     "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
     "date": "2026-11-14T08:44:11Z"
    }
-  },
-  {
-   "commit": "131a7ee8b5182b215c0a247ce3ff1cdbec4e9507",
-   "title": "Stop a failed alert delivery from rejecting Ring 0 commits",
-   "author": "stephan271",
-   "date": "2026-11-14T08:03:16Z",
-   "pull": null,
-   "cards": [
-    "canary-follower",
-    "smallworlds-root"
-   ],
-   "verdict": null
-  },
-  {
-   "commit": "811eed0f1bb063273a7f30e84d630bcfdc15bccc",
-   "title": "Show what Ring 0 is doing now, and let the Steward act on Ring 0",
-   "author": "stephan271",
-   "date": "2026-11-13T15:29:51Z",
-   "pull": null,
-   "cards": [
-    "repository"
-   ],
-   "verdict": {
-    "state": "failure",
-    "description": "Critical alert: AlertmanagerClusterFailedToSendAlerts",
-    "date": "2026-11-13T15:42:03Z"
-   }
-  },
-  {
-   "commit": "87dc3aca48710d9af2ed3ecfa27369da03e34931",
-   "title": "Remove Hermes and Remediation; plan per-application updates",
-   "author": "stephan271",
-   "date": "2026-11-13T15:29:39Z",
-   "pull": 59,
-   "cards": [
-    "canary-follower",
-    "dashboard",
-    "hermes",
-    "join",
-    "pod-gateway",
-    "remediation",
-    "repository",
-    "smallworlds-root"
-   ],
-   "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-13T15:29:55Z"
-   }
-  },
-  {
-   "commit": "17cabcb475f44df4d6fc82793d269f4d0a08963d",
-   "title": "Open the purpose with \"Sovereignty now\"",
-   "author": "stephan271",
-   "date": "2026-11-13T15:28:39Z",
-   "pull": null,
-   "cards": [
-    "repository"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -997,20 +992,6 @@
    "cards": [
     "immich",
     "stalwart"
-   ]
-  },
-  {
-   "number": 84,
-   "title": "Hand a stuck Ring 0 to the Steward, let it take majors through, and shorten the quiet period",
-   "author": "stephan271",
-   "created": "2026-11-15T09:35:23Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "canary-follower",
-    "repository"
    ]
   },
   {
