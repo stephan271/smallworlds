@@ -1,19 +1,27 @@
 {
  "schema": 1,
- "updated": "2026-11-15T08:44:02Z",
+ "updated": "2026-11-15T09:33:28Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "2aa5d4ec40fcfec35c81d38e19a93717e2bd9336",
-  "state": "failure",
-  "description": "Checks failed: e2e: test users not provisioned; data 4/4 apps intact; touches keycloak: restore, do not revert",
-  "date": "2026-11-14T17:52:24Z"
+  "commit": "e5db00d2bee18ee36e30dfaabbbf018a010a84c3",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
-  "state": "stuck",
-  "commit": "2aa5d4ec40fcfec35c81d38e19a93717e2bd9336",
-  "pull": null,
-  "step": null,
+  "state": "updating",
+  "commit": "e5db00d2bee18ee36e30dfaabbbf018a010a84c3",
+  "pull": {
+   "number": 83,
+   "title": "Give join and bulk-invite the kc-admin-api scope Keycloak 26.8.2 requires",
+   "cards": [
+    "join",
+    "keycloak",
+    "repository"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
@@ -68,11 +76,7 @@
     "since": "2026-11-15T06:57:13Z"
    }
   ],
-  "stuck": {
-   "condition": "S1",
-   "since": "2026-11-14T17:52:24Z",
-   "summary": "Checks failed: e2e: test users not provisioned; data 4/4 apps intact; touches keycloak: restore, do not revert"
-  },
+  "stuck": null,
   "action": "not reverted: restore from the pre-update backup",
   "waiting": null
  },
@@ -612,6 +616,32 @@
  ],
  "commits": [
   {
+   "commit": "e5db00d2bee18ee36e30dfaabbbf018a010a84c3",
+   "title": "Give join and bulk-invite the kc-admin-api scope Keycloak 26.8.2 requires",
+   "author": "stephan271",
+   "date": "2026-11-15T09:33:21Z",
+   "pull": 83,
+   "cards": [
+    "join",
+    "keycloak",
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "38ec4bbbd7bb8d73104cc43d89cd7cfade47dd31",
+   "title": "Give join and bulk-invite the kc-admin-api scope Keycloak 26.8.2 requires",
+   "author": "stephan271",
+   "date": "2026-11-15T08:42:59Z",
+   "pull": null,
+   "cards": [
+    "join",
+    "keycloak",
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "2aa5d4ec40fcfec35c81d38e19a93717e2bd9336",
    "title": "Fix Keycloak's image pin, and teach Renovate to keep tag and digest together",
    "author": "stephan271",
@@ -952,36 +982,6 @@
     "description": "Critical alert: AlertmanagerClusterFailedToSendAlerts",
     "date": "2026-11-13T15:04:46Z"
    }
-  },
-  {
-   "commit": "4b34023a8192fd31343972943cee45688c4152b1",
-   "title": "Revert \"Update Helm chart kube-prometheus-stack to v87.21.0\" (#67)",
-   "author": "stephan271",
-   "date": "2026-11-13T13:43:36Z",
-   "pull": 67,
-   "cards": [
-    "kube-prometheus-stack"
-   ],
-   "verdict": {
-    "state": "failure",
-    "description": "Critical alert: AlertmanagerClusterFailedToSendAlerts",
-    "date": "2026-11-13T13:56:52Z"
-   }
-  },
-  {
-   "commit": "09171c5c5dabcb143595a8b13bd6a6073e4ea8b4",
-   "title": "Update Helm chart kube-prometheus-stack to v87.21.0 (#65)",
-   "author": "renovate[bot]",
-   "date": "2026-11-13T13:12:55Z",
-   "pull": 65,
-   "cards": [
-    "kube-prometheus-stack"
-   ],
-   "verdict": {
-    "state": "failure",
-    "description": "Critical alert: AlertmanagerClusterFailedToSendAlerts",
-    "date": "2026-11-13T13:43:27Z"
-   }
   }
  ],
  "pulls": [
@@ -1075,21 +1075,6 @@
    "cards": [
     "immich",
     "stalwart"
-   ]
-  },
-  {
-   "number": 83,
-   "title": "Give join and bulk-invite the kc-admin-api scope Keycloak 26.8.2 requires",
-   "author": "stephan271",
-   "created": "2026-11-15T08:43:15Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "join",
-    "keycloak",
-    "repository"
    ]
   }
  ]
