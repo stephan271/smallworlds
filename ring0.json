@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-15T12:11:20Z",
+ "updated": "2026-11-15T12:13:25Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -39,6 +39,14 @@
      "stalwart"
     ],
     "since": "2026-11-15T06:57:13Z"
+   },
+   {
+    "number": 88,
+    "title": "Update Helm chart velero to v12.2.5",
+    "cards": [
+     "velero"
+    ],
+    "since": "2026-11-15T12:11:49Z"
    }
   ],
   "stuck": null,
@@ -246,7 +254,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "93b72ebec7c0ad9bdf7f1b18a15953e2d9a04b96",
+   "revision": "89cde5d0d2e2332f7a437fe756094129be5170ef",
    "images": [
     "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970"
    ],
@@ -346,19 +354,20 @@
    "name": "velero",
    "group": "platform",
    "health": "Healthy",
-   "sync": "Synced",
+   "sync": "OutOfSync",
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "93b72ebec7c0ad9bdf7f1b18a15953e2d9a04b96",
+   "revision": "89cde5d0d2e2332f7a437fe756094129be5170ef",
    "images": [
     "docker.io/velero/velero:v1.18.1",
+    "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.2@sha256:0751144c1c8e52d52c48717fbd13ad5a3061e612ae4d7ad744a946cd5b139d1a"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-15T11:48:37Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/velero-upgrade-crds"
    },
    "wave": 0
   },
@@ -1016,6 +1025,21 @@
    ],
    "cards": [
     "nextcloud"
+   ]
+  },
+  {
+   "number": 88,
+   "title": "Update Helm chart velero to v12.2.5",
+   "author": "renovate[bot]",
+   "created": "2026-11-15T12:11:49Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "velero"
    ]
   }
  ]
