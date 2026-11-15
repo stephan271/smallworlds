@@ -6,6 +6,7 @@ and the merge queue with its revert (design §3.5, §3.6). Fakes only, no networ
 import pathlib
 import sys
 import unittest
+import urllib.error
 
 TENANT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(TENANT / "src"))
@@ -114,7 +115,9 @@ class BackupsTest(unittest.TestCase):
 
 class FakeJobsKube:
     def __init__(self, outcome="Complete", log="CHECKS e2e 27 passed, 3 skipped; data 4/4 apps intact\n",
-                 polls=2):
+                 polls=2, unavailable=0, refused=None):
+        self.unavailable = unavailable  # the API server answers 503 this many times first
+        self.refused = refused          # an HTTP code it answers with on every read
         self.outcome = outcome
         self.log = log
         self.polls = polls
@@ -137,6 +140,11 @@ class FakeJobsKube:
             return {"items": [j for j in self.jobs.values()
                               if j.get("metadata", {}).get("labels", {}).get("app", label) == label]}
         name = path.rsplit("/", 1)[1]
+        if self.refused:
+            raise urllib.error.HTTPError(path, self.refused, "refused", {}, None)
+        if self.unavailable:
+            self.unavailable -= 1
+            raise urllib.error.HTTPError(path, 503, "Service Unavailable", {}, None)
         self.reads += 1
         job = self.jobs[name]
         if self.reads >= self.polls and self.outcome:
@@ -172,6 +180,23 @@ class ChecksJobTest(unittest.TestCase):
         self.assertEqual([{"name": "DOMAIN", "value": "canary.x"}, {"name": "CHECK_SHA", "value": SHA}], env)
         self.assertEqual("canary-checks", created["metadata"]["labels"]["app"])
         self.assertLessEqual(len(created["metadata"]["name"]), 63)
+
+    def test_a_busy_api_server_is_waited_out_not_the_end_of_the_verification(self):
+        # Ring 0, 2026-11-15: one 503 while polling the Job ended a verification
+        # as an error, and the queue waited an hour for the retry.
+        job, kube = self.make(unavailable=3)
+        self.assertEqual((True, "e2e 27 passed, 3 skipped; data 4/4 apps intact"), job.run(SHA))
+
+    def test_an_api_server_that_stays_away_is_bounded_by_the_timeout(self):
+        job, kube = self.make(unavailable=10 ** 9)
+        passed, summary = job.run(SHA)
+        self.assertIsNone(passed, "nothing could be checked: no verdict")
+        self.assertIn("API server", summary)
+
+    def test_a_client_error_is_not_retried(self):
+        job, kube = self.make(refused=403)
+        with self.assertRaises(urllib.error.HTTPError):
+            job.run(SHA)
 
     def test_a_failing_job_fails_with_its_summary(self):
         job, kube = self.make(outcome="Failed", log="CHECKS e2e 25 passed, 2 failed; data 4/4 apps intact\n")
