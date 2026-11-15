@@ -65,3 +65,16 @@ spec:
               the update (doc/tenant-immich.md, "Rolling Gallery back"; design §3.6), or fix
               forward.{{ else }}A queued Renovate update is reverted automatically; a person's
               commit gets a revert PR to merge (tenants/canary-follower/README.md).{{ end }}
+        # An incident the Ring 0 Steward could not resolve in its attempts, or one
+        # whose next step is not the Steward's (a restore, a credential). The
+        # issue in the private Ring 0 overlay repository says what was tried.
+        - alert: Ring0NeedsPerson
+          expr: smallworlds_ring0_needs_person == 1
+          labels:
+            severity: warning
+          annotations:
+            summary: "Ring 0 needs you: incident #{{ $labels.issue }} ({{ $labels.key }})"
+            description: >-
+              The Canary Follower handed incident #{{ $labels.issue }} in
+              stephan271/my-canary-installation to a person. Read the issue: it has the
+              evidence, each attempt of the Ring 0 Steward, and why it stopped.

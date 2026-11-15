@@ -289,8 +289,11 @@ Run in order. Each step's result goes into the commit status summary.
    from GitHub: Keycloak administration answers only on the tailnet, and the e2e
    setup needs it.
 4. **Data checks** from §3.3.
-5. **Quiet period.** No `critical` alert for 20 minutes after the sync (30 until
-   2026-11-13; 20 is the floor while `CNPGWALArchivingFailing` needs 15 minutes to fire).
+5. **Quiet period.** No `critical` alert for 5 minutes after the checks, then
+   every CNPG cluster's `ContinuousArchiving` condition `True` (30 minutes until
+   2026-11-13, 20 until 2026-11-15: 20 was the floor only while the follower
+   waited for `CNPGWALArchivingFailing`, which needs 15 minutes to fire; CNPG's
+   condition says the same at the first failed archive).
 
 A commit is **green on Ring 0** when all five pass. After that it stays green
 unless a later failure on the same commit is recorded.
@@ -659,5 +662,6 @@ the data checks.
 - ~~Whether the S3 provider can scope an access key to a bucket prefix (§3.1).~~
   It cannot (2026-11-10); accepted for now, a second account later.
 - The soak length (72 hours) is a first guess; revisit after the first month. The
-  quiet period went from 30 to 20 minutes on 2026-11-13 (§3.5).
+  quiet period went from 30 to 20 minutes on 2026-11-13 and to 5 on 2026-11-15,
+  with a direct WAL archiving check in place of the wait (§3.5).
 - ~~Plane's real memory footprint (§3.2).~~ Plane was removed (`docs/adr/0061`).

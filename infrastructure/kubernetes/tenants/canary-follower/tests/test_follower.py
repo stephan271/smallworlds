@@ -132,7 +132,7 @@ class FakeGitHub:
 
 
 def make(sha="a" * 40, smoke_result=(), quiet_result=(), statuses=None, paths=(), settle_note=None,
-         **kube_args):
+         archiving_result=(), **kube_args):
     clock = Clock()
     kube = FakeArgoKube(sha, **kube_args)
     gh = FakeGitHub(sha, statuses, paths)
@@ -153,8 +153,12 @@ def make(sha="a" * 40, smoke_result=(), quiet_result=(), statuses=None, paths=()
         seen.setdefault("order", []).append("settle")
         return settle_note
 
+    def archiving(kube):
+        seen["archiving"] = True
+        return list(archiving_result)
+
     follower = Follower(s, gh, ArgoCD(kube, "argocd", "smallworlds-root", clock, clock.sleep),
-                        kube, smoke=smoke, quiet=quiet, settle=settle)
+                        kube, smoke=smoke, quiet=quiet, settle=settle, archiving=archiving)
     return follower, gh, kube, seen
 
 
@@ -284,6 +288,19 @@ class FollowerTest(unittest.TestCase):
         self.assertEqual("failure", outcome.state)
         self.assertIn("CNPGBackupStale", outcome.description)
 
+    def test_a_database_whose_wal_archiving_fails_rejects_the_commit(self):
+        # What the 20-minute quiet period used to wait out: CNPGWALArchivingFailing
+        # needs 15 minutes to fire (2026-08-09). CNPG's own condition says it at
+        # the first failed archive, so the quiet period can be short.
+        follower, gh, kube, seen = make(archiving_result=["immich/database"])
+        outcome = follower.tick()
+        self.assertEqual("failure", outcome.state)
+        self.assertIn("WAL archiving failing: immich/database", outcome.description)
+        self.assertTrue(seen["archiving"])
+
+    def test_the_quiet_period_is_five_minutes(self):
+        self.assertEqual(300, settings_module.Settings().quiet_seconds)
+
     def test_alerts_that_cannot_be_delivered_are_no_verdict(self):
         # Ring 0, 2026-11-13: ntfy refused an oversized group, and the critical
         # delivery alert rejected four unrelated commits in a row.
@@ -310,6 +327,26 @@ class FollowerTest(unittest.TestCase):
 
 
 class ChecksTest(unittest.TestCase):
+    def test_archiving_names_the_clusters_whose_condition_is_not_true(self):
+        def cluster(ns, name, status=None):
+            conditions = [] if status is None else [{"type": "ContinuousArchiving", "status": status}]
+            return {"metadata": {"namespace": ns, "name": name}, "status": {"conditions": conditions}}
+
+        class Kube:
+            def get(self, path):
+                assert path == "/apis/postgresql.cnpg.io/v1/clusters", path
+                return {"items": [cluster("immich", "database", "False"), cluster("forgejo", "database", "True"),
+                                  cluster("scratch", "no-backup")]}
+
+        self.assertEqual(["immich/database"], checks.archiving(Kube()))
+
+    def test_archiving_without_cnpg_is_empty(self):
+        class Kube:
+            def get(self, path):
+                raise checks.urllib.error.HTTPError(path, 404, "not found", {}, None)
+
+        self.assertEqual([], checks.archiving(Kube()))
+
     def test_smoke_retries_only_failed_hosts(self):
         answers = {"a": [None], "b": ["HTTP 503", None]}
         asked = []

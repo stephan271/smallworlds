@@ -9,12 +9,15 @@ data:
   STATUS_CONTEXT: "ring0/verified"
   ROOT_APP: "smallworlds-root"
   POLL_SECONDS: "300"
-  # Bounds and periods (design §3.5). The quiet period must outlast the critical
-  # alerts an update can set off: CNPGWALArchivingFailing fires after 15 minutes
-  # (the 2026-08-09 outage), so 20 is the floor. It was 30 until 2026-11-13; at
-  # one update per verified commit that made a backlog of eight take six hours.
+  # Bounds and periods (design §3.5). The quiet period was 20 minutes to outlast
+  # CNPGWALArchivingFailing, which fires 15 minutes after archiving breaks (the
+  # 2026-08-09 outage). Since 2026-11-15 the follower reads CNPG's own
+  # ContinuousArchiving condition after it instead (checks.archiving), which
+  # turns False at the first failed archive, so 5 minutes is enough. It was 30
+  # until 2026-11-13; at one update per verified commit every minute here is a
+  # minute per update in the queue.
   CONVERGE_TIMEOUT_SECONDS: "2700"
-  QUIET_SECONDS: "1200"
+  QUIET_SECONDS: "300"
   ALERTMANAGER_URL: "http://kube-prometheus-stack-alertmanager.monitoring.svc:9093"
   # Before smoke and checks: wait (at most SETTLE_TIMEOUT_SECONDS) until the
   # 1-minute load per CPU stays below SETTLE_LOAD_PERCENT. Ring 0 idles near 100;
@@ -39,3 +42,17 @@ data:
   # ring0.json on the branch ring-state, the data of the public Ring 0 board
   # (src/ringstate.py, ring0-board/). Needs the token's contents permission.
   RING_STATE: "true"
+  # Incidents and the Ring 0 Steward (src/incidents.py, design-per-app-updates.md
+  # §5). INCIDENTS opens and closes the issues in OVERLAY_REPO (the token needs
+  # Issues there too); STEWARD also asks the Steward's workflow to act on them.
+  # Its PRs arrive as STEWARD_LOGIN; on PROTECTED_PATHS they need OWNER_LOGIN's
+  # approval before the queue merges them.
+  OVERLAY_REPO: "stephan271/my-canary-installation"
+  INCIDENTS: "true"
+  STEWARD: "false"
+  STEWARD_LOGIN: "smallworlds-steward[bot]"
+  OWNER_LOGIN: "stephan271"
+  # Majors go to the Steward one at a time while Ring 0 is idle (design §5.5).
+  STEWARD_MAJORS: "true"
+  STEWARD_ATTEMPTS: "3"
+  STEWARD_RUNS_PER_DAY: "6"

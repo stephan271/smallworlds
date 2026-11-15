@@ -48,8 +48,10 @@ have earned trust.
 **Three attempts, then a person.** One attempt is one run followed by a full
 verification. A person is called after the third failure, or at once when the
 next step needs something the Steward may not do (a restore while automatic
-restore is off, a reviewed change to a protected path, a Secret, a refused
-credential).
+restore is off and the data checks found data missing, a reviewed change to a
+protected path, a Secret, a refused credential). A failed update of a migrating
+application whose data is intact is the Steward's first; it asks for a restore
+if it finds one is needed.
 
 **No community needs an AI.** The credential and the agent belong to Ring 0
 only. Every community's cluster stays free of AI providers and keys, which suits
@@ -60,9 +62,14 @@ a project about running your own infrastructure.
 - The follower's token gains *Issues* on the Ring 0 overlay repository, and
   later *Contents* there for the automatic restore. The follower counts
   attempts and starts no verification while a Steward run is active.
-- The Steward's token covers *Contents*, *Pull requests* and *Issues* on the
-  base repository and *Issues* on the Ring 0 overlay. It has no *Workflows*
-  permission, so GitHub refuses any change it makes to a workflow file.
+- The Steward acts on GitHub as its own GitHub App, so the owner can approve its
+  PRs. The App has *Contents*, *Pull requests* and *Issues* on the base
+  repository and the Ring 0 overlay and no *Workflows* permission, so GitHub
+  refuses any change it makes to a workflow file; a ruleset keeps everyone but
+  repository admins off the base's `main`, so it cannot merge either.
+- A queued update that Ring 0 rejects and reverts also becomes an incident, one
+  the Steward works on through a PR only, without pausing Ring 0: otherwise that
+  application would wait for the next upstream release.
 - Ring 0's server runs a GitHub Actions runner under its own unprivileged user,
   registered to the private Ring 0 overlay repository only. Its only cluster
   credential is the `ring0-steward` ServiceAccount, whose RBAC enforces the
@@ -71,5 +78,10 @@ a project about running your own infrastructure.
   stopped by a limit is retried later and is not counted as an attempt. If the
   Steward has to run without its owner, the workflow takes an API key with a
   spend limit instead.
-- Majors can follow: the Steward prepares the PR from the upstream upgrade
-  notes, and a person adds the queue label.
+- Majors are the Steward's too (2026-11-15): while Ring 0 is idle the follower
+  hands it the oldest, the Steward prepares it from the upstream upgrade notes
+  in a PR of its own, and the merge queue merges that PR like any update once it
+  carries the queue label (added by a person until the Steward is armed). A
+  person hears of a major only when it fails three times, needs a restore, or is
+  held back. To read those notes the Steward may fetch from a fixed list of
+  upstream documentation sites; web search stays off.

@@ -218,10 +218,12 @@ phone (`doc/alerting.md`, *exists*).
 ```
 upstream releases
    │ Renovate: one PR per application, label ring0-queue (minor/patch/digest)
+   │           majors: label ring0-major ──► Ring 0 Steward prepares its own PR,
+   │                                        ring0-queue (§5.5)
    ▼
 main ──► Ring 0, Canary Cluster (exists)
    │      follower: merge one PR → back up → sync → verify → status
-   │      ├─ green ─► publish Ring State (§6) ─► next PR
+   │      ├─ green ─► publish Ring State (§6) ─► next PR (idle: next major)
    │      └─ stuck (§5.1)
    │            ├─ restore by itself if the app migrates (§5.2)
    │            └─ issue "ring0-stuck" + evidence ──► Ring 0 Steward (§5.3)
@@ -285,19 +287,32 @@ does for the console (`docs/adr/0062`).
 The follower decides this itself, deterministically, from what it already
 tracks. Ring 0 is **stuck** when one of these holds:
 
-| # | Condition | Example |
-|---|---|---|
-| S1 | A commit got `failure` | e2e fails after a Nextcloud minor |
-| S2 | An `error` used up its three retries | a chart repository that stays down |
-| S3 | Queued PRs exist, but nothing was merged for 24 hours | the head never turns green |
-| S4 | A queued PR has been unmergeable for 12 hours | a conflict, a failing PR check |
-| S5 | A restore on Ring 0 (§5.2) did not end healthy | |
+| # | Condition | Example | Kind |
+|---|---|---|---|
+| S1 | `main`'s head got `failure` and was not reverted (a migrating tenant, or a person's commit) | Gallery fails after an Immich base change | cluster |
+| S2 | An `error` used up its three retries | a chart repository that stays down | cluster |
+| S3 | Queued PRs exist, but nothing was merged for 24 hours | the head never turns green | cluster |
+| S4 | A queued PR has been unmergeable or red for 12 hours (not merely waiting for its checks or Renovate's release age) | a conflict, a failing PR check | pr |
+| R | A queued update was rejected and reverted | e2e fails after a Nextcloud minor | pr |
+| S5 | A restore on Ring 0 (§5.2) did not end healthy (with §5.2, not built) | | cluster |
 
-Being stuck stops the queue, as today. New: the follower opens (or updates) one
-issue per incident, labelled `ring0-stuck`, and fills it with an **evidence
-bundle**: the condition, the commit and PR, the diff, Argo CD's status and
-events for the Applications that are not healthy, the last 200 log lines of
-each failing pod, and the checks Job's summary and log tail.
+**R** is not stuck in the strict sense: the follower reverts the update and the
+queue moves on. But the application then stays on its old version until the next
+upstream release, which is not "Ring 0 runs the newest stable versions". So it
+gets an incident too, of the **pr** kind: the Steward works through a PR only,
+Ring 0 is never paused for it, and its cluster evidence is collected at the
+moment of the rejection, before the revert lands. **cluster** incidents pause
+the follower while the Steward acts (§5.3, "Attempts").
+
+The follower opens one issue per incident, labelled `ring0-stuck` (cluster) or
+`ring0-rejected-update` (pr), and fills it with an **evidence bundle**: the
+condition, the commit and PR, the diff, Argo CD's status for the Applications
+that are not healthy, the Warning events and failing pods in their namespaces
+with the last 200 log lines of each, and the end of the checks Job's log.
+Obvious secrets (tokens, passwords, keys in URLs) are masked before it is
+written, and the bundle is cut to fit an issue. The first line of the issue is a
+hidden marker with the incident's state (phase, attempts), so a restarted
+follower continues where it was (`tenants/canary-follower/src/incidents.py`).
 
 The issue lives in the **private** Ring 0 overlay repository
 (`my-canary-installation`), not in the public base repository: logs can contain
@@ -325,8 +340,11 @@ runbook (`doc/storage-and-backup.md`, "Rolling an update back"):
 **Precondition:** the Gallery restore across an Immich base change
 (design-update-strategy §8, step 4, "still open") is drilled by hand first. The
 runbook has only been proven with Forgejo. Until then this step is off
-(`AUTO_RESTORE: "false"`), and S1 for a migrating application goes straight to
-the Steward with "restore needed" in the evidence.
+(`AUTO_RESTORE: "false"`), and S1 for a migrating application goes to the
+Steward with "restore, do not revert" in the evidence. Stephan is told at once
+only when the data checks found data missing (§5.3, "How it ends"); otherwise
+the Steward looks for a fix forward first and asks for a restore if it needs
+one.
 
 ### 5.3 The Ring 0 Steward
 
@@ -360,13 +378,21 @@ credential is the kubeconfig of the `ring0-steward` ServiceAccount (§5.4). The
 runner's own updates are part of keeping that server patched.
 
 **Trigger.** In the private Ring 0 overlay repository,
-`.github/workflows/steward.yml`: on an issue labelled `ring0-stuck`, and on a new
-evidence comment from the follower. A `concurrency` group ensures one run at a
-time.
+`.github/workflows/steward.yml` (template: `admin-tools/canary/steward/steward.yml`
+in the base): the follower labels an incident `steward-requested` with its own
+token (a label set by a workflow's `GITHUB_TOKEN` would start nothing). The
+workflow swaps it for `steward-working`, runs, posts a comment ending in
+`<!-- steward-done result=… -->`, and removes `steward-working`. A
+`concurrency` group ensures one run at a time. The results are `acted` (it acted
+on Ring 0, perhaps also opened a PR), `pr`, `hold` (it held a version back),
+`needs-person`, and the workflow's own `credential` and `not-run`.
 
-**What it checks out.** The base repository at `main` (read and write through
-PRs) and the Ring 0 overlay (read). It follows the base's `CLAUDE.md` and a
-prompt file `steward/PROMPT.md` in the overlay repository.
+**What it checks out.** The Ring 0 overlay at the root of its workspace (read)
+and the base repository at `main` below it, with push access to branches through
+the Steward's GitHub App. Its instructions are `admin-tools/canary/steward/PROMPT.md`
+in the base, a protected path (§5.4): the Steward can propose changes to its own
+rules, but only Stephan's approval merges them. It follows the base's
+`CLAUDE.md` for every change.
 
 **What it may do:**
 - **Act on Ring 0** through the `ring0-steward` ServiceAccount (permissions in
@@ -374,12 +400,18 @@ prompt file `steward/PROMPT.md` in the overlay repository.
   status, Jobs), and take the actions that leave nothing behind that git does
   not say: delete a pod so its controller recreates it, delete a failed Job,
   start a Job from a CronJob (an init job, the checks), ask Argo CD to refresh
-  or sync an Application, take a CNPG Backup. A restore it does not run
-  itself: it asks the follower for one (§5.2) by labelling the issue
-  `ring0-restore`, so the drilled runbook stays the only restore path.
-- **Fix forward:** a PR on the base repository, labelled `steward`, that changes
-  manifests, configuration or (with review, §5.4) tests. Body: diagnosis,
-  evidence quoted, what Ring 0 should show if the fix is right.
+  or sync an Application, take a CNPG Backup. A restore it never runs itself:
+  until the follower restores by itself (§5.2), it answers `needs-person` and
+  names the backup, so the drilled runbook stays the only restore path.
+- **Fix forward:** a PR on the base repository, branch `steward/<issue>-…`,
+  labelled `steward`, that changes manifests, configuration or (with review,
+  §5.4) tests. For a rejected update (R) the branch carries the update itself
+  plus what makes it work, so one merge lands both. Body: the diagnosis in its
+  own words (the base repository is public: no logs or addresses from the
+  incident), what Ring 0 should show if the fix is right, and the line
+  `Ring0-Incident: #<issue>`, by which the follower links the verdict on that
+  commit back to the incident. While Ring 0 is stuck on a red head, the merge
+  queue merges only such a fix (`advance_fix`), never the next update.
 - **Hold a version back:** close the Renovate PR. Renovate then ignores that
   version and proposes the next upstream release. It writes a note on the PR
   and the issue with the upstream bug, if one exists.
@@ -392,10 +424,23 @@ prompt file `steward/PROMPT.md` in the overlay repository.
 into a pod, delete data (a PVC, a namespace, a CNPG Cluster or Backup, an S3
 object), or act on the Ring 1 overlay or any community's overlay.
 
-**Token.** A fine-grained token: base repository with *Contents*, *Pull
-requests* and *Issues* (read and write), no *Workflows*; Ring 0 overlay with
-*Contents* (read) and *Issues* (read and write). Without *Workflows* permission,
-GitHub refuses any push that touches a workflow file.
+**GitHub identity: its own GitHub App, `smallworlds-steward`.** Its PRs then
+come from a bot, which Stephan can approve (GitHub does not let anyone approve
+their own PR, so a token of Stephan's would make the protected-path rule
+meaningless). Anthropic's own Claude app cannot be used: it acts only on the
+repository its workflow runs in, and the Steward's workflow runs in the overlay
+while its PRs go to the base. The App has *Contents*, *Pull requests* and
+*Issues* (read and write) and no *Workflows* and no *Administration*, and is
+installed on the base and the Ring 0 overlay only. Each run mints a token
+valid for an hour (`actions/create-github-app-token`). Two things the App's
+permissions alone would allow are closed elsewhere:
+- **Merging and pushing to `main`:** a ruleset on the base's `main` restricts
+  updates to repository admins (Stephan, and the follower's token, which acts as
+  him). The App's merges and pushes are refused.
+- **Pushing to the overlay:** Ring 0's root Application is pinned to an overlay
+  commit that Stephan moves by hand, so a push there deploys nothing. A
+  ruleset on the overlay's `main` closes it fully where the plan offers
+  rulesets for private repositories.
 
 **Model credential: Stephan's Claude Pro subscription.** The action accepts an
 Anthropic API key (billed per token) or a subscription token. Stephan chose the
@@ -428,10 +473,20 @@ queue moves again. After **three** failed attempts on the same incident, the
 follower labels the issue `ring0-needs-person` and sends one ntfy notice
 ("Ring 0 needs you: <issue link>"). It notifies earlier only when the next step
 is one the Steward is not allowed to take: a restore while `AUTO_RESTORE` is
-off, a change to a protected path that needs Stephan's review (§5.4), a Secret
-that has to change, or a credential that was refused. Waiting three attempts
-for those would only delay him. Budget: at most 6 runs per day and a turn limit
-per run, both in the workflow.
+off **and the data checks found data missing**, a change to a protected path
+that needs Stephan's review (§5.4), a Secret that has to change, or a credential
+that was refused. Waiting three attempts for those would only delay him.
+
+A failed update of a migrating application is not by itself a restore. On
+2026-11-14 Ring 0 rejected Keycloak 26.8.2 with "restore, do not revert", but
+its data checks read `data 4/4 apps intact`: the new version wanted a client
+scope (`kc-admin-api`) on every service account that calls the admin API, and a
+fix forward was all it took (PR #83). Under the first version of this rule
+Stephan would have been woken for it. Now an intact result leaves the case to
+the Steward, which answers `needs-person` if it finds that the data or the
+schema does need the restore.
+
+Budget: at most 6 runs per day and a turn limit per run, both in the workflow.
 
 ### 5.4 Guardrails: Ring 0 stays the judge
 
@@ -445,15 +500,28 @@ The agent must not be able to make Ring 0 green by weakening what judges it.
   only after an approving review from the repository owner. The rule lives in
   `mergequeue.py`, not in branch protection, so Renovate's own PRs to the same
   paths keep flowing.
-- **Two arming stages, for PRs only.** First *propose only*: Steward PRs carry
-  `steward` but not `ring0-queue`, and Stephan adds the label after reading
-  them; until he does, the attempt is paused, not failed. Cluster actions are
+- **Two arming stages, for PRs only.** First *propose only* (repository
+  variable `STEWARD_ARMED` unset): Steward PRs carry `steward` but not
+  `ring0-queue`, and Stephan adds the label after reading them; until he does,
+  the attempt is paused, not failed. Cluster actions are
   armed from the start, since they leave nothing behind (above). After about four
   weeks with no wrong proposal, the Steward may add `ring0-queue` itself (except
   for protected paths), and its three attempts then run without Stephan.
 - Whatever it reads (logs, upstream release notes, PR comments) is data, not
   instructions. The prompt says so, and the token's and the ServiceAccount's
   limits make that hold even if the agent is misled.
+- **Its tools are listed, not open:** reading and editing files, `kubectl`,
+  `git`, `gh`, `jq` and the repository's own tests, and `WebFetch` on a fixed
+  list of upstream documentation sites (`STEWARD_DOCS` in the workflow); no web
+  search. The list exists for majors: most projects publish upgrade notes on a
+  documentation site, not in their GitHub releases (Keycloak's admin API change
+  was only in its upgrading guide). The run's process
+  still holds its Claude and GitHub tokens, and `gh` can write to GitHub, so a
+  misled agent could leak them there. What that would cost is bounded: an
+  hour-long App token that cannot merge, push to `main` or touch workflows, and
+  a Claude token Stephan revokes with `claude setup-token`. What the evidence
+  can carry into the prompt is bounded too: Ring 0's own logs and the upstream
+  projects' release and upgrade notes.
 - **Ring 0 is judged on what git says, not on what the Steward did.** Its
   cluster actions are limited to ones that leave no lasting difference from
   git: a deleted pod or Job is recreated from the manifests, and Argo CD's self
@@ -477,20 +545,48 @@ The agent must not be able to make Ring 0 green by weakening what judges it.
 
 ### 5.5 Major updates
 
-"Newest stable" includes majors, which never enter the queue today. With the
-Steward:
+"Newest stable" includes majors, which never enter the queue on their own. The
+Steward takes them through to `main`, and Stephan hears of a major only when it
+fails.
 
-1. Renovate opens the major PR without `ring0-queue` (*exists*).
-2. The follower labels it `steward-prepare` when the queue is idle. The Steward
-   reads the upstream upgrade notes, adapts the manifests on the PR's branch,
-   writes the Upgrade Stop (§7.5) if the upstream requires one, and summarises
-   the manual steps in the PR body.
-3. Stephan reads it and adds `ring0-queue`. Ring 0 verifies it as any update.
+1. Renovate opens the major PR with the label `ring0-major`, never
+   `ring0-queue`, over the same paths as the queue (`renovate.json`): what Ring 0
+   does not run, it cannot verify.
+2. **While Ring 0 is idle** (`main`'s head green, nothing else queued, no
+   cluster incident), the follower opens an incident of kind M for the oldest
+   one (label `ring0-major-update`), marks Renovate's PR `steward-prepare` so it
+   is offered once, and asks the Steward. One major at a time; Ring 0 keeps
+   merging minors meanwhile.
+3. The Steward reads the upstream upgrade notes for every version in between,
+   and opens a PR of its own (label `steward`, a `Ring0-Incident:` line) with
+   Renovate's change and whatever the new version needs: values, manifests, a
+   migration Job, the Upgrade Stop (§7.5) if upstream forbids skipping. If
+   nothing applies, the PR is Renovate's change and the notes it read. Renovate's
+   PR stays open and closes itself once the change is on `main`.
+4. The merge queue merges that PR like any update once it carries
+   `ring0-queue`. Until the Steward is armed (§5.4), Stephan adds the label after
+   reading it; armed, the Steward adds it itself, except on protected paths.
+5. Ring 0 verifies it as any update:
+   - **verified:** the incident closes. Nobody is told; the major is on `main`
+     and the Desk offers it like every other version.
+   - **rejected and reverted** (not a migrating app): the attempt failed, the
+     Steward gets the evidence and tries again, three attempts in all, then
+     `ring0-needs-person` and one ntfy notice.
+   - **rejected, not reverted** (a migrating app): the incident closes into the
+     S1 that the rejected head opens, so only one Steward run works on it; S1
+     then follows §5.3 (fix forward first, a person when data is missing or
+     after three attempts).
+6. **Held back** only when upstream itself says not to take it yet. That goes to
+   Stephan: a closed major PR is one Renovate never offers again, so a major held
+   back in silence would simply never arrive.
+
+A major waiting for a person does not hold back the next one. `STEWARD_MAJORS:
+"false"` leaves majors to Stephan, as before.
 
 ### 5.6 Throughput
 
-One update per verification cycle (sync, e2e with full OIDC, 30-minute quiet
-period) allows roughly 10–15 merges a day. Renovate's digest and pin PRs (§2)
+One update per verification cycle (sync, e2e with full OIDC, 5-minute quiet
+period, then a direct WAL archiving check) takes 25–35 minutes, roughly 40 merges a day. Renovate's digest and pin PRs (§2)
 use up most of that. Change `renovate.json` so digest and pin updates are
 grouped into **one weekly PR** across the repository, while real version updates
 stay one PR per application. A digest change is a rebuild of the same version
@@ -713,7 +809,7 @@ steps in between.
 
 `infrastructure/kubernetes/upgrade-stops.yaml` (base repository) lists them per
 unit, by version. It is written by the PR that introduces such a version (for
-majors, the Steward drafts it, §5.5). `ring0.json` carries the list. The Desk
+majors, the Steward writes it, §5.5). `ring0.json` carries the list. The Desk
 then moves to the newest verified content *before* the stop, waits until it is
 Healthy and its pre-update backup completed, and offers the next step. Each step
 is one Desk action and one overlay commit.
@@ -906,7 +1002,8 @@ does today. Each phase is useful on its own.
 | # | Phase | Done when |
 |---|---|---|
 | S1 | **Follower: stuck detection and evidence** (§5.1); `now.stuck` from S1–S5 instead of the stand-in. Then automatic restore on Ring 0 (§5.2) behind `AUTO_RESTORE`, after the drill in phase 0. | A provoked failure opens a `ring0-stuck` issue with a usable bundle |
-| S2 | **Ring 0 Steward**, propose-only for PRs (§5.3–5.4): the self-hosted runner on Ring 0's server, the `ring0-steward` ServiceAccount, the attempt counter and `steward-working` pause in the follower, the protected-path rule in `mergequeue.py`, the subscription token. | It fixes a provoked failure within three attempts; after ~4 weeks, arm its PRs |
+| S2 | **Ring 0 Steward**, propose-only for PRs (§5.3–5.4): the self-hosted runner on Ring 0's server, the `ring0-steward` ServiceAccount, the attempt counter and `steward-working` pause in the follower, the protected-path rule in `mergequeue.py`, the subscription token. A migrating tenant with intact data goes to the Steward first. | It fixes a provoked failure within three attempts; after ~4 weeks, arm its PRs |
+| S3 | **Majors** (§5.5): `ring0-major` in `renovate.json`, M incidents in the follower, the Steward's documentation sites. Built with S2, behind `STEWARD_MAJORS`; before arming, Stephan adds `ring0-queue` to each prepared major. | One major prepared, merged by the queue and verified with no hand on it but the label; once armed, not even that |
 
 ## 12. Open questions
 
