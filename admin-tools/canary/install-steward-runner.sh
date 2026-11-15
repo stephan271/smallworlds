@@ -90,7 +90,18 @@ fi
 echo ">>> packages the Steward uses: git, gh, jq, python3, unzip (the action fetches bun)"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-apt-get install -y -qq git gh jq python3 unzip curl ca-certificates >/dev/null
+apt-get install -y -qq git jq python3 unzip curl ca-certificates >/dev/null
+# gh from GitHub's own apt source: the distribution's gh is too old, and its
+# `gh issue view` / `gh pr view` ask GraphQL for classic project cards, which
+# GitHub refuses (the Steward's first run on Ring 0, 2026-11-15).
+install -d -m 755 /etc/apt/keyrings
+curl -fsSL -o /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+    https://cli.github.com/packages/githubcli-archive-keyring.gpg
+chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg]" \
+    "https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
+apt-get update -qq
+apt-get install -y -qq gh >/dev/null
 
 echo ">>> user $USER_NAME (no sudo, no docker group)"
 id $USER_NAME >/dev/null 2>&1 || useradd --create-home --shell /bin/bash $USER_NAME
@@ -107,7 +118,8 @@ ARCHIVE=$(mktemp)
 curl -fsSL -o "$ARCHIVE" "$RUNNER_URL"
 echo "$RUNNER_SHA256  $ARCHIVE" | sha256sum -c - >/dev/null || {
     echo "The runner download does not match RUNNER_SHA256." >&2; rm -f "$ARCHIVE"; exit 1; }
-sudo -u $USER_NAME tar -xzf "$ARCHIVE" -C "$RUNNER_DIR"
+# mktemp made the archive root's, mode 600: root opens it, steward unpacks it.
+sudo -u $USER_NAME tar -xzf - -C "$RUNNER_DIR" < "$ARCHIVE"
 rm -f "$ARCHIVE"
 "$RUNNER_DIR/bin/installdependencies.sh" >/dev/null
 
