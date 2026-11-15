@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-15T19:22:36Z",
+ "updated": "2026-11-15T19:24:43Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -1025,6 +1025,21 @@
    "queued": false,
    "rejected": false,
    "labels": [],
+   "cards": [
+    "bulwark"
+   ]
+  },
+  {
+   "number": 101,
+   "title": "Revert \"Turn off Bulwark's automatic sign-in redirect\"",
+   "author": "smallworlds-steward[bot]",
+   "created": "2026-11-15T19:23:28Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [
+    "steward"
+   ],
    "cards": [
     "bulwark"
    ]
