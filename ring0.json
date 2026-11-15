@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-15T16:55:32Z",
+ "updated": "2026-11-15T17:01:49Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -952,7 +952,8 @@
    "queued": false,
    "rejected": false,
    "labels": [
-    "ring0-major"
+    "ring0-major",
+    "steward-prepare"
    ],
    "cards": [
     "nextcloud"
