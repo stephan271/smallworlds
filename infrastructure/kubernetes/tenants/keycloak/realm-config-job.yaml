@@ -161,6 +161,22 @@ spec:
               echo "Assigning realm-admin role to bulk-invite..."
               /opt/keycloak/bin/kcadm.sh add-roles -r smallworlds --uusername service-account-bulk-invite --cclientid realm-management --rolename realm-admin || echo "Role may already be assigned."
 
+              # bulk-invite.py calls the Admin REST API with this service
+              # account's token, which from Keycloak 26.8.2 must carry the client
+              # scope kc-admin-api, or every call is a 401 (the same assignment
+              # as join's, join-keycloak-setup-job.yaml). Per client only, never
+              # a realm default.
+              ADMIN_API_SCOPE=$(/opt/keycloak/bin/kcadm.sh get client-scopes -r smallworlds --fields id,name --format csv --noquotes \
+                | sed -n 's/^\([^,]*\),kc-admin-api$/\1/p')
+              BULK_INVITE_UUID=$(/opt/keycloak/bin/kcadm.sh get clients -r smallworlds -q clientId=bulk-invite --fields id \
+                | grep '"id"' | cut -d'"' -f4)
+              if [ -n "$ADMIN_API_SCOPE" ] && [ -n "$BULK_INVITE_UUID" ]; then
+                echo "Giving bulk-invite the client scope kc-admin-api..."
+                /opt/keycloak/bin/kcadm.sh update "clients/$BULK_INVITE_UUID/default-client-scopes/$ADMIN_API_SCOPE" -r smallworlds
+              else
+                echo "No client scope kc-admin-api (Keycloak before 26.8.2) or no bulk-invite client — nothing to assign."
+              fi
+
               echo "Realm configuration complete."
           volumeMounts:
             - name: realm-config

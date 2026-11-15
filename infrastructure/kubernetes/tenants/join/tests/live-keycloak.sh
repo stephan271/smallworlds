@@ -83,6 +83,13 @@ kcadm create clients -r smallworlds -s clientId=join -s enabled=true -s publicCl
     -s "redirectUris=[\"http://localhost:$join_port/*\"]" >/dev/null
 kcadm add-roles -r smallworlds --uusername service-account-join --cclientid realm-management \
     --rolename manage-users --rolename view-users --rolename query-users
+# From Keycloak 26.8.2 join's admin calls need the client scope kc-admin-api.
+admin_api_scope="$(kcadm get client-scopes -r smallworlds --fields id,name --format csv --noquotes \
+    | sed -n 's/^\([^,]*\),kc-admin-api$/\1/p')"
+if [[ -n "$admin_api_scope" ]]; then
+    join_uuid="$(kcadm get clients -r smallworlds -q clientId=join --fields id | grep '"id"' | cut -d'"' -f4)"
+    kcadm update "clients/$join_uuid/default-client-scopes/$admin_api_scope" -r smallworlds
+fi
 
 export KEYCLOAK_URL="http://localhost:$kc_port" PUBLIC_IDENTITY_URL="http://localhost:$kc_port"
 export KEYCLOAK_CLIENT_SECRET="$secret" JOIN_URL="http://localhost:$join_port"
