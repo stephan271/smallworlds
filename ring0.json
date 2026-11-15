@@ -1,27 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-15T14:48:09Z",
+ "updated": "2026-11-15T14:54:25Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "0f7cbc89718984a5b3dd906454ade7bd9405fbdb",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-15T14:37:26Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
+  "date": "2026-11-15T14:52:39Z"
  },
  "now": {
   "state": "updating",
   "commit": "0f7cbc89718984a5b3dd906454ade7bd9405fbdb",
-  "pull": {
-   "number": 90,
-   "title": "Unpack the Steward's runner as steward from root's download",
-   "cards": [
-    "canary-follower"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-15T14:47:39Z",
-  "started": "2026-11-15T14:37:26Z",
+  "pull": null,
+  "step": "merge",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -583,9 +577,9 @@
     "canary-follower"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-15T14:37:26Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
+    "date": "2026-11-15T14:52:39Z"
    }
   },
   {
