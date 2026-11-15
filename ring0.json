@@ -1,31 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-15T10:27:47Z",
+ "updated": "2026-11-15T10:46:29Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "55d27d9e1cecd712b76720d7b21388698459e33d",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-15T10:13:36Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.3.0, rclone\u2026",
+  "date": "2026-11-15T10:46:12Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "55d27d9e1cecd712b76720d7b21388698459e33d",
-  "pull": {
-   "number": 63,
-   "title": "Update Docker image rclone/rclone to v1.76 (#63)",
-   "cards": [
-    "backup-replicator"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-15T10:26:12Z",
-  "started": "2026-11-15T10:13:36Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #63",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -574,9 +568,9 @@
     "backup-replicator"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-15T10:13:36Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.3.0, rclone\u2026",
+    "date": "2026-11-15T10:46:12Z"
    }
   },
   {
