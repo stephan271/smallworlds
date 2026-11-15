@@ -16,6 +16,7 @@ browser unavailable) says "CHECKS-INFRA ": that is no verdict on the commit, and
 the follower reports an error instead of rejecting it.
 """
 import logging
+import urllib.error
 import time
 
 log = logging.getLogger("checksjob")
@@ -24,6 +25,14 @@ log = logging.getLogger("checksjob")
 # out the Job's deadline (an hour, Ring 0's first night: no Secret canary-checks).
 STUCK_REASONS = ("CreateContainerConfigError", "CreateContainerError", "ErrImagePull",
                  "ImagePullBackOff", "InvalidImageName")
+
+
+def _transient(error: Exception) -> bool:
+    """An answer worth asking again: the server busy or unreachable, not a
+    request it refuses."""
+    if isinstance(error, urllib.error.HTTPError):
+        return error.code == 429 or error.code >= 500
+    return isinstance(error, (urllib.error.URLError, TimeoutError, ConnectionError))
 
 
 class ChecksJob:
@@ -112,7 +121,19 @@ class ChecksJob:
         started = self.clock()
         deadline = started + self.timeout
         while True:
-            status = self.kube.get(f"{self.jobs}/{name}").get("status", {})
+            try:
+                status = self.kube.get(f"{self.jobs}/{name}").get("status", {})
+            except Exception as error:
+                if not _transient(error):
+                    raise
+                # A busy API server (Ring 0, 2026-11-15: one 503 ended a whole
+                # verification and the queue waited an hour). The Job runs on;
+                # ask again until the deadline.
+                if self.clock() >= deadline:
+                    return None, f"the API server did not answer for the Job's status ({error})"
+                log.warning("reading Job %s: %s; asking again", name, error)
+                self.sleep(30)
+                continue
             conditions = {c["type"]: c.get("status") for c in status.get("conditions", [])}
             if conditions.get("Complete") == "True" or status.get("succeeded"):
                 return True, self._summary(name)[1]

@@ -84,7 +84,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           rm -rf steward-work && mkdir -p steward-work
-          gh issue view "$ISSUE" -R "$OVERLAY" --comments > steward-work/incident.md
+          # REST, not `gh issue view`: older gh asks GraphQL for classic project
+          # cards, which GitHub now refuses (the first run on Ring 0, 2026-11-15).
+          gh api "repos/$OVERLAY/issues/$ISSUE" \
+            --jq '"# " + .title + "\n\n" + (.body // "")' > steward-work/incident.md
+          gh api --paginate "repos/$OVERLAY/issues/$ISSUE/comments" \
+            --jq '.[] | "\n---\n\n**" + .user.login + "**, " + .created_at + ":\n\n" + (.body // "")' \
+            >> steward-work/incident.md
           git -C smallworlds config user.name "smallworlds-steward[bot]"
           git -C smallworlds config user.email "smallworlds-steward[bot]@users.noreply.github.com"
           echo "GH_TOKEN=${{ steps.app.outputs.token }}" >> "$GITHUB_ENV"

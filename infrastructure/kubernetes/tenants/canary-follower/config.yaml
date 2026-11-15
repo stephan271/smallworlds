@@ -49,7 +49,7 @@ data:
   # approval before the queue merges them.
   OVERLAY_REPO: "stephan271/my-canary-installation"
   INCIDENTS: "true"
-  STEWARD: "false"
+  STEWARD: "true"
   STEWARD_LOGIN: "smallworlds-steward[bot]"
   OWNER_LOGIN: "stephan271"
   # Majors go to the Steward one at a time while Ring 0 is idle (design §5.5).
