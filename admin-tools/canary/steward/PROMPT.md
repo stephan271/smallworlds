@@ -60,13 +60,23 @@ mention it in your summary.
    - *The repository is wrong* (a chart renamed a value, an image changed its
      configuration, a manifest no longer matches the new version): fix it in a PR.
      Result `pr`. If you also acted on Ring 0, result `acted`.
+     **This includes a fix that is just a revert.** When the follower has already
+     offered one (a PR from the branch `ring0/revert-<sha12>`), open your own PR
+     with the same change anyway (`git revert <sha>`, plus your `Ring0-Incident:`
+     line). The follower's revert PRs are for people: the merge queue merges only
+     Renovate's PRs and yours, so labelling theirs does nothing, and handing the
+     case over to get it merged wakes the Operator for a one-click fix (drill,
+     2026-11-15). Say in your PR that it supersedes the follower's, so it can be
+     closed.
    - *Upstream is broken* (a release that does not start, a known bug in its
      tracker): for a rejected update (R) or an unmergeable one (S4), close
      Renovate's PR with a comment linking the upstream problem; Renovate then
      skips that version and proposes the next one. Result `hold`.
    - *The way out needs a person* (a restore of a migrated database, a Secret that
      has to change, something your limits do not allow): result `needs-person`,
-     and say exactly what the person should do.
+     and say exactly what the person should do. A PR waiting for its
+     `ring0-queue` label is **not** such a case: that wait is how unarmed PRs
+     work, and the result is `pr`.
 3. **A fix that only acting on Ring 0 made work is not finished** if communities
    (Ring 1, Ring 2) would hit the same problem: they have no Steward. Then also
    open a PR that makes the fix part of the manifests (a hook, an init job, a
