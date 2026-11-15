@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-15T12:57:15Z",
+ "updated": "2026-11-15T12:59:21Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -1042,6 +1042,19 @@
    "title": "Unpack the Steward's runner as steward from root's download",
    "author": "stephan271",
    "created": "2026-11-15T12:50:19Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "canary-follower"
+   ]
+  },
+  {
+   "number": 91,
+   "title": "Switch the Ring 0 Steward on, and wait out a busy API server",
+   "author": "stephan271",
+   "created": "2026-11-15T12:58:47Z",
    "draft": false,
    "queued": false,
    "rejected": false,
