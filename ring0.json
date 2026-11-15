@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-15T10:50:42Z",
+ "updated": "2026-11-15T10:52:05Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "7566a34a5b22b546c0bcd38a09472c0475bb8348",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-15T10:51:15Z"
  },
  "now": {
   "state": "updating",
@@ -20,13 +20,13 @@
     "repository"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-15T10:51:42Z",
+  "started": "2026-11-15T10:51:41Z",
   "queued": [],
   "stuck": null,
-  "action": "merged #63",
-  "waiting": "no queued update is ready"
+  "action": null,
+  "waiting": null
  },
  "applications": [
   {
@@ -311,7 +311,7 @@
   {
    "name": "smallworlds-root",
    "group": "machinery",
-   "health": "Healthy",
+   "health": "Progressing",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -319,9 +319,9 @@
    "revision": "116030ca2da5a59c1cc7661a4ea3a55c44d6734c",
    "images": [],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-15T10:14:14Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of storage.k8s.io/StorageClass/static-local and 4 more resources"
    },
    "wave": 0
   },
@@ -367,18 +367,18 @@
   {
    "name": "canary-follower",
    "group": "machinery",
-   "health": "Healthy",
+   "health": "Progressing",
    "sync": "Synced",
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "55d27d9e1cecd712b76720d7b21388698459e33d",
+   "revision": "7566a34a5b22b546c0bcd38a09472c0475bb8348",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-15T10:14:52Z",
+    "finished": "2026-11-15T10:51:07Z",
     "message": null
    },
    "wave": 1
@@ -575,7 +575,11 @@
     "canary-follower",
     "repository"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-15T10:51:15Z"
+   }
   },
   {
    "commit": "55d27d9e1cecd712b76720d7b21388698459e33d",
