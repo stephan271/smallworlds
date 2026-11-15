@@ -1,26 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-15T13:03:30Z",
+ "updated": "2026-11-15T13:30:25Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "1f8d40b740628d67a3c6df967f65b588cd71d1f0",
-  "state": "error",
-  "description": "Follower error: HTTPError: HTTP Error 503: Service Unavailable; touches immich, stalwart: restore, do not revert",
-  "date": "2026-11-15T12:49:02Z"
+  "commit": "a20676f1ee7ccfd6769621f848394a8ecc7c4c82",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "1f8d40b740628d67a3c6df967f65b588cd71d1f0",
+  "commit": "a20676f1ee7ccfd6769621f848394a8ecc7c4c82",
   "pull": {
-   "number": 82,
-   "title": "Update Docker image python to v3.15 (#82)",
+   "number": 91,
+   "title": "Switch the Ring 0 Steward on, and wait out a busy API server",
    "cards": [
-    "immich",
-    "stalwart"
+    "canary-follower"
    ]
   },
-  "step": "retry",
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
@@ -583,6 +582,50 @@
  ],
  "commits": [
   {
+   "commit": "a20676f1ee7ccfd6769621f848394a8ecc7c4c82",
+   "title": "Switch the Ring 0 Steward on, and wait out a busy API server",
+   "author": "stephan271",
+   "date": "2026-11-15T13:30:15Z",
+   "pull": 91,
+   "cards": [
+    "canary-follower"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "b71a9236edf2cfb8b617dc5e207cb8a89a41f13b",
+   "title": "Read the incident through REST in the Steward's workflow",
+   "author": "stephan271",
+   "date": "2026-11-15T12:58:18Z",
+   "pull": null,
+   "cards": [
+    "canary-follower"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "267e6cdfc95cc68e9a6848bc27b0e24141e7fedb",
+   "title": "Switch the Ring 0 Steward on",
+   "author": "stephan271",
+   "date": "2026-11-15T12:57:34Z",
+   "pull": null,
+   "cards": [
+    "canary-follower"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "d68f44b94642990bf09888bf79f9d9787f62852a",
+   "title": "Wait out a busy API server while the checks Job runs",
+   "author": "stephan271",
+   "date": "2026-11-15T12:57:34Z",
+   "pull": null,
+   "cards": [
+    "canary-follower"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "1f8d40b740628d67a3c6df967f65b588cd71d1f0",
    "title": "Update Docker image python to v3.15 (#82)",
    "author": "renovate[bot]",
@@ -888,64 +931,6 @@
     "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
     "date": "2026-11-14T12:40:43Z"
    }
-  },
-  {
-   "commit": "d0dd3bf066dac6099081b6cac4a7ad94b4146daa",
-   "title": "Publish Ring 0's state and draw it as a public, read-only board",
-   "author": "stephan271",
-   "date": "2026-11-14T11:59:28Z",
-   "pull": 75,
-   "cards": [
-    "canary-follower",
-    "repository"
-   ],
-   "verdict": {
-    "state": "error",
-    "description": "Superseded before verified: canary-follower@2902f6e6d09a, cnpg-barman-plugin@2902f6e6d09a, headscale@2902f6e6d09a +1 more",
-    "date": "2026-11-14T12:04:31Z"
-   }
-  },
-  {
-   "commit": "2f8b6f9b8241639417d7fc27240d94f978f0d6e1",
-   "title": "Publish Ring 0's state and draw it as a public, read-only board",
-   "author": "stephan271",
-   "date": "2026-11-14T11:56:36Z",
-   "pull": null,
-   "cards": [
-    "canary-follower",
-    "repository"
-   ],
-   "verdict": null
-  },
-  {
-   "commit": "e8bae59e88962ae07a6689c6e331d03056458bc7",
-   "title": "Update gallery (#58)",
-   "author": "renovate[bot]",
-   "date": "2026-11-14T11:32:11Z",
-   "pull": 58,
-   "cards": [
-    "immich"
-   ],
-   "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-14T11:37:13Z"
-   }
-  },
-  {
-   "commit": "efe72ab9371c3073f0260f8286bb2abae27f67f5",
-   "title": "Update nextcloud (#57)",
-   "author": "renovate[bot]",
-   "date": "2026-11-14T10:53:46Z",
-   "pull": 57,
-   "cards": [
-    "nextcloud"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: backup 1 databases, converged, load settled after 1 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 m\u2026",
-    "date": "2026-11-14T11:32:06Z"
-   }
   }
  ],
  "pulls": [
@@ -1042,19 +1027,6 @@
    "title": "Unpack the Steward's runner as steward from root's download",
    "author": "stephan271",
    "created": "2026-11-15T12:50:19Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "canary-follower"
-   ]
-  },
-  {
-   "number": 91,
-   "title": "Switch the Ring 0 Steward on, and wait out a busy API server",
-   "author": "stephan271",
-   "created": "2026-11-15T12:58:47Z",
    "draft": false,
    "queued": false,
    "rejected": false,
