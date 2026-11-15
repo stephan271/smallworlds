@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-15T09:50:11Z",
+ "updated": "2026-11-15T09:56:29Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -1085,7 +1085,7 @@
   },
   {
    "number": 84,
-   "title": "Hand a stuck Ring 0 to the Ring 0 Steward, and let it take majors through",
+   "title": "Hand a stuck Ring 0 to the Steward, let it take majors through, and shorten the quiet period",
    "author": "stephan271",
    "created": "2026-11-15T09:35:23Z",
    "draft": false,
