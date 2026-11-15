@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-15T12:59:21Z",
+ "updated": "2026-11-15T13:01:25Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -227,7 +227,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "ec904a43207fd46955192445b2f8076a876a5d09",
+   "revision": "9b01b7e79fc264d2d4d328f30ee3abecaf888127",
    "images": [
     "ghcr.io/euro-office/documentserver:v9.3.4-hotfix.1@sha256:889e681923d2dcc8bdfb92fe128d10e185fcff880d302b6a0c0c7bf339499290"
    ],
@@ -370,7 +370,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "ec904a43207fd46955192445b2f8076a876a5d09",
+   "revision": "9b01b7e79fc264d2d4d328f30ee3abecaf888127",
    "images": [
     "ghcr.io/bulwarkmail/webmail:1.21.2@sha256:037b85b1433233d2d7eebb83f928df5ecc3b4adc91dc7e4c55f0a2f69024e754"
    ],
@@ -408,7 +408,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "ec904a43207fd46955192445b2f8076a876a5d09",
+   "revision": "9b01b7e79fc264d2d4d328f30ee3abecaf888127",
    "images": [
     "excalidraw/excalidraw:latest@sha256:f7ee194addd607bf831d2af0f0a34463dd4225e426cf35199ef0b12a803398e9"
    ],
@@ -564,7 +564,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "ec904a43207fd46955192445b2f8076a876a5d09",
+   "revision": "9b01b7e79fc264d2d4d328f30ee3abecaf888127",
    "images": [
     "docker.io/alpine/k8s:1.37.1@sha256:712dc5385d1c1a3f83b747fa9e40f64d433a97f72ff42f9755ff7dd1f62846e4",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
