@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-15T09:48:06Z",
+ "updated": "2026-11-15T09:50:11Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -21,8 +21,8 @@
     "repository"
    ]
   },
-  "step": "storage",
-  "step_since": "2026-11-15T09:47:28Z",
+  "step": "quiet",
+  "step_since": "2026-11-15T09:48:28Z",
   "started": "2026-11-15T09:33:45Z",
   "queued": [
    {
@@ -225,7 +225,9 @@
    "chart": null,
    "version": null,
    "revision": "e5db00d2bee18ee36e30dfaabbbf018a010a84c3",
-   "images": [],
+   "images": [
+    "rclone/rclone:1.74@sha256:623378ad0ff3ebd5cebf77720843c0e02edfe46e2d5b5ac6bed54c6371780dfb"
+   ],
    "operation": {
     "phase": "Succeeded",
     "finished": "2026-11-15T09:35:35Z",
