@@ -1,21 +1,28 @@
 {
  "schema": 1,
- "updated": "2026-11-15T17:20:48Z",
+ "updated": "2026-11-15T17:31:17Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "316940e251c7f36e817f69df94cea05c8f88710d",
-  "state": "failure",
-  "description": "Smoke failed: whiteboard.canary.smallworlds.network: HTTP 502",
-  "date": "2026-11-15T17:20:00Z"
+  "commit": "f96cb8dee97643784aac6768518bb6ec0a374b20",
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-15T17:30:24Z"
  },
  "now": {
-  "state": "stuck",
-  "commit": "316940e251c7f36e817f69df94cea05c8f88710d",
-  "pull": null,
-  "step": null,
-  "step_since": null,
-  "started": null,
+  "state": "updating",
+  "commit": "f96cb8dee97643784aac6768518bb6ec0a374b20",
+  "pull": {
+   "number": 98,
+   "title": "End drill 1, and let the Steward fix forward with its own revert",
+   "cards": [
+    "canary-follower",
+    "excalidraw"
+   ]
+  },
+  "step": "sync",
+  "step_since": "2026-11-15T17:30:25Z",
+  "started": "2026-11-15T17:30:24Z",
   "queued": [
    {
     "number": 73,
@@ -26,11 +33,7 @@
     "since": "2026-11-14T09:32:22Z"
    }
   ],
-  "stuck": {
-   "condition": "S1",
-   "since": "2026-11-15T17:20:00Z",
-   "summary": "Smoke failed: whiteboard.canary.smallworlds.network: HTTP 502"
-  },
+  "stuck": null,
   "action": "revert offered in #97, for a person to merge",
   "waiting": "no queued update is ready"
  },
@@ -326,7 +329,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-15T17:11:05Z",
+    "finished": "2026-11-15T17:31:12Z",
     "message": null
    },
    "wave": 0
@@ -571,6 +574,44 @@
   }
  ],
  "commits": [
+  {
+   "commit": "f96cb8dee97643784aac6768518bb6ec0a374b20",
+   "title": "End drill 1, and let the Steward fix forward with its own revert",
+   "author": "stephan271",
+   "date": "2026-11-15T17:30:10Z",
+   "pull": 98,
+   "cards": [
+    "canary-follower",
+    "excalidraw"
+   ],
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-15T17:30:24Z"
+   }
+  },
+  {
+   "commit": "ef63b8b6e2661a73dd0bdad1d93fa8846f631d43",
+   "title": "Let the Steward fix forward with its own revert, not hand it over",
+   "author": "stephan271",
+   "date": "2026-11-15T17:29:25Z",
+   "pull": null,
+   "cards": [
+    "canary-follower"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "d0b32a09f54fc3ed8a2b47cd015644638aebd68a",
+   "title": "Revert \"Merge pull request #94 from stephan271/excalidraw-port-8080\"",
+   "author": "stephan271",
+   "date": "2026-11-15T17:29:06Z",
+   "pull": null,
+   "cards": [
+    "excalidraw"
+   ],
+   "verdict": null
+  },
   {
    "commit": "316940e251c7f36e817f69df94cea05c8f88710d",
    "title": "Point Excalidraw's Service at port 8080",
@@ -870,50 +911,6 @@
     "repository"
    ],
    "verdict": null
-  },
-  {
-   "commit": "2aa5d4ec40fcfec35c81d38e19a93717e2bd9336",
-   "title": "Fix Keycloak's image pin, and teach Renovate to keep tag and digest together",
-   "author": "stephan271",
-   "date": "2026-11-14T17:36:39Z",
-   "pull": 81,
-   "cards": [
-    "keycloak",
-    "repository"
-   ],
-   "verdict": {
-    "state": "failure",
-    "description": "Checks failed: e2e: test users not provisioned; data 4/4 apps intact; touches keycloak: restore, do not revert",
-    "date": "2026-11-14T17:52:24Z"
-   }
-  },
-  {
-   "commit": "cf8c7a3b6c9d792e64c26052c93d9dc2293e59e2",
-   "title": "Fix Keycloak's image pin, and teach Renovate to keep tag and digest together",
-   "author": "stephan271",
-   "date": "2026-11-14T17:35:31Z",
-   "pull": null,
-   "cards": [
-    "keycloak",
-    "repository"
-   ],
-   "verdict": null
-  },
-  {
-   "commit": "4529983127b6d91364447b3747d16ce89ed308fb",
-   "title": "Keep Garage on Ring 0, unused, so its updates are verified too",
-   "author": "stephan271",
-   "date": "2026-11-14T16:12:08Z",
-   "pull": 79,
-   "cards": [
-    "canary-follower",
-    "repository"
-   ],
-   "verdict": {
-    "state": "failure",
-    "description": "Not converged: keycloak: still running an earlier sync",
-    "date": "2026-11-14T16:59:14Z"
-   }
   }
  ],
  "pulls": [
@@ -1019,19 +1016,6 @@
    ],
    "cards": [
     "nextcloud"
-   ]
-  },
-  {
-   "number": 97,
-   "title": "Revert \"Point Excalidraw's Service at port 8080\"",
-   "author": "stephan271",
-   "created": "2026-11-15T17:20:07Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "excalidraw"
    ]
   }
  ]
