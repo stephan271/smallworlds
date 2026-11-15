@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-15T17:52:26Z",
+ "updated": "2026-11-15T18:00:51Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -1009,6 +1009,19 @@
    ],
    "cards": [
     "nextcloud"
+   ]
+  },
+  {
+   "number": 99,
+   "title": "Turn off Bulwark's automatic sign-in redirect",
+   "author": "stephan271",
+   "created": "2026-11-15T17:59:42Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "bulwark"
    ]
   }
  ]
