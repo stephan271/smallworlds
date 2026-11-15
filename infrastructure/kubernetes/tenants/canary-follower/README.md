@@ -56,7 +56,11 @@ Ring 0's follower (`docs/adr/0060`, `plans-and-walkthroughs/design-update-strate
    suspended CronJob copies `ring0-probe` from `garage-backup` to the operational
    instance, and this commit's object must arrive. Without the Application
    `garage` it passes with a note.
-9. **Quiet:** no `critical` alert in Alertmanager for `QUIET_SECONDS`.
+9. **Quiet:** no `critical` alert in Alertmanager for `QUIET_SECONDS` (5 minutes),
+   then every CNPG cluster's `ContinuousArchiving` condition must be `True`. The
+   condition turns `False` at the first failed WAL archive, where the alert
+   `CNPGWALArchivingFailing` needs 15 minutes; asking it directly is why the quiet
+   period no longer has to be 20 minutes long (2026-11-15).
 10. It posts the verdict as the commit status `ring0/verified`.
 11. **Merge queue:** while the head is green, it squash-merges the oldest Renovate PR
     labelled `ring0-queue` that is mergeable and has passed its PR checks. One update

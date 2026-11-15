@@ -118,6 +118,30 @@ def _critical_alerts(alertmanager_url: str) -> list[str]:
                    if a.get("labels", {}).get("severity") == "critical"})
 
 
+def archiving(kube) -> list[str]:
+    """CNPG clusters whose WAL archiving is failing, as "namespace/name".
+
+    CNPG sets the condition ContinuousArchiving to False at the first failed
+    archive; the alert CNPGWALArchivingFailing needs 15 minutes more. Asking the
+    condition is what lets the quiet period be short: it used to be 20 minutes
+    only to outlast that alert (the 2026-08-09 outage, a WAL archive Garage
+    refused). A cluster without the condition archives nothing and is skipped;
+    a cluster without CNPG installed has none."""
+    try:
+        clusters = kube.get("/apis/postgresql.cnpg.io/v1/clusters").get("items", [])
+    except urllib.error.HTTPError as error:
+        if error.code == 404:
+            return []
+        raise
+    failing = []
+    for cluster in clusters:
+        for condition in cluster.get("status", {}).get("conditions", []):
+            if condition.get("type") == "ContinuousArchiving" and condition.get("status") != "True":
+                meta = cluster["metadata"]
+                failing.append(f"{meta['namespace']}/{meta['name']}")
+    return sorted(failing)
+
+
 def quiet(alertmanager_url: str, seconds: int, interval: int,
           fetch=_critical_alerts, clock=time.monotonic, sleep=time.sleep) -> list[str]:
     """Critical alerts seen during the quiet period; empty means it was quiet.

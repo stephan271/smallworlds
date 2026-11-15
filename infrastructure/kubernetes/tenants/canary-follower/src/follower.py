@@ -70,7 +70,7 @@ def _list(items: list[str], limit: int = 3) -> str:
 class Follower:
     def __init__(self, settings, github, argocd, kube,
                  smoke=checks.smoke, quiet=checks.quiet, hosts=checks.ingress_hosts,
-                 settle=checks.settle,
+                 settle=checks.settle, archiving=checks.archiving,
                  backups=None, checks_job=None, storage_job=None, queue=None, incidents=None,
                  clock=time.monotonic, wallclock=time.time):
         self.s = settings
@@ -80,6 +80,7 @@ class Follower:
         self._smoke = smoke
         self._quiet = quiet
         self._settle = settle
+        self._archiving = archiving
         self._hosts = hosts
         self.backups = backups
         self.checks_job = checks_job
@@ -335,6 +336,10 @@ class Follower:
                 return self._finish(sha, "error", "Alerts cannot be delivered: " + _list(firing),
                                     steps)
             steps.append(f"quiet {s.quiet_seconds // 60} min")
+            # After the quiet period, so every database has archived since the
+            # sync (archive_timeout is 5 minutes).
+            if stalled := self._archiving(self.kube):
+                return self._finish(sha, "failure", "WAL archiving failing: " + _list(stalled), steps)
 
             shown = [step for step in steps if not step.startswith("synced ")]
             return self._finish(sha, "success", "Ring 0: " + ", ".join(shown)

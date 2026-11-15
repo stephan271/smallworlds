@@ -585,8 +585,8 @@ A major waiting for a person does not hold back the next one. `STEWARD_MAJORS:
 
 ### 5.6 Throughput
 
-One update per verification cycle (sync, e2e with full OIDC, 30-minute quiet
-period) allows roughly 10–15 merges a day. Renovate's digest and pin PRs (§2)
+One update per verification cycle (sync, e2e with full OIDC, 5-minute quiet
+period, then a direct WAL archiving check) takes 25–35 minutes, roughly 40 merges a day. Renovate's digest and pin PRs (§2)
 use up most of that. Change `renovate.json` so digest and pin updates are
 grouped into **one weekly PR** across the repository, while real version updates
 stay one PR per application. A digest change is a rebuild of the same version
