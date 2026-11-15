@@ -196,7 +196,7 @@ spec:
       serviceAccountName: mail-provisioner
       containers:
         - name: provisioner
-          image: python:3.14-alpine@sha256:26730869004e2b9c4b9ad09cab8625e81d256d1ce97e72df5520e806b1709f92
+          image: python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd
           command:
             - "/bin/sh"
             - "-c"
