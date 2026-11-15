@@ -1,19 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-15T16:28:09Z",
+ "updated": "2026-11-15T16:30:17Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "0f7cbc89718984a5b3dd906454ade7bd9405fbdb",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
-  "date": "2026-11-15T14:52:39Z"
+  "commit": "4cc5a9a2215c1a4d3eef9d98b5592f454214ae9f",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "0f7cbc89718984a5b3dd906454ade7bd9405fbdb",
-  "pull": null,
-  "step": "merge",
+  "commit": "4cc5a9a2215c1a4d3eef9d98b5592f454214ae9f",
+  "pull": {
+   "number": 93,
+   "title": "Update Forgejo's Redis to v8 (major, Steward) (#93)",
+   "cards": [
+    "forgejo"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
@@ -24,19 +30,11 @@
      "kube-prometheus-stack"
     ],
     "since": "2026-11-14T09:32:22Z"
-   },
-   {
-    "number": 93,
-    "title": "Update Forgejo's Redis to v8 (major, Steward)",
-    "cards": [
-     "forgejo"
-    ],
-    "since": "2026-11-15T14:25:09Z"
    }
   ],
   "stuck": null,
-  "action": "merged #88",
-  "waiting": "no queued update is ready"
+  "action": "merged #93",
+  "waiting": null
  },
  "applications": [
   {
@@ -576,6 +574,17 @@
  ],
  "commits": [
   {
+   "commit": "4cc5a9a2215c1a4d3eef9d98b5592f454214ae9f",
+   "title": "Update Forgejo's Redis to v8 (major, Steward) (#93)",
+   "author": "smallworlds-steward[bot]",
+   "date": "2026-11-15T16:29:06Z",
+   "pull": 93,
+   "cards": [
+    "forgejo"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "0f7cbc89718984a5b3dd906454ade7bd9405fbdb",
    "title": "Unpack the Steward's runner as steward from root's download",
    "author": "stephan271",
@@ -905,21 +914,6 @@
     "description": "Not converged: keycloak: still running an earlier sync; touches keycloak: restore, do not revert",
     "date": "2026-11-14T15:45:19Z"
    }
-  },
-  {
-   "commit": "0e171a8208e58dfc805ced155c4b3a705aec538c",
-   "title": "Show only open PRs under the board's 'not on Ring 0' cards",
-   "author": "stephan271",
-   "date": "2026-11-14T13:56:00Z",
-   "pull": null,
-   "cards": [
-    "repository"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, quiet 20 min",
-    "date": "2026-11-14T14:52:46Z"
-   }
   }
  ],
  "pulls": [
@@ -949,22 +943,6 @@
    "labels": [],
    "cards": [
     "collabora"
-   ]
-  },
-  {
-   "number": 86,
-   "title": "Update Docker image docker.io/redis to v8",
-   "author": "renovate[bot]",
-   "created": "2026-11-15T11:17:05Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [
-    "ring0-major",
-    "steward-prepare"
-   ],
-   "cards": [
-    "forgejo"
    ]
   },
   {
@@ -1013,22 +991,6 @@
    ]
   },
   {
-   "number": 93,
-   "title": "Update Forgejo's Redis to v8 (major, Steward)",
-   "author": "smallworlds-steward[bot]",
-   "created": "2026-11-15T14:25:09Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue",
-    "steward"
-   ],
-   "cards": [
-    "forgejo"
-   ]
-  },
-  {
    "number": 94,
    "title": "Point Excalidraw's Service at port 8080",
    "author": "stephan271",
@@ -1039,6 +1001,21 @@
    "labels": [],
    "cards": [
     "excalidraw"
+   ]
+  },
+  {
+   "number": 95,
+   "title": "Update github actions (major)",
+   "author": "renovate[bot]",
+   "created": "2026-11-15T16:30:01Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [
+    "ring0-major"
+   ],
+   "cards": [
+    "repository"
    ]
   }
  ]
