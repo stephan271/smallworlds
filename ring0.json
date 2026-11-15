@@ -1,27 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-15T16:51:20Z",
+ "updated": "2026-11-15T16:55:32Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "4cc5a9a2215c1a4d3eef9d98b5592f454214ae9f",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-15T16:34:11Z"
+  "state": "success",
+  "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
+  "date": "2026-11-15T16:54:53Z"
  },
  "now": {
   "state": "updating",
   "commit": "4cc5a9a2215c1a4d3eef9d98b5592f454214ae9f",
-  "pull": {
-   "number": 93,
-   "title": "Update Forgejo's Redis to v8 (major, Steward) (#93)",
-   "cards": [
-    "forgejo"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-15T16:49:52Z",
-  "started": "2026-11-15T16:34:10Z",
+  "pull": null,
+  "step": "merge",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -34,7 +28,7 @@
   ],
   "stuck": null,
   "action": "merged #93",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -583,9 +577,9 @@
     "forgejo"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-15T16:34:11Z"
+    "state": "success",
+    "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
+    "date": "2026-11-15T16:54:53Z"
    }
   },
   {
