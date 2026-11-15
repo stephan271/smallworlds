@@ -1,19 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-15T18:00:51Z",
+ "updated": "2026-11-15T19:01:32Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "f96cb8dee97643784aac6768518bb6ec0a374b20",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 4 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
-  "date": "2026-11-15T17:52:03Z"
+  "commit": "141de7d060e9f2547b78f62d1c546a46d24df246",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "f96cb8dee97643784aac6768518bb6ec0a374b20",
-  "pull": null,
-  "step": "merge",
+  "commit": "141de7d060e9f2547b78f62d1c546a46d24df246",
+  "pull": {
+   "number": 99,
+   "title": "Turn off Bulwark's automatic sign-in redirect",
+   "cards": [
+    "bulwark"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
@@ -231,7 +237,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "f96cb8dee97643784aac6768518bb6ec0a374b20",
+   "revision": "141de7d060e9f2547b78f62d1c546a46d24df246",
    "images": [
     "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970"
    ],
@@ -568,6 +574,28 @@
  ],
  "commits": [
   {
+   "commit": "141de7d060e9f2547b78f62d1c546a46d24df246",
+   "title": "Turn off Bulwark's automatic sign-in redirect",
+   "author": "stephan271",
+   "date": "2026-11-15T19:00:18Z",
+   "pull": 99,
+   "cards": [
+    "bulwark"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "0106e3ffada591d9a72610656f9087440ecf4b51",
+   "title": "Turn off Bulwark's automatic sign-in redirect",
+   "author": "stephan271",
+   "date": "2026-11-15T17:59:38Z",
+   "pull": null,
+   "cards": [
+    "bulwark"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "f96cb8dee97643784aac6768518bb6ec0a374b20",
    "title": "End drill 1, and let the Steward fix forward with its own revert",
    "author": "stephan271",
@@ -879,31 +907,6 @@
     "repository"
    ],
    "verdict": null
-  },
-  {
-   "commit": "f3ac405f8429bf3456ec4c2a5434d9ee2ca859cc",
-   "title": "Hand a stuck Ring 0 to the Ring 0 Steward",
-   "author": "stephan271",
-   "date": "2026-11-15T08:47:37Z",
-   "pull": null,
-   "cards": [
-    "canary-follower",
-    "repository"
-   ],
-   "verdict": null
-  },
-  {
-   "commit": "38ec4bbbd7bb8d73104cc43d89cd7cfade47dd31",
-   "title": "Give join and bulk-invite the kc-admin-api scope Keycloak 26.8.2 requires",
-   "author": "stephan271",
-   "date": "2026-11-15T08:42:59Z",
-   "pull": null,
-   "cards": [
-    "join",
-    "keycloak",
-    "repository"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -1009,19 +1012,6 @@
    ],
    "cards": [
     "nextcloud"
-   ]
-  },
-  {
-   "number": 99,
-   "title": "Turn off Bulwark's automatic sign-in redirect",
-   "author": "stephan271",
-   "created": "2026-11-15T17:59:42Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "bulwark"
    ]
   }
  ]
