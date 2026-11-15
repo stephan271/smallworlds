@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-15T12:51:01Z",
+ "updated": "2026-11-15T12:55:10Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -127,7 +127,7 @@
   {
    "name": "cnpg-barman-plugin",
    "group": "platform",
-   "health": "Healthy",
+   "health": "Progressing",
    "sync": "Synced",
    "source": "base",
    "chart": null,
@@ -260,7 +260,7 @@
   {
    "name": "keycloak",
    "group": "platform",
-   "health": "Healthy",
+   "health": "Unknown",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -328,7 +328,7 @@
   {
    "name": "smallworlds-root",
    "group": "machinery",
-   "health": "Healthy",
+   "health": "Progressing",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -422,7 +422,7 @@
   {
    "name": "forgejo",
    "group": "apps",
-   "health": "Healthy",
+   "health": "Unknown",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -447,7 +447,7 @@
   {
    "name": "immich",
    "group": "apps",
-   "health": "Healthy",
+   "health": "Unknown",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -515,7 +515,7 @@
   {
    "name": "nextcloud",
    "group": "apps",
-   "health": "Healthy",
+   "health": "Unknown",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -559,7 +559,7 @@
   {
    "name": "stalwart",
    "group": "apps",
-   "health": "Healthy",
+   "health": "Unknown",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
