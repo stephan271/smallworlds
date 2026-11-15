@@ -1,27 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-15T14:18:53Z",
+ "updated": "2026-11-15T14:23:03Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "4bf80c3e43953db9e9b8ef8655760e1e890e9168",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-15T14:01:33Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 4 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
+  "date": "2026-11-15T14:22:07Z"
  },
  "now": {
   "state": "updating",
   "commit": "4bf80c3e43953db9e9b8ef8655760e1e890e9168",
-  "pull": {
-   "number": 88,
-   "title": "Update Helm chart velero to v12.2.5 (#88)",
-   "cards": [
-    "velero"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-15T14:17:07Z",
-  "started": "2026-11-15T14:01:33Z",
+  "pull": null,
+  "step": "merge",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -34,7 +28,7 @@
   ],
   "stuck": null,
   "action": "merged #88",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -583,9 +577,9 @@
     "velero"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-15T14:01:33Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 4 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
+    "date": "2026-11-15T14:22:07Z"
    }
   },
   {
@@ -967,7 +961,8 @@
    "queued": false,
    "rejected": false,
    "labels": [
-    "ring0-major"
+    "ring0-major",
+    "steward-prepare"
    ],
    "cards": [
     "forgejo"
