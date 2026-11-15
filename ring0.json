@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-15T09:33:28Z",
+ "updated": "2026-11-15T09:35:34Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "e5db00d2bee18ee36e30dfaabbbf018a010a84c3",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-15T09:33:45Z"
  },
  "now": {
   "state": "updating",
@@ -21,9 +21,9 @@
     "repository"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-15T09:34:16Z",
+  "started": "2026-11-15T09:33:45Z",
   "queued": [
    {
     "number": 63,
@@ -167,7 +167,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "2aa5d4ec40fcfec35c81d38e19a93717e2bd9336",
+   "revision": "e5db00d2bee18ee36e30dfaabbbf018a010a84c3",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
@@ -192,7 +192,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-14T17:41:41Z",
+    "finished": "2026-11-15T09:35:14Z",
     "message": null
    },
    "wave": -5
@@ -211,7 +211,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-14T17:41:44Z",
+    "finished": "2026-11-15T09:35:12Z",
     "message": null
    },
    "wave": -5
@@ -224,11 +224,11 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "2aa5d4ec40fcfec35c81d38e19a93717e2bd9336",
+   "revision": "e5db00d2bee18ee36e30dfaabbbf018a010a84c3",
    "images": [],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-14T17:41:30Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 0
@@ -279,7 +279,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "2aa5d4ec40fcfec35c81d38e19a93717e2bd9336",
+   "revision": "e5db00d2bee18ee36e30dfaabbbf018a010a84c3",
    "images": [
     "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970"
    ],
@@ -370,7 +370,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-14T17:40:53Z",
+    "finished": "2026-11-15T09:34:53Z",
     "message": null
    },
    "wave": 0
@@ -383,7 +383,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "2aa5d4ec40fcfec35c81d38e19a93717e2bd9336",
+   "revision": "e5db00d2bee18ee36e30dfaabbbf018a010a84c3",
    "images": [
     "docker.io/velero/velero:v1.18.1",
     "velero/velero-plugin-for-aws:v1.14.2@sha256:0751144c1c8e52d52c48717fbd13ad5a3061e612ae4d7ad744a946cd5b139d1a"
@@ -408,8 +408,8 @@
     "ghcr.io/bulwarkmail/webmail:1.21.2@sha256:037b85b1433233d2d7eebb83f928df5ecc3b4adc91dc7e4c55f0a2f69024e754"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-14T17:43:09Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 1
@@ -422,13 +422,13 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "2aa5d4ec40fcfec35c81d38e19a93717e2bd9336",
+   "revision": "e5db00d2bee18ee36e30dfaabbbf018a010a84c3",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-14T17:41:42Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 1
@@ -626,7 +626,11 @@
     "keycloak",
     "repository"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-15T09:33:45Z"
+   }
   },
   {
    "commit": "38ec4bbbd7bb8d73104cc43d89cd7cfade47dd31",
@@ -1075,6 +1079,20 @@
    "cards": [
     "immich",
     "stalwart"
+   ]
+  },
+  {
+   "number": 84,
+   "title": "Hand a stuck Ring 0 to the Ring 0 Steward, and let it take majors through",
+   "author": "stephan271",
+   "created": "2026-11-15T09:35:23Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "canary-follower",
+    "repository"
    ]
   }
  ]
