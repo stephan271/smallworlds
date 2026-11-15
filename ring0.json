@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-15T17:01:49Z",
+ "updated": "2026-11-15T17:03:56Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -1015,6 +1015,21 @@
    ],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 96,
+   "title": "Update Nextcloud's Redis to v8 (major, Steward)",
+   "author": "smallworlds-steward[bot]",
+   "created": "2026-11-15T17:03:10Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [
+    "steward"
+   ],
+   "cards": [
+    "nextcloud"
    ]
   }
  ]
