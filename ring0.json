@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-15T11:54:39Z",
+ "updated": "2026-11-15T11:58:48Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -378,7 +378,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "116030ca2da5a59c1cc7661a4ea3a55c44d6734c",
+   "revision": "ec904a43207fd46955192445b2f8076a876a5d09",
    "images": [
     "ghcr.io/bulwarkmail/webmail:1.21.2@sha256:037b85b1433233d2d7eebb83f928df5ecc3b4adc91dc7e4c55f0a2f69024e754"
    ],
@@ -416,7 +416,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "116030ca2da5a59c1cc7661a4ea3a55c44d6734c",
+   "revision": "ec904a43207fd46955192445b2f8076a876a5d09",
    "images": [
     "excalidraw/excalidraw:latest@sha256:f7ee194addd607bf831d2af0f0a34463dd4225e426cf35199ef0b12a803398e9"
    ],
@@ -509,7 +509,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "116030ca2da5a59c1cc7661a4ea3a55c44d6734c",
+   "revision": "ec904a43207fd46955192445b2f8076a876a5d09",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
@@ -572,7 +572,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "116030ca2da5a59c1cc7661a4ea3a55c44d6734c",
+   "revision": "ec904a43207fd46955192445b2f8076a876a5d09",
    "images": [
     "docker.io/alpine/k8s:1.37.1@sha256:712dc5385d1c1a3f83b747fa9e40f64d433a97f72ff42f9755ff7dd1f62846e4",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
