@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-15T14:08:26Z",
+ "updated": "2026-11-15T14:10:33Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -19,8 +19,8 @@
     "velero"
    ]
   },
-  "step": "settle",
-  "step_since": "2026-11-15T14:06:29Z",
+  "step": "checks",
+  "step_since": "2026-11-15T14:10:04Z",
   "started": "2026-11-15T14:01:33Z",
   "queued": [
    {
