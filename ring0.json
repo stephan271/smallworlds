@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-16T17:53:19Z",
+ "updated": "2026-11-16T17:55:25Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "fd8e3d81e40f2ffbe282f4a75efb6a810a24405c",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-16T17:54:56Z"
  },
  "now": {
   "state": "updating",
@@ -19,9 +19,9 @@
     "stalwart"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "backup",
+  "step_since": "2026-11-16T17:54:57Z",
+  "started": "2026-11-16T17:54:56Z",
   "queued": [
    {
     "number": 73,
@@ -132,7 +132,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "bd1e9252b136d91a52e47be79f7adc43b3f38cc3",
+   "revision": "fd8e3d81e40f2ffbe282f4a75efb6a810a24405c",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
@@ -593,7 +593,11 @@
    "cards": [
     "stalwart"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-16T17:54:56Z"
+   }
   },
   {
    "commit": "bd1e9252b136d91a52e47be79f7adc43b3f38cc3",
