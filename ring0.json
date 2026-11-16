@@ -1,19 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-16T22:15:54Z",
+ "updated": "2026-11-16T22:20:10Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "0f199137f96934b6f2c75c41d22af5c9a3e2a325",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-16T19:56:24Z"
+  "commit": "7d7b7864d36158624f3334e3cf46234a1985bc32",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "0f199137f96934b6f2c75c41d22af5c9a3e2a325",
-  "pull": null,
-  "step": "merge",
+  "commit": "7d7b7864d36158624f3334e3cf46234a1985bc32",
+  "pull": {
+   "number": 120,
+   "title": "Update the jitsi-meet chart to 3.12.0, with the OIDC adapter's port renamed (#120)",
+   "cards": [
+    "jitsi"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
@@ -26,14 +32,6 @@
     "since": "2026-11-14T09:32:22Z"
    },
    {
-    "number": 120,
-    "title": "Update the jitsi-meet chart to 3.12.0, with the OIDC adapter's port renamed",
-    "cards": [
-     "jitsi"
-    ],
-    "since": "2026-11-16T22:13:11Z"
-   },
-   {
     "number": 121,
     "title": "Update dependency @playwright/test to v1.65.1",
     "cards": [
@@ -43,8 +41,8 @@
    }
   ],
   "stuck": null,
-  "action": "reverted by #119",
-  "waiting": "no queued update is ready"
+  "action": "merged #120",
+  "waiting": null
  },
  "applications": [
   {
@@ -351,7 +349,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "0f199137f96934b6f2c75c41d22af5c9a3e2a325",
+   "revision": "7d7b7864d36158624f3334e3cf46234a1985bc32",
    "images": [
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
@@ -390,7 +388,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "0f199137f96934b6f2c75c41d22af5c9a3e2a325",
+   "revision": "7d7b7864d36158624f3334e3cf46234a1985bc32",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
@@ -585,6 +583,17 @@
   }
  ],
  "commits": [
+  {
+   "commit": "7d7b7864d36158624f3334e3cf46234a1985bc32",
+   "title": "Update the jitsi-meet chart to 3.12.0, with the OIDC adapter's port renamed (#120)",
+   "author": "smallworlds-steward[bot]",
+   "date": "2026-11-16T22:18:44Z",
+   "pull": 120,
+   "cards": [
+    "jitsi"
+   ],
+   "verdict": null
+  },
   {
    "commit": "0f199137f96934b6f2c75c41d22af5c9a3e2a325",
    "title": "Revert \"Update the jitsi-meet chart to 3.12.0\" (#119)",
@@ -932,17 +941,6 @@
     "description": "Ring 0: converged, load settled after 4 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
     "date": "2026-11-15T17:52:03Z"
    }
-  },
-  {
-   "commit": "ef63b8b6e2661a73dd0bdad1d93fa8846f631d43",
-   "title": "Let the Steward fix forward with its own revert, not hand it over",
-   "author": "stephan271",
-   "date": "2026-11-15T17:29:25Z",
-   "pull": null,
-   "cards": [
-    "canary-follower"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -1046,22 +1044,6 @@
    ],
    "cards": [
     "immich"
-   ]
-  },
-  {
-   "number": 120,
-   "title": "Update the jitsi-meet chart to 3.12.0, with the OIDC adapter's port renamed",
-   "author": "smallworlds-steward[bot]",
-   "created": "2026-11-16T22:13:11Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue",
-    "steward"
-   ],
-   "cards": [
-    "jitsi"
    ]
   },
   {
