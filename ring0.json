@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-16T07:52:55Z",
+ "updated": "2026-11-16T07:55:01Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "0a92751f44a15164c7a1cda9fc7730fa3e3c9c8b",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-16T07:54:06Z"
  },
  "now": {
   "state": "updating",
@@ -19,9 +19,9 @@
     "bulwark"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-16T07:54:07Z",
+  "started": "2026-11-16T07:54:06Z",
   "queued": [
    {
     "number": 73,
@@ -362,7 +362,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-15T19:03:45Z",
+    "finished": "2026-11-16T07:54:41Z",
     "message": null
    },
    "wave": 0
@@ -401,7 +401,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-15T19:06:25Z",
+    "finished": "2026-11-16T07:54:54Z",
     "message": null
    },
    "wave": 1
@@ -616,7 +616,11 @@
    "cards": [
     "bulwark"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-16T07:54:06Z"
+   }
   },
   {
    "commit": "141de7d060e9f2547b78f62d1c546a46d24df246",
