@@ -1,28 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-16T18:46:41Z",
+ "updated": "2026-11-16T18:50:54Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "b529aabed1bfc40848a490015a2dab27219afaff",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-16T18:30:13Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+  "date": "2026-11-16T18:49:52Z"
  },
  "now": {
   "state": "updating",
   "commit": "b529aabed1bfc40848a490015a2dab27219afaff",
-  "pull": {
-   "number": 114,
-   "title": "Garage chart 1.0.0 (Garage v2.5.0) (#114)",
-   "cards": [
-    "garage",
-    "garage-backup"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-16T18:44:51Z",
-  "started": "2026-11-16T18:30:12Z",
+  "pull": null,
+  "step": "merge",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -35,7 +28,7 @@
   ],
   "stuck": null,
   "action": "merged #114",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -587,9 +580,9 @@
     "garage-backup"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-16T18:30:13Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-16T18:49:52Z"
    }
   },
   {
