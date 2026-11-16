@@ -15,6 +15,18 @@ Stalwart uses a CloudNativePG (CNPG) cluster for its storage backend.
 - **Certificates**: It mounts TLS certificates from `stalwart-tls`, which `cert-manager` fills via the Ingress resource. Stalwart v0.16 ignores the old `STALWART_CERTIFICATE_*` variables, so the hourly `stalwart-tls-sync` CronJob registers the mounted files in Stalwart's registry, makes them the default certificate and reloads them — Stalwart does not notice a renewed file by itself, and deletes a registered certificate that has expired when it loads. Until 2026-11-10, IMAPS (993) and submission (465) served Stalwart's own self-signed certificate.
 - **Mail apps** submit on 465 (implicit TLS), which is what Stalwart's SRV records name and what both firewalls open. Nothing listens on 587.
 
+### Stalwart v1 and its migration from v0.16
+Stalwart v1 cannot open a v0.16 data store. v1 therefore keeps its data in a second database of the same CNPG cluster, `stalwart_v1` (the CNPG `Database` `stalwart-v1`), and the v0.16 store stays untouched in `app`. The Deployment's init containers fill `stalwart_v1` once with [`stalwart-migrate`](https://github.com/stalwartlabs/stalwart-migrate):
+- `check` decides: `stalwart_v1` carries the comment `smallworlds:migrated…` (done), `app` has no tables (a fresh install: nothing to copy), or there is a v0.16 store to copy.
+- `migrate` runs `prepare` on a pseudo-terminal, pressing Enter on every question (each default comes from the v0.16 settings: the Keycloak audience, the display-name claim, and so on), then `run --final`, which copies, finalizes and verifies. Its state (answers, reports, the original settings) is kept in the PVC `stalwart-migrate-state`.
+- `mark` puts the comment on `stalwart_v1`, so later starts skip all of this.
+
+The Deployment uses `strategy: Recreate`, because the final copy needs v0.16 stopped. The tool only reads a **v0.16.27** store, so that version is an Upgrade Stop (`infrastructure/kubernetes/upgrade-stops.yaml`). A community on an older v0.16 that skips it gets a pod waiting in `migrate`, with its data untouched.
+
+**Going back** before v1 has served anyone: deploy v0.16.27 with `config.json` pointing at `app` again. Once v1 has served members, mail received since then is only in `stalwart_v1`. Going back then is `stalwart-migrate rollback --forward-state /var/lib/stalwart-migrate` into a new, empty database. The migration cannot be undone in place.
+
+What else changed with v1 for this tenant: the init Job sets `acceptedAudiences` (formerly `requireAudience`) and `unscopedTokens: interoperable` on the Keycloak directory, because Keycloak's tokens carry no Stalwart scopes and v1 would otherwise reject them. `dkimSignDomain` moved from `SenderAuth` to `MtaStageData`. `STALWART_UPDATE_ROLE_PERMISSIONS=true` gives default roles made by an older version the permissions added since.
+
 ### 3. Mail Provisioner (`mail-provisioner-deployment.yaml` & `mail-provisioner-rbac.yaml`)
 Because Keycloak doesn't natively push user creation events to external mail servers in a simple way, a custom sidecar/provisioner deployment is used to synchronize users.
 - **Direct Database Sync**: The Python script inside `mail-provisioner-code` connects *directly* to the Keycloak PostgreSQL database (`keycloak-db-rw.keycloak.svc.cluster.local`). 

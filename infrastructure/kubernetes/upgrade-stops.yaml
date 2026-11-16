@@ -1,0 +1,18 @@
+# Upgrade Stops (plans-and-walkthroughs/design-per-app-updates.md §7.5): versions
+# an application must not skip. A community behind a stop is first moved to the
+# newest verified content before it, and offered the next step only once that
+# is Healthy and its pre-update backup completed.
+#
+# For the Canary Follower and the Update Desk; nothing applies this file to a
+# cluster (it is in no kustomization).
+stops:
+  - unit: stalwart
+    image: stalwartlabs/stalwart
+    # stalwart-migrate copies only a v0.16.27 store into v1 ("Earlier 0.16
+    # releases must be upgraded to 0.16.27 first",
+    # https://github.com/stalwartlabs/stalwart-migrate#requirements).
+    version: v0.16.27
+    before: v1.0.0
+    why: >-
+      v1 cannot open a v0.16 store; the migration in
+      tenants/stalwart/stalwart-deployment.yaml needs v0.16.27 as its source.

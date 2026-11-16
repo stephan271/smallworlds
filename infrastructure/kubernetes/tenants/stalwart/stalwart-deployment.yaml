@@ -4,7 +4,32 @@ metadata:
   name: stalwart-config
   namespace: stalwart
 data:
+  # Stalwart v1's data store: the database "stalwart_v1" (cnpg-cluster.yaml).
+  # v1 cannot open a v0.16 store, so the init container "migrate" below copies
+  # the v0.16 store into this new, empty database once, with stalwart-migrate
+  # (https://stalw.art/docs/migration/upgrade-0-16/). `timeout` became
+  # `connectTimeout` in v1.
   config.json: |
+    {
+      "@type": "PostgreSql",
+      "host": "database-rw.stalwart.svc.cluster.local",
+      "database": "stalwart_v1",
+      "port": 5432,
+      "authUsername": "app",
+      "authSecret": {
+        "@type": "EnvironmentVariable",
+        "variableName": "DB_PASSWORD"
+      },
+      "useTls": false,
+      "allowInvalidCerts": false,
+      "connectTimeout": 15000,
+      "poolMaxConnections": 10
+    }
+  # The v0.16 store, read only by stalwart-migrate (which never writes to it).
+  # It stays as it was: until v1 has served users, pointing config.json back at
+  # it with the v0.16.27 image is the way back (afterwards: stalwart-migrate
+  # rollback, with the state kept in the PVC stalwart-migrate-state).
+  config-v016.json: |
     {
       "@type": "PostgreSql",
       "host": "database-rw.stalwart.svc.cluster.local",
@@ -41,6 +66,11 @@ metadata:
   namespace: stalwart
 spec:
   replicas: 1
+  # Never two Stalwart pods at once: the migration's final copy needs v0.16
+  # stopped (it watches the store for 30 s and stops if it changes), and two
+  # servers on one store would not be safe either.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: stalwart-mail
@@ -49,12 +79,147 @@ spec:
       labels:
         app: stalwart-mail
     spec:
+      securityContext:
+        # stalwart-migrate runs as uid/gid 2000 and keeps its state in the PVC.
+        fsGroup: 2000
+      # The v0.16 -> v1 migration (stalwart-migrate, docs above config.json).
+      # Each step decides for itself, so a restart at any point is safe:
+      #   check   - what is there: a migrated store (marked by a comment on the
+      #             database), a fresh install (no v0.16 tables: nothing to
+      #             copy, v1 sets up the empty database itself), or a v0.16
+      #             store to copy.
+      #   migrate - prepare (every question answered with its default, which
+      #             the tool takes from the v0.16 settings), then one final run:
+      #             copies, finalizes and verifies. Repeating it resumes.
+      #   mark    - comments the database as migrated, so later starts skip all
+      #             of this even if the state PVC is lost.
+      # The tool refuses a source older than v0.16.27: a community on an older
+      # v0.16 takes v0.16.27 first (infrastructure/kubernetes/upgrade-stops.yaml),
+      # and until then this pod waits here with the v0.16 store untouched.
+      initContainers:
+        - name: check
+          image: ghcr.io/cloudnative-pg/postgresql:16@sha256:34cd4159d07b3410a1b29da35072e2e927a0905e717a61afa3814624a2e8859a
+          env:
+            - name: PGHOST
+              value: database-rw.stalwart.svc.cluster.local
+            - name: PGUSER
+              value: app
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-app
+                  key: password
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -uo pipefail
+              q() { psql -d "$1" -XtAc "$2"; }
+              # The database comes from the CNPG Database stalwart-v1.
+              for i in $(seq 1 120); do
+                q stalwart_v1 'select 1' >/dev/null 2>&1 && break
+                echo "check: waiting for the database stalwart_v1..."; sleep 5
+              done
+              q stalwart_v1 'select 1' >/dev/null || { echo "check: stalwart_v1 is not reachable"; exit 1; }
+              MARK=$(q stalwart_v1 "select coalesce(shobj_description(oid, 'pg_database'), '') from pg_database where datname = 'stalwart_v1'") || exit 1
+              SRC=$(q app "select count(*) from pg_tables where schemaname = 'public'") || exit 1
+              DST=$(q stalwart_v1 "select count(*) from pg_tables where schemaname = 'public'") || exit 1
+              echo "check: v0.16 store $SRC tables, v1 store $DST tables, mark '${MARK}'"
+              case "$MARK" in
+                smallworlds:migrated*) PLAN=done ;;
+                *) if [ "$SRC" = 0 ]; then PLAN=fresh
+                   elif [ "$DST" = 0 ]; then PLAN=migrate
+                   else PLAN=resume; fi ;;
+              esac
+              echo "check: $PLAN"; echo "$PLAN" > /work/plan
+          volumeMounts:
+            - name: work
+              mountPath: /work
+        - name: migrate
+          image: stalwartlabs/stalwart-migrate:1.0.8@sha256:fa4ed9864bd9c1ee2da858c3db556d713d2c964b92a743f952f7a71da54d80e7
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-app
+                  key: password
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+              STATE=/var/lib/stalwart-migrate
+              SRC=/etc/stalwart/config-v016.json
+              DST=/etc/stalwart/config.json
+              M() { stalwart-migrate --log-format text "$@"; }
+              PLAN=$(cat /work/plan)
+              case "$PLAN" in
+                done) echo "migrate: the v1 store is migrated already"; exit 0 ;;
+                fresh) echo "migrate: no v0.16 store (fresh install), nothing to copy"; exit 0 ;;
+              esac
+              if [ -f "$STATE/smallworlds-done" ]; then
+                echo "migrate: done in an earlier start"; touch /work/migrated; exit 0
+              fi
+              if [ "$PLAN" = resume ] && [ ! -f "$STATE/answers.toml" ]; then
+                echo "migrate: ERROR: stalwart_v1 already holds data, but this migration's state is gone."
+                echo "migrate: A person checks it: if no v1 server has used stalwart_v1 yet, empty that"
+                echo "migrate: database and restart this pod; the v0.16 store (database app) is untouched."
+                exit 1
+              fi
+              if [ ! -f "$STATE/answers.toml" ]; then
+                # prepare only asks on a terminal: give it one and press Enter
+                # on every question (the defaults keep the v0.16 settings).
+                echo "migrate: prepare, every question with its default"
+                command -v script >/dev/null || { echo "migrate: ERROR: no 'script' in this image to give prepare a terminal"; exit 1; }
+                set +o pipefail
+                yes '' | timeout 600 script -qec "stalwart-migrate --log-format text prepare --source $SRC --state $STATE" /dev/null
+                set -o pipefail
+              fi
+              # Fails, listing them, while a question is still open.
+              M prepare --non-interactive --source "$SRC" --state "$STATE"
+              M run --final --yes --source "$SRC" --target "$DST" --state "$STATE"
+              cat "$STATE/final-report.txt" 2>/dev/null || true
+              touch "$STATE/smallworlds-done" /work/migrated
+          volumeMounts:
+            - name: config
+              mountPath: /etc/stalwart/config.json
+              subPath: config.json
+            - name: config
+              mountPath: /etc/stalwart/config-v016.json
+              subPath: config-v016.json
+            - name: migrate-state
+              mountPath: /var/lib/stalwart-migrate
+            - name: work
+              mountPath: /work
+        - name: mark
+          image: ghcr.io/cloudnative-pg/postgresql:16@sha256:34cd4159d07b3410a1b29da35072e2e927a0905e717a61afa3814624a2e8859a
+          env:
+            - name: PGHOST
+              value: database-rw.stalwart.svc.cluster.local
+            - name: PGUSER
+              value: app
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: database-app
+                  key: password
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+              [ -f /work/migrated ] || exit 0
+              psql -d stalwart_v1 -XtAc "comment on database stalwart_v1 is 'smallworlds:migrated from v0.16 by stalwart-migrate'"
+              echo "mark: stalwart_v1 marked as migrated"
+          volumeMounts:
+            - name: work
+              mountPath: /work
       containers:
         - name: stalwart
           # Upgrading? Move SPAM_RULES_URL in stalwart-init-job.yaml to the
           # spam-filter release made for the new version in the same change:
           # rules this version cannot parse stop every settings reload.
-          image: stalwartlabs/stalwart:v0.16.27@sha256:2c9af6bfccb361b9f286d6cd0bb50acb2aaeffc06f5257354c0ce4dff9f02b58
+          image: stalwartlabs/stalwart:v1.1.0@sha256:0aacd114054f56c34e98063140e2102a04dc0bcb4933ff08925cf8e9938b0d16
           ports:
             - containerPort: 25
               name: smtp
@@ -101,6 +266,14 @@ spec:
               value: "mail$(ENV_EXT).$(DOMAIN)"
             - name: STALWART_SESSION_RCPT_ALLOW_RELAYING
               value: "!is_empty(authenticated_as) || starts_with(remote_ip, '10.42.') || starts_with(remote_ip, '10.43.')"
+            # Default roles are written once, on a store's first start, so a
+            # store made by an earlier version lacks the permissions added since
+            # (v1.0.2 encryption, v1.0.3 scopes, v1.1.0 passkeys). With this set,
+            # every start adds to each default role what a new install would
+            # give it; upstream suggests it for one restart, but each community
+            # migrates at its own time, so it stays on here.
+            - name: STALWART_UPDATE_ROLE_PERMISSIONS
+              value: "true"
           volumeMounts:
             - name: config
               mountPath: /etc/stalwart/config.json
@@ -118,6 +291,27 @@ spec:
         - name: tls
           secret:
             secretName: stalwart-tls
+        - name: migrate-state
+          persistentVolumeClaim:
+            claimName: stalwart-migrate-state
+        - name: work
+          emptyDir: {}
+
+---
+# stalwart-migrate's state: its answers, progress and the original v0.16
+# settings, which `stalwart-migrate rollback --forward-state` needs to go back
+# to v0.16 once v1 has served users. Keep it while the v0.16 store is kept.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: stalwart-migrate-state
+  namespace: stalwart
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 256Mi
 
 ---
 apiVersion: v1

@@ -46,3 +46,16 @@ spec:
     name: database
   immediate: true
   backupOwnerReference: self
+---
+# Stalwart v1's data store (stalwart-deployment.yaml). v1 cannot open the v0.16
+# store in "app", so it gets a new, empty database, filled once by the
+# stalwart-migrate init container. "app" stays as the v0.16 store and fallback.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: stalwart-v1
+spec:
+  name: stalwart_v1
+  owner: app
+  cluster:
+    name: database
