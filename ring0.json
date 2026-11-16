@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-16T22:49:33Z",
+ "updated": "2026-11-16T22:53:43Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "e8eb1e5306e4c01c6a1360c132d31fac5a1dc02d",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-16T22:52:17Z"
  },
  "now": {
   "state": "updating",
@@ -19,9 +19,9 @@
     "canary-follower"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "converge",
+  "step_since": "2026-11-16T22:53:26Z",
+  "started": "2026-11-16T22:52:17Z",
   "queued": [
    {
     "number": 73,
@@ -52,9 +52,9 @@
     "quay.io/jetstack/cert-manager-webhook:v1.21.3"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T22:26:08Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of /ServiceAccount/cert-manager and 43 more resources"
    },
    "wave": -10
   },
@@ -72,7 +72,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T22:25:24Z",
+    "finished": "2026-11-16T22:53:36Z",
     "message": null
    },
    "wave": -10
@@ -90,8 +90,8 @@
     "docker.io/traefik:v3.3.4"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T22:25:42Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": -10
@@ -110,7 +110,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T22:25:22Z",
+    "finished": "2026-11-16T22:53:35Z",
     "message": null
    },
    "wave": -9
@@ -129,7 +129,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T22:25:23Z",
+    "finished": "2026-11-16T22:53:35Z",
     "message": null
    },
    "wave": -9
@@ -148,7 +148,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T22:25:29Z",
+    "finished": "2026-11-16T22:53:39Z",
     "message": null
    },
    "wave": -5
@@ -167,7 +167,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T22:25:29Z",
+    "finished": "2026-11-16T22:53:41Z",
     "message": null
    },
    "wave": -5
@@ -186,7 +186,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T22:24:53Z",
+    "finished": "2026-11-16T22:53:24Z",
     "message": null
    },
    "wave": 0
@@ -205,7 +205,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T22:25:22Z",
+    "finished": "2026-11-16T22:53:35Z",
     "message": null
    },
    "wave": 0
@@ -223,9 +223,9 @@
     "ghcr.io/euro-office/documentserver:v9.3.4-hotfix.1@sha256:889e681923d2dcc8bdfb92fe128d10e185fcff880d302b6a0c0c7bf339499290"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T22:25:55Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of /ServiceAccount/euro-office-secret-init and 2 more resources"
    },
    "wave": 0
   },
@@ -243,7 +243,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T22:25:29Z",
+    "finished": "2026-11-16T22:53:41Z",
     "message": null
    },
    "wave": 0
@@ -264,8 +264,8 @@
     "quay.io/keycloak/keycloak@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc496969a319a76bbf0"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T22:28:49Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 0
@@ -290,8 +290,8 @@
     "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.19.1"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T22:27:35Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 0
@@ -310,8 +310,8 @@
     "grafana/loki:2.6.1"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T22:25:43Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 0
@@ -328,7 +328,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T22:24:27Z",
+    "finished": "2026-11-16T22:52:54Z",
     "message": null
    },
    "wave": 0
@@ -366,9 +366,9 @@
     "ghcr.io/bulwarkmail/webmail:1.21.2@sha256:037b85b1433233d2d7eebb83f928df5ecc3b4adc91dc7e4c55f0a2f69024e754"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T22:26:54Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of /ServiceAccount/setup-sa and 1 more resources"
    },
    "wave": 1
   },
@@ -386,7 +386,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T22:25:27Z",
+    "finished": "2026-11-16T22:53:43Z",
     "message": null
    },
    "wave": 1
@@ -405,7 +405,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T22:25:18Z",
+    "finished": "2026-11-16T22:53:29Z",
     "message": null
    },
    "wave": 1
@@ -429,9 +429,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T22:28:22Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for deletion of hook /ServiceAccount/pre-update-backup and 2 more hooks"
    },
    "wave": 1
   },
@@ -455,8 +455,8 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T22:28:44Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 1
@@ -478,8 +478,8 @@
     "ghcr.io/jitsi/web:stable-11248-3"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T22:26:58Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 1
@@ -497,8 +497,8 @@
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T22:28:34Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 1
@@ -522,8 +522,8 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T22:29:05Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 1
@@ -541,8 +541,8 @@
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T22:26:27Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 1
@@ -567,8 +567,8 @@
     "stalwartlabs/stalwart:v1.1.0@sha256:0aacd114054f56c34e98063140e2102a04dc0bcb4933ff08925cf8e9938b0d16"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T22:28:00Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 1
@@ -584,7 +584,11 @@
    "cards": [
     "canary-follower"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-16T22:52:17Z"
+   }
   },
   {
    "commit": "7d7b7864d36158624f3334e3cf46234a1985bc32",
