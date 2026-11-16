@@ -1,19 +1,35 @@
 {
  "schema": 1,
- "updated": "2026-11-16T08:54:17Z",
+ "updated": "2026-11-16T08:56:26Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "20a827dec2dcf408a33636cd6372503e980633f5",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
-  "date": "2026-11-16T08:50:44Z"
+  "commit": "56460b17ebed36e29a55d4ed0121c52163e820fc",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "20a827dec2dcf408a33636cd6372503e980633f5",
-  "pull": null,
-  "step": "merge",
+  "commit": "56460b17ebed36e29a55d4ed0121c52163e820fc",
+  "pull": {
+   "number": 102,
+   "title": "Update Docker image docker.io/alpine/k8s to v1.37.2 (#102)",
+   "cards": [
+    "bulwark",
+    "canary-follower",
+    "euro-office",
+    "forgejo",
+    "immich",
+    "jitsi",
+    "join",
+    "keycloak",
+    "nextcloud",
+    "smallworlds-root",
+    "stalwart"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
@@ -24,24 +40,6 @@
      "kube-prometheus-stack"
     ],
     "since": "2026-11-14T09:32:22Z"
-   },
-   {
-    "number": 102,
-    "title": "Update Docker image docker.io/alpine/k8s to v1.37.2",
-    "cards": [
-     "bulwark",
-     "canary-follower",
-     "euro-office",
-     "forgejo",
-     "immich",
-     "jitsi",
-     "join",
-     "keycloak",
-     "nextcloud",
-     "smallworlds-root",
-     "stalwart"
-    ],
-    "since": "2026-11-16T04:23:16Z"
    },
    {
     "number": 103,
@@ -61,8 +59,8 @@
    }
   ],
   "stuck": null,
-  "action": "merged #96",
-  "waiting": "no queued update is ready"
+  "action": "merged #102",
+  "waiting": null
  },
  "applications": [
   {
@@ -602,6 +600,27 @@
  ],
  "commits": [
   {
+   "commit": "56460b17ebed36e29a55d4ed0121c52163e820fc",
+   "title": "Update Docker image docker.io/alpine/k8s to v1.37.2 (#102)",
+   "author": "renovate[bot]",
+   "date": "2026-11-16T08:56:05Z",
+   "pull": 102,
+   "cards": [
+    "bulwark",
+    "canary-follower",
+    "euro-office",
+    "forgejo",
+    "immich",
+    "jitsi",
+    "join",
+    "keycloak",
+    "nextcloud",
+    "smallworlds-root",
+    "stalwart"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "20a827dec2dcf408a33636cd6372503e980633f5",
    "title": "Explain the automatic update process, and show it in the talk",
    "author": "stephan271",
@@ -912,21 +931,6 @@
     "description": "Follower error: HTTPError: HTTP Error 503: Service Unavailable; touches immich, stalwart: restore, do not revert",
     "date": "2026-11-15T12:49:02Z"
    }
-  },
-  {
-   "commit": "89cde5d0d2e2332f7a437fe756094129be5170ef",
-   "title": "Update velero (#78)",
-   "author": "renovate[bot]",
-   "date": "2026-11-15T12:10:45Z",
-   "pull": 78,
-   "cards": [
-    "velero"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
-    "date": "2026-11-15T12:36:27Z"
-   }
   }
  ],
  "pulls": [
@@ -1002,31 +1006,6 @@
    ],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 102,
-   "title": "Update Docker image docker.io/alpine/k8s to v1.37.2",
-   "author": "renovate[bot]",
-   "created": "2026-11-16T04:23:16Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "bulwark",
-    "canary-follower",
-    "euro-office",
-    "forgejo",
-    "immich",
-    "jitsi",
-    "join",
-    "keycloak",
-    "nextcloud",
-    "smallworlds-root",
-    "stalwart"
    ]
   },
   {
