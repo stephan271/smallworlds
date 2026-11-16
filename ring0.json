@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T19:16:12Z",
+ "updated": "2026-11-16T19:18:21Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -19,8 +19,8 @@
     "jitsi"
    ]
   },
-  "step": "converge",
-  "step_since": "2026-11-16T19:11:40Z",
+  "step": "settle",
+  "step_since": "2026-11-16T19:16:29Z",
   "started": "2026-11-16T19:10:37Z",
   "queued": [
    {
@@ -513,7 +513,6 @@
    "version": null,
    "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
    "images": [
-    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/library/nextcloud:35.0.2-apache",
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
@@ -523,9 +522,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/nextcloud-oidc-config"
+    "phase": "Succeeded",
+    "finished": "2026-11-16T19:16:26Z",
+    "message": null
    },
    "wave": 1
   },
