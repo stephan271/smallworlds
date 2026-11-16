@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T08:09:41Z",
+ "updated": "2026-11-16T08:11:47Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -966,22 +966,6 @@
    ]
   },
   {
-   "number": 87,
-   "title": "Update Docker image docker.io/redis to v8",
-   "author": "renovate[bot]",
-   "created": "2026-11-15T11:41:25Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [
-    "ring0-major",
-    "steward-prepare"
-   ],
-   "cards": [
-    "nextcloud"
-   ]
-  },
-  {
    "number": 89,
    "title": "Update Docker image ghcr.io/gethomepage/homepage to v2",
    "author": "renovate[bot]",
@@ -1064,6 +1048,22 @@
    ],
    "cards": [
     "nextcloud"
+   ]
+  },
+  {
+   "number": 104,
+   "title": "Update Helm chart garage to v1",
+   "author": "renovate[bot]",
+   "created": "2026-11-16T08:10:39Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [
+    "ring0-major"
+   ],
+   "cards": [
+    "garage",
+    "garage-backup"
    ]
   }
  ]
