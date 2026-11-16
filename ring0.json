@@ -1,19 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-16T23:16:41Z",
+ "updated": "2026-11-16T23:18:47Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "e8eb1e5306e4c01c6a1360c132d31fac5a1dc02d",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 5 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-16T23:12:28Z"
+  "commit": "e950a69ef4ab1d2a37dd9be4a703679edf48c6a5",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "e8eb1e5306e4c01c6a1360c132d31fac5a1dc02d",
-  "pull": null,
-  "step": "merge",
+  "commit": "e950a69ef4ab1d2a37dd9be4a703679edf48c6a5",
+  "pull": {
+   "number": 122,
+   "title": "Update Helm chart kube-prometheus-stack to v93.3.0 (#122)",
+   "cards": [
+    "kube-prometheus-stack"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
@@ -24,19 +30,11 @@
      "kube-prometheus-stack"
     ],
     "since": "2026-11-14T09:32:22Z"
-   },
-   {
-    "number": 122,
-    "title": "Update Helm chart kube-prometheus-stack to v93.3.0",
-    "cards": [
-     "kube-prometheus-stack"
-    ],
-    "since": "2026-11-16T23:15:08Z"
    }
   ],
   "stuck": null,
-  "action": "merged #121",
-  "waiting": "no queued update is ready"
+  "action": "merged #122",
+  "waiting": null
  },
  "applications": [
   {
@@ -578,6 +576,17 @@
  ],
  "commits": [
   {
+   "commit": "e950a69ef4ab1d2a37dd9be4a703679edf48c6a5",
+   "title": "Update Helm chart kube-prometheus-stack to v93.3.0 (#122)",
+   "author": "smallworlds-steward[bot]",
+   "date": "2026-11-16T23:17:44Z",
+   "pull": 122,
+   "cards": [
+    "kube-prometheus-stack"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "e8eb1e5306e4c01c6a1360c132d31fac5a1dc02d",
    "title": "Update dependency @playwright/test to v1.65.1 (#121)",
    "author": "renovate[bot]",
@@ -927,17 +936,6 @@
     "description": "Checks failed: e2e 18 passed, 3 failed, 9 skipped; data 4/4 apps intact",
     "date": "2026-11-15T19:21:19Z"
    }
-  },
-  {
-   "commit": "0106e3ffada591d9a72610656f9087440ecf4b51",
-   "title": "Turn off Bulwark's automatic sign-in redirect",
-   "author": "stephan271",
-   "date": "2026-11-15T17:59:38Z",
-   "pull": null,
-   "cards": [
-    "bulwark"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -1026,22 +1024,6 @@
    ],
    "cards": [
     "immich"
-   ]
-  },
-  {
-   "number": 122,
-   "title": "Update Helm chart kube-prometheus-stack to v93.3.0",
-   "author": "smallworlds-steward[bot]",
-   "created": "2026-11-16T23:15:08Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue",
-    "steward"
-   ],
-   "cards": [
-    "kube-prometheus-stack"
    ]
   }
  ]
