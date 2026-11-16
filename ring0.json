@@ -1,27 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-16T19:52:04Z",
+ "updated": "2026-11-16T19:58:21Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "0f199137f96934b6f2c75c41d22af5c9a3e2a325",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-16T19:35:26Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+  "date": "2026-11-16T19:56:24Z"
  },
  "now": {
   "state": "updating",
   "commit": "0f199137f96934b6f2c75c41d22af5c9a3e2a325",
-  "pull": {
-   "number": 119,
-   "title": "Revert \"Update the jitsi-meet chart to 3.12.0\" (#119)",
-   "cards": [
-    "jitsi"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-16T19:51:24Z",
-  "started": "2026-11-16T19:35:26Z",
+  "pull": null,
+  "step": "merge",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -34,7 +28,7 @@
   ],
   "stuck": null,
   "action": "reverted by #119",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -585,9 +579,9 @@
     "jitsi"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-16T19:35:26Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-16T19:56:24Z"
    }
   },
   {
