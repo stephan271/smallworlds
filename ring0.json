@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T18:50:54Z",
+ "updated": "2026-11-16T18:55:08Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -976,7 +976,8 @@
    "queued": false,
    "rejected": false,
    "labels": [
-    "ring0-major"
+    "ring0-major",
+    "steward-prepare-67c07a614c"
    ],
    "cards": [
     "jitsi"
