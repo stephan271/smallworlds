@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T08:52:10Z",
+ "updated": "2026-11-16T08:54:17Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -50,6 +50,14 @@
      "nextcloud"
     ],
     "since": "2026-11-16T04:23:24Z"
+   },
+   {
+    "number": 107,
+    "title": "Update Homepage (dashboard) to v2.8.0",
+    "cards": [
+     "dashboard"
+    ],
+    "since": "2026-11-16T08:53:03Z"
    }
   ],
   "stuck": null,
@@ -1050,6 +1058,22 @@
    "cards": [
     "garage",
     "garage-backup"
+   ]
+  },
+  {
+   "number": 107,
+   "title": "Update Homepage (dashboard) to v2.8.0",
+   "author": "smallworlds-steward[bot]",
+   "created": "2026-11-16T08:53:03Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue",
+    "steward"
+   ],
+   "cards": [
+    "dashboard"
    ]
   }
  ]
