@@ -1,27 +1,27 @@
 {
  "schema": 1,
- "updated": "2026-11-16T22:43:17Z",
+ "updated": "2026-11-16T22:47:27Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "7d7b7864d36158624f3334e3cf46234a1985bc32",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-16T22:23:50Z"
+  "commit": "e8eb1e5306e4c01c6a1360c132d31fac5a1dc02d",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "7d7b7864d36158624f3334e3cf46234a1985bc32",
+  "commit": "e8eb1e5306e4c01c6a1360c132d31fac5a1dc02d",
   "pull": {
-   "number": 120,
-   "title": "Update the jitsi-meet chart to 3.12.0, with the OIDC adapter's port renamed (#120)",
+   "number": 121,
+   "title": "Update dependency @playwright/test to v1.65.1 (#121)",
    "cards": [
-    "jitsi"
+    "canary-follower"
    ]
   },
-  "step": "quiet",
-  "step_since": "2026-11-16T22:42:04Z",
-  "started": "2026-11-16T22:23:50Z",
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -30,18 +30,10 @@
      "kube-prometheus-stack"
     ],
     "since": "2026-11-14T09:32:22Z"
-   },
-   {
-    "number": 121,
-    "title": "Update dependency @playwright/test to v1.65.1",
-    "cards": [
-     "canary-follower"
-    ],
-    "since": "2026-11-16T22:14:21Z"
    }
   ],
   "stuck": null,
-  "action": "merged #120",
+  "action": "merged #121",
   "waiting": null
  },
  "applications": [
@@ -188,7 +180,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "7d7b7864d36158624f3334e3cf46234a1985bc32",
+   "revision": "e8eb1e5306e4c01c6a1360c132d31fac5a1dc02d",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
@@ -584,6 +576,17 @@
  ],
  "commits": [
   {
+   "commit": "e8eb1e5306e4c01c6a1360c132d31fac5a1dc02d",
+   "title": "Update dependency @playwright/test to v1.65.1 (#121)",
+   "author": "renovate[bot]",
+   "date": "2026-11-16T22:47:10Z",
+   "pull": 121,
+   "cards": [
+    "canary-follower"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "7d7b7864d36158624f3334e3cf46234a1985bc32",
    "title": "Update the jitsi-meet chart to 3.12.0, with the OIDC adapter's port renamed (#120)",
    "author": "smallworlds-steward[bot]",
@@ -593,9 +596,9 @@
     "jitsi"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-16T22:23:50Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-16T22:47:04Z"
    }
   },
   {
@@ -929,22 +932,6 @@
     "bulwark"
    ],
    "verdict": null
-  },
-  {
-   "commit": "f96cb8dee97643784aac6768518bb6ec0a374b20",
-   "title": "End drill 1, and let the Steward fix forward with its own revert",
-   "author": "stephan271",
-   "date": "2026-11-15T17:30:10Z",
-   "pull": 98,
-   "cards": [
-    "canary-follower",
-    "excalidraw"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 4 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
-    "date": "2026-11-15T17:52:03Z"
-   }
   }
  ],
  "pulls": [
@@ -1032,21 +1019,6 @@
    ],
    "cards": [
     "immich"
-   ]
-  },
-  {
-   "number": 121,
-   "title": "Update dependency @playwright/test to v1.65.1",
-   "author": "renovate[bot]",
-   "created": "2026-11-16T22:14:21Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "canary-follower"
    ]
   }
  ]
