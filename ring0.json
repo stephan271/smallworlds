@@ -1,37 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-16T09:17:42Z",
+ "updated": "2026-11-16T09:19:49Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "56460b17ebed36e29a55d4ed0121c52163e820fc",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-16T09:01:12Z"
+  "state": "success",
+  "description": "Ring 0: backup 5 databases, converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
+  "date": "2026-11-16T09:18:17Z"
  },
  "now": {
   "state": "updating",
   "commit": "56460b17ebed36e29a55d4ed0121c52163e820fc",
-  "pull": {
-   "number": 102,
-   "title": "Update Docker image docker.io/alpine/k8s to v1.37.2 (#102)",
-   "cards": [
-    "bulwark",
-    "canary-follower",
-    "euro-office",
-    "forgejo",
-    "immich",
-    "jitsi",
-    "join",
-    "keycloak",
-    "nextcloud",
-    "smallworlds-root",
-    "stalwart"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-16T09:13:16Z",
-  "started": "2026-11-16T09:01:11Z",
+  "pull": null,
+  "step": "merge",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -60,7 +44,7 @@
   ],
   "stuck": null,
   "action": "merged #102",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -619,9 +603,9 @@
     "stalwart"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-16T09:01:12Z"
+    "state": "success",
+    "description": "Ring 0: backup 5 databases, converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
+    "date": "2026-11-16T09:18:17Z"
    }
   },
   {
