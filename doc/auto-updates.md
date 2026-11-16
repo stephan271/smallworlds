@@ -84,7 +84,7 @@ are not part of the system. To watch Ring 0 yourself, use the board, the
    a migration or the next step is not the Steward's, the issue is labelled
    `ring0-needs-person` and `Ring0NeedsPerson` reaches ntfy.
 
-Majors go the same way from step 6: the follower offers the oldest one as an M
+Majors go the same way from step 6 (except those in `.github/`, which stay plain PRs for a person: the Steward may not change workflows): the follower offers the oldest one as an M
 incident, the Steward prepares it in a PR of its own (the update plus whatever makes it work, from the
 upstream upgrade notes), and the queue merges that PR.
 
