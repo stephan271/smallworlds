@@ -1,19 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-16T09:47:38Z",
+ "updated": "2026-11-16T09:51:52Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "b079f3ff484202ca3513be73e9c22ba5a8833c72",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
-  "date": "2026-11-16T09:46:08Z"
+  "commit": "80d7867d20715b32785d0cf18de1b088e9eab3f4",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "b079f3ff484202ca3513be73e9c22ba5a8833c72",
-  "pull": null,
-  "step": "merge",
+  "commit": "80d7867d20715b32785d0cf18de1b088e9eab3f4",
+  "pull": {
+   "number": 107,
+   "title": "Update Homepage (dashboard) to v2.8.0 (#107)",
+   "cards": [
+    "dashboard"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
@@ -24,19 +30,11 @@
      "kube-prometheus-stack"
     ],
     "since": "2026-11-14T09:32:22Z"
-   },
-   {
-    "number": 107,
-    "title": "Update Homepage (dashboard) to v2.8.0",
-    "cards": [
-     "dashboard"
-    ],
-    "since": "2026-11-16T08:53:03Z"
    }
   ],
   "stuck": null,
-  "action": "merged #103",
-  "waiting": "no queued update is ready"
+  "action": "merged #107",
+  "waiting": null
  },
  "applications": [
   {
@@ -576,6 +574,17 @@
  ],
  "commits": [
   {
+   "commit": "80d7867d20715b32785d0cf18de1b088e9eab3f4",
+   "title": "Update Homepage (dashboard) to v2.8.0 (#107)",
+   "author": "smallworlds-steward[bot]",
+   "date": "2026-11-16T09:51:20Z",
+   "pull": 107,
+   "cards": [
+    "dashboard"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "b079f3ff484202ca3513be73e9c22ba5a8833c72",
    "title": "Leave majors in .github/ out of ring0-major",
    "author": "stephan271",
@@ -899,17 +908,6 @@
     "canary-follower"
    ],
    "verdict": null
-  },
-  {
-   "commit": "267e6cdfc95cc68e9a6848bc27b0e24141e7fedb",
-   "title": "Switch the Ring 0 Steward on",
-   "author": "stephan271",
-   "date": "2026-11-15T12:57:34Z",
-   "pull": null,
-   "cards": [
-    "canary-follower"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -999,22 +997,6 @@
    "cards": [
     "garage",
     "garage-backup"
-   ]
-  },
-  {
-   "number": 107,
-   "title": "Update Homepage (dashboard) to v2.8.0",
-   "author": "smallworlds-steward[bot]",
-   "created": "2026-11-16T08:53:03Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue",
-    "steward"
-   ],
-   "cards": [
-    "dashboard"
    ]
   },
   {
