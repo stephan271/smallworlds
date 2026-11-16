@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T03:28:23Z",
+ "updated": "2026-11-16T04:24:40Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -24,6 +24,32 @@
      "kube-prometheus-stack"
     ],
     "since": "2026-11-14T09:32:22Z"
+   },
+   {
+    "number": 102,
+    "title": "Update Docker image docker.io/alpine/k8s to v1.37.2",
+    "cards": [
+     "bulwark",
+     "canary-follower",
+     "euro-office",
+     "forgejo",
+     "immich",
+     "jitsi",
+     "join",
+     "keycloak",
+     "nextcloud",
+     "smallworlds-root",
+     "stalwart"
+    ],
+    "since": "2026-11-16T04:23:16Z"
+   },
+   {
+    "number": 103,
+    "title": "Update Helm chart nextcloud to v9.4.3",
+    "cards": [
+     "nextcloud"
+    ],
+    "since": "2026-11-16T04:23:24Z"
    }
   ],
   "stuck": {
@@ -1042,6 +1068,46 @@
    ],
    "cards": [
     "bulwark"
+   ]
+  },
+  {
+   "number": 102,
+   "title": "Update Docker image docker.io/alpine/k8s to v1.37.2",
+   "author": "renovate[bot]",
+   "created": "2026-11-16T04:23:16Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "bulwark",
+    "canary-follower",
+    "euro-office",
+    "forgejo",
+    "immich",
+    "jitsi",
+    "join",
+    "keycloak",
+    "nextcloud",
+    "smallworlds-root",
+    "stalwart"
+   ]
+  },
+  {
+   "number": 103,
+   "title": "Update Helm chart nextcloud to v9.4.3",
+   "author": "renovate[bot]",
+   "created": "2026-11-16T04:23:24Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "nextcloud"
    ]
   }
  ]
