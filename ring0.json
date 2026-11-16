@@ -1,19 +1,26 @@
 {
  "schema": 1,
- "updated": "2026-11-16T14:33:11Z",
+ "updated": "2026-11-16T14:39:32Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "cc25275c629a3d725a6a2a72dc1a3c7f4054ab7d",
-  "state": "failure",
-  "description": "Not converged: stalwart: sync Failed: Job stalwart-init: Job has reached the specified backoff limit; touches stalwart: restore, do not rev\u2026",
-  "date": "2026-11-16T11:24:58Z"
+  "commit": "563303f1c2e1d5c5dbe455a1d201d72f996af6b9",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
-  "state": "stuck",
-  "commit": "cc25275c629a3d725a6a2a72dc1a3c7f4054ab7d",
-  "pull": null,
-  "step": null,
+  "state": "updating",
+  "commit": "563303f1c2e1d5c5dbe455a1d201d72f996af6b9",
+  "pull": {
+   "number": 112,
+   "title": "Stalwart: stalwart-cli v1.0.14, which reads v1.1.0's schema (#112)",
+   "cards": [
+    "repository",
+    "stalwart"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
@@ -24,24 +31,11 @@
      "kube-prometheus-stack"
     ],
     "since": "2026-11-14T09:32:22Z"
-   },
-   {
-    "number": 112,
-    "title": "Stalwart: stalwart-cli v1.0.14, which reads v1.1.0's schema",
-    "cards": [
-     "repository",
-     "stalwart"
-    ],
-    "since": "2026-11-16T14:32:25Z"
    }
   ],
-  "stuck": {
-   "condition": "S1",
-   "since": "2026-11-16T11:24:58Z",
-   "summary": "Not converged: stalwart: sync Failed: Job stalwart-init: Job has reached the specified backoff limit; touches stalwart: restore, do not rev\u2026"
-  },
-  "action": "paused: the Ring 0 Steward is working on Ring 0",
-  "waiting": "no queued update is ready"
+  "stuck": null,
+  "action": "merged the Steward's fix #112",
+  "waiting": null
  },
  "applications": [
   {
@@ -583,6 +577,18 @@
  ],
  "commits": [
   {
+   "commit": "563303f1c2e1d5c5dbe455a1d201d72f996af6b9",
+   "title": "Stalwart: stalwart-cli v1.0.14, which reads v1.1.0's schema (#112)",
+   "author": "smallworlds-steward[bot]",
+   "date": "2026-11-16T14:37:25Z",
+   "pull": 112,
+   "cards": [
+    "repository",
+    "stalwart"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "cc25275c629a3d725a6a2a72dc1a3c7f4054ab7d",
    "title": "Stalwart v1.1.0, with the migration from v0.16 (#111)",
    "author": "smallworlds-steward[bot]",
@@ -916,17 +922,6 @@
     "description": "Ring 0: converged, load settled after 7 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
     "date": "2026-11-15T13:56:22Z"
    }
-  },
-  {
-   "commit": "d446b79c6031ba65205b1b478b2f9c8ff126b5be",
-   "title": "Install gh from GitHub's apt source on the Steward's runner",
-   "author": "stephan271",
-   "date": "2026-11-15T12:58:28Z",
-   "pull": null,
-   "cards": [
-    "canary-follower"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -1031,23 +1026,6 @@
    ],
    "cards": [
     "kube-prometheus-stack"
-   ]
-  },
-  {
-   "number": 112,
-   "title": "Stalwart: stalwart-cli v1.0.14, which reads v1.1.0's schema",
-   "author": "smallworlds-steward[bot]",
-   "created": "2026-11-16T14:32:25Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue",
-    "steward"
-   ],
-   "cards": [
-    "repository",
-    "stalwart"
    ]
   }
  ]
