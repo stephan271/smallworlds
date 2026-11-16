@@ -1,19 +1,27 @@
 {
  "schema": 1,
- "updated": "2026-11-16T10:27:55Z",
+ "updated": "2026-11-16T10:34:13Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "80d7867d20715b32785d0cf18de1b088e9eab3f4",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
-  "date": "2026-11-16T10:13:06Z"
+  "commit": "cc25275c629a3d725a6a2a72dc1a3c7f4054ab7d",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "80d7867d20715b32785d0cf18de1b088e9eab3f4",
-  "pull": null,
-  "step": "merge",
+  "commit": "cc25275c629a3d725a6a2a72dc1a3c7f4054ab7d",
+  "pull": {
+   "number": 111,
+   "title": "Stalwart v1.1.0, with the migration from v0.16 (#111)",
+   "cards": [
+    "repository",
+    "smallworlds-root",
+    "stalwart"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
@@ -24,21 +32,11 @@
      "kube-prometheus-stack"
     ],
     "since": "2026-11-14T09:32:22Z"
-   },
-   {
-    "number": 111,
-    "title": "Stalwart v1.1.0, with the migration from v0.16",
-    "cards": [
-     "repository",
-     "smallworlds-root",
-     "stalwart"
-    ],
-    "since": "2026-11-16T10:27:50Z"
    }
   ],
   "stuck": null,
-  "action": "merged #107",
-  "waiting": "no queued update is ready"
+  "action": "merged #111",
+  "waiting": null
  },
  "applications": [
   {
@@ -578,6 +576,19 @@
  ],
  "commits": [
   {
+   "commit": "cc25275c629a3d725a6a2a72dc1a3c7f4054ab7d",
+   "title": "Stalwart v1.1.0, with the migration from v0.16 (#111)",
+   "author": "smallworlds-steward[bot]",
+   "date": "2026-11-16T10:33:42Z",
+   "pull": 111,
+   "cards": [
+    "repository",
+    "smallworlds-root",
+    "stalwart"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "80d7867d20715b32785d0cf18de1b088e9eab3f4",
    "title": "Update Homepage (dashboard) to v2.8.0 (#107)",
    "author": "smallworlds-steward[bot]",
@@ -905,17 +916,6 @@
     "canary-follower"
    ],
    "verdict": null
-  },
-  {
-   "commit": "b71a9236edf2cfb8b617dc5e207cb8a89a41f13b",
-   "title": "Read the incident through REST in the Steward's workflow",
-   "author": "stephan271",
-   "date": "2026-11-15T12:58:18Z",
-   "pull": null,
-   "cards": [
-    "canary-follower"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -1020,24 +1020,6 @@
    ],
    "cards": [
     "kube-prometheus-stack"
-   ]
-  },
-  {
-   "number": 111,
-   "title": "Stalwart v1.1.0, with the migration from v0.16",
-   "author": "smallworlds-steward[bot]",
-   "created": "2026-11-16T10:27:50Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue",
-    "steward"
-   ],
-   "cards": [
-    "repository",
-    "smallworlds-root",
-    "stalwart"
    ]
   }
  ]
