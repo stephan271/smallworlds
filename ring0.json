@@ -1,27 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-16T09:41:16Z",
+ "updated": "2026-11-16T09:47:38Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "b079f3ff484202ca3513be73e9c22ba5a8833c72",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-16T09:28:37Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
+  "date": "2026-11-16T09:46:08Z"
  },
  "now": {
   "state": "updating",
   "commit": "b079f3ff484202ca3513be73e9c22ba5a8833c72",
-  "pull": {
-   "number": 109,
-   "title": "Leave majors in .github/ out of ring0-major",
-   "cards": [
-    "repository"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-16T09:41:07Z",
-  "started": "2026-11-16T09:28:36Z",
+  "pull": null,
+  "step": "merge",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -42,7 +36,7 @@
   ],
   "stuck": null,
   "action": "merged #103",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -591,9 +585,9 @@
     "repository"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-16T09:28:37Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
+    "date": "2026-11-16T09:46:08Z"
    }
   },
   {
