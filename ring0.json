@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T08:26:39Z",
+ "updated": "2026-11-16T08:28:46Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -263,7 +263,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "eb2c84d083d9a17ec06ab0b995aa342303d4235c",
+   "revision": "e475c8f6fd83b9e3b708a531ac4e419f171e114a",
    "images": [
     "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970"
    ],
@@ -367,7 +367,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "eb2c84d083d9a17ec06ab0b995aa342303d4235c",
+   "revision": "e475c8f6fd83b9e3b708a531ac4e419f171e114a",
    "images": [
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
