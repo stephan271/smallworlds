@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T08:30:54Z",
+ "updated": "2026-11-16T08:33:00Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -11,17 +11,17 @@
  },
  "now": {
   "state": "updating",
-  "commit": "eb2c84d083d9a17ec06ab0b995aa342303d4235c",
+  "commit": "e475c8f6fd83b9e3b708a531ac4e419f171e114a",
   "pull": {
-   "number": 96,
-   "title": "Update Nextcloud's Redis to v8 (major, Steward) (#96)",
+   "number": 105,
+   "title": "Give every community's Headscale its own address",
    "cards": [
-    "nextcloud"
+    "repository"
    ]
   },
-  "step": "quiet",
-  "step_since": "2026-11-16T08:26:21Z",
-  "started": "2026-11-16T08:14:39Z",
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -631,9 +631,9 @@
     "nextcloud"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-16T08:14:39Z"
+    "state": "success",
+    "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 15 hosts, e2e 20 passed, 1 flaky, 9 skipped; data 4/4 apps intact, s\u2026",
+    "date": "2026-11-16T08:31:21Z"
    }
   },
   {
