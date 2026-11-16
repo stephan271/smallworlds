@@ -1,28 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-16T18:16:55Z",
+ "updated": "2026-11-16T18:21:14Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "10cee5c63b2106a7feeace4bca4938de8daf40b5",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-16T18:01:45Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
+  "date": "2026-11-16T18:19:52Z"
  },
  "now": {
   "state": "updating",
   "commit": "10cee5c63b2106a7feeace4bca4938de8daf40b5",
-  "pull": {
-   "number": 116,
-   "title": "Offer a reused major PR to the Steward again",
-   "cards": [
-    "canary-follower",
-    "repository"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-16T18:14:51Z",
-  "started": "2026-11-16T18:01:45Z",
+  "pull": null,
+  "step": "merge",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -44,7 +37,7 @@
   ],
   "stuck": null,
   "action": null,
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -596,9 +589,9 @@
     "repository"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-16T18:01:45Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
+    "date": "2026-11-16T18:19:52Z"
    }
   },
   {
