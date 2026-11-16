@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T13:32:16Z",
+ "updated": "2026-11-16T14:33:11Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -24,6 +24,15 @@
      "kube-prometheus-stack"
     ],
     "since": "2026-11-14T09:32:22Z"
+   },
+   {
+    "number": 112,
+    "title": "Stalwart: stalwart-cli v1.0.14, which reads v1.1.0's schema",
+    "cards": [
+     "repository",
+     "stalwart"
+    ],
+    "since": "2026-11-16T14:32:25Z"
    }
   ],
   "stuck": {
@@ -31,7 +40,7 @@
    "since": "2026-11-16T11:24:58Z",
    "summary": "Not converged: stalwart: sync Failed: Job stalwart-init: Job has reached the specified backoff limit; touches stalwart: restore, do not rev\u2026"
   },
-  "action": "not reverted: restore from the pre-update backup",
+  "action": "paused: the Ring 0 Steward is working on Ring 0",
   "waiting": "no queued update is ready"
  },
  "applications": [
@@ -1022,6 +1031,23 @@
    ],
    "cards": [
     "kube-prometheus-stack"
+   ]
+  },
+  {
+   "number": 112,
+   "title": "Stalwart: stalwart-cli v1.0.14, which reads v1.1.0's schema",
+   "author": "smallworlds-steward[bot]",
+   "created": "2026-11-16T14:32:25Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue",
+    "steward"
+   ],
+   "cards": [
+    "repository",
+    "stalwart"
    ]
   }
  ]
