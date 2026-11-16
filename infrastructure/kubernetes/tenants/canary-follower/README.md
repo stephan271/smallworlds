@@ -1,7 +1,8 @@
 # Canary Follower
 
 Ring 0's follower (`docs/adr/0060`, `plans-and-walkthroughs/design-update-strategy.md`
-§3.4–3.5). It runs on the Canary Cluster only and makes that cluster follow `main`:
+§3.4–3.5). It runs on the Canary Cluster only and makes that cluster follow `main`
+(how it fits with Renovate and the Steward: `doc/auto-updates.md`):
 
 1. Every `POLL_SECONDS` it reads `main`'s head commit from GitHub.
 2. **Backup:** if the commit touches a tenant whose database an update may migrate

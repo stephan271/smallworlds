@@ -1215,7 +1215,7 @@
                 <h2>Updates that prove themselves first</h2>
                 <p>Every update lands on a canary cluster full of example data before any real community sees it — and each community still decides for itself when to follow.</p>
                 <div class="rings-stage">
-                    <svg viewBox="0 0 1400 440" role="img" aria-label="Diagram: updates flow from main to Ring 0, a canary cluster that verifies and reverts automatically; verified commits are tagged and adopted by Ring 1, smallworlds.network, on day 0, and by Ring 2, every other community, after its Follow Policy delay — always by a deliberate merge">
+                    <svg viewBox="0 0 1400 440" role="img" aria-label="Diagram: updates flow from main to Ring 0, a canary cluster that merges, verifies and reverts automatically, and whose Steward fixes forward; verified commits are tagged and adopted by Ring 1, smallworlds.network, on day 0, and by Ring 2, every other community, after its Follow Policy delay — always by a deliberate merge">
 
                         <!-- ===== Pipes first, so the stations sit on top ===== -->
                         <g>
@@ -1282,8 +1282,8 @@
                         <text x="425" y="182" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="700" font-size="22" fill="#9a3412">Ring 0 · Canary</text>
                         <g text-anchor="middle" font-size="15" fill="#475569">
                             <text x="425" y="216">every app, example data</text>
-                            <text x="425" y="241">follows main in minutes</text>
-                            <text x="425" y="266">sync · smoke · alerts</text>
+                            <text x="425" y="241">one update at a time</text>
+                            <text x="425" y="266">e2e · data · alerts</text>
                         </g>
                         <text x="425" y="304" text-anchor="middle" font-family="ui-monospace, Menlo, monospace" font-weight="700" font-size="15" fill="#c2410c">✓ ring0/verified</text>
 
@@ -1329,13 +1329,135 @@
                         <rect class="rg-glow rg-s5" x="1164" y="84"  width="222" height="252" rx="20" fill="none" stroke="#0284c7" stroke-width="3.5"/>
 
                         <!-- footnotes -->
-                        <text x="265" y="425" text-anchor="middle" font-size="15" font-weight="600" fill="#b91c1c">fails verification → automatic revert</text>
+                        <text x="265" y="425" text-anchor="middle" font-size="15" font-weight="600" fill="#b91c1c">fails → automatic revert, or the Steward fixes it</text>
                         <path d="M870,352 V364 H1370 V352" fill="none" stroke="#94a3b8" stroke-width="2"/>
                         <text x="1120" y="392" text-anchor="middle" font-size="15" font-weight="600" fill="#475569">always a deliberate merge in your overlay</text>
                         <text x="1120" y="416" text-anchor="middle" font-size="14" fill="#94a3b8">real members' data never rolls back on its own</text>
                     </svg>
                 </div>
-                <p class="flow-note">Nothing is tagged until it has stayed green on Ring 0 for 72 hours. Ring 0 already gates every release; automatic reverts and per-community Follow Policies are next.</p>
+                <p class="flow-note">Nothing is tagged until it has stayed green on Ring 0 for 72 hours. Each community's Follow Policy decides when it is offered the release.</p>
+            </div>
+            <div class="scroll-indicator">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+        </section>
+
+        <!-- Slide 2d': Ring 0 runs itself — merge queue, verification, the
+             Steward's fix-forward loop, and the one way a person is called -->
+        <section class="slide" id="slide-autopilot">
+            <div class="glass-card">
+                <img class="slide-logo" src="logos/smallworlds_logo.svg" alt="SmallWorlds logo">
+                <h2>Ring 0 runs itself</h2>
+                <p>Ring 0 merges every update, checks it, and takes back what fails. When it gets stuck, an AI Steward on its own server repairs it, and the result is checked by the same tests.</p>
+                <div class="rings-stage">
+                    <svg viewBox="0 0 1400 470" role="img" aria-label="Diagram: Renovate proposes updates; Ring 0's merge queue takes one at a time; Ring 0 verifies it with backups, sync, end-to-end tests and the example data; verified commits become releases after 72 hours. A rejected change goes to the Ring 0 Steward, Claude Code on Ring 0's server, which opens a fix that goes back through the queue. A person is called only when three attempts failed or data is missing.">
+
+                        <!-- ===== Pipes first ===== -->
+                        <g>
+                            <path class="go-pipe-casing" style="stroke-width:18" d="M250,145 H340"/>
+                            <path class="go-pipe-body" style="stroke-width:12" d="M250,145 H340"/>
+                            <path class="go-flow" stroke="#7c3aed" style="stroke-width:6" d="M250,145 H340"/>
+                        </g>
+                        <g>
+                            <path class="go-pipe-casing" style="stroke-width:18" d="M590,145 H680"/>
+                            <path class="go-pipe-body" style="stroke-width:12" d="M590,145 H680"/>
+                            <path class="go-flow" stroke="#ea580c" style="stroke-width:6" d="M590,145 H680"/>
+                        </g>
+                        <g>
+                            <path class="go-pipe-casing" style="stroke-width:18" d="M980,145 H1070"/>
+                            <path class="go-pipe-body" style="stroke-width:12" d="M980,145 H1070"/>
+                            <path class="go-flow" stroke="#16a34a" style="animation-duration:2.4s; stroke-width:6" d="M980,145 H1070"/>
+                        </g>
+                        <!-- rejected: Ring 0 -> Steward -->
+                        <g>
+                            <path fill="none" stroke="#fee2e2" stroke-width="14" stroke-linecap="round" d="M830,230 V300"/>
+                            <path class="go-flow" stroke="#dc2626" style="stroke-width:6" d="M830,230 V300"/>
+                        </g>
+                        <!-- the Steward's fix goes back through the queue -->
+                        <g>
+                            <path fill="none" stroke="#cffafe" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" d="M680,365 H500 Q465,365 465,330 V230"/>
+                            <path class="go-flow" stroke="#0891b2" style="stroke-width:6" d="M680,365 H500 Q465,365 465,330 V230"/>
+                        </g>
+                        <!-- only if that fails: a person -->
+                        <path d="M980,365 H1064" fill="none" stroke="#94a3b8" stroke-width="3" stroke-dasharray="7 6"/>
+                        <path d="M1058,357 L1070,365 L1058,373" fill="none" stroke="#94a3b8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+                        <!-- pipe labels -->
+                        <g text-anchor="middle" font-size="15" font-weight="600">
+                            <text x="295" y="121" fill="#6d28d9">PR</text>
+                            <text x="635" y="121" fill="#c2410c">merge</text>
+                            <text x="1025" y="121" fill="#15803d">✓ 72 h</text>
+                            <text x="562" y="395" fill="#0e7490">fix PR</text>
+                            <text x="1025" y="395" fill="#64748b">3× failed</text>
+                        </g>
+                        <text x="846" y="272" font-size="15" font-weight="600" fill="#b91c1c">✗ rejected</text>
+
+                        <!-- ===== Renovate ===== -->
+                        <rect x="20" y="60" width="230" height="170" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="2"/>
+                        <text x="135" y="110" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="800" font-size="24" fill="#0f172a">Renovate</text>
+                        <g text-anchor="middle" font-size="15" fill="#475569">
+                            <text x="135" y="146">a pull request for</text>
+                            <text x="135" y="170">every upstream release</text>
+                            <text x="135" y="204" font-size="14" fill="#94a3b8">minor · patch · major</text>
+                        </g>
+
+                        <!-- ===== Merge queue ===== -->
+                        <rect x="340" y="60" width="250" height="170" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="2"/>
+                        <text x="465" y="110" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="800" font-size="24" fill="#0f172a">Merge queue</text>
+                        <g text-anchor="middle" font-size="15" fill="#475569">
+                            <text x="465" y="146">one update at a time,</text>
+                            <text x="465" y="170">only while main is green</text>
+                            <text x="465" y="204" font-size="14" fill="#94a3b8">~40 a day</text>
+                        </g>
+
+                        <!-- ===== Ring 0 ===== -->
+                        <rect x="680" y="60" width="300" height="170" rx="16" fill="#fff7ed" stroke="#fdba74" stroke-width="2"/>
+                        <text x="830" y="104" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="700" font-size="22" fill="#9a3412">Ring 0 · Canary</text>
+                        <g text-anchor="middle" font-size="15" fill="#475569">
+                            <text x="830" y="136">backup · sync · e2e sign-ins</text>
+                            <text x="830" y="160">example data read back</text>
+                            <text x="830" y="184">5 quiet minutes</text>
+                        </g>
+                        <text x="830" y="214" text-anchor="middle" font-family="ui-monospace, Menlo, monospace" font-weight="700" font-size="15" fill="#c2410c">ring0/verified</text>
+
+                        <!-- ===== Release ===== -->
+                        <rect x="1070" y="60" width="310" height="170" rx="16" fill="#ffffff" stroke="#c4b5fd" stroke-width="2"/>
+                        <text x="1225" y="110" text-anchor="middle" font-family="ui-monospace, Menlo, monospace" font-weight="700" font-size="22" fill="#4c1d95">🏷 v1.x.0</text>
+                        <g text-anchor="middle" font-size="15" fill="#475569">
+                            <text x="1225" y="146">real communities follow</text>
+                            <text x="1225" y="170">by a deliberate merge,</text>
+                            <text x="1225" y="194">when their policy says so</text>
+                        </g>
+
+                        <!-- ===== Steward ===== -->
+                        <rect x="680" y="300" width="300" height="130" rx="16" fill="#ecfeff" stroke="#67e8f9" stroke-width="2"/>
+                        <text x="830" y="342" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="700" font-size="22" fill="#155e75">🤖 Ring 0 Steward</text>
+                        <g text-anchor="middle" font-size="15" fill="#475569">
+                            <text x="830" y="372">Claude Code on Ring 0's server</text>
+                            <text x="830" y="396">reads the evidence, fixes forward</text>
+                            <text x="830" y="418" font-size="14" fill="#94a3b8">no Secrets · no shell in pods</text>
+                        </g>
+
+                        <!-- ===== You ===== -->
+                        <rect x="1070" y="300" width="310" height="130" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="2"/>
+                        <text x="1225" y="342" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="700" font-size="22" fill="#0f172a">📱 You</text>
+                        <g text-anchor="middle" font-size="15" fill="#475569">
+                            <text x="1225" y="372">a push message, only after</text>
+                            <text x="1225" y="396">three failed attempts</text>
+                            <text x="1225" y="418" font-size="14" fill="#94a3b8">or when data is missing</text>
+                        </g>
+
+                        <!-- station glows, in travel order -->
+                        <rect class="rg-glow"       x="14"   y="54"  width="242" height="182" rx="20" fill="none" stroke="#7c3aed" stroke-width="3.5"/>
+                        <rect class="rg-glow rg-s2" x="334"  y="54"  width="262" height="182" rx="20" fill="none" stroke="#ea580c" stroke-width="3.5"/>
+                        <rect class="rg-glow rg-s3" x="674"  y="54"  width="312" height="182" rx="20" fill="none" stroke="#ea580c" stroke-width="3.5"/>
+                        <rect class="rg-glow rg-s4" x="674"  y="294" width="312" height="142" rx="20" fill="none" stroke="#0891b2" stroke-width="3.5"/>
+                        <rect class="rg-glow rg-s5" x="1064" y="54"  width="322" height="182" rx="20" fill="none" stroke="#16a34a" stroke-width="3.5"/>
+
+                        <text x="20" y="462" font-size="15" fill="#64748b">Proven in two drills in November 2026: a broken change was rejected after 19 minutes, the Steward opened its own fix 2 minutes later, and Ring 0 verified it.</text>
+                    </svg>
+                </div>
+                <p class="flow-note">The Steward cannot change what judges it: a fix to the tests or to the canary itself waits for the owner's review. Real members' data never rolls back on its own.</p>
             </div>
             <div class="scroll-indicator">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
