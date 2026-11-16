@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-16T08:20:19Z",
+ "updated": "2026-11-16T08:22:27Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "eb2c84d083d9a17ec06ab0b995aa342303d4235c",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-16T08:14:39Z"
+  "commit": "e475c8f6fd83b9e3b708a531ac4e419f171e114a",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
@@ -19,8 +19,8 @@
     "nextcloud"
    ]
   },
-  "step": "settle",
-  "step_since": "2026-11-16T08:19:19Z",
+  "step": "checks",
+  "step_since": "2026-11-16T08:20:50Z",
   "started": "2026-11-16T08:14:39Z",
   "queued": [
    {
@@ -600,6 +600,28 @@
  ],
  "commits": [
   {
+   "commit": "e475c8f6fd83b9e3b708a531ac4e419f171e114a",
+   "title": "Give every community's Headscale its own address",
+   "author": "stephan271",
+   "date": "2026-11-16T08:21:31Z",
+   "pull": 105,
+   "cards": [
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "5d461bdd37a6c1227eaa68f4a879d4ae8e151d2a",
+   "title": "Give every community's Headscale its own address",
+   "author": "stephan271",
+   "date": "2026-11-16T08:16:38Z",
+   "pull": null,
+   "cards": [
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "eb2c84d083d9a17ec06ab0b995aa342303d4235c",
    "title": "Update Nextcloud's Redis to v8 (major, Steward) (#96)",
    "author": "smallworlds-steward[bot]",
@@ -911,33 +933,6 @@
     "description": "Ring 0: converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.3.0, rclone\u2026",
     "date": "2026-11-15T11:10:23Z"
    }
-  },
-  {
-   "commit": "55d27d9e1cecd712b76720d7b21388698459e33d",
-   "title": "Update Docker image rclone/rclone to v1.76 (#63)",
-   "author": "renovate[bot]",
-   "date": "2026-11-15T10:08:33Z",
-   "pull": 63,
-   "cards": [
-    "backup-replicator"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.3.0, rclone\u2026",
-    "date": "2026-11-15T10:46:12Z"
-   }
-  },
-  {
-   "commit": "fea57091602d97ec57bbd67a3bbc78a2b605eaac",
-   "title": "Shorten Ring 0's quiet period to 5 minutes, and ask CNPG about WAL archiving",
-   "author": "stephan271",
-   "date": "2026-11-15T09:54:40Z",
-   "pull": null,
-   "cards": [
-    "canary-follower",
-    "repository"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -1068,19 +1063,6 @@
    "cards": [
     "garage",
     "garage-backup"
-   ]
-  },
-  {
-   "number": 105,
-   "title": "Give every community's Headscale its own address",
-   "author": "stephan271",
-   "created": "2026-11-16T08:16:52Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "repository"
    ]
   }
  ]
