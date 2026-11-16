@@ -1,28 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-16T17:30:13Z",
+ "updated": "2026-11-16T17:34:24Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "bd1e9252b136d91a52e47be79f7adc43b3f38cc3",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-16T17:12:04Z"
+  "state": "success",
+  "description": "Ring 0: backup 1 databases, converged, load settled after 5 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
+  "date": "2026-11-16T17:34:15Z"
  },
  "now": {
   "state": "updating",
   "commit": "bd1e9252b136d91a52e47be79f7adc43b3f38cc3",
-  "pull": {
-   "number": 113,
-   "title": "Stalwart: send acceptedAudiences as a set, as v1 expects (#113)",
-   "cards": [
-    "repository",
-    "stalwart"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-16T17:29:15Z",
-  "started": "2026-11-16T17:12:04Z",
+  "pull": null,
+  "step": "merge",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -35,7 +28,7 @@
   ],
   "stuck": null,
   "action": "merged the Steward's fix #113",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -587,9 +580,9 @@
     "stalwart"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-16T17:12:04Z"
+    "state": "success",
+    "description": "Ring 0: backup 1 databases, converged, load settled after 5 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
+    "date": "2026-11-16T17:34:15Z"
    }
   },
   {
