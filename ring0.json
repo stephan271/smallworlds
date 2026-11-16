@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-16T22:22:17Z",
+ "updated": "2026-11-16T22:24:23Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "7d7b7864d36158624f3334e3cf46234a1985bc32",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-16T22:23:50Z"
  },
  "now": {
   "state": "updating",
@@ -19,9 +19,9 @@
     "jitsi"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-16T22:23:51Z",
+  "started": "2026-11-16T22:23:50Z",
   "queued": [
    {
     "number": 73,
@@ -335,9 +335,9 @@
    "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
    "images": [],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T19:36:04Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of argoproj.io/Application/garage and 1 more resources"
    },
    "wave": 0
   },
@@ -592,7 +592,11 @@
    "cards": [
     "jitsi"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-16T22:23:50Z"
+   }
   },
   {
    "commit": "0f199137f96934b6f2c75c41d22af5c9a3e2a325",
