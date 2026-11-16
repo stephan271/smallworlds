@@ -1,29 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-16T10:53:08Z",
+ "updated": "2026-11-16T11:26:42Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "cc25275c629a3d725a6a2a72dc1a3c7f4054ab7d",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-16T10:38:46Z"
+  "state": "failure",
+  "description": "Not converged: stalwart: sync Failed: Job stalwart-init: Job has reached the specified backoff limit; touches stalwart: restore, do not rev\u2026",
+  "date": "2026-11-16T11:24:58Z"
  },
  "now": {
-  "state": "updating",
+  "state": "stuck",
   "commit": "cc25275c629a3d725a6a2a72dc1a3c7f4054ab7d",
-  "pull": {
-   "number": 111,
-   "title": "Stalwart v1.1.0, with the migration from v0.16 (#111)",
-   "cards": [
-    "repository",
-    "smallworlds-root",
-    "stalwart"
-   ]
-  },
-  "step": "converge",
-  "step_since": "2026-11-16T10:39:47Z",
-  "started": "2026-11-16T10:38:46Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -34,8 +26,12 @@
     "since": "2026-11-14T09:32:22Z"
    }
   ],
-  "stuck": null,
-  "action": "merged #111",
+  "stuck": {
+   "condition": "S1",
+   "since": "2026-11-16T11:24:58Z",
+   "summary": "Not converged: stalwart: sync Failed: Job stalwart-init: Job has reached the specified backoff limit; touches stalwart: restore, do not rev\u2026"
+  },
+  "action": "not reverted: restore from the pre-update backup",
   "waiting": null
  },
  "applications": [
@@ -589,9 +585,9 @@
     "stalwart"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-16T10:38:46Z"
+    "state": "failure",
+    "description": "Not converged: stalwart: sync Failed: Job stalwart-init: Job has reached the specified backoff limit; touches stalwart: restore, do not rev\u2026",
+    "date": "2026-11-16T11:24:58Z"
    }
   },
   {
