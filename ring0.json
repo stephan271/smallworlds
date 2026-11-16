@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T23:18:47Z",
+ "updated": "2026-11-16T23:20:52Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -180,7 +180,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "e8eb1e5306e4c01c6a1360c132d31fac5a1dc02d",
+   "revision": "e950a69ef4ab1d2a37dd9be4a703679edf48c6a5",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
@@ -978,22 +978,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 110,
-   "title": "Update Helm chart kube-prometheus-stack to v93",
-   "author": "renovate[bot]",
-   "created": "2026-11-16T09:52:48Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [
-    "ring0-major",
-    "steward-prepare-aba9008167"
-   ],
-   "cards": [
-    "kube-prometheus-stack"
    ]
   },
   {
