@@ -1,19 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-16T09:19:49Z",
+ "updated": "2026-11-16T09:24:06Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "56460b17ebed36e29a55d4ed0121c52163e820fc",
-  "state": "success",
-  "description": "Ring 0: backup 5 databases, converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
-  "date": "2026-11-16T09:18:17Z"
+  "commit": "6740ea91fc9db54101e6a992fe6b49662afa7073",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "56460b17ebed36e29a55d4ed0121c52163e820fc",
-  "pull": null,
-  "step": "merge",
+  "commit": "6740ea91fc9db54101e6a992fe6b49662afa7073",
+  "pull": {
+   "number": 103,
+   "title": "Update Helm chart nextcloud to v9.4.3 (#103)",
+   "cards": [
+    "nextcloud"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
@@ -26,14 +32,6 @@
     "since": "2026-11-14T09:32:22Z"
    },
    {
-    "number": 103,
-    "title": "Update Helm chart nextcloud to v9.4.3",
-    "cards": [
-     "nextcloud"
-    ],
-    "since": "2026-11-16T04:23:24Z"
-   },
-   {
     "number": 107,
     "title": "Update Homepage (dashboard) to v2.8.0",
     "cards": [
@@ -43,8 +41,8 @@
    }
   ],
   "stuck": null,
-  "action": "merged #102",
-  "waiting": "no queued update is ready"
+  "action": "merged #103",
+  "waiting": null
  },
  "applications": [
   {
@@ -133,7 +131,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "56460b17ebed36e29a55d4ed0121c52163e820fc",
+   "revision": "6740ea91fc9db54101e6a992fe6b49662afa7073",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
@@ -190,7 +188,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "56460b17ebed36e29a55d4ed0121c52163e820fc",
+   "revision": "6740ea91fc9db54101e6a992fe6b49662afa7073",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
@@ -584,6 +582,17 @@
  ],
  "commits": [
   {
+   "commit": "6740ea91fc9db54101e6a992fe6b49662afa7073",
+   "title": "Update Helm chart nextcloud to v9.4.3 (#103)",
+   "author": "renovate[bot]",
+   "date": "2026-11-16T09:23:32Z",
+   "pull": 103,
+   "cards": [
+    "nextcloud"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "56460b17ebed36e29a55d4ed0121c52163e820fc",
    "title": "Update Docker image docker.io/alpine/k8s to v1.37.2 (#102)",
    "author": "renovate[bot]",
@@ -903,22 +912,6 @@
     "canary-follower"
    ],
    "verdict": null
-  },
-  {
-   "commit": "1f8d40b740628d67a3c6df967f65b588cd71d1f0",
-   "title": "Update Docker image python to v3.15 (#82)",
-   "author": "renovate[bot]",
-   "date": "2026-11-15T12:36:32Z",
-   "pull": 82,
-   "cards": [
-    "immich",
-    "stalwart"
-   ],
-   "verdict": {
-    "state": "error",
-    "description": "Follower error: HTTPError: HTTP Error 503: Service Unavailable; touches immich, stalwart: restore, do not revert",
-    "date": "2026-11-15T12:49:02Z"
-   }
   }
  ],
  "pulls": [
@@ -989,26 +982,9 @@
    "draft": false,
    "queued": false,
    "rejected": false,
-   "labels": [
-    "ring0-major"
-   ],
+   "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 103,
-   "title": "Update Helm chart nextcloud to v9.4.3",
-   "author": "renovate[bot]",
-   "created": "2026-11-16T04:23:24Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "nextcloud"
    ]
   },
   {
@@ -1056,6 +1032,19 @@
    ],
    "cards": [
     "jitsi"
+   ]
+  },
+  {
+   "number": 109,
+   "title": "Leave majors in .github/ out of ring0-major",
+   "author": "stephan271",
+   "created": "2026-11-16T09:23:32Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "repository"
    ]
   }
  ]
