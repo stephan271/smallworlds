@@ -1,19 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-16T07:46:39Z",
+ "updated": "2026-11-16T07:50:49Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "141de7d060e9f2547b78f62d1c546a46d24df246",
-  "state": "failure",
-  "description": "Checks failed: e2e 18 passed, 3 failed, 9 skipped; data 4/4 apps intact",
-  "date": "2026-11-15T19:21:19Z"
+  "commit": "0a92751f44a15164c7a1cda9fc7730fa3e3c9c8b",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
-  "state": "stuck",
-  "commit": "141de7d060e9f2547b78f62d1c546a46d24df246",
-  "pull": null,
-  "step": null,
+  "state": "updating",
+  "commit": "0a92751f44a15164c7a1cda9fc7730fa3e3c9c8b",
+  "pull": {
+   "number": 101,
+   "title": "Revert \"Turn off Bulwark's automatic sign-in redirect\" (#101)",
+   "cards": [
+    "bulwark"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
@@ -26,12 +32,12 @@
     "since": "2026-11-14T09:32:22Z"
    },
    {
-    "number": 101,
-    "title": "Revert \"Turn off Bulwark's automatic sign-in redirect\"",
+    "number": 96,
+    "title": "Update Nextcloud's Redis to v8 (major, Steward)",
     "cards": [
-     "bulwark"
+     "nextcloud"
     ],
-    "since": "2026-11-15T19:23:28Z"
+    "since": "2026-11-15T17:03:10Z"
    },
    {
     "number": 102,
@@ -60,13 +66,9 @@
     "since": "2026-11-16T04:23:24Z"
    }
   ],
-  "stuck": {
-   "condition": "S1",
-   "since": "2026-11-15T19:21:19Z",
-   "summary": "Checks failed: e2e 18 passed, 3 failed, 9 skipped; data 4/4 apps intact"
-  },
-  "action": "revert offered in #100, for a person to merge",
-  "waiting": "no queued update is ready"
+  "stuck": null,
+  "action": "merged the Steward's fix #101",
+  "waiting": null
  },
  "applications": [
   {
@@ -155,7 +157,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "141de7d060e9f2547b78f62d1c546a46d24df246",
+   "revision": "0a92751f44a15164c7a1cda9fc7730fa3e3c9c8b",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
@@ -212,7 +214,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "141de7d060e9f2547b78f62d1c546a46d24df246",
+   "revision": "0a92751f44a15164c7a1cda9fc7730fa3e3c9c8b",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
@@ -412,7 +414,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "141de7d060e9f2547b78f62d1c546a46d24df246",
+   "revision": "0a92751f44a15164c7a1cda9fc7730fa3e3c9c8b",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
@@ -605,6 +607,17 @@
   }
  ],
  "commits": [
+  {
+   "commit": "0a92751f44a15164c7a1cda9fc7730fa3e3c9c8b",
+   "title": "Revert \"Turn off Bulwark's automatic sign-in redirect\" (#101)",
+   "author": "smallworlds-steward[bot]",
+   "date": "2026-11-16T07:49:01Z",
+   "pull": 101,
+   "cards": [
+    "bulwark"
+   ],
+   "verdict": null
+  },
   {
    "commit": "141de7d060e9f2547b78f62d1c546a46d24df246",
    "title": "Turn off Bulwark's automatic sign-in redirect",
@@ -931,18 +944,6 @@
     "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
     "date": "2026-11-15T10:08:28Z"
    }
-  },
-  {
-   "commit": "70dcb9f030e68e2998bbcf98f34dcb6196bf12f7",
-   "title": "Let the Steward take majors through, and wake a person only on failure",
-   "author": "stephan271",
-   "date": "2026-11-15T08:55:20Z",
-   "pull": null,
-   "cards": [
-    "canary-follower",
-    "repository"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -1041,21 +1042,6 @@
    "author": "smallworlds-steward[bot]",
    "created": "2026-11-15T17:03:10Z",
    "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [
-    "steward"
-   ],
-   "cards": [
-    "nextcloud"
-   ]
-  },
-  {
-   "number": 101,
-   "title": "Revert \"Turn off Bulwark's automatic sign-in redirect\"",
-   "author": "smallworlds-steward[bot]",
-   "created": "2026-11-15T19:23:28Z",
-   "draft": false,
    "queued": true,
    "rejected": false,
    "labels": [
@@ -1063,7 +1049,7 @@
     "steward"
    ],
    "cards": [
-    "bulwark"
+    "nextcloud"
    ]
   },
   {
