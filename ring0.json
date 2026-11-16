@@ -1,28 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-16T08:45:47Z",
+ "updated": "2026-11-16T08:52:10Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "20a827dec2dcf408a33636cd6372503e980633f5",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-16T08:36:27Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
+  "date": "2026-11-16T08:50:44Z"
  },
  "now": {
   "state": "updating",
   "commit": "20a827dec2dcf408a33636cd6372503e980633f5",
-  "pull": {
-   "number": 106,
-   "title": "Explain the automatic update process, and show it in the talk",
-   "cards": [
-    "canary-follower",
-    "repository"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-16T08:45:43Z",
-  "started": "2026-11-16T08:36:27Z",
+  "pull": null,
+  "step": "merge",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -61,7 +54,7 @@
   ],
   "stuck": null,
   "action": "merged #96",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -611,9 +604,9 @@
     "repository"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-16T08:36:27Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
+    "date": "2026-11-16T08:50:44Z"
    }
   },
   {
@@ -966,7 +959,8 @@
    "queued": false,
    "rejected": false,
    "labels": [
-    "ring0-major"
+    "ring0-major",
+    "steward-prepare"
    ],
    "cards": [
     "dashboard"
