@@ -1,25 +1,19 @@
 {
  "schema": 1,
- "updated": "2026-11-16T23:12:31Z",
+ "updated": "2026-11-16T23:14:36Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "e8eb1e5306e4c01c6a1360c132d31fac5a1dc02d",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-16T22:52:17Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 5 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+  "date": "2026-11-16T23:12:28Z"
  },
  "now": {
   "state": "updating",
   "commit": "e8eb1e5306e4c01c6a1360c132d31fac5a1dc02d",
-  "pull": {
-   "number": 121,
-   "title": "Update dependency @playwright/test to v1.65.1 (#121)",
-   "cards": [
-    "canary-follower"
-   ]
-  },
-  "step": "waiting",
+  "pull": null,
+  "step": "merge",
   "step_since": null,
   "started": null,
   "queued": [
@@ -585,9 +579,9 @@
     "canary-follower"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-16T22:52:17Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 5 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-16T23:12:28Z"
    }
   },
   {
@@ -989,7 +983,8 @@
    "queued": false,
    "rejected": false,
    "labels": [
-    "ring0-major"
+    "ring0-major",
+    "steward-prepare-aba9008167"
    ],
    "cards": [
     "kube-prometheus-stack"
