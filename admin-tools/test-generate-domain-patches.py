@@ -14,7 +14,7 @@ import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 GENERATOR = ROOT / "admin-tools" / "generate_domain_patches.py"
-APPS = ["dashboard", "keycloak", "join", "forgejo", "immich", "nextcloud",
+APPS = ["dashboard", "keycloak", "join", "headscale", "forgejo", "immich", "nextcloud",
         "stalwart", "bulwark", "excalidraw", "jitsi", "pod-gateway",
         "euro-office", "argocd", "monitoring"]
 

@@ -305,6 +305,15 @@ if grep -q 'path: /data/OFFICE_BACKEND' "$overlay/nextcloud/kustomization.yaml" 
 else
     fail "Nextcloud explicitly records no Office backend"
 fi
+# Headscale is always installed and names its own address. Left unrouted, every
+# community's Headscale claimed vpn.smallworlds.network (Ring 0, 2026-11-16).
+if grep -q 'value: vpn.example.org' "$overlay/headscale/kustomization.yaml" 2>/dev/null \
+   && grep -q 'value: https://vpn.example.org' "$overlay/headscale/kustomization.yaml" \
+   && grep -qE '^      name: headscale$' "$overlay/kustomization.yaml"; then
+    pass "Headscale is routed to the overlay and answers on vpn.example.org"
+else
+    fail "Headscale is routed to the overlay and answers on vpn.example.org"
+fi
 # The Operator Console is deleted (docs/adr/0062): an overlay must not name it.
 if grep -rq "operator-console" "$overlay" 2>/dev/null; then
     fail "no operator-console in the overlay (it is deleted)"
