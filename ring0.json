@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T23:08:22Z",
+ "updated": "2026-11-16T23:12:31Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -19,9 +19,9 @@
     "canary-follower"
    ]
   },
-  "step": "quiet",
-  "step_since": "2026-11-16T23:07:28Z",
-  "started": "2026-11-16T22:52:17Z",
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -34,7 +34,7 @@
   ],
   "stuck": null,
   "action": "merged #121",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
