@@ -84,13 +84,14 @@
       ]
     },
     {
-      "description": "Majors of what Ring 0 runs (design-per-app-updates.md \u00a75.5): never ring0-queue. The Canary Follower hands the oldest to the Ring 0 Steward while Ring 0 is idle; the Steward prepares it in a PR of its own (labelled steward), and that PR is what the queue merges. The same paths as ring0-queue: what Ring 0 does not run, it cannot verify.",
+      "description": "Majors of what Ring 0 runs (design-per-app-updates.md \u00a75.5): never ring0-queue. The Canary Follower hands the oldest to the Ring 0 Steward while Ring 0 is idle; the Steward prepares it in a PR of its own (labelled steward), and that PR is what the queue merges. The same paths as ring0-queue (what Ring 0 does not run, it cannot verify), less .github/: the Steward's GitHub App may not change workflows and .github/ is a protected path, so such a major stays a plain PR for a person.",
       "matchUpdateTypes": [
         "major"
       ],
       "matchFileNames": [
         "!infrastructure/terraform/**",
-        "!infrastructure/kubernetes/tenants/collabora/**"
+        "!infrastructure/kubernetes/tenants/collabora/**",
+        "!.github/**"
       ],
       "addLabels": [
         "ring0-major"
