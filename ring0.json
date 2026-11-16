@@ -1,27 +1,27 @@
 {
  "schema": 1,
- "updated": "2026-11-16T19:22:34Z",
+ "updated": "2026-11-16T19:31:03Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "9198ff6e0a71994579ee4c2ff9974397e256b404",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-16T19:10:37Z"
+  "commit": "0f199137f96934b6f2c75c41d22af5c9a3e2a325",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "9198ff6e0a71994579ee4c2ff9974397e256b404",
+  "commit": "0f199137f96934b6f2c75c41d22af5c9a3e2a325",
   "pull": {
-   "number": 118,
-   "title": "Update the jitsi-meet chart to 3.12.0 (#118)",
+   "number": 119,
+   "title": "Revert \"Update the jitsi-meet chart to 3.12.0\" (#119)",
    "cards": [
     "jitsi"
    ]
   },
-  "step": "checks",
-  "step_since": "2026-11-16T19:22:05Z",
-  "started": "2026-11-16T19:10:37Z",
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -33,7 +33,7 @@
    }
   ],
   "stuck": null,
-  "action": "merged #118",
+  "action": "reverted by #119",
   "waiting": null
  },
  "applications": [
@@ -576,6 +576,17 @@
  ],
  "commits": [
   {
+   "commit": "0f199137f96934b6f2c75c41d22af5c9a3e2a325",
+   "title": "Revert \"Update the jitsi-meet chart to 3.12.0\" (#119)",
+   "author": "stephan271",
+   "date": "2026-11-16T19:30:21Z",
+   "pull": 119,
+   "cards": [
+    "jitsi"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "9198ff6e0a71994579ee4c2ff9974397e256b404",
    "title": "Update the jitsi-meet chart to 3.12.0 (#118)",
    "author": "smallworlds-steward[bot]",
@@ -585,9 +596,9 @@
     "jitsi"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-16T19:10:37Z"
+    "state": "failure",
+    "description": "Checks failed: e2e 20 passed, 1 failed, 9 skipped; data 4/4 apps intact",
+    "date": "2026-11-16T19:30:12Z"
    }
   },
   {
@@ -916,17 +927,6 @@
    "pull": null,
    "cards": [
     "canary-follower"
-   ],
-   "verdict": null
-  },
-  {
-   "commit": "d0b32a09f54fc3ed8a2b47cd015644638aebd68a",
-   "title": "Revert \"Merge pull request #94 from stephan271/excalidraw-port-8080\"",
-   "author": "stephan271",
-   "date": "2026-11-15T17:29:06Z",
-   "pull": null,
-   "cards": [
-    "excalidraw"
    ],
    "verdict": null
   }
