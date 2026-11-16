@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T14:52:25Z",
+ "updated": "2026-11-16T14:54:33Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -558,7 +558,6 @@
    "version": null,
    "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
    "images": [
-    "alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf",
     "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -569,9 +568,9 @@
     "stalwartlabs/stalwart:v1.1.0@sha256:0aacd114054f56c34e98063140e2102a04dc0bcb4933ff08925cf8e9938b0d16"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/stalwart-init"
+    "phase": "Failed",
+    "finished": "2026-11-16T14:52:27Z",
+    "message": "one or more synchronization tasks completed unsuccessfully"
    },
    "wave": 1
   }
