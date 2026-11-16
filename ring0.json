@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T18:36:10Z",
+ "updated": "2026-11-16T18:40:22Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -20,8 +20,8 @@
     "garage-backup"
    ]
   },
-  "step": "settle",
-  "step_since": "2026-11-16T18:35:48Z",
+  "step": "checks",
+  "step_since": "2026-11-16T18:38:20Z",
   "started": "2026-11-16T18:30:12Z",
   "queued": [
    {
