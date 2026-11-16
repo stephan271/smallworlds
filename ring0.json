@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T22:30:40Z",
+ "updated": "2026-11-16T22:32:46Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -19,8 +19,8 @@
     "jitsi"
    ]
   },
-  "step": "settle",
-  "step_since": "2026-11-16T22:29:19Z",
+  "step": "checks",
+  "step_since": "2026-11-16T22:32:29Z",
   "started": "2026-11-16T22:23:50Z",
   "queued": [
    {
