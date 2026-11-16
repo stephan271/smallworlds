@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T08:58:34Z",
+ "updated": "2026-11-16T09:00:43Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -149,7 +149,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "20a827dec2dcf408a33636cd6372503e980633f5",
+   "revision": "56460b17ebed36e29a55d4ed0121c52163e820fc",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
@@ -206,7 +206,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "20a827dec2dcf408a33636cd6372503e980633f5",
+   "revision": "56460b17ebed36e29a55d4ed0121c52163e820fc",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
@@ -367,7 +367,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "20a827dec2dcf408a33636cd6372503e980633f5",
+   "revision": "56460b17ebed36e29a55d4ed0121c52163e820fc",
    "images": [
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
