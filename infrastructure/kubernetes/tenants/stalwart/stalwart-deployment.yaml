@@ -98,7 +98,7 @@ spec:
       # and until then this pod waits here with the v0.16 store untouched.
       initContainers:
         - name: check
-          image: ghcr.io/cloudnative-pg/postgresql:16@sha256:34cd4159d07b3410a1b29da35072e2e927a0905e717a61afa3814624a2e8859a
+          image: ghcr.io/cloudnative-pg/postgresql:18@sha256:899d3ed526b659d77935dde0e6bf2d69dbbf17d3d8c6486ca8cfd04bd3c18533
           env:
             - name: PGHOST
               value: database-rw.stalwart.svc.cluster.local
@@ -192,7 +192,7 @@ spec:
             - name: work
               mountPath: /work
         - name: mark
-          image: ghcr.io/cloudnative-pg/postgresql:16@sha256:34cd4159d07b3410a1b29da35072e2e927a0905e717a61afa3814624a2e8859a
+          image: ghcr.io/cloudnative-pg/postgresql:18@sha256:899d3ed526b659d77935dde0e6bf2d69dbbf17d3d8c6486ca8cfd04bd3c18533
           env:
             - name: PGHOST
               value: database-rw.stalwart.svc.cluster.local
