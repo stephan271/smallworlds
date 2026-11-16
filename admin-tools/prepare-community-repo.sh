@@ -351,7 +351,9 @@ echo -e "${YELLOW}Creating application subdirectories...${NC}"
 # Always installed, and each carries hostnames that have to follow the
 # operator's domain.
 # ("operator-console" was here too until it was deleted, docs/adr/0062.)
-APPS=("dashboard" "keycloak" "join" "${SELECTED_APPS[@]}")
+# Headscale is each community's own tailnet: without its directory here it kept
+# the base's vpn.smallworlds.network, so no device could enroll in it.
+APPS=("dashboard" "keycloak" "join" "headscale" "${SELECTED_APPS[@]}")
 
 for app in "${APPS[@]}"; do
     if [ ! -d "$app" ]; then
