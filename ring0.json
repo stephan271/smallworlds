@@ -1,19 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-16T17:44:52Z",
+ "updated": "2026-11-16T17:51:10Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "bd1e9252b136d91a52e47be79f7adc43b3f38cc3",
-  "state": "success",
-  "description": "Ring 0: backup 1 databases, converged, load settled after 5 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
-  "date": "2026-11-16T17:34:15Z"
+  "commit": "fd8e3d81e40f2ffbe282f4a75efb6a810a24405c",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "bd1e9252b136d91a52e47be79f7adc43b3f38cc3",
-  "pull": null,
-  "step": "merge",
+  "commit": "fd8e3d81e40f2ffbe282f4a75efb6a810a24405c",
+  "pull": {
+   "number": 92,
+   "title": "Update Docker image ghcr.io/cloudnative-pg/postgresql to v18 (#92)",
+   "cards": [
+    "stalwart"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
@@ -36,8 +42,8 @@
    }
   ],
   "stuck": null,
-  "action": "merged the Steward's fix #113",
-  "waiting": "no queued update is ready"
+  "action": "merged #92",
+  "waiting": null
  },
  "applications": [
   {
@@ -579,6 +585,17 @@
  ],
  "commits": [
   {
+   "commit": "fd8e3d81e40f2ffbe282f4a75efb6a810a24405c",
+   "title": "Update Docker image ghcr.io/cloudnative-pg/postgresql to v18 (#92)",
+   "author": "renovate[bot]",
+   "date": "2026-11-16T17:49:52Z",
+   "pull": 92,
+   "cards": [
+    "stalwart"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "bd1e9252b136d91a52e47be79f7adc43b3f38cc3",
    "title": "Stalwart: send acceptedAudiences as a set, as v1 expects (#113)",
    "author": "smallworlds-steward[bot]",
@@ -914,21 +931,6 @@
     "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
     "date": "2026-11-15T14:52:39Z"
    }
-  },
-  {
-   "commit": "4bf80c3e43953db9e9b8ef8655760e1e890e9168",
-   "title": "Update Helm chart velero to v12.2.5 (#88)",
-   "author": "renovate[bot]",
-   "date": "2026-11-15T13:56:28Z",
-   "pull": 88,
-   "cards": [
-    "velero"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 4 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
-    "date": "2026-11-15T14:22:07Z"
-   }
   }
  ],
  "pulls": [
@@ -958,22 +960,6 @@
    "labels": [],
    "cards": [
     "collabora"
-   ]
-  },
-  {
-   "number": 92,
-   "title": "Update Docker image ghcr.io/cloudnative-pg/postgresql to v18",
-   "author": "renovate[bot]",
-   "created": "2026-11-15T13:57:19Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [
-    "ring0-major",
-    "steward-prepare"
-   ],
-   "cards": [
-    "stalwart"
    ]
   },
   {
@@ -1051,6 +1037,21 @@
    "cards": [
     "garage",
     "garage-backup"
+   ]
+  },
+  {
+   "number": 115,
+   "title": "Update Helm chart traefik to v42",
+   "author": "renovate[bot]",
+   "created": "2026-11-16T17:51:06Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [
+    "ring0-major"
+   ],
+   "cards": [
+    "traefik"
    ]
   }
  ]
