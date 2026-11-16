@@ -11,19 +11,24 @@ spec:
   project: default
   source:
     repoURL: 'https://helm.traefik.io/traefik'
-    targetRevision: "34.5.0"
+    targetRevision: "42.4.0"
     chart: traefik
     helm:
       values: |
+        # Since chart 39, an entry point's HTTP options (redirections, tls,
+        # middlewares) sit under `http`, as in Traefik's own configuration;
+        # the chart's schema rejects them one level up.
         ports:
           web:
-            redirections:
-              entryPoint:
-                to: websecure
-                scheme: https
+            http:
+              redirections:
+                entryPoint:
+                  to: websecure
+                  scheme: https
           websecure:
-            tls:
-              enabled: true
+            http:
+              tls:
+                enabled: true
             # Traefik v3 gives a request 60s to arrive in full, body included,
             # and answers 504 after that. A video of a few hundred MB does not
             # fit through a home uplink in a minute, so every large upload to
@@ -40,8 +45,9 @@ spec:
           kubernetesIngress:
             publishedService:
               enabled: true
+        # Since chart 40, everything that belongs in the Service's spec,
+        # its type included, sits under `service.spec`.
         service:
-          type: LoadBalancer
           # Keep the visitor's address. With the default (Cluster), kube-proxy
           # rewrites the source of everything arriving from outside to a
           # cluster address, so Traefik saw every visitor as 10.42.x: the
@@ -49,6 +55,7 @@ spec:
           # ranges) let the whole internet in, and the per-source rate limit
           # was one limit shared by everybody. See doc/hardening.md.
           spec:
+            type: LoadBalancer
             externalTrafficPolicy: Local
   destination:
     server: 'https://kubernetes.default.svc'
