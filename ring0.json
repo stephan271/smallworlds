@@ -1,25 +1,19 @@
 {
  "schema": 1,
- "updated": "2026-11-16T10:13:10Z",
+ "updated": "2026-11-16T10:15:18Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "80d7867d20715b32785d0cf18de1b088e9eab3f4",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-16T09:56:25Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
+  "date": "2026-11-16T10:13:06Z"
  },
  "now": {
   "state": "updating",
   "commit": "80d7867d20715b32785d0cf18de1b088e9eab3f4",
-  "pull": {
-   "number": 107,
-   "title": "Update Homepage (dashboard) to v2.8.0 (#107)",
-   "cards": [
-    "dashboard"
-   ]
-  },
-  "step": "waiting",
+  "pull": null,
+  "step": "merge",
   "step_since": null,
   "started": null,
   "queued": [
@@ -583,9 +577,9 @@
     "dashboard"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-16T09:56:25Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
+    "date": "2026-11-16T10:13:06Z"
    }
   },
   {
