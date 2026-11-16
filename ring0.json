@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-16T23:54:06Z",
+ "updated": "2026-11-16T23:56:11Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "f430b6f2b1be931135d3a34902c69599492326a2",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-16T23:55:03Z"
  },
  "now": {
   "state": "updating",
@@ -19,9 +19,9 @@
     "traefik"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-16T23:55:03Z",
+  "started": "2026-11-16T23:55:03Z",
   "queued": [
    {
     "number": 73,
@@ -84,14 +84,14 @@
    "sync": "Synced",
    "source": "chart",
    "chart": "traefik",
-   "version": "34.5.0",
+   "version": "42.4.0",
    "revision": null,
    "images": [
-    "docker.io/traefik:v3.3.4"
+    "docker.io/traefik:v3.7.18"
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T23:24:58Z",
+    "finished": "2026-11-16T23:55:36Z",
     "message": null
    },
    "wave": -10
@@ -123,7 +123,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "e950a69ef4ab1d2a37dd9be4a703679edf48c6a5",
+   "revision": "f430b6f2b1be931135d3a34902c69599492326a2",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
@@ -328,7 +328,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T23:23:29Z",
+    "finished": "2026-11-16T23:55:53Z",
     "message": null
    },
    "wave": 0
@@ -582,7 +582,11 @@
    "cards": [
     "traefik"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-16T23:55:03Z"
+   }
   },
   {
    "commit": "e950a69ef4ab1d2a37dd9be4a703679edf48c6a5",
