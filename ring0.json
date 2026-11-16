@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T18:25:29Z",
+ "updated": "2026-11-16T18:27:40Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -971,23 +971,6 @@
    ]
   },
   {
-   "number": 104,
-   "title": "Update Helm chart garage to v1",
-   "author": "renovate[bot]",
-   "created": "2026-11-16T08:10:39Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [
-    "ring0-major",
-    "steward-prepare"
-   ],
-   "cards": [
-    "garage",
-    "garage-backup"
-   ]
-  },
-  {
    "number": 108,
    "title": "Update Helm chart jitsi-meet to v3",
    "author": "renovate[bot]",
@@ -1030,6 +1013,21 @@
    ],
    "cards": [
     "traefik"
+   ]
+  },
+  {
+   "number": 117,
+   "title": "Update immich (major)",
+   "author": "renovate[bot]",
+   "created": "2026-11-16T18:26:50Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [
+    "ring0-major"
+   ],
+   "cards": [
+    "immich"
    ]
   }
  ]
