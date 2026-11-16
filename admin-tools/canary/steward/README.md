@@ -40,9 +40,10 @@ ones. Steps 1–2 give you incidents with evidence and no AI at all.
      --description "Opened by the Ring 0 Steward"
    gh label create ring0-major --color fbca04 -R stephan271/smallworlds --force \
      --description "A major update; the Ring 0 Steward prepares it (renovate.json)"
-   gh label create steward-prepare --color c5def5 -R stephan271/smallworlds --force \
-     --description "Handed to the Ring 0 Steward"
    ```
+
+   `steward-prepare-<fingerprint>` and `ring0-rejected-<fingerprint>` are made by
+   the follower as it uses them.
 
 3. **The Steward's GitHub App.** GitHub → Settings → Developer settings → GitHub
    Apps → New GitHub App:

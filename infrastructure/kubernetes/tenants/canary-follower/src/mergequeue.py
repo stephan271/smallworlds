@@ -31,7 +31,11 @@ make Ring 0 green by weakening the checks.
 
 Majors (design-per-app-updates.md §5.5) never carry the queue label. Renovate
 labels them `ring0-major`; next_major() offers the oldest to the Steward, which
-prepares it in a PR of its own, and that PR is what the queue merges.
+prepares it in a PR of its own, and that PR is what the queue merges. A major
+is marked `steward-prepare-<fingerprint>` when it is offered: Renovate reuses a
+major's PR for the next major in the same files once the first has landed
+(#92: Stalwart v1, then its psql image 16 -> 18), and that new update must be
+offered too.
 """
 import hashlib
 import logging
@@ -42,7 +46,7 @@ log = logging.getLogger("mergequeue")
 REJECTED = "ring0-rejected-"
 STEWARD = "steward"
 MAJOR = "ring0-major"          # renovate.json: majors of what Ring 0 runs
-PREPARE = "steward-prepare"    # a major handed to the Steward (incidents.py, M)
+PREPARE = "steward-prepare-"   # + fingerprint: a major handed to the Steward (incidents.py, M)
 
 
 def fingerprint(files: list[dict]) -> str:
@@ -84,7 +88,10 @@ class MergeQueue:
         # Skipped until Renovate pushes a new head, so one refusal does not
         # block every update behind it.
         self.refused: dict[int, str] = {}
-        self.prepared: set[int] = set()
+        # (PR number, fingerprint) offered to the Steward, and each major's
+        # fingerprint by head, so its files are read once per push.
+        self.prepared: set[tuple[int, str]] = set()
+        self.major_prints: dict[int, tuple[str, str]] = {}
 
     def _queued(self, pull: dict) -> bool:
         labels = {l["name"] for l in pull.get("labels", [])}
@@ -106,19 +113,32 @@ class MergeQueue:
         self.failing.setdefault(number, (self.now(), why))
 
     def next_major(self) -> dict | None:
-        """The oldest open Renovate major not yet handed to the Steward."""
+        """The oldest open Renovate major whose update has not been handed to
+        the Steward yet."""
         for pull in sorted(self.github.open_pulls(self.branch), key=lambda p: p["number"]):
             labels = {l["name"] for l in pull.get("labels", [])}
-            if (pull.get("user", {}).get("login") == self.author and not pull.get("draft")
-                    and MAJOR in labels and PREPARE not in labels and pull["number"] not in self.prepared):
+            if pull.get("user", {}).get("login") != self.author or pull.get("draft") or MAJOR not in labels:
+                continue
+            mark = self._major_print(pull)
+            if PREPARE + mark not in labels and (pull["number"], mark) not in self.prepared:
                 return pull
         return None
 
+    def _major_print(self, pull: dict) -> str:
+        number, head = pull["number"], pull.get("head", {}).get("sha", "")
+        known = self.major_prints.get(number)
+        if known is None or known[0] != head:
+            known = (head, fingerprint(self.github.pull_files(number)))
+            self.major_prints[number] = known
+        return known[1]
+
     def mark_major(self, number: int) -> None:
-        """Handed to the Steward: the label keeps it from being offered again,
-        also after a restart."""
-        self.prepared.add(number)
-        self.github.add_label(number, PREPARE)
+        """Handed to the Steward: the label keeps this update from being offered
+        again, also after a restart. New content in the same PR is a new update."""
+        mark = self.major_prints[number][1] if number in self.major_prints \
+            else self._major_print(self.github.pull(number))
+        self.prepared.add((number, mark))
+        self.github.add_label(number, PREPARE + mark)
 
     def take_rejection(self) -> dict | None:
         rejection, self.last_rejection = self.last_rejection, None

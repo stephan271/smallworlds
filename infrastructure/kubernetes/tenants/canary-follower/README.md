@@ -196,7 +196,10 @@ by labelling the issue `steward-requested`:
   and never `ring0-queue`. While `main`'s head is green, nothing else is queued
   and no cluster incident is open, the follower opens an M incident for the
   oldest one (label `ring0-major-update`) and marks Renovate's PR
-  `steward-prepare`, so it is offered once. The Steward prepares it in a PR of its
+  `steward-prepare-<fingerprint>`, so each update is offered once. The
+  fingerprint is the one `ring0-rejected-` uses: when Renovate reuses the PR for
+  the next major in the same files (#92, Stalwart v1 and then its psql image), the
+  new update is offered too. The Steward prepares it in a PR of its
   own, which the queue merges like any update once it carries `ring0-queue`; a
   verified one closes the incident without telling anyone. A failed one is tried
   again, three times in all; a migrating app's failure that cannot be reverted

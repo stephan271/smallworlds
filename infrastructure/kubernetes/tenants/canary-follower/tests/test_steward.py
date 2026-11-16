@@ -22,7 +22,7 @@ from github import GitHub  # noqa: E402
 from incidents import (MAJOR_UPDATE, NEEDS_PERSON, REJECTED_UPDATE, REQUESTED, STUCK, WORKING,  # noqa: E402
                        Incidents)
 from main import metrics  # noqa: E402
-from mergequeue import MergeQueue  # noqa: E402
+from mergequeue import MergeQueue, fingerprint  # noqa: E402
 from test_automation import RENOVATE, FakeRepo, pull  # noqa: E402
 from test_follower import make  # noqa: E402
 
@@ -528,11 +528,34 @@ class MergeQueueStewardTest(unittest.TestCase):
         q = self.queue(repo)
         self.assertEqual(70, q.next_major()["number"])
         q.mark_major(70)
-        self.assertIn((70, "steward-prepare"), repo.labelled)
+        mark70 = f"steward-prepare-{fingerprint(repo.pull_files(70))}"
+        self.assertIn((70, mark70), repo.labelled)
         self.assertEqual(72, q.next_major()["number"])
-        repo.pulls[72]["labels"].append({"name": "steward-prepare"})
-        self.assertIsNone(q.next_major(), "a marked PR is not offered again, even after a restart")
+        repo.pulls[70]["labels"].append({"name": mark70})
+        repo.pulls[72]["labels"].append({"name": f"steward-prepare-{fingerprint(repo.pull_files(72))}"})
+        self.assertIsNone(self.queue(repo).next_major(), "a marked PR is not offered again, even after a restart")
         self.assertIsNone(q.advance(), "a major without ring0-queue is never merged")
+
+    def test_a_major_pr_renovate_reuses_for_the_next_major_is_offered_again(self):
+        # #92: Stalwart v1 landed through the Steward's own PRs; Renovate then
+        # reused #92 for Stalwart's psql image 16 -> 18. Same number, new update.
+        repo = FakeRepo([major(92, "Update Docker image stalwartlabs/stalwart to v1")],
+                        files={92: [{"filename": "tenants/stalwart/stalwart-deployment.yaml",
+                                     "patch": "-image: stalwart:v0.16\n+image: stalwart:v1.1.0"}]})
+        q = self.queue(repo)
+        self.assertEqual(92, q.next_major()["number"])
+        q.mark_major(92)
+        repo.pulls[92]["labels"].append({"name": repo.labelled[-1][1]})
+        self.assertIsNone(q.next_major())
+
+        repo.pulls[92].update(title="Update Docker image ghcr.io/cloudnative-pg/postgresql to v18",
+                              head={"sha": "head92-psql"})
+        repo.files[92] = [{"filename": "tenants/stalwart/stalwart-deployment.yaml",
+                           "patch": "-image: postgresql:16\n+image: postgresql:18"}]
+        self.assertEqual(92, q.next_major()["number"], "the new update in the same PR is offered")
+        q.mark_major(92)
+        self.assertNotEqual(repo.labelled[0][1], repo.labelled[1][1])
+        self.assertIsNone(q.next_major())
 
     def test_a_queued_steward_pr_is_merged_like_an_update(self):
         repo = FakeRepo([pull(60, "Fix Gallery's probe", labels=("ring0-queue", "steward"), user=STEWARD)],
