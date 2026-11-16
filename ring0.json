@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-16T14:41:40Z",
+ "updated": "2026-11-16T14:43:48Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "563303f1c2e1d5c5dbe455a1d201d72f996af6b9",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-16T14:42:32Z"
  },
  "now": {
   "state": "updating",
@@ -20,9 +20,9 @@
     "stalwart"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-16T14:43:19Z",
+  "started": "2026-11-16T14:42:31Z",
   "queued": [
    {
     "number": 73,
@@ -328,9 +328,9 @@
    "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
    "images": [],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T10:39:32Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of storage.k8s.io/StorageClass/static-local and 4 more resources"
    },
    "wave": 0
   },
@@ -381,7 +381,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "cc25275c629a3d725a6a2a72dc1a3c7f4054ab7d",
+   "revision": "563303f1c2e1d5c5dbe455a1d201d72f996af6b9",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
@@ -586,7 +586,11 @@
     "repository",
     "stalwart"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-16T14:42:32Z"
+   }
   },
   {
    "commit": "cc25275c629a3d725a6a2a72dc1a3c7f4054ab7d",
