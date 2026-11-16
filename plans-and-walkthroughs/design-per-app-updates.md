@@ -554,9 +554,9 @@ fails.
    does not run, it cannot verify.
 2. **While Ring 0 is idle** (`main`'s head green, nothing else queued, no
    cluster incident), the follower opens an incident of kind M for the oldest
-   one (label `ring0-major-update`), marks Renovate's PR `steward-prepare` so it
-   is offered once, and asks the Steward. One major at a time; Ring 0 keeps
-   merging minors meanwhile.
+   one (label `ring0-major-update`), marks Renovate's PR
+   `steward-prepare-<fingerprint>` so each update in it is offered once, and
+   asks the Steward. One major at a time; Ring 0 keeps merging minors meanwhile.
 3. The Steward reads the upstream upgrade notes for every version in between,
    and opens a PR of its own (label `steward`, a `Ring0-Incident:` line) with
    Renovate's change and whatever the new version needs: values, manifests, a
