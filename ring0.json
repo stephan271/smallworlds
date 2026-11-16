@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T22:53:43Z",
+ "updated": "2026-11-16T22:55:49Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -52,9 +52,9 @@
     "quay.io/jetstack/cert-manager-webhook:v1.21.3"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for healthy state of /ServiceAccount/cert-manager and 43 more resources"
+    "phase": "Succeeded",
+    "finished": "2026-11-16T22:54:19Z",
+    "message": null
    },
    "wave": -10
   },
@@ -90,8 +90,8 @@
     "docker.io/traefik:v3.3.4"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
+    "phase": "Succeeded",
+    "finished": "2026-11-16T22:53:55Z",
     "message": null
    },
    "wave": -10
@@ -223,9 +223,9 @@
     "ghcr.io/euro-office/documentserver:v9.3.4-hotfix.1@sha256:889e681923d2dcc8bdfb92fe128d10e185fcff880d302b6a0c0c7bf339499290"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for healthy state of /ServiceAccount/euro-office-secret-init and 2 more resources"
+    "phase": "Succeeded",
+    "finished": "2026-11-16T22:54:14Z",
+    "message": null
    },
    "wave": 0
   },
@@ -258,15 +258,17 @@
    "version": null,
    "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
     "ghcr.io/tensorchord/cloudnative-pgvecto.rs:16.4-v0.3.0",
+    "quay.io/keycloak/keycloak:26.8.2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc496969a319a76bbf0",
     "quay.io/keycloak/keycloak@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc496969a319a76bbf0"
    ],
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": null
+    "message": "waiting for completion of hook batch/Job/keycloak-realm-config"
    },
    "wave": 0
   },
@@ -292,7 +294,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": null
+    "message": "waiting for deletion of hook /ServiceAccount/kube-prometheus-stack-admission and 4 more hooks"
    },
    "wave": 0
   },
@@ -310,8 +312,8 @@
     "grafana/loki:2.6.1"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
+    "phase": "Succeeded",
+    "finished": "2026-11-16T22:53:55Z",
     "message": null
    },
    "wave": 0
@@ -348,7 +350,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T22:26:46Z",
+    "finished": "2026-11-16T22:54:59Z",
     "message": null
    },
    "wave": 0
@@ -366,9 +368,9 @@
     "ghcr.io/bulwarkmail/webmail:1.21.2@sha256:037b85b1433233d2d7eebb83f928df5ecc3b4adc91dc7e4c55f0a2f69024e754"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for healthy state of /ServiceAccount/setup-sa and 1 more resources"
+    "phase": "Succeeded",
+    "finished": "2026-11-16T22:54:58Z",
+    "message": null
    },
    "wave": 1
   },
@@ -421,6 +423,7 @@
    "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
    "images": [
     "code.forgejo.org/forgejo/forgejo:15.0.11-rootless",
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -431,7 +434,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": "waiting for deletion of hook /ServiceAccount/pre-update-backup and 2 more hooks"
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -445,6 +448,7 @@
    "version": null,
    "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/redis:6.2-alpine@sha256:3f9c6e23ed6bea3b41d0ef709fc164c1a0b7c00d5a21a60e0e9c33ada5496881",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -457,7 +461,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": null
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -478,8 +482,8 @@
     "ghcr.io/jitsi/web:stable-11248-3"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
+    "phase": "Succeeded",
+    "finished": "2026-11-16T22:55:19Z",
     "message": null
    },
    "wave": 1
@@ -494,12 +498,13 @@
    "version": null,
    "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": null
+    "message": "waiting for completion of hook batch/Job/join-keycloak-setup"
    },
    "wave": 1
   },
@@ -513,6 +518,7 @@
    "version": null,
    "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/library/nextcloud:35.0.2-apache",
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
@@ -524,7 +530,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": null
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -541,8 +547,8 @@
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
+    "phase": "Succeeded",
+    "finished": "2026-11-16T22:54:43Z",
     "message": null
    },
    "wave": 1
@@ -569,7 +575,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": null
+    "message": "waiting for completion of hook batch/Job/stalwart-secret-init"
    },
    "wave": 1
   }
