@@ -27,6 +27,8 @@ The Deployment uses `strategy: Recreate`, because the final copy needs v0.16 sto
 
 What else changed with v1 for this tenant: the init Job sets `acceptedAudiences` (formerly `requireAudience`) and `unscopedTokens: interoperable` on the Keycloak directory, because Keycloak's tokens carry no Stalwart scopes and v1 would otherwise reject them. `dkimSignDomain` moved from `SenderAuth` to `MtaStageData`. `STALWART_UPDATE_ROLE_PERMISSIONS=true` gives default roles made by an older version the permissions added since.
 
+The init Job and the mail provisioner use `stalwart-cli` **v1.0.14** or newer: v1.1.0's schema has the string format `sieve`, and v1.0.10 stopped at it before running any command (Ring 0, 2026-11-16). Move the CLI pin with the Stalwart image.
+
 ### 3. Mail Provisioner (`mail-provisioner-deployment.yaml` & `mail-provisioner-rbac.yaml`)
 Because Keycloak doesn't natively push user creation events to external mail servers in a simple way, a custom sidecar/provisioner deployment is used to synchronize users.
 - **Direct Database Sync**: The Python script inside `mail-provisioner-code` connects *directly* to the Keycloak PostgreSQL database (`keycloak-db-rw.keycloak.svc.cluster.local`). 
