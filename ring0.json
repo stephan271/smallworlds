@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T08:28:46Z",
+ "updated": "2026-11-16T08:30:54Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -1063,6 +1063,20 @@
    "cards": [
     "garage",
     "garage-backup"
+   ]
+  },
+  {
+   "number": 106,
+   "title": "Explain the automatic update process, and show it in the talk",
+   "author": "stephan271",
+   "created": "2026-11-16T08:30:45Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "canary-follower",
+    "repository"
    ]
   }
  ]
