@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T08:56:26Z",
+ "updated": "2026-11-16T08:58:34Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -1053,6 +1053,21 @@
    ],
    "cards": [
     "dashboard"
+   ]
+  },
+  {
+   "number": 108,
+   "title": "Update Helm chart jitsi-meet to v3",
+   "author": "renovate[bot]",
+   "created": "2026-11-16T08:57:21Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [
+    "ring0-major"
+   ],
+   "cards": [
+    "jitsi"
    ]
   }
  ]
