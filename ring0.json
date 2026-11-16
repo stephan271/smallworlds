@@ -1,19 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-16T19:01:25Z",
+ "updated": "2026-11-16T19:05:38Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "b529aabed1bfc40848a490015a2dab27219afaff",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-16T18:49:52Z"
+  "commit": "9198ff6e0a71994579ee4c2ff9974397e256b404",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "b529aabed1bfc40848a490015a2dab27219afaff",
-  "pull": null,
-  "step": "merge",
+  "commit": "9198ff6e0a71994579ee4c2ff9974397e256b404",
+  "pull": {
+   "number": 118,
+   "title": "Update the jitsi-meet chart to 3.12.0 (#118)",
+   "cards": [
+    "jitsi"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
@@ -24,19 +30,11 @@
      "kube-prometheus-stack"
     ],
     "since": "2026-11-14T09:32:22Z"
-   },
-   {
-    "number": 118,
-    "title": "Update the jitsi-meet chart to 3.12.0",
-    "cards": [
-     "jitsi"
-    ],
-    "since": "2026-11-16T18:59:49Z"
    }
   ],
   "stuck": null,
-  "action": "merged #114",
-  "waiting": "no queued update is ready"
+  "action": "merged #118",
+  "waiting": null
  },
  "applications": [
   {
@@ -578,6 +576,17 @@
  ],
  "commits": [
   {
+   "commit": "9198ff6e0a71994579ee4c2ff9974397e256b404",
+   "title": "Update the jitsi-meet chart to 3.12.0 (#118)",
+   "author": "smallworlds-steward[bot]",
+   "date": "2026-11-16T19:05:30Z",
+   "pull": 118,
+   "cards": [
+    "jitsi"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "b529aabed1bfc40848a490015a2dab27219afaff",
    "title": "Garage chart 1.0.0 (Garage v2.5.0) (#114)",
    "author": "smallworlds-steward[bot]",
@@ -916,21 +925,6 @@
     "excalidraw"
    ],
    "verdict": null
-  },
-  {
-   "commit": "316940e251c7f36e817f69df94cea05c8f88710d",
-   "title": "Point Excalidraw's Service at port 8080",
-   "author": "stephan271",
-   "date": "2026-11-15T17:08:40Z",
-   "pull": 94,
-   "cards": [
-    "excalidraw"
-   ],
-   "verdict": {
-    "state": "failure",
-    "description": "Smoke failed: whiteboard.canary.smallworlds.network: HTTP 502",
-    "date": "2026-11-15T17:20:00Z"
-   }
   }
  ],
  "pulls": [
@@ -1034,22 +1028,6 @@
    ],
    "cards": [
     "immich"
-   ]
-  },
-  {
-   "number": 118,
-   "title": "Update the jitsi-meet chart to 3.12.0",
-   "author": "smallworlds-steward[bot]",
-   "created": "2026-11-16T18:59:49Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue",
-    "steward"
-   ],
-   "cards": [
-    "jitsi"
    ]
   }
  ]
