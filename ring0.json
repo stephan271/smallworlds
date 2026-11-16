@@ -1,19 +1,26 @@
 {
  "schema": 1,
- "updated": "2026-11-16T17:06:52Z",
+ "updated": "2026-11-16T17:09:00Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "563303f1c2e1d5c5dbe455a1d201d72f996af6b9",
-  "state": "failure",
-  "description": "Not converged: stalwart: sync Failed: Job stalwart-init: Job has reached the specified backoff limit; touches stalwart: restore, do not rev\u2026",
-  "date": "2026-11-16T15:30:30Z"
+  "commit": "bd1e9252b136d91a52e47be79f7adc43b3f38cc3",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
-  "state": "stuck",
-  "commit": "563303f1c2e1d5c5dbe455a1d201d72f996af6b9",
-  "pull": null,
-  "step": null,
+  "state": "updating",
+  "commit": "bd1e9252b136d91a52e47be79f7adc43b3f38cc3",
+  "pull": {
+   "number": 113,
+   "title": "Stalwart: send acceptedAudiences as a set, as v1 expects (#113)",
+   "cards": [
+    "repository",
+    "stalwart"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
@@ -24,24 +31,11 @@
      "kube-prometheus-stack"
     ],
     "since": "2026-11-14T09:32:22Z"
-   },
-   {
-    "number": 113,
-    "title": "Stalwart: send acceptedAudiences as a set, as v1 expects",
-    "cards": [
-     "repository",
-     "stalwart"
-    ],
-    "since": "2026-11-16T17:05:00Z"
    }
   ],
-  "stuck": {
-   "condition": "S1",
-   "since": "2026-11-16T15:30:30Z",
-   "summary": "Not converged: stalwart: sync Failed: Job stalwart-init: Job has reached the specified backoff limit; touches stalwart: restore, do not rev\u2026"
-  },
-  "action": "not reverted: restore from the pre-update backup",
-  "waiting": "no queued update is ready"
+  "stuck": null,
+  "action": "merged the Steward's fix #113",
+  "waiting": null
  },
  "applications": [
   {
@@ -130,7 +124,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "563303f1c2e1d5c5dbe455a1d201d72f996af6b9",
+   "revision": "bd1e9252b136d91a52e47be79f7adc43b3f38cc3",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
@@ -348,7 +342,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "563303f1c2e1d5c5dbe455a1d201d72f996af6b9",
+   "revision": "bd1e9252b136d91a52e47be79f7adc43b3f38cc3",
    "images": [
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
@@ -582,6 +576,18 @@
   }
  ],
  "commits": [
+  {
+   "commit": "bd1e9252b136d91a52e47be79f7adc43b3f38cc3",
+   "title": "Stalwart: send acceptedAudiences as a set, as v1 expects (#113)",
+   "author": "smallworlds-steward[bot]",
+   "date": "2026-11-16T17:06:57Z",
+   "pull": 113,
+   "cards": [
+    "repository",
+    "stalwart"
+   ],
+   "verdict": null
+  },
   {
    "commit": "563303f1c2e1d5c5dbe455a1d201d72f996af6b9",
    "title": "Stalwart: stalwart-cli v1.0.14, which reads v1.1.0's schema (#112)",
@@ -917,21 +923,6 @@
     "description": "Ring 0: converged, load settled after 4 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
     "date": "2026-11-15T14:22:07Z"
    }
-  },
-  {
-   "commit": "a20676f1ee7ccfd6769621f848394a8ecc7c4c82",
-   "title": "Switch the Ring 0 Steward on, and wait out a busy API server",
-   "author": "stephan271",
-   "date": "2026-11-15T13:30:15Z",
-   "pull": 91,
-   "cards": [
-    "canary-follower"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 7 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
-    "date": "2026-11-15T13:56:22Z"
-   }
   }
  ],
  "pulls": [
@@ -1036,23 +1027,6 @@
    ],
    "cards": [
     "kube-prometheus-stack"
-   ]
-  },
-  {
-   "number": 113,
-   "title": "Stalwart: send acceptedAudiences as a set, as v1 expects",
-   "author": "smallworlds-steward[bot]",
-   "created": "2026-11-16T17:05:00Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue",
-    "steward"
-   ],
-   "cards": [
-    "repository",
-    "stalwart"
    ]
   }
  ]
