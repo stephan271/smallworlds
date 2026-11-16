@@ -11,7 +11,11 @@ spec:
   project: default
   source:
     repoURL: 'https://datahub-local.github.io/garage-helm'
-    targetRevision: 0.9.0
+    # Chart 1.x runs Garage v2.5, a one-way upgrade: do not move this back
+    # below 1.0.0 (it would run v2.4 on v2.5 metadata). Fix forward instead.
+    # v2.5 also lets only bucket *owners* manage lifecycle rules; every key the
+    # init jobs create is already an owner, and nothing here sets lifecycle rules.
+    targetRevision: 1.0.0
     chart: garage
     helm:
       values: |
