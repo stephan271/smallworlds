@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T22:13:48Z",
+ "updated": "2026-11-16T22:15:54Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -32,6 +32,14 @@
      "jitsi"
     ],
     "since": "2026-11-16T22:13:11Z"
+   },
+   {
+    "number": 121,
+    "title": "Update dependency @playwright/test to v1.65.1",
+    "cards": [
+     "canary-follower"
+    ],
+    "since": "2026-11-16T22:14:21Z"
    }
   ],
   "stuck": null,
@@ -1054,6 +1062,21 @@
    ],
    "cards": [
     "jitsi"
+   ]
+  },
+  {
+   "number": 121,
+   "title": "Update dependency @playwright/test to v1.65.1",
+   "author": "renovate[bot]",
+   "created": "2026-11-16T22:14:21Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "canary-follower"
    ]
   }
  ]
