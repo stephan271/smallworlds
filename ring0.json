@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T09:51:52Z",
+ "updated": "2026-11-16T09:54:00Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -940,22 +940,6 @@
    ]
   },
   {
-   "number": 89,
-   "title": "Update Docker image ghcr.io/gethomepage/homepage to v2",
-   "author": "renovate[bot]",
-   "created": "2026-11-15T12:37:26Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [
-    "ring0-major",
-    "steward-prepare"
-   ],
-   "cards": [
-    "dashboard"
-   ]
-  },
-  {
    "number": 92,
    "title": "Update Docker image stalwartlabs/stalwart to v1",
    "author": "renovate[bot]",
@@ -1012,6 +996,21 @@
    ],
    "cards": [
     "jitsi"
+   ]
+  },
+  {
+   "number": 110,
+   "title": "Update Helm chart kube-prometheus-stack to v93",
+   "author": "renovate[bot]",
+   "created": "2026-11-16T09:52:48Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [
+    "ring0-major"
+   ],
+   "cards": [
+    "kube-prometheus-stack"
    ]
   }
  ]
