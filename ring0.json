@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T10:08:56Z",
+ "updated": "2026-11-16T10:13:10Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -19,9 +19,9 @@
     "dashboard"
    ]
   },
-  "step": "quiet",
-  "step_since": "2026-11-16T10:08:06Z",
-  "started": "2026-11-16T09:56:25Z",
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -34,7 +34,7 @@
   ],
   "stuck": null,
   "action": "merged #107",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
