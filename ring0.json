@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T15:32:34Z",
+ "updated": "2026-11-16T15:36:49Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -32,7 +32,7 @@
    "summary": "Not converged: stalwart: sync Failed: Job stalwart-init: Job has reached the specified backoff limit; touches stalwart: restore, do not rev\u2026"
   },
   "action": "not reverted: restore from the pre-update backup",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
