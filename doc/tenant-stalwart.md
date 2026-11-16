@@ -25,7 +25,7 @@ The Deployment uses `strategy: Recreate`, because the final copy needs v0.16 sto
 
 **Going back** before v1 has served anyone: deploy v0.16.27 with `config.json` pointing at `app` again. Once v1 has served members, mail received since then is only in `stalwart_v1`. Going back then is `stalwart-migrate rollback --forward-state /var/lib/stalwart-migrate` into a new, empty database. The migration cannot be undone in place.
 
-What else changed with v1 for this tenant: the init Job sets `acceptedAudiences` (formerly `requireAudience`) and `unscopedTokens: interoperable` on the Keycloak directory, because Keycloak's tokens carry no Stalwart scopes and v1 would otherwise reject them. `dkimSignDomain` moved from `SenderAuth` to `MtaStageData`. `STALWART_UPDATE_ROLE_PERMISSIONS=true` gives default roles made by an older version the permissions added since.
+What else changed with v1 for this tenant: the init Job sets `acceptedAudiences` (formerly `requireAudience`; a set, which the API takes as a map: `{"stalwart": true}`) and `unscopedTokens: interoperable` on the Keycloak directory, because Keycloak's tokens carry no Stalwart scopes and v1 would otherwise reject them. `dkimSignDomain` moved from `SenderAuth` to `MtaStageData`. `STALWART_UPDATE_ROLE_PERMISSIONS=true` gives default roles made by an older version the permissions added since.
 
 The init Job and the mail provisioner use `stalwart-cli` **v1.0.14** or newer: v1.1.0's schema has the string format `sieve`, and v1.0.10 stopped at it before running any command (Ring 0, 2026-11-16). Move the CLI pin with the Stalwart image.
 

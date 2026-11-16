@@ -295,7 +295,7 @@ spec:
                 '{
                   description: "Keycloak",
                   issuerUrl: $issuer,
-                  acceptedAudiences: ["stalwart"],
+                  acceptedAudiences: {"stalwart": true},
                   opaqueTokenValidation: "userInfo",
                   unscopedTokens: "interoperable",
                   claimUsername: "email",
@@ -303,7 +303,10 @@ spec:
                   claimName: "name",
                   claimGroups: "groups"
                 }')
-              # Stalwart v1: requireAudience became acceptedAudiences (a list).
+              # Stalwart v1: requireAudience became acceptedAudiences, a
+              # Set<String>, which the API takes as a map of value -> true
+              # ({"stalwart": true}, as stalwart-migrate writes it). A JSON list
+              # is refused with invalidPatch.
               # Keycloak's tokens carry no Stalwart OAuth scopes, and v1 rejects
               # such tokens unless unscopedTokens allows them: "interoperable"
               # admits IMAP, SMTP, DAV and JMAP mail (what Bulwark and members'
