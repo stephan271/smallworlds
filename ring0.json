@@ -1,27 +1,27 @@
 {
  "schema": 1,
- "updated": "2026-11-16T08:05:30Z",
+ "updated": "2026-11-16T08:09:41Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "0a92751f44a15164c7a1cda9fc7730fa3e3c9c8b",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-16T07:54:06Z"
+  "commit": "eb2c84d083d9a17ec06ab0b995aa342303d4235c",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "0a92751f44a15164c7a1cda9fc7730fa3e3c9c8b",
+  "commit": "eb2c84d083d9a17ec06ab0b995aa342303d4235c",
   "pull": {
-   "number": 101,
-   "title": "Revert \"Turn off Bulwark's automatic sign-in redirect\" (#101)",
+   "number": 96,
+   "title": "Update Nextcloud's Redis to v8 (major, Steward) (#96)",
    "cards": [
-    "bulwark"
+    "nextcloud"
    ]
   },
-  "step": "quiet",
-  "step_since": "2026-11-16T08:04:24Z",
-  "started": "2026-11-16T07:54:06Z",
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -30,14 +30,6 @@
      "kube-prometheus-stack"
     ],
     "since": "2026-11-14T09:32:22Z"
-   },
-   {
-    "number": 96,
-    "title": "Update Nextcloud's Redis to v8 (major, Steward)",
-    "cards": [
-     "nextcloud"
-    ],
-    "since": "2026-11-15T17:03:10Z"
    },
    {
     "number": 102,
@@ -67,7 +59,7 @@
    }
   ],
   "stuck": null,
-  "action": "merged the Steward's fix #101",
+  "action": "merged #96",
   "waiting": null
  },
  "applications": [
@@ -608,6 +600,17 @@
  ],
  "commits": [
   {
+   "commit": "eb2c84d083d9a17ec06ab0b995aa342303d4235c",
+   "title": "Update Nextcloud's Redis to v8 (major, Steward) (#96)",
+   "author": "smallworlds-steward[bot]",
+   "date": "2026-11-16T08:09:31Z",
+   "pull": 96,
+   "cards": [
+    "nextcloud"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "0a92751f44a15164c7a1cda9fc7730fa3e3c9c8b",
    "title": "Revert \"Turn off Bulwark's automatic sign-in redirect\" (#101)",
    "author": "smallworlds-steward[bot]",
@@ -617,9 +620,9 @@
     "bulwark"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-16T07:54:06Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
+    "date": "2026-11-16T08:09:25Z"
    }
   },
   {
@@ -931,23 +934,6 @@
     "repository"
    ],
    "verdict": null
-  },
-  {
-   "commit": "e5db00d2bee18ee36e30dfaabbbf018a010a84c3",
-   "title": "Give join and bulk-invite the kc-admin-api scope Keycloak 26.8.2 requires",
-   "author": "stephan271",
-   "date": "2026-11-15T09:33:21Z",
-   "pull": 83,
-   "cards": [
-    "join",
-    "keycloak",
-    "repository"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
-    "date": "2026-11-15T10:08:28Z"
-   }
   }
  ],
  "pulls": [
@@ -1038,22 +1024,6 @@
    ],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 96,
-   "title": "Update Nextcloud's Redis to v8 (major, Steward)",
-   "author": "smallworlds-steward[bot]",
-   "created": "2026-11-15T17:03:10Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue",
-    "steward"
-   ],
-   "cards": [
-    "nextcloud"
    ]
   },
   {
