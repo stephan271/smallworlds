@@ -1,22 +1,22 @@
 {
  "schema": 1,
- "updated": "2026-11-16T09:24:06Z",
+ "updated": "2026-11-16T09:26:18Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "6740ea91fc9db54101e6a992fe6b49662afa7073",
+  "commit": "b079f3ff484202ca3513be73e9c22ba5a8833c72",
   "state": null,
   "description": null,
   "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "6740ea91fc9db54101e6a992fe6b49662afa7073",
+  "commit": "b079f3ff484202ca3513be73e9c22ba5a8833c72",
   "pull": {
-   "number": 103,
-   "title": "Update Helm chart nextcloud to v9.4.3 (#103)",
+   "number": 109,
+   "title": "Leave majors in .github/ out of ring0-major",
    "cards": [
-    "nextcloud"
+    "repository"
    ]
   },
   "step": "waiting",
@@ -349,7 +349,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "56460b17ebed36e29a55d4ed0121c52163e820fc",
+   "revision": "6740ea91fc9db54101e6a992fe6b49662afa7073",
    "images": [
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
@@ -388,7 +388,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "56460b17ebed36e29a55d4ed0121c52163e820fc",
+   "revision": "6740ea91fc9db54101e6a992fe6b49662afa7073",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
@@ -582,6 +582,17 @@
  ],
  "commits": [
   {
+   "commit": "b079f3ff484202ca3513be73e9c22ba5a8833c72",
+   "title": "Leave majors in .github/ out of ring0-major",
+   "author": "stephan271",
+   "date": "2026-11-16T09:24:46Z",
+   "pull": 109,
+   "cards": [
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "6740ea91fc9db54101e6a992fe6b49662afa7073",
    "title": "Update Helm chart nextcloud to v9.4.3 (#103)",
    "author": "renovate[bot]",
@@ -589,6 +600,17 @@
    "pull": 103,
    "cards": [
     "nextcloud"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "a1df23071598bf4b37cd4e4aec3eeebbaf2b2387",
+   "title": "Leave majors in .github/ out of ring0-major",
+   "author": "stephan271",
+   "date": "2026-11-16T09:23:28Z",
+   "pull": null,
+   "cards": [
+    "repository"
    ],
    "verdict": null
   },
@@ -890,28 +912,6 @@
     "canary-follower"
    ],
    "verdict": null
-  },
-  {
-   "commit": "d68f44b94642990bf09888bf79f9d9787f62852a",
-   "title": "Wait out a busy API server while the checks Job runs",
-   "author": "stephan271",
-   "date": "2026-11-15T12:57:34Z",
-   "pull": null,
-   "cards": [
-    "canary-follower"
-   ],
-   "verdict": null
-  },
-  {
-   "commit": "76d9785414d3ebc54bc5a053a0f8b7e71d5620d3",
-   "title": "Unpack the Steward's runner as steward from root's download",
-   "author": "stephan271",
-   "date": "2026-11-15T12:50:15Z",
-   "pull": null,
-   "cards": [
-    "canary-follower"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -1032,19 +1032,6 @@
    ],
    "cards": [
     "jitsi"
-   ]
-  },
-  {
-   "number": 109,
-   "title": "Leave majors in .github/ out of ring0-major",
-   "author": "stephan271",
-   "created": "2026-11-16T09:23:32Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "repository"
    ]
   }
  ]
