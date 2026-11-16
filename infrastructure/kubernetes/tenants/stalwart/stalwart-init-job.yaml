@@ -87,8 +87,9 @@ spec:
               # fail, so no setting below takes effect until a restart (Ring 0,
               # 2026-11-10: the zone file kept the pod's name as the mail
               # hostname). Move this pin together with the image in
-              # stalwart-deployment.yaml.
-              SPAM_RULES_URL="https://github.com/stalwartlabs/spam-filter/releases/download/v3.0.1/spam-filter-rules.json.gz"
+              # stalwart-deployment.yaml. v3.0.4 is the release Stalwart v1.1.0
+              # fetched as "latest" when it came out.
+              SPAM_RULES_URL="https://github.com/stalwartlabs/spam-filter/releases/download/v3.0.4/spam-filter-rules.json.gz"
               echo "Pinning the spam filter rules to $SPAM_RULES_URL..."
               # Let the first-boot fetch finish, or its objects arrive after the repair.
               for i in $(seq 1 60); do
@@ -149,8 +150,9 @@ spec:
               $CLI create Action --json '{"@type":"ReloadBlockedIps"}' || true
               $CLI create Action --json '{"@type":"ReloadSettings"}' || true
 
+              # v1 moved dkimSignDomain from SenderAuth to MtaStageData.
               echo "Configuring DKIM signing for internal relays..."
-              $CLI update SenderAuth singleton --json '{
+              $CLI update MtaStageData singleton --json '{
                 "dkimSignDomain": {
                   "match": {
                     "0": {
@@ -287,12 +289,20 @@ spec:
                 '{
                   description: "Keycloak",
                   issuerUrl: $issuer,
-                  requireAudience: "stalwart",
+                  acceptedAudiences: ["stalwart"],
+                  opaqueTokenValidation: "userInfo",
+                  unscopedTokens: "interoperable",
                   claimUsername: "email",
                   usernameDomain: null,
                   claimName: "name",
                   claimGroups: "groups"
                 }')
+              # Stalwart v1: requireAudience became acceptedAudiences (a list).
+              # Keycloak's tokens carry no Stalwart OAuth scopes, and v1 rejects
+              # such tokens unless unscopedTokens allows them: "interoperable"
+              # admits IMAP, SMTP, DAV and JMAP mail (what Bulwark and members'
+              # apps use), not the account-management APIs. userInfo keeps
+              # v0.16's handling of opaque tokens.
               # One OIDC directory, updated in place. This used to create a fresh
               # one on every run and delete the old ones with `delete
               # Directory/oidc/<id>`, a syntax the CLI refuses — so none was ever
