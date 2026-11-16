@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-16T09:28:26Z",
+ "updated": "2026-11-16T09:30:35Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "b079f3ff484202ca3513be73e9c22ba5a8833c72",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-16T09:28:37Z"
  },
  "now": {
   "state": "updating",
@@ -19,9 +19,9 @@
     "repository"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "converge",
+  "step_since": "2026-11-16T09:29:49Z",
+  "started": "2026-11-16T09:28:36Z",
   "queued": [
    {
     "number": 73,
@@ -60,9 +60,9 @@
     "quay.io/jetstack/cert-manager-webhook:v1.21.3"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T09:03:16Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook /ServiceAccount/cert-manager-startupapicheck and 2 more hooks"
    },
    "wave": -10
   },
@@ -80,7 +80,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T09:02:50Z",
+    "finished": "2026-11-16T09:29:58Z",
     "message": null
    },
    "wave": -10
@@ -99,7 +99,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T09:03:02Z",
+    "finished": "2026-11-16T09:30:24Z",
     "message": null
    },
    "wave": -10
@@ -118,7 +118,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T09:02:48Z",
+    "finished": "2026-11-16T09:29:56Z",
     "message": null
    },
    "wave": -9
@@ -137,7 +137,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T09:02:50Z",
+    "finished": "2026-11-16T09:29:58Z",
     "message": null
    },
    "wave": -9
@@ -156,7 +156,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T09:02:52Z",
+    "finished": "2026-11-16T09:30:00Z",
     "message": null
    },
    "wave": -5
@@ -175,7 +175,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T09:02:52Z",
+    "finished": "2026-11-16T09:30:06Z",
     "message": null
    },
    "wave": -5
@@ -194,7 +194,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T09:02:40Z",
+    "finished": "2026-11-16T09:29:47Z",
     "message": null
    },
    "wave": 0
@@ -213,7 +213,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T09:02:48Z",
+    "finished": "2026-11-16T09:29:57Z",
     "message": null
    },
    "wave": 0
@@ -228,12 +228,13 @@
    "version": null,
    "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/euro-office/documentserver:v9.3.4-hotfix.1@sha256:889e681923d2dcc8bdfb92fe128d10e185fcff880d302b6a0c0c7bf339499290"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T09:03:55Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/euro-office-secret-init"
    },
    "wave": 0
   },
@@ -251,7 +252,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T09:02:53Z",
+    "finished": "2026-11-16T09:30:07Z",
     "message": null
    },
    "wave": 0
@@ -272,9 +273,9 @@
     "quay.io/keycloak/keycloak@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc496969a319a76bbf0"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T09:05:34Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for deletion of hook /ServiceAccount/pre-update-backup and 2 more hooks"
    },
    "wave": 0
   },
@@ -298,8 +299,8 @@
     "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.19.1"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T09:03:45Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 0
@@ -319,7 +320,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T09:03:04Z",
+    "finished": "2026-11-16T09:30:24Z",
     "message": null
    },
    "wave": 0
@@ -336,7 +337,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T09:02:17Z",
+    "finished": "2026-11-16T09:29:20Z",
     "message": null
    },
    "wave": 0
@@ -349,15 +350,15 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "6740ea91fc9db54101e6a992fe6b49662afa7073",
+   "revision": "b079f3ff484202ca3513be73e9c22ba5a8833c72",
    "images": [
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T09:04:05Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook rbac.authorization.k8s.io/ClusterRole/velero-upgrade-crds"
    },
    "wave": 0
   },
@@ -371,12 +372,13 @@
    "version": null,
    "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/bulwarkmail/webmail:1.21.2@sha256:037b85b1433233d2d7eebb83f928df5ecc3b4adc91dc7e4c55f0a2f69024e754"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T09:04:31Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -394,7 +396,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T09:02:53Z",
+    "finished": "2026-11-16T09:30:03Z",
     "message": null
    },
    "wave": 1
@@ -413,7 +415,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-16T09:02:45Z",
+    "finished": "2026-11-16T09:29:52Z",
     "message": null
    },
    "wave": 1
@@ -437,9 +439,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T09:05:30Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for deletion of hook /ServiceAccount/pre-update-backup and 2 more hooks"
    },
    "wave": 1
   },
@@ -463,9 +465,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T09:05:33Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for deletion of hook /ServiceAccount/pre-update-backup and 2 more hooks"
    },
    "wave": 1
   },
@@ -479,6 +481,7 @@
    "version": null,
    "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/jitsi-contrib/jitsi-oidc-adapter:v20260328@sha256:c4a28b215f5ea4893e308cd3f15b1f1c6954231ab784cac6362f420e6648a745",
     "jitsi/jicofo:stable-11031",
     "jitsi/jvb:stable-11031",
@@ -486,9 +489,9 @@
     "jitsi/web:stable-11031"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T09:04:32Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/jitsi-secret-init and 1 more hooks"
    },
    "wave": 1
   },
@@ -502,12 +505,13 @@
    "version": null,
    "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T09:05:35Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -530,9 +534,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T09:05:41Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for deletion of hook /ServiceAccount/pre-update-backup and 2 more hooks"
    },
    "wave": 1
   },
@@ -546,12 +550,13 @@
    "version": null,
    "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T09:04:11Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/garage-init"
    },
    "wave": 1
   },
@@ -573,9 +578,9 @@
     "stalwartlabs/stalwart:v0.16.27@sha256:2c9af6bfccb361b9f286d6cd0bb50acb2aaeffc06f5257354c0ce4dff9f02b58"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-16T09:04:57Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for deletion of hook /ServiceAccount/pre-update-backup and 2 more hooks"
    },
    "wave": 1
   }
@@ -590,7 +595,11 @@
    "cards": [
     "repository"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-16T09:28:37Z"
+   }
   },
   {
    "commit": "6740ea91fc9db54101e6a992fe6b49662afa7073",
