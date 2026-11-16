@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T23:14:36Z",
+ "updated": "2026-11-16T23:16:41Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -24,6 +24,14 @@
      "kube-prometheus-stack"
     ],
     "since": "2026-11-14T09:32:22Z"
+   },
+   {
+    "number": 122,
+    "title": "Update Helm chart kube-prometheus-stack to v93.3.0",
+    "cards": [
+     "kube-prometheus-stack"
+    ],
+    "since": "2026-11-16T23:15:08Z"
    }
   ],
   "stuck": null,
@@ -1018,6 +1026,22 @@
    ],
    "cards": [
     "immich"
+   ]
+  },
+  {
+   "number": 122,
+   "title": "Update Helm chart kube-prometheus-stack to v93.3.0",
+   "author": "smallworlds-steward[bot]",
+   "created": "2026-11-16T23:15:08Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue",
+    "steward"
+   ],
+   "cards": [
+    "kube-prometheus-stack"
    ]
   }
  ]
