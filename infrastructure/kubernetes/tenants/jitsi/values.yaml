@@ -43,8 +43,13 @@ web:
     - name: jitsi-oidc-adapter
       image: ghcr.io/jitsi-contrib/jitsi-oidc-adapter:v20260328@sha256:c4a28b215f5ea4893e308cd3f15b1f1c6954231ab784cac6362f420e6648a745
       imagePullPolicy: IfNotPresent
+      # Not "http": from chart 3.x the web Service sends to `targetPort: http`,
+      # and Kubernetes takes the first container port of that name. The
+      # overlays' domain patch puts this sidecar first, so a port named "http"
+      # here sent every request to the adapter, which answers / with 404
+      # (Ring 0, 2026-11-16). nginx reaches the adapter on 127.0.0.1:9000.
       ports:
-        - name: http
+        - name: oidc
           containerPort: 9000
       env:
         # NOTE: this adapter image reads JWT_APP_ID / JWT_APP_SECRET / OIDC_ISSUER_URL.
