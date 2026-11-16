@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T10:34:13Z",
+ "updated": "2026-11-16T10:36:21Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -125,7 +125,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "80d7867d20715b32785d0cf18de1b088e9eab3f4",
+   "revision": "cc25275c629a3d725a6a2a72dc1a3c7f4054ab7d",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
@@ -182,7 +182,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "80d7867d20715b32785d0cf18de1b088e9eab3f4",
+   "revision": "cc25275c629a3d725a6a2a72dc1a3c7f4054ab7d",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
@@ -343,7 +343,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "80d7867d20715b32785d0cf18de1b088e9eab3f4",
+   "revision": "cc25275c629a3d725a6a2a72dc1a3c7f4054ab7d",
    "images": [
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
@@ -382,7 +382,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "80d7867d20715b32785d0cf18de1b088e9eab3f4",
+   "revision": "cc25275c629a3d725a6a2a72dc1a3c7f4054ab7d",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
@@ -949,7 +949,7 @@
   },
   {
    "number": 92,
-   "title": "Update Docker image stalwartlabs/stalwart to v1",
+   "title": "Update Docker image ghcr.io/cloudnative-pg/postgresql to v18",
    "author": "renovate[bot]",
    "created": "2026-11-15T13:57:19Z",
    "draft": false,
