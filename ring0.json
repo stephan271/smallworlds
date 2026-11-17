@@ -1,47 +1,31 @@
 {
  "schema": 1,
- "updated": "2026-11-17T17:26:26Z",
+ "updated": "2026-11-17T17:30:34Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "c381abb8ec73211b260e819e4824e748e882aa06",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-17T17:14:35Z"
+  "commit": "05eb59449878d6b2cba69b429cbacc675717cf07",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "c381abb8ec73211b260e819e4824e748e882aa06",
+  "commit": "05eb59449878d6b2cba69b429cbacc675717cf07",
   "pull": {
-   "number": 126,
-   "title": "Separate operator interfaces by Traefik entrypoint (ADR 0066, operator half)",
+   "number": 127,
+   "title": "Update Docker image docker.io/tailscale/tailscale to v1.104.7 (#127)",
    "cards": [
-    "canary-follower",
-    "headscale",
-    "join",
-    "keycloak",
-    "kube-prometheus-stack",
-    "repository",
-    "smallworlds-root",
-    "traefik"
+    "headscale"
    ]
   },
-  "step": "quiet",
-  "step_since": "2026-11-17T17:25:19Z",
-  "started": "2026-11-17T17:14:35Z",
-  "queued": [
-   {
-    "number": 127,
-    "title": "Update Docker image docker.io/tailscale/tailscale to v1.104.7",
-    "cards": [
-     "headscale"
-    ],
-    "since": "2026-11-17T17:12:22Z"
-   }
-  ],
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
+  "queued": [],
   "stuck": null,
-  "action": "merged #124",
-  "waiting": "no queued update is ready"
+  "action": "merged #127",
+  "waiting": null
  },
  "applications": [
   {
@@ -581,6 +565,17 @@
  ],
  "commits": [
   {
+   "commit": "05eb59449878d6b2cba69b429cbacc675717cf07",
+   "title": "Update Docker image docker.io/tailscale/tailscale to v1.104.7 (#127)",
+   "author": "renovate[bot]",
+   "date": "2026-11-17T17:30:24Z",
+   "pull": 127,
+   "cards": [
+    "headscale"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "c381abb8ec73211b260e819e4824e748e882aa06",
    "title": "Separate operator interfaces by Traefik entrypoint (ADR 0066, operator half)",
    "author": "stephan271",
@@ -597,9 +592,9 @@
     "traefik"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-17T17:14:35Z"
+    "state": "success",
+    "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 15 hosts, e2e 29 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
+    "date": "2026-11-17T17:30:19Z"
    }
   },
   {
@@ -942,31 +937,6 @@
     "repository"
    ],
    "verdict": null
-  },
-  {
-   "commit": "56460b17ebed36e29a55d4ed0121c52163e820fc",
-   "title": "Update Docker image docker.io/alpine/k8s to v1.37.2 (#102)",
-   "author": "renovate[bot]",
-   "date": "2026-11-16T08:56:05Z",
-   "pull": 102,
-   "cards": [
-    "bulwark",
-    "canary-follower",
-    "euro-office",
-    "forgejo",
-    "immich",
-    "jitsi",
-    "join",
-    "keycloak",
-    "nextcloud",
-    "smallworlds-root",
-    "stalwart"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: backup 5 databases, converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
-    "date": "2026-11-16T09:18:17Z"
-   }
   }
  ],
  "pulls": [
@@ -994,21 +964,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 127,
-   "title": "Update Docker image docker.io/tailscale/tailscale to v1.104.7",
-   "author": "renovate[bot]",
-   "created": "2026-11-17T17:12:22Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "headscale"
    ]
   }
  ]
