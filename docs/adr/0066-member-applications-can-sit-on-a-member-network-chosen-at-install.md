@@ -53,6 +53,29 @@ operator routing to maintain, and it also closes the cluster-source gap that
 exists today. This part can land and be proven first, on its own. The node's own
 tailscale client stays for SSH and `kubectl`.
 
+### Inside the cluster
+
+In-cluster callers resolve the application hostnames through the
+`coredns-custom` override, which both bootstrap paths write (the cloud-init
+template and `bootstrap-local-node.sh`). It answers with the node address, which
+lands on `websecure`. With the Member Network on, that entrypoint serves only
+Guest Paths, so everything inside the cluster that calls a member application by
+its hostname would get the guest's view:
+
+- **Applications calling each other.** Euro-Office fetches and saves documents
+  through Nextcloud's own endpoints, which are not Guest Paths. Editing a
+  document would fail for members, not only on Ring 0.
+- **Ring 0's checks Job.** It runs the full-sign-in e2e suite and
+  `seed.py check` from inside the cluster, so it would reject every commit.
+
+So with the Member Network on, the override answers the member application
+hostnames with a cluster-only Service in front of the `members` entrypoint.
+In-cluster callers then see the full applications, the way members do. Identity,
+`join` and the Headscales still resolve to `websecure`. The override is generated
+at boot, so a change to it needs mirroring in both bootstrap paths. An install
+that switches the Member Network on later needs the ConfigMap rewritten on the
+node, because cloud-init does not run again.
+
 ## The Member Network
 
 - **A second Headscale instance, not one Headscale with ACLs.** In Headscale, a
@@ -171,10 +194,17 @@ but it is not instant for members:
   so when the Operator is also a member, their devices switch between the
   Private Network and the Member Network.
 - **Two exposure modes to verify.** Ring 0 runs one configuration at a time. It
-  should run with the Member Network on, the mode with more moving parts, and
-  have a guest (signed-out) suite run from outside the tailnets. The off mode is
-  then covered by the routing being the same apart from the `members`
-  entrypoint.
+  runs with the Member Network on, the mode with more moving parts and the only
+  one with Guest Paths to test. The off mode is then covered by the routing being
+  the same apart from the `members` entrypoint.
+- **Ring 0 needs a second check run, from outside.** Because of the DNS
+  override, the in-cluster checks Job sees the full applications. It proves that
+  they work, not what a guest can reach. The signed-out guest suite therefore has
+  to run from outside the cluster and the tailnets, through the public address.
+  It has to cover both directions: every Guest Path answers, and a sign-in page
+  or member API behind it does not. Running it from inside the cluster would test
+  the members' view again. Its result becomes part of `ring0/verified` like the
+  in-cluster checks, so a share link broken by an update stops the queue.
 
 ## Verification
 
