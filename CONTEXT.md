@@ -206,6 +206,18 @@ _Avoid_: Tailscale node, admin machine
 A short-lived, single-use grant that allows an additional Operator Device to join the Private Network.
 _Avoid_: Pre-auth key, join token
 
+**Member Network**:
+An optional second tailnet, separate from the Private Network, that members' devices join to reach the member applications. The Operator chooses it at install. Without it, member applications are public (`docs/adr/0066`).
+_Avoid_: Private Network (that one is the Operator's), member VPN
+
+**Member Gateway**:
+The cluster's entrypoint for member applications on the Member Network, the counterpart of the Private Gateway.
+_Avoid_: Member ingress, VPN proxy
+
+**Guest Path**:
+A part of a member application that stays public when the Member Network is on, because people who are not members use it through a share link (for example Nextcloud's `/s/<token>`).
+_Avoid_: Public share, share route
+
 **Offline Bundle**:
 A future, versioned distribution containing the SmallWorlds release, managed tools, providers, packages, and container images needed to bootstrap without internet access.
 _Avoid_: Installer archive, air-gap mode
