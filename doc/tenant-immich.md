@@ -69,6 +69,28 @@ Proven on Ring 0 on 2026-11-11, going from v5.10.0 back to v5.8.0
   Immich base (3.3.5), not the Gallery release. Read the Deployment's image tag
   instead.
 
+### PostgreSQL 16 to 18
+
+The database moved from PostgreSQL 16 to 18 by raising the image catalog major
+(`imageCatalogRef.major` in `kustomization.yaml`; `immich-catalog.yaml` keeps
+both entries). CNPG then runs an offline in-place `pg_upgrade`: the database is
+down for the upgrade, the replica is cloned again afterwards, and the old
+VectorChord is 1.1.1 on both sides, so no extension update is due. Gallery
+accepts PostgreSQL `>= 14, < 20`.
+
+- **One archive per major.** `pg_upgrade` starts a new system on timeline 1, so
+  the barman `serverName` changed with it (`immich-database-pg18`); the 16
+  archive stays under `immich-database`. The ScheduledBackup was renamed
+  (`database-backup-pg18`, `immediate`) so the new archive gets a base backup
+  right after the upgrade rather than at the next 02:00.
+- **The pre-update backup notices it.** The application image does not change,
+  so the hook also compares the catalog major (`DESIRED_DB_MAJOR`) and backs up
+  the 16 database first.
+- **Going back is a restore.** Changing the major back works only while the
+  upgrade has not finished (CNPG then restarts on 16). After it, 16 cannot
+  open the data: restore the pre-update backup into a Cluster with
+  `major: 16` and `serverName: immich-database`.
+
 ## Notable changes per file (from git history)
 
 ### `admin-init-job.yaml` & `admin-config.yaml`

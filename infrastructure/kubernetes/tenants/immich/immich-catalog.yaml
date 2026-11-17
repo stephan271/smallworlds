@@ -4,6 +4,14 @@ metadata:
   name: immich-catalog
 spec:
   images:
-    # Immich v3 requires the VectorChord extension (pgvecto.rs is deprecated)
+    # Immich v3 requires the VectorChord extension (pgvecto.rs is deprecated).
+    # The Cluster picks its entry by `major` (kustomization.yaml). Raising that
+    # major makes CNPG run an offline in-place pg_upgrade, which needs the old
+    # and new images on the same distribution (both are bookworm) and the same
+    # VectorChord (1.1.1 in both). Keep the major 16 entry until no community
+    # runs 16 any more and no pre-upgrade backup may need restoring: a restore
+    # of such a backup needs the major it was taken with.
     - image: "ghcr.io/tensorchord/cloudnative-vectorchord:16.15-1.1.1@sha256:f5a17fa05faf25e81304ee95e9f920d8ae077ac4a4ef0a1251e09c7197cbb236"
       major: 16
+    - image: "ghcr.io/tensorchord/cloudnative-vectorchord:18.6-1.1.1@sha256:c7672bc011351a587cc292a94aac7eeebb593ed2e120077bd9c9944c9467db93"
+      major: 18

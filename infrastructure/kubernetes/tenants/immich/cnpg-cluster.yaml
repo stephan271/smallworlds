@@ -27,12 +27,24 @@ spec:
         # "database", and barman refuses (or corrupts) a destination already
         # claimed by another server. Unchanged from the in-tree configuration so
         # the existing archives stay readable.
-        serverName: immich-database
+        # One serverName per PostgreSQL major: pg_upgrade starts a new system
+        # on timeline 1, whose WAL names would overwrite the old major's in a
+        # shared archive and spoil the pre-upgrade backup (CNPG "PostgreSQL
+        # upgrades", Backup and WAL Archive Considerations). The 16 archive
+        # stays under immich-database.
+        serverName: immich-database-pg18
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup
 metadata:
-  name: database-backup
+  # Named per PostgreSQL major, like serverName above: a new name is a new
+  # ScheduledBackup, and `immediate` gives the new archive its first base
+  # backup right after the upgrade instead of at the next 02:00 (until then
+  # CNPGBackupStale fires). Wave 1 applies it after the Cluster; CNPG holds a
+  # backup while a major upgrade runs and takes it on the upgraded primary.
+  name: database-backup-pg18
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   # SIX fields, seconds first — CNPG is not Kubernetes CronJob syntax.
   # A five-field "0 2 * * *" parses as second 0 of minute 2 of EVERY hour.

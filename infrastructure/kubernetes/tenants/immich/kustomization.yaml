@@ -93,7 +93,9 @@ patches:
           apiGroup: postgresql.cnpg.io
           kind: ClusterImageCatalog
           name: immich-catalog
-          major: 16
+          # Raising this runs CNPG's offline in-place major upgrade (pg_upgrade)
+          # on the next sync. Change serverName in cnpg-cluster.yaml with it.
+          major: 18
       # postInitApplicationSQL, not postInitSQL: the extensions must exist in
       # the app database Immich connects to, not the postgres maintenance DB
       - op: add
@@ -150,3 +152,15 @@ replacements:
           name: pre-update-backup
         fieldPaths:
           - spec.template.spec.containers.[name=backup].env.[name=DESIRED_IMAGE].value
+  # The PostgreSQL major the update brings: raising the catalog major runs a
+  # pg_upgrade, which the application image alone would not reveal.
+  - source:
+      kind: Cluster
+      name: database
+      fieldPath: spec.imageCatalogRef.major
+    targets:
+      - select:
+          kind: Job
+          name: pre-update-backup
+        fieldPaths:
+          - spec.template.spec.containers.[name=backup].env.[name=DESIRED_DB_MAJOR].value

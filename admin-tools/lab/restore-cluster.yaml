@@ -9,7 +9,9 @@ spec:
     apiGroup: postgresql.cnpg.io
     kind: ClusterImageCatalog
     name: immich-catalog
-    major: 16
+    # The major the backup was taken with: 18 under immich-database-pg18,
+    # 16 under immich-database (before the PostgreSQL 18 upgrade).
+    major: 18
   postgresql:
     shared_preload_libraries:
       - "vchord.so"
@@ -22,7 +24,7 @@ spec:
     - name: database
       barmanObjectStore:
         destinationPath: s3://postgres-backups/
-        serverName: immich-database
+        serverName: immich-database-pg18
         endpointURL: http://garage.garage-system.svc.cluster.local:3900
         s3Credentials:
           accessKeyId:

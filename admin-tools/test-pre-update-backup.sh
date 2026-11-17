@@ -36,6 +36,7 @@ echo "$*" >> "$STATE/calls"
 args="$*"
 case "$args" in
   *"get clusters.postgresql.cnpg.io"*"jsonpath={.spec.imageName}"*) cat "$STATE/db_image" 2>/dev/null ;;
+  *"get clusters.postgresql.cnpg.io"*"jsonpath={.spec.imageCatalogRef.major}"*) cat "$STATE/db_major" 2>/dev/null ;;
   *"get clusters.postgresql.cnpg.io"*"isWALArchiver"*) echo -n barman-cloud.cloudnative-pg.io ;;
   *"get clusters.postgresql.cnpg.io"*) [[ -f "$STATE/cluster" ]] || exit 1 ;;
   *"get deployment/app"*) cat "$STATE/live" 2>/dev/null ;;
@@ -55,6 +56,7 @@ chmod +x "$WORK/bin/kubectl"
 run() {  # run <name>, with the state prepared by the caller in $STATE
     CLUSTER=database WORKLOAD=deployment/app CONTAINER=app \
     DESIRED_IMAGE="${DESIRED_IMAGE:-app:2}" DESIRED_DB_IMAGE="${DESIRED_DB_IMAGE:-}" \
+    DESIRED_DB_MAJOR="${DESIRED_DB_MAJOR:-}" \
     TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-60}" KEEP=3 PATH="$WORK/bin:$PATH" STATE="$STATE" \
         bash "$WORK/hook.sh" > "$STATE/out" 2>&1
     echo $? > "$STATE/exit"
@@ -89,6 +91,17 @@ echo -n postgresql:16 > "$STATE/db_image"; echo -n completed > "$STATE/phase"
 DESIRED_DB_IMAGE=postgresql:17 run
 [[ $(exit_of) == 0 && -f $STATE/created ]] && grep -q "PostgreSQL postgresql:16 -> postgresql:17" "$STATE/created" \
     && pass "a new PostgreSQL image is backed up too" || fail "a new PostgreSQL image is backed up too"
+
+fresh db-major-changed; touch "$STATE/cluster"; echo -n app:2 > "$STATE/live"
+echo -n 16 > "$STATE/db_major"; echo -n completed > "$STATE/phase"
+DESIRED_DB_MAJOR=18 run
+[[ $(exit_of) == 0 && -f $STATE/created ]] && grep -q "PostgreSQL major 16 -> 18" "$STATE/created" \
+    && pass "a new image catalog major is backed up too" || fail "a new image catalog major is backed up too"
+
+fresh db-major-unchanged; touch "$STATE/cluster"; echo -n app:2 > "$STATE/live"; echo -n 18 > "$STATE/db_major"
+DESIRED_DB_MAJOR=18 run
+[[ $(exit_of) == 0 && ! -f $STATE/created ]] \
+    && pass "an unchanged image catalog major is not backed up" || fail "an unchanged image catalog major is not backed up"
 
 fresh failed; touch "$STATE/cluster"; echo -n app:1 > "$STATE/live"; echo -n failed > "$STATE/phase"
 run
