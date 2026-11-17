@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-17T02:04:34Z",
+ "updated": "2026-11-17T02:16:59Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -510,7 +510,6 @@
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
     "ghcr.io/cloudnative-pg/postgresql:16",
-    "rclone/rclone:1.74@sha256:623378ad0ff3ebd5cebf77720843c0e02edfe46e2d5b5ac6bed54c6371780dfb",
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
