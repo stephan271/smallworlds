@@ -1,31 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-17T17:45:04Z",
+ "updated": "2026-11-17T17:53:18Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "05eb59449878d6b2cba69b429cbacc675717cf07",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-17T17:35:29Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 29 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+  "date": "2026-11-17T17:49:47Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "05eb59449878d6b2cba69b429cbacc675717cf07",
-  "pull": {
-   "number": 127,
-   "title": "Update Docker image docker.io/tailscale/tailscale to v1.104.7 (#127)",
-   "cards": [
-    "headscale"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-17T17:44:47Z",
-  "started": "2026-11-17T17:35:28Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #127",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -574,9 +568,9 @@
     "headscale"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-17T17:35:29Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 29 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-17T17:49:47Z"
    }
   },
   {
