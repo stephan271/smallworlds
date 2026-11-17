@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-17T00:35:46Z",
+ "updated": "2026-11-17T00:37:51Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -321,7 +321,7 @@
   {
    "name": "smallworlds-root",
    "group": "machinery",
-   "health": "Degraded",
+   "health": "Progressing",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -439,7 +439,7 @@
   {
    "name": "immich",
    "group": "apps",
-   "health": "Degraded",
+   "health": "Progressing",
    "sync": "OutOfSync",
    "source": "overlay",
    "chart": null,
@@ -448,16 +448,16 @@
    "images": [
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
+    "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
     "ghcr.io/open-noodle/gallery-ml:v5.10.0@sha256:6f7e2a6687a485a06f67030595bde5bedb0024b75ef936d738aa8937ed8e671e",
     "ghcr.io/open-noodle/gallery-server:v5.10.0@sha256:08b9818252bdef75eb599d7db6a97080cbd399056c6ee2787403e8310f234734",
-    "ghcr.io/tensorchord/cloudnative-vectorchord:16.15-1.1.1@sha256:f5a17fa05faf25e81304ee95e9f920d8ae077ac4a4ef0a1251e09c7197cbb236",
     "ghcr.io/tensorchord/cloudnative-vectorchord:18.6-1.1.1@sha256:c7672bc011351a587cc292a94aac7eeebb593ed2e120077bd9c9944c9467db93",
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
     "phase": "Running",
-    "finished": "2026-11-17T00:34:23Z",
-    "message": "one or more synchronization tasks completed unsuccessfully. Retrying attempt #3 at 12:35AM."
+    "finished": "2026-11-17T00:36:27Z",
+    "message": "one or more synchronization tasks completed unsuccessfully. Retrying attempt #4 at 12:38AM."
    },
    "wave": 1
   },
@@ -513,7 +513,6 @@
    "version": null,
    "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
    "images": [
-    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/library/nextcloud:35.0.2-apache",
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
@@ -523,9 +522,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/nextcloud-oidc-config"
+    "phase": "Succeeded",
+    "finished": "2026-11-17T00:35:58Z",
+    "message": null
    },
    "wave": 1
   },
