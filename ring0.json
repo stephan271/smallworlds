@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-17T12:14:00Z",
+ "updated": "2026-11-17T12:36:50Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -258,7 +258,7 @@
   {
    "name": "kube-prometheus-stack",
    "group": "platform",
-   "health": "Healthy",
+   "health": "Unknown",
    "sync": "Synced",
    "source": "chart",
    "chart": "kube-prometheus-stack",
