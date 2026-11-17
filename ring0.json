@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-16T23:58:15Z",
+ "updated": "2026-11-17T00:00:21Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -19,8 +19,8 @@
     "traefik"
    ]
   },
-  "step": "converge",
-  "step_since": "2026-11-16T23:56:15Z",
+  "step": "settle",
+  "step_since": "2026-11-16T23:58:58Z",
   "started": "2026-11-16T23:55:03Z",
   "queued": [
    {
@@ -258,17 +258,15 @@
    "version": null,
    "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
    "images": [
-    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
     "ghcr.io/tensorchord/cloudnative-pgvecto.rs:16.4-v0.3.0",
-    "quay.io/keycloak/keycloak:26.8.2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc496969a319a76bbf0",
     "quay.io/keycloak/keycloak@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc496969a319a76bbf0"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/keycloak-realm-config"
+    "phase": "Succeeded",
+    "finished": "2026-11-16T23:58:35Z",
+    "message": null
    },
    "wave": 0
   },
@@ -423,7 +421,6 @@
    "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
    "images": [
     "code.forgejo.org/forgejo/forgejo:15.0.11-rootless",
-    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -431,9 +428,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/forgejo-oidc-config"
+    "phase": "Succeeded",
+    "finished": "2026-11-16T23:58:30Z",
+    "message": null
    },
    "wave": 1
   },
@@ -447,20 +444,18 @@
    "version": null,
    "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
    "images": [
-    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/redis:6.2-alpine@sha256:3f9c6e23ed6bea3b41d0ef709fc164c1a0b7c00d5a21a60e0e9c33ada5496881",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
     "ghcr.io/open-noodle/gallery-ml:v5.10.0@sha256:6f7e2a6687a485a06f67030595bde5bedb0024b75ef936d738aa8937ed8e671e",
     "ghcr.io/open-noodle/gallery-server:v5.10.0@sha256:08b9818252bdef75eb599d7db6a97080cbd399056c6ee2787403e8310f234734",
     "ghcr.io/tensorchord/cloudnative-vectorchord:16.15-1.1.1@sha256:f5a17fa05faf25e81304ee95e9f920d8ae077ac4a4ef0a1251e09c7197cbb236",
-    "python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd",
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/immich-admin-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-16T23:58:36Z",
+    "message": null
    },
    "wave": 1
   },
@@ -497,13 +492,12 @@
    "version": null,
    "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
    "images": [
-    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/join-keycloak-setup"
+    "phase": "Succeeded",
+    "finished": "2026-11-16T23:58:28Z",
+    "message": null
    },
    "wave": 1
   },
@@ -517,7 +511,6 @@
    "version": null,
    "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
    "images": [
-    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/library/nextcloud:35.0.2-apache",
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
@@ -527,9 +520,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/nextcloud-oidc-config"
+    "phase": "Succeeded",
+    "finished": "2026-11-16T23:58:40Z",
+    "message": null
    },
    "wave": 1
   },
