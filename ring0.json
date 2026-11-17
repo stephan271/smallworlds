@@ -1,31 +1,28 @@
 {
  "schema": 1,
- "updated": "2026-11-17T10:27:50Z",
+ "updated": "2026-11-17T10:40:27Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "7e054db44a6ccdce3134dc384847d096e443534b",
-  "state": "success",
-  "description": "Ring 0: backup 1 databases, converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
-  "date": "2026-11-17T00:55:03Z"
+  "commit": "02f27a94d436c97f599af765063309c8892b7980",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "7e054db44a6ccdce3134dc384847d096e443534b",
-  "pull": null,
-  "step": "merge",
+  "commit": "02f27a94d436c97f599af765063309c8892b7980",
+  "pull": {
+   "number": 125,
+   "title": "Keep Immich's PostgreSQL 16 catalog entry on 16 (instead of #117)",
+   "cards": [
+    "repository"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
-  "queued": [
-   {
-    "number": 73,
-    "title": "Update Helm chart kube-prometheus-stack to v87.21.0",
-    "cards": [
-     "kube-prometheus-stack"
-    ],
-    "since": "2026-11-14T09:32:22Z"
-   }
-  ],
+  "queued": [],
   "stuck": null,
   "action": "merged #124",
   "waiting": "no queued update is ready"
@@ -567,6 +564,28 @@
  ],
  "commits": [
   {
+   "commit": "02f27a94d436c97f599af765063309c8892b7980",
+   "title": "Keep Immich's PostgreSQL 16 catalog entry on 16 (instead of #117)",
+   "author": "stephan271",
+   "date": "2026-11-17T10:38:32Z",
+   "pull": 125,
+   "cards": [
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "fe82730928e76fbae40eafa0e33416f483cb9886",
+   "title": "Keep Immich's PostgreSQL 16 catalog entry on 16",
+   "author": "smallworlds-steward[bot]",
+   "date": "2026-11-17T01:02:26Z",
+   "pull": null,
+   "cards": [
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "7e054db44a6ccdce3134dc384847d096e443534b",
    "title": "Upgrade Immich's database to PostgreSQL 18 and Redis to 8.10 (#124)",
    "author": "smallworlds-steward[bot]",
@@ -907,50 +926,9 @@
     "repository"
    ],
    "verdict": null
-  },
-  {
-   "commit": "5d461bdd37a6c1227eaa68f4a879d4ae8e151d2a",
-   "title": "Give every community's Headscale its own address",
-   "author": "stephan271",
-   "date": "2026-11-16T08:16:38Z",
-   "pull": null,
-   "cards": [
-    "repository"
-   ],
-   "verdict": null
-  },
-  {
-   "commit": "eb2c84d083d9a17ec06ab0b995aa342303d4235c",
-   "title": "Update Nextcloud's Redis to v8 (major, Steward) (#96)",
-   "author": "smallworlds-steward[bot]",
-   "date": "2026-11-16T08:09:31Z",
-   "pull": 96,
-   "cards": [
-    "nextcloud"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 15 hosts, e2e 20 passed, 1 flaky, 9 skipped; data 4/4 apps intact, s\u2026",
-    "date": "2026-11-16T08:31:21Z"
-   }
   }
  ],
  "pulls": [
-  {
-   "number": 73,
-   "title": "Update Helm chart kube-prometheus-stack to v87.21.0",
-   "author": "renovate[bot]",
-   "created": "2026-11-14T09:32:22Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "kube-prometheus-stack"
-   ]
-  },
   {
    "number": 85,
    "title": "Update Docker image collabora/code to v26",
@@ -973,38 +951,6 @@
    "queued": false,
    "rejected": false,
    "labels": [],
-   "cards": [
-    "repository"
-   ]
-  },
-  {
-   "number": 117,
-   "title": "Update Docker image ghcr.io/tensorchord/cloudnative-vectorchord to v18",
-   "author": "renovate[bot]",
-   "created": "2026-11-16T18:26:50Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [
-    "ring0-major",
-    "steward-prepare-57cf7aac58",
-    "steward-prepare-97a5e7805e"
-   ],
-   "cards": [
-    "immich"
-   ]
-  },
-  {
-   "number": 125,
-   "title": "Keep Immich's PostgreSQL 16 catalog entry on 16 (instead of #117)",
-   "author": "smallworlds-steward[bot]",
-   "created": "2026-11-17T01:02:30Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [
-    "steward"
-   ],
    "cards": [
     "repository"
    ]
