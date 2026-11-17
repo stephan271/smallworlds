@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-17T01:00:44Z",
+ "updated": "2026-11-17T01:02:50Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -993,6 +993,21 @@
    ],
    "cards": [
     "immich"
+   ]
+  },
+  {
+   "number": 125,
+   "title": "Keep Immich's PostgreSQL 16 catalog entry on 16 (instead of #117)",
+   "author": "smallworlds-steward[bot]",
+   "created": "2026-11-17T01:02:30Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [
+    "steward"
+   ],
+   "cards": [
+    "repository"
    ]
   }
  ]
