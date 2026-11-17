@@ -317,6 +317,17 @@
         "quay.io/keycloak/keycloak"
       ],
       "enabled": false
+    },
+    {
+      "description": "Immich's ClusterImageCatalog keeps one entry per PostgreSQL major (immich-catalog.yaml): the Cluster picks its entry by imageCatalogRef.major, and a restore of a pre-upgrade backup needs the major it was taken with. Both entries name the same image, so Renovate offered to move the major 16 entry to 18 (#117): that would leave no 16 image and put an 18 binary under major 16. Each entry follows its own major; a new major arrives through the entry of the newest one and is prepared as a new entry beside it (#124).",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/tensorchord/cloudnative-vectorchord"
+      ],
+      "matchCurrentValue": "/^16\\./",
+      "allowedVersions": "/^16\\./"
     }
   ]
 }
