@@ -1,19 +1,27 @@
 {
  "schema": 1,
- "updated": "2026-11-17T00:21:07Z",
+ "updated": "2026-11-17T00:25:18Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "f430b6f2b1be931135d3a34902c69599492326a2",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-17T00:09:33Z"
+  "commit": "7e054db44a6ccdce3134dc384847d096e443534b",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "f430b6f2b1be931135d3a34902c69599492326a2",
-  "pull": null,
-  "step": "merge",
+  "commit": "7e054db44a6ccdce3134dc384847d096e443534b",
+  "pull": {
+   "number": 124,
+   "title": "Upgrade Immich's database to PostgreSQL 18 and Redis to 8.10 (#124)",
+   "cards": [
+    "immich",
+    "repository",
+    "smallworlds-root"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
@@ -24,21 +32,11 @@
      "kube-prometheus-stack"
     ],
     "since": "2026-11-14T09:32:22Z"
-   },
-   {
-    "number": 124,
-    "title": "Upgrade Immich's database to PostgreSQL 18 and Redis to 8.10",
-    "cards": [
-     "immich",
-     "repository",
-     "smallworlds-root"
-    ],
-    "since": "2026-11-17T00:20:51Z"
    }
   ],
   "stuck": null,
-  "action": "merged #123",
-  "waiting": "no queued update is ready"
+  "action": "merged #124",
+  "waiting": null
  },
  "applications": [
   {
@@ -578,6 +576,19 @@
  ],
  "commits": [
   {
+   "commit": "7e054db44a6ccdce3134dc384847d096e443534b",
+   "title": "Upgrade Immich's database to PostgreSQL 18 and Redis to 8.10 (#124)",
+   "author": "smallworlds-steward[bot]",
+   "date": "2026-11-17T00:25:00Z",
+   "pull": 124,
+   "cards": [
+    "immich",
+    "repository",
+    "smallworlds-root"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "f430b6f2b1be931135d3a34902c69599492326a2",
    "title": "Update the Traefik chart to 42.4.0, with its values moved to the new layout (#123)",
    "author": "smallworlds-steward[bot]",
@@ -927,21 +938,6 @@
     "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 15 hosts, e2e 20 passed, 1 flaky, 9 skipped; data 4/4 apps intact, s\u2026",
     "date": "2026-11-16T08:31:21Z"
    }
-  },
-  {
-   "commit": "0a92751f44a15164c7a1cda9fc7730fa3e3c9c8b",
-   "title": "Revert \"Turn off Bulwark's automatic sign-in redirect\" (#101)",
-   "author": "smallworlds-steward[bot]",
-   "date": "2026-11-16T07:49:01Z",
-   "pull": 101,
-   "cards": [
-    "bulwark"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
-    "date": "2026-11-16T08:09:25Z"
-   }
   }
  ],
  "pulls": [
@@ -1000,24 +996,6 @@
    ],
    "cards": [
     "immich"
-   ]
-  },
-  {
-   "number": 124,
-   "title": "Upgrade Immich's database to PostgreSQL 18 and Redis to 8.10",
-   "author": "smallworlds-steward[bot]",
-   "created": "2026-11-17T00:20:51Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue",
-    "steward"
-   ],
-   "cards": [
-    "immich",
-    "repository",
-    "smallworlds-root"
    ]
   }
  ]
