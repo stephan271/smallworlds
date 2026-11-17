@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-17T00:37:51Z",
+ "updated": "2026-11-17T00:39:57Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -321,7 +321,7 @@
   {
    "name": "smallworlds-root",
    "group": "machinery",
-   "health": "Progressing",
+   "health": "Healthy",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -439,7 +439,7 @@
   {
    "name": "immich",
    "group": "apps",
-   "health": "Progressing",
+   "health": "Healthy",
    "sync": "OutOfSync",
    "source": "overlay",
    "chart": null,
