@@ -1,8 +1,9 @@
 # The Invitation Desk is an operator interface (ADR 0038, docs/adr/0058): it can
 # create accounts and give any member a new passkey, so it is reachable from the
-# Private Network only, like identity/admin and Argo CD — and on top of that it
-# requires the master-realm `operator` sign-in, because this allow-list also
-# admits the node's LAN and every cluster address (doc/hardening.md §1).
+# Private Network (through the Private Gateway) and the node's LAN only, like
+# identity/admin and Argo CD — and on top of that it requires the master-realm
+# `operator` sign-in, because the LAN and anything that reaches the gateway get
+# this far without one (doc/hardening.md §1).
 #
 # It routes to the Service's `desk` port, which the public Ingress never names.
 # Traefik drops a router whose middleware is missing; were that to happen here,
@@ -15,15 +16,20 @@ metadata:
 spec:
   ipAllowList:
     sourceRange:
-      # Enrolled Operator Devices on the Headscale tailnet.
-      - 100.64.0.0/10
-      # The Cluster Node's own LAN, for a Local Deployment Mode. 10.0.0.0/8 also
-      # covers the pod and service networks (10.42/10.43).
-      - 10.0.0.0/8
+      # The Cluster Node's own LAN: private ranges minus the pod and service
+      # networks (10.42.0.0/15). A cluster source is a pod, or a tailnet device
+      # coming in through the node's tailnet address — never the operator,
+      # who arrives through the Private Gateway on the `operators` entrypoint
+      # (docs/adr/0066), served by the `-private` Ingress below.
+      - 10.0.0.0/11
+      - 10.32.0.0/13
+      - 10.40.0.0/15
+      - 10.44.0.0/14
+      - 10.48.0.0/12
+      - 10.64.0.0/10
+      - 10.128.0.0/9
       - 172.16.0.0/12
       - 192.168.0.0/16
-      # In-cluster traffic.
-      - 127.0.0.0/8
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -32,6 +38,41 @@ metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.middlewares: join-join-desk-private@kubernetescrd
+    # Must outrank the public `/` route for this host.
+    traefik.ingress.kubernetes.io/router.priority: "1000"
+    gethomepage.dev/enabled: "false"
+spec:
+  ingressClassName: traefik
+  tls:
+    # Same secret as the public Ingress, and deliberately no cluster-issuer
+    # annotation: cert-manager manages the certificate from that Ingress, and a
+    # second annotated Ingress for the same host would race it.
+    - hosts:
+        - join.smallworlds.network
+      secretName: join-tls
+  rules:
+    - host: join.smallworlds.network
+      http:
+        paths:
+          - path: /desk
+            pathType: Prefix
+            backend:
+              service:
+                name: join
+                port:
+                  name: desk
+---
+# The Desk on the `operators` entrypoint, which only the Private Gateway
+# reaches. The public router above stays, narrowed to the node's LAN, for a
+# home-network cluster whose operator has no tailnet. No allow-list here — the
+# entrypoint is the restriction, and the gateway's source is a pod address. The
+# Desk's own master-realm sign-in still applies.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: join-desk-private
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: operators
     # Must outrank the public `/` route for this host.
     traefik.ingress.kubernetes.io/router.priority: "1000"
     gethomepage.dev/enabled: "false"

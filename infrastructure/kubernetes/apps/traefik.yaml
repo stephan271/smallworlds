@@ -38,6 +38,24 @@ spec:
             transport:
               respondingTimeouts:
                 readTimeout: 30m
+          # The Private Gateway's entrypoint (docs/adr/0066). The LoadBalancer
+          # never exposes it: only the ClusterIP Service `traefik-internal`
+          # below carries it, and the Private Gateway in the headscale
+          # namespace forwards the Private Network's :443 to it. Operator-only
+          # routers name `operators` alone, so they cannot be reached through
+          # the public entrypoint. Routers that name no entrypoint (most
+          # member apps) attach here too, so an operator whose /etc/hosts
+          # points at the gateway can still sign in and use the apps.
+          operators:
+            port: 9443
+            exposedPort: 9443
+            protocol: TCP
+            expose:
+              default: false
+              internal: true
+            http:
+              tls:
+                enabled: true
         ingressRoute:
           dashboard:
             enabled: false
@@ -57,6 +75,12 @@ spec:
           spec:
             type: LoadBalancer
             externalTrafficPolicy: Local
+          # Renders as `traefik-internal`, with the ports whose
+          # `expose.internal` is true: the `operators` entrypoint only.
+          additionalServices:
+            internal:
+              spec:
+                type: ClusterIP
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: traefik-system

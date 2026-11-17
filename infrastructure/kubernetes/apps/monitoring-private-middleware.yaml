@@ -1,10 +1,18 @@
 # Address restriction for Grafana, whose Ingress is rendered by the
 # kube-prometheus-stack chart and therefore cannot carry its own Middleware.
-# The annotation that references this lives in apps/kube-prometheus-stack.yaml.
+# The annotation that references this lives in apps/kube-prometheus-stack.yaml
+# and, for overlays, in admin-tools/generate_domain_patches.py, which replaces
+# that Application's values wholesale. Keep the two in step: an overlay
+# generated without it served Grafana's login page to the internet (Ring 0,
+# found 2026-11-17).
 #
-# Applied directly rather than through an ArgoCD Application because it is a
-# single CR belonging to a namespace another Application owns — the same
-# arrangement as apps/alertmanager-config.yaml.
+# The chart's Ingress is the public-entrypoint router (LAN only); the
+# `grafana-private` Ingress below is the one on the `operators` entrypoint,
+# which only the Private Gateway reaches (docs/adr/0066).
+#
+# Applied directly rather than through an ArgoCD Application because these
+# belong to a namespace another Application owns — the same arrangement as
+# apps/alertmanager-config.yaml.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -17,12 +25,47 @@ metadata:
 spec:
   ipAllowList:
     sourceRange:
-      # Enrolled Operator Devices on the Headscale tailnet.
-      - 100.64.0.0/10
-      # The Cluster Node's own LAN, for a Local Deployment Mode. 10.0.0.0/8 also
-      # covers the pod and service networks (10.42/10.43).
-      - 10.0.0.0/8
+      # The Cluster Node's own LAN: private ranges minus the pod and service
+      # networks (10.42.0.0/15). A cluster source is a pod, or a tailnet device
+      # coming in through the node's tailnet address — never the operator,
+      # who arrives through the Private Gateway on the `operators` entrypoint.
+      - 10.0.0.0/11
+      - 10.32.0.0/13
+      - 10.40.0.0/15
+      - 10.44.0.0/14
+      - 10.48.0.0/12
+      - 10.64.0.0/10
+      - 10.128.0.0/9
       - 172.16.0.0/12
       - 192.168.0.0/16
-      # In-cluster traffic.
-      - 127.0.0.0/8
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana-private
+  namespace: monitoring
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    # Reached only through the Private Gateway; the entrypoint is the
+    # restriction, so no allow-list (the gateway's source is a pod address).
+    traefik.ingress.kubernetes.io/router.entrypoints: operators
+    gethomepage.dev/enabled: "false"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: monitoring.smallworlds.network
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kube-prometheus-stack-grafana
+                port:
+                  number: 80
+  # Same secret as the chart's Ingress, and deliberately no cluster-issuer
+  # annotation: cert-manager manages the certificate from that Ingress.
+  tls:
+    - hosts:
+        - monitoring.smallworlds.network
+      secretName: grafana-tls

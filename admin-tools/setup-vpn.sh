@@ -221,6 +221,23 @@ echo "   Restarted. Waiting for the API server to come back..."
 until node_run "k3s kubectl get nodes >/dev/null 2>&1"; do sleep 3; done
 echo "   Back up."
 
+# The operator pages are reached through the Private Gateway, not the node's
+# tailnet address (docs/adr/0066): Argo CD enrolls it by itself, and it writes
+# its tailnet addresses into its state Secret once it is up.
+GATEWAY_IP=""
+for _ in $(seq 1 30); do
+    GATEWAY_IP=$(kubectl -n headscale get secret private-gateway-state -o jsonpath='{.data.device_ips}' 2>/dev/null \
+        | base64 -d 2>/dev/null \
+        | python3 -c 'import json, sys
+try:
+    print(next(a for a in json.load(sys.stdin) if "." in a))
+except Exception:
+    pass' 2>/dev/null || true)
+    [ -n "$GATEWAY_IP" ] && break
+    sleep 5
+done
+OPERATOR_HOSTS="deploy${CUR_ENV_EXT}.${DOMAIN} monitoring${CUR_ENV_EXT}.${DOMAIN} identity${CUR_ENV_EXT}.${DOMAIN} join${CUR_ENV_EXT}.${DOMAIN}"
+
 echo ""
 echo "✅ Server-side setup complete."
 echo ""
@@ -239,6 +256,17 @@ echo "     ssh ${PORT_FLAG}${NODE_USER}@$ADMIN_HOST"
 echo "     kubectl get nodes      # against the tailnet-rewritten kubeconfig"
 echo "   (step 5 added $ADMIN_HOST to the API server certificate, so the"
 echo "   kubeconfig must name that host rather than the public IP.)"
+echo "   The operator pages answer through the Private Gateway. Add this line to"
+echo "   /etc/hosts on the enrolled device:"
+if [ -n "$GATEWAY_IP" ]; then
+    echo "     $GATEWAY_IP  $OPERATOR_HOSTS"
+else
+    echo "     <gateway-address>  $OPERATOR_HOSTS"
+    echo "   The gateway has not enrolled yet. Its address appears, once it has, with:"
+    echo "     kubectl -n headscale get secret private-gateway-state -o jsonpath='{.data.device_ips}' | base64 -d"
+fi
+echo "   and open https://deploy${CUR_ENV_EXT}.${DOMAIN}. Not the node's tailnet address: that"
+echo "   one answers 403 for these pages."
 echo ""
 echo "8. Only once BOTH work, close the public administrative ports:"
 if [ -n "$RENTED" ]; then

@@ -1,0 +1,113 @@
+# Enrolls the Private Gateway (private-gateway.yaml) in this Headscale, so that
+# every install has it without an operator step. Runs after every sync of the
+# headscale Application and does nothing once the gateway has enrolled
+# (containerboot writes `device_ips` into the state Secret when it is up).
+#
+# Otherwise it creates the `infra` user if needed (as admin-tools/setup-vpn.sh
+# does), mints a one-time key valid for an hour, writes it into the state
+# Secret's `authkey` field — containerboot reads it from there and deletes it
+# after logging in — and restarts the gateway so that it picks the key up.
+#
+# PostSync, so Headscale is already healthy when it runs.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: private-gateway-enroll
+  namespace: headscale
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: private-gateway-enroll
+  namespace: headscale
+rules:
+  # `kubectl exec deploy/headscale -- headscale ...`
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["headscale"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  # `kubectl rollout restart deploy/private-gateway`
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["private-gateway"]
+    verbs: ["get", "patch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["private-gateway-state"]
+    verbs: ["get", "patch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: private-gateway-enroll
+  namespace: headscale
+subjects:
+  - kind: ServiceAccount
+    name: private-gateway-enroll
+    namespace: headscale
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: private-gateway-enroll
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: private-gateway-enroll
+  namespace: headscale
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      serviceAccountName: private-gateway-enroll
+      restartPolicy: Never
+      containers:
+        - name: enroll
+          image: docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+              NS=headscale
+              SECRET=private-gateway-state
+
+              ips=$(kubectl -n $NS get secret $SECRET -o jsonpath='{.data.device_ips}' 2>/dev/null || true)
+              if [[ -n "$ips" ]]; then
+                echo "Private Gateway already enrolled: $(echo "$ips" | base64 -d)"
+                exit 0
+              fi
+
+              hs() { kubectl -n $NS exec deploy/headscale -- headscale "$@"; }
+              hs users create infra >/dev/null 2>&1 || true
+              # Current Headscale (0.29) wants the user's numeric id; older
+              # releases the name (same fallback as admin-tools/setup-vpn.sh).
+              user=$(hs users list -o json | jq -r '[.[] | select(.name == "infra") | .id][0] // empty')
+              user=${user:-infra}
+              key=$(hs preauthkeys create --user "$user" --expiration 1h --reusable=false | tr -d '[:space:]')
+              if [[ -z "$key" ]]; then
+                echo "Headscale returned no preauth key" >&2
+                exit 1
+              fi
+
+              if kubectl -n $NS get secret $SECRET >/dev/null 2>&1; then
+                kubectl -n $NS patch secret $SECRET --type merge \
+                  -p "{\"stringData\":{\"authkey\":\"$key\"}}" >/dev/null
+              else
+                kubectl -n $NS create secret generic $SECRET --from-literal=authkey="$key" >/dev/null
+              fi
+              kubectl -n $NS rollout restart deploy/private-gateway
+              echo "Private Gateway given a one-time key and restarted."
