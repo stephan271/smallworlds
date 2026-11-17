@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-17T16:14:15Z",
+ "updated": "2026-11-17T17:09:36Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -276,7 +276,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-17T16:02:55Z",
+    "finished": "2026-11-17T17:09:06Z",
     "message": null
    },
    "wave": 0
@@ -309,11 +309,11 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
+   "revision": "1f9eb795704434702f0057e75f6ba34c0da91d01",
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-17T16:00:34Z",
+    "finished": "2026-11-17T17:08:37Z",
     "message": null
    },
    "wave": 0
