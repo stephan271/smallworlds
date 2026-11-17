@@ -1,20 +1,20 @@
 {
  "schema": 1,
- "updated": "2026-11-17T15:47:11Z",
+ "updated": "2026-11-17T15:49:18Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "1ea655f6be9b51666149ac12af69295c916e2db7",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-17T15:40:31Z"
+  "commit": "3e2514f815f338045f6ef9357f9375255bfd3ce9",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
   "commit": "1ea655f6be9b51666149ac12af69295c916e2db7",
   "pull": null,
-  "step": "checks",
-  "step_since": "2026-11-17T15:45:43Z",
+  "step": "storage",
+  "step_since": "2026-11-17T15:48:44Z",
   "started": "2026-11-17T15:40:30Z",
   "queued": [],
   "stuck": null,
@@ -558,6 +558,17 @@
  ],
  "commits": [
   {
+   "commit": "3e2514f815f338045f6ef9357f9375255bfd3ce9",
+   "title": "ADR 0066: in-cluster DNS and Ring 0's outside guest suite",
+   "author": "stephan271",
+   "date": "2026-11-17T15:49:03Z",
+   "pull": null,
+   "cards": [
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "1ea655f6be9b51666149ac12af69295c916e2db7",
    "title": "Propose an optional Member Network for member applications (ADR 0066)",
    "author": "stephan271",
@@ -913,18 +924,6 @@
    "date": "2026-11-16T08:30:32Z",
    "pull": null,
    "cards": [
-    "repository"
-   ],
-   "verdict": null
-  },
-  {
-   "commit": "164cddaaa02a4c15f828ce4c87fef711ce0ab920",
-   "title": "Explain the automatic update process in one place, and show it in the talk",
-   "author": "stephan271",
-   "date": "2026-11-16T08:30:32Z",
-   "pull": null,
-   "cards": [
-    "canary-follower",
     "repository"
    ],
    "verdict": null
