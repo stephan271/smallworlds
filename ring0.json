@@ -1,19 +1,32 @@
 {
  "schema": 1,
- "updated": "2026-11-17T17:09:36Z",
+ "updated": "2026-11-17T17:11:41Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "3e2514f815f338045f6ef9357f9375255bfd3ce9",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-17T16:13:49Z"
+  "commit": "c381abb8ec73211b260e819e4824e748e882aa06",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
-  "state": "up-to-date",
-  "commit": "3e2514f815f338045f6ef9357f9375255bfd3ce9",
-  "pull": null,
-  "step": null,
+  "state": "updating",
+  "commit": "c381abb8ec73211b260e819e4824e748e882aa06",
+  "pull": {
+   "number": 126,
+   "title": "Separate operator interfaces by Traefik entrypoint (ADR 0066, operator half)",
+   "cards": [
+    "canary-follower",
+    "headscale",
+    "join",
+    "keycloak",
+    "kube-prometheus-stack",
+    "repository",
+    "smallworlds-root",
+    "traefik"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [],
@@ -184,7 +197,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
+   "revision": "1f9eb795704434702f0057e75f6ba34c0da91d01",
    "images": [
     "ghcr.io/gethomepage/homepage:v2.8.0@sha256:019d8f063a7299e7c1c51ee4a70b692291809af3244894fbec2c2ac7d1f71b18"
    ],
@@ -203,7 +216,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
+   "revision": "1f9eb795704434702f0057e75f6ba34c0da91d01",
    "images": [
     "ghcr.io/euro-office/documentserver:v9.3.4-hotfix.1@sha256:889e681923d2dcc8bdfb92fe128d10e185fcff880d302b6a0c0c7bf339499290"
    ],
@@ -222,14 +235,15 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
+   "revision": "1f9eb795704434702f0057e75f6ba34c0da91d01",
    "images": [
-    "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970"
+    "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970",
+    "docker.io/tailscale/tailscale:v1.104.4@sha256:ed6480b33c6eb67c9cbd203ed42b9fb57e361986725b6856def71b7a3d9e276c"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-17T16:01:16Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of apps/Deployment/private-gateway"
    },
    "wave": 0
   },
@@ -304,7 +318,7 @@
   {
    "name": "smallworlds-root",
    "group": "machinery",
-   "health": "Healthy",
+   "health": "Progressing",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -384,7 +398,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
+   "revision": "1f9eb795704434702f0057e75f6ba34c0da91d01",
    "images": [
     "excalidraw/excalidraw:latest@sha256:f7ee194addd607bf831d2af0f0a34463dd4225e426cf35199ef0b12a803398e9"
    ],
@@ -452,7 +466,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
+   "revision": "1f9eb795704434702f0057e75f6ba34c0da91d01",
    "images": [
     "ghcr.io/jitsi-contrib/jitsi-oidc-adapter:v20260328@sha256:c4a28b215f5ea4893e308cd3f15b1f1c6954231ab784cac6362f420e6648a745",
     "ghcr.io/jitsi/jicofo:stable-11248-3",
@@ -471,18 +485,19 @@
    "name": "join",
    "group": "apps",
    "health": "Healthy",
-   "sync": "Synced",
+   "sync": "OutOfSync",
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
+   "revision": "1f9eb795704434702f0057e75f6ba34c0da91d01",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-17T16:03:29Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of /ServiceAccount/setup-sa and 1 more resources"
    },
    "wave": 1
   },
@@ -557,6 +572,42 @@
   }
  ],
  "commits": [
+  {
+   "commit": "c381abb8ec73211b260e819e4824e748e882aa06",
+   "title": "Separate operator interfaces by Traefik entrypoint (ADR 0066, operator half)",
+   "author": "stephan271",
+   "date": "2026-11-17T17:11:25Z",
+   "pull": 126,
+   "cards": [
+    "canary-follower",
+    "headscale",
+    "join",
+    "keycloak",
+    "kube-prometheus-stack",
+    "repository",
+    "smallworlds-root",
+    "traefik"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "2687d8249ecc04835425a8c53facceeb24999757",
+   "title": "Separate operator interfaces by Traefik entrypoint (ADR 0066, operator half)",
+   "author": "stephan271",
+   "date": "2026-11-17T16:04:19Z",
+   "pull": null,
+   "cards": [
+    "canary-follower",
+    "headscale",
+    "join",
+    "keycloak",
+    "kube-prometheus-stack",
+    "repository",
+    "smallworlds-root",
+    "traefik"
+   ],
+   "verdict": null
+  },
   {
    "commit": "3e2514f815f338045f6ef9357f9375255bfd3ce9",
    "title": "ADR 0066: in-cluster DNS and Ring 0's outside guest suite",
@@ -904,33 +955,6 @@
     "description": "Ring 0: backup 5 databases, converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
     "date": "2026-11-16T09:18:17Z"
    }
-  },
-  {
-   "commit": "20a827dec2dcf408a33636cd6372503e980633f5",
-   "title": "Explain the automatic update process, and show it in the talk",
-   "author": "stephan271",
-   "date": "2026-11-16T08:34:14Z",
-   "pull": 106,
-   "cards": [
-    "canary-follower",
-    "repository"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
-    "date": "2026-11-16T08:50:44Z"
-   }
-  },
-  {
-   "commit": "430d103fa79a4ee932ffb32567242ff0f9b88993",
-   "title": "Point the README at the updated talk",
-   "author": "stephan271",
-   "date": "2026-11-16T08:30:32Z",
-   "pull": null,
-   "cards": [
-    "repository"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
