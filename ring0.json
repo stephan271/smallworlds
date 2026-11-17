@@ -1,27 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-17T00:04:33Z",
+ "updated": "2026-11-17T00:10:46Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "f430b6f2b1be931135d3a34902c69599492326a2",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-16T23:55:03Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+  "date": "2026-11-17T00:09:33Z"
  },
  "now": {
   "state": "updating",
   "commit": "f430b6f2b1be931135d3a34902c69599492326a2",
-  "pull": {
-   "number": 123,
-   "title": "Update the Traefik chart to 42.4.0, with its values moved to the new layout (#123)",
-   "cards": [
-    "traefik"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-17T00:04:33Z",
-  "started": "2026-11-16T23:55:03Z",
+  "pull": null,
+  "step": "merge",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 73,
@@ -34,7 +28,7 @@
   ],
   "stuck": null,
   "action": "merged #123",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -583,9 +577,9 @@
     "traefik"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-16T23:55:03Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-17T00:09:33Z"
    }
   },
   {
