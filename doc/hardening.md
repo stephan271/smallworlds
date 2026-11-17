@@ -19,8 +19,28 @@ open the apps from phones and work laptops. A tailnet would also cost the
 property that onboarding requires no installed software (`doc/mail.md` §1).
 
 Operator interfaces are the opposite: nobody outside the operator ever needs
-them, so they carry an `ipAllowList` restricting them to the Headscale tailnet,
-private LAN ranges and loopback.
+them. They are separated by **Traefik entrypoint** (`docs/adr/0066`), and each
+comes as a pair of routers:
+
+- **On the `operators` entrypoint**, the way in from the Private Network. The
+  LoadBalancer does not expose that entrypoint; only the ClusterIP Service
+  `traefik-internal` carries it, and the **Private Gateway** — a tailscale pod in
+  the `headscale` namespace with a tailnet address of its own, enrolled by a
+  PostSync Job — forwards its `:443` there. The Operator's `/etc/hosts` points the
+  operator hostnames at the gateway's address (`setup-vpn.sh` prints the line).
+  These routers carry no allow-list: the entrypoint is the restriction.
+- **On the public entrypoint**, with an `ipAllowList` admitting the node's LAN
+  only — private ranges *minus* the pod and service networks (`10.42.0.0/15`),
+  and no tailnet range. This is how the operator of a home-network cluster with
+  no tailnet still reaches them.
+
+Routers that name no entrypoint (most member applications) attach to
+`operators` as well, so an operator whose hosts line points at the gateway can
+still sign in and use the applications. An operator-only router must name
+`operators` alone, and its public partner must name `websecure` — otherwise both
+land on `operators` for the same rule. Where an operator path shares a host
+with a public route (`identity/admin`, `join/desk`), the public partner also
+keeps the path from falling through to the public route.
 
 **The allow-list only means something because Traefik sees the visitor's real
 address.** Its Service sets `externalTrafficPolicy: Local` for that reason
@@ -39,16 +59,21 @@ Two consequences to keep in mind:
   `curl -s -o /dev/null -w '%{http_code}' https://deploy.<domain>/` must print
   `403`. Requests from the node itself still pass, as loopback and cluster
   sources do by design.
-- **Only the load-balancer address is covered.** Anything that reaches Traefik
-  by another address of the node arrives through the service load balancer's
-  own pod and so carries a cluster source, which the allow-list admits. That is
-  what lets a tailnet device in through the node's tailnet address (observed
-  on 2026-10-11: `200` through the tailnet address, `403` through the public
-  one) — and it
-  would equally admit a second public address, were the node given one that
-  answers on 443. Today the node's IPv6 address does not.
+- **Cluster sources are refused.** Anything that reaches Traefik by another
+  address of the node arrives through the service load balancer's own pod and so
+  carries a cluster source. The old allow-list admitted all of `10.0.0.0/8`, and
+  so let in any tailnet device through the node's tailnet address (observed on
+  2026-10-11: `200` through the tailnet address, `403` through the public one),
+  any pod, and would have let in a second public address. The public routers'
+  list now leaves out `10.42.0.0/15`, so all three get `403`; the Private
+  Gateway is the one way in from the tailnet. Ring 0 checks both halves on every
+  commit (`e2e-tests/tests/11-operator-entrypoint.spec.ts`).
+- **The `operators` entrypoint is open to every pod.** Any pod can reach
+  `traefik-internal:9443` directly, as any pod could reach the operator pages
+  before through a cluster source. Closing that needs a NetworkPolicy on
+  Traefik's pods admitting that port from the gateway alone (§6).
 
-| Public | Restricted |
+| Public | Restricted (`operators` entrypoint, plus the node's LAN) |
 |---|---|
 | Nextcloud, Immich, Collabora, Forgejo, Excalidraw, Bulwark, dashboard, Jitsi, pod-gateway, Headscale, `identity/realms/smallworlds`, `join` (the join page) | ArgoCD, Grafana, `identity/admin`, `identity/realms/master`, `join/desk` (the Invitation Desk) |
 
@@ -190,6 +215,9 @@ and check before trusting it.
   break. (Trivy-operator used to report these; it was removed on 2026-11-09 —
   `trivy config` against the rendered manifests gives the same list on demand.)
 - **Namespace-wide default-deny NetworkPolicies** (§4).
+- **A NetworkPolicy on Traefik admitting the `operators` port (9443) from the
+  Private Gateway only** (§1). Until then any pod can reach the operator pages
+  directly, as before the entrypoint split.
 - **A TLSOption** pinning minimum version and cipher suites. Traefik's defaults
   are already sane, so this is low value.
 - **Application-level hardening** inside Nextcloud and Immich, each of which has

@@ -1,0 +1,155 @@
+# The Private Gateway (docs/adr/0066, doc/hardening.md §1): the cluster's
+# entrypoint for operator interfaces on the Private Network. A tailscale node of
+# its own, enrolled in this Headscale as user `infra` (beside the node and the
+# Operator Devices), that forwards its tailnet address's :443 to Traefik's
+# `operators` entrypoint. That entrypoint is not on the LoadBalancer, so the
+# gateway is the only way onto it from outside the cluster; operator-only
+# routers name it alone.
+#
+# The Operator points the operator hostnames at the gateway's tailnet address
+# (`/etc/hosts`, printed by admin-tools/setup-vpn.sh). The address is in this
+# Secret, key `device_ips`, once the gateway has enrolled.
+#
+# Userspace networking: no NET_ADMIN, no /dev/net/tun, runs as non-root. TLS is
+# not terminated here — the TCP stream goes through untouched and Traefik
+# answers with the hostname's own certificate.
+#
+# Enrollment is private-gateway-enroll-job.yaml: it writes a one-time key into
+# the state Secret's `authkey` field, which containerboot uses and then deletes.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: private-gateway
+  namespace: headscale
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: private-gateway
+  namespace: headscale
+rules:
+  # containerboot keeps tailscaled's state, the node key included, in this one
+  # Secret, and checks get/update (required) and patch/create at startup.
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["private-gateway-state"]
+    verbs: ["get", "update", "patch"]
+  # create cannot be narrowed to a name; needed only on the very first start.
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: private-gateway
+  namespace: headscale
+subjects:
+  - kind: ServiceAccount
+    name: private-gateway
+    namespace: headscale
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: private-gateway
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: private-gateway-serve
+  namespace: headscale
+data:
+  # ipn.ServeConfig: raw TCP from the tailnet's :443 to the `operators`
+  # entrypoint (apps/traefik.yaml). containerboot watches this file.
+  serve.json: |
+    {
+      "TCP": {
+        "443": {
+          "TCPForward": "traefik-internal.traefik-system.svc.cluster.local:9443"
+        }
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: private-gateway
+  namespace: headscale
+  labels:
+    app.kubernetes.io/name: private-gateway
+spec:
+  replicas: 1
+  # One tailnet identity per state Secret: two pods must never run at once.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: private-gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: private-gateway
+    spec:
+      serviceAccountName: private-gateway
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: tailscale
+          image: docker.io/tailscale/tailscale:v1.104.4@sha256:ed6480b33c6eb67c9cbd203ed42b9fb57e361986725b6856def71b7a3d9e276c
+          env:
+            - name: TS_KUBE_SECRET
+              value: private-gateway-state
+            - name: TS_USERSPACE
+              value: "true"
+            # Log in only when not logged in: a restart keeps the identity.
+            - name: TS_AUTH_ONCE
+              value: "true"
+            - name: TS_HOSTNAME
+              value: private-gateway
+            # Headscale through its Service, not vpn.<domain>: no hairpin
+            # through the public address, and no dependency on a certificate
+            # (a LAN-only cluster's is signed by the Cluster CA).
+            - name: TS_EXTRA_ARGS
+              value: --login-server=http://headscale.headscale.svc.cluster.local
+            - name: TS_SERVE_CONFIG
+              value: /config/serve.json
+            - name: TS_SOCKET
+              value: /tmp/tailscaled.sock
+            - name: TS_STATE_DIR
+              value: /tmp
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 48Mi
+            limits:
+              memory: 192Mi
+          volumeMounts:
+            - name: serve
+              mountPath: /config
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: serve
+          configMap:
+            name: private-gateway-serve
+        - name: tmp
+          emptyDir: {}

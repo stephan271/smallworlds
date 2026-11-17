@@ -7,3 +7,5 @@ resources:
   - deployment.yaml
   - service.yaml
   - ingress.yaml
+  - private-gateway.yaml
+  - private-gateway-enroll-job.yaml

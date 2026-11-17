@@ -208,7 +208,10 @@ but it is not instant for members:
 
 ## Verification
 
-None of this is built. The Guest Path lists come from signed-out browser
+The operator half of the routing change — the `operators` entrypoint, the
+Private Gateway and the narrowed public allow-lists — is built (2026-11-17), and
+Ring 0 checks it on every commit (`e2e-tests/tests/11-operator-entrypoint.spec.ts`).
+The Member Network is not built. The Guest Path lists come from signed-out browser
 recordings on Ring 0 and are the only part observed. Not yet proven:
 
 - Headscale's `extra_records` answering for the community's own domain while

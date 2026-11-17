@@ -57,6 +57,10 @@ spec:
                   value: stephan271/smallworlds
                 - name: DOMAIN
                   value: canary.smallworlds.network
+                # e2e 11: operator pages refuse the public entrypoint from a
+                # cluster address and answer on the `operators` one.
+                - name: OPERATOR_ENTRYPOINT_CHECK
+                  value: "1"
                 # The admin REST API answers only on the tailnet at the
                 # Ingress; in the cluster the Service is reachable directly.
                 - name: KC_ADMIN_URL

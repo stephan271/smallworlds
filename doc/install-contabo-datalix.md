@@ -335,13 +335,14 @@ It stops three times:
 2. To have you create one more DNS record. It prints `admin.<your-domain>` and
    the server's tailnet address (it starts with `100.`). Create that A record
    at your DNS provider and press Enter. It has to be its own record; the wildcard would
-   otherwise answer for it with the public address. **Note the address**; you
-   need it in step 11.
+   otherwise answer for it with the public address.
 3. To restart K3s for a few seconds, so that the Kubernetes API's certificate
    also covers the new name. Answer `y`; the applications keep running.
 
 At the end it prints the commands for steps 10 to 12 with your login and SSH
-port filled in. Use those where they differ from the ones below.
+port filled in, and the `/etc/hosts` line for step 11 with the **Private
+Gateway's** address — a second tailnet address, not the server's, which the
+cluster enrolled by itself. Use those where they differ from the ones below.
 
 ## 10. Join your own computer
 
@@ -388,11 +389,20 @@ Do not skip this: step 12 closes the way you have been using so far.
    ```
 
 3. **The operator pages.** Their names resolve to the server's public address,
-   where they answer `403`. Tell your computer to use the tailnet address from
-   step 9 for them instead, by adding this line to `/etc/hosts`:
+   where they answer `403`. Tell your computer to use the Private Gateway's
+   address instead (step 9 printed the line), by adding it to `/etc/hosts`:
 
    ```
-   <tailnet-address>  deploy.<your-domain> monitoring.<your-domain> identity.<your-domain> join.<your-domain>
+   <gateway-address>  deploy.<your-domain> monitoring.<your-domain> identity.<your-domain> join.<your-domain>
+   ```
+
+   It is not the server's tailnet address from the `admin` record: through that
+   one the operator pages answer `403` too. If step 9 could not show the
+   gateway's address yet, ask for it once the cluster has had a few minutes:
+
+   ```bash
+   kubectl -n headscale get secret private-gateway-state \
+     -o jsonpath='{.data.device_ips}' | base64 -d
    ```
 
    Then open `https://deploy.<your-domain>` and sign in as `admin` with the
@@ -494,7 +504,7 @@ Your community's cloud is now ready to use.
 | Cannot SSH after the install | The firewall missed your SSH port | Contabo web console, then `smallworlds-firewall open`; report the port your `sshd` uses |
 | The browser gets no answer at all for an address | Your computer remembers an older address for the name | `sudo resolvectl flush-caches`, restart the browser (step 8.3) |
 | "Invalid username or email" at every sign-in | No member accounts exist yet; `admin` and `operator` are not members | Step 13 |
-| An operator page answers `403` from your own computer | You are not on the cluster's network, or the `/etc/hosts` line is missing | Steps 10 and 11.3 |
+| An operator page answers `403` from your own computer | You are not on the cluster's network, or the `/etc/hosts` line is missing or names the server's tailnet address instead of the gateway's | Steps 10 and 11.3 |
 | The Invitation Desk answers `403` | Same cause: it is an operator page | Steps 10 and 11.3 |
 | A member's invitation says it has expired or was used | Invitations last 14 days and work once | On the Desk, **New code** for that row, and send it again |
 | `setup-vpn.sh` says it cannot run commands as root | Your login needs `sudo` without a password | "If you log in as another user than root" in step 2 |

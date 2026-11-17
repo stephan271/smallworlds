@@ -47,6 +47,9 @@ spec:
               # it cannot be declared here, since these are Helm values for a
               # chart that renders no Middleware of its own.
               traefik.ingress.kubernetes.io/router.middlewares: monitoring-monitoring-private@kubernetescrd
+              # Public entrypoint only; `grafana-private` (same file as the
+              # Middleware) is the route on the `operators` entrypoint.
+              traefik.ingress.kubernetes.io/router.entrypoints: websecure
             hosts:
               - monitoring.smallworlds.network
             tls:

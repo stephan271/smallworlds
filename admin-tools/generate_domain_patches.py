@@ -107,6 +107,16 @@ def generate_patches(app_name, domain, ext):
                 path: /spec/tls/0/hosts/0
                 value: {subdomains['identity']}
           - target:
+              kind: Ingress
+              name: keycloak-admin-private
+            patch: |-
+              - op: replace
+                path: /spec/rules/0/host
+                value: {subdomains['identity']}
+              - op: replace
+                path: /spec/tls/0/hosts/0
+                value: {subdomains['identity']}
+          - target:
               kind: StatefulSet
               name: keycloak-keycloakx
             patch: |-
@@ -189,6 +199,16 @@ def generate_patches(app_name, domain, ext):
           - target:
               kind: Ingress
               name: join-desk
+            patch: |-
+              - op: replace
+                path: /spec/rules/0/host
+                value: {subdomains['join']}
+              - op: replace
+                path: /spec/tls/0/hosts/0
+                value: {subdomains['join']}
+          - target:
+              kind: Ingress
+              name: join-desk-private
             patch: |-
               - op: replace
                 path: /spec/rules/0/host
@@ -549,11 +569,33 @@ def generate_patches(app_name, domain, ext):
               - op: replace
                 path: /spec/tls/0/hosts/0
                 value: {subdomains['deploy']}
+          - target:
+              kind: Ingress
+              name: argocd-server-private
+              namespace: argocd
+            patch: |-
+              - op: replace
+                path: /spec/rules/0/host
+                value: {subdomains['deploy']}
+              - op: replace
+                path: /spec/tls/0/hosts/0
+                value: {subdomains['deploy']}
         """), "  ")
 
     elif app_name == "monitoring":
         # Modify the values within the kube-prometheus-stack Application manifest for Grafana ingress
         patches += textwrap.indent(textwrap.dedent(f"""\
+          - target:
+              kind: Ingress
+              name: grafana-private
+              namespace: monitoring
+            patch: |-
+              - op: replace
+                path: /spec/rules/0/host
+                value: {subdomains['monitoring']}
+              - op: replace
+                path: /spec/tls/0/hosts/0
+                value: {subdomains['monitoring']}
           - target:
               group: argoproj.io
               kind: Application
@@ -588,6 +630,10 @@ def generate_patches(app_name, domain, ext):
                       ingressClassName: traefik
                       annotations:
                         cert-manager.io/cluster-issuer: letsencrypt-prod
+                        # Both as in apps/kube-prometheus-stack.yaml: without
+                        # them Grafana's login page is public (Ring 0, 2026-11-17).
+                        traefik.ingress.kubernetes.io/router.middlewares: monitoring-monitoring-private@kubernetescrd
+                        traefik.ingress.kubernetes.io/router.entrypoints: websecure
                       hosts:
                         - {subdomains['monitoring']}
                       tls:

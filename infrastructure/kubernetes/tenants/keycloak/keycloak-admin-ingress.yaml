@@ -23,15 +23,20 @@ metadata:
 spec:
   ipAllowList:
     sourceRange:
-      # Enrolled Operator Devices on the Headscale tailnet.
-      - 100.64.0.0/10
-      # The Cluster Node's own LAN, for a Local Deployment Mode. 10.0.0.0/8 also
-      # covers the pod and service networks (10.42/10.43).
-      - 10.0.0.0/8
+      # The Cluster Node's own LAN: private ranges minus the pod and service
+      # networks (10.42.0.0/15). A cluster source is a pod, or a tailnet device
+      # coming in through the node's tailnet address — never the operator,
+      # who arrives through the Private Gateway on the `operators` entrypoint
+      # (docs/adr/0066), served by the `-private` Ingress below.
+      - 10.0.0.0/11
+      - 10.32.0.0/13
+      - 10.40.0.0/15
+      - 10.44.0.0/14
+      - 10.48.0.0/12
+      - 10.64.0.0/10
+      - 10.128.0.0/9
       - 172.16.0.0/12
       - 192.168.0.0/16
-      # In-cluster traffic.
-      - 127.0.0.0/8
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -41,6 +46,57 @@ metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.middlewares: keycloak-keycloak-admin-private@kubernetescrd
+    # Must outrank the chart's `/` route for this host.
+    traefik.ingress.kubernetes.io/router.priority: "1000"
+    # Deliberately absent from the Member Dashboard.
+    gethomepage.dev/enabled: "false"
+spec:
+  ingressClassName: traefik
+  tls:
+    # Same secret as the chart's Ingress, and deliberately no cluster-issuer
+    # annotation here: cert-manager already manages this certificate from that
+    # Ingress, and a second annotated Ingress for the same host would race it.
+    - hosts:
+        - identity.smallworlds.network
+      secretName: keycloak-tls
+  rules:
+    - host: identity.smallworlds.network
+      http:
+        paths:
+          - path: /admin
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak-keycloakx-http
+                port:
+                  name: http
+          # Restricting /admin alone left the master realm's own endpoints
+          # public, so `admin` and `operator` passwords could still be attacked
+          # through /realms/master/protocol/openid-connect/token from anywhere —
+          # and master is created by Keycloak with its own defaults, where
+          # bruteForceProtected is false (the smallworlds realm sets it true).
+          # Members only ever touch /realms/smallworlds; in-cluster callers use
+          # the Service, and the e2e provisioner uses a port-forward.
+          - path: /realms/master
+            pathType: Prefix
+            backend:
+              service:
+                name: keycloak-keycloakx-http
+                port:
+                  name: http
+---
+# The same paths on the `operators` entrypoint, which only the Private Gateway
+# reaches. The public router above stays, narrowed to the node's LAN: dropping it
+# would let /admin fall through to the chart's public `/` route on `websecure`.
+# No allow-list here — the entrypoint is the restriction, and the gateway's
+# source is a pod address.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: keycloak-admin-private
+  namespace: keycloak
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: operators
     # Must outrank the chart's `/` route for this host.
     traefik.ingress.kubernetes.io/router.priority: "1000"
     # Deliberately absent from the Member Dashboard.
