@@ -1,27 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-17T11:07:53Z",
+ "updated": "2026-11-17T11:12:06Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "02f27a94d436c97f599af765063309c8892b7980",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-17T10:43:25Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 6 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+  "date": "2026-11-17T11:11:57Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "02f27a94d436c97f599af765063309c8892b7980",
-  "pull": {
-   "number": 125,
-   "title": "Keep Immich's PostgreSQL 16 catalog entry on 16 (instead of #117)",
-   "cards": [
-    "repository"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-17T11:06:56Z",
-  "started": "2026-11-17T10:43:25Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #124",
@@ -573,9 +567,9 @@
     "repository"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-17T10:43:25Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 6 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-17T11:11:57Z"
    }
   },
   {
