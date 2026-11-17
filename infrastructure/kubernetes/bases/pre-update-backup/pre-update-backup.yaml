@@ -6,7 +6,9 @@
 # An Argo CD PreSync hook. It backs up only when the update changes something the
 # database cares about: the tenant's application image (DESIRED_IMAGE, copied in
 # by a `replacements` entry in the tenant's kustomization from the workload that
-# is about to be applied) or the Cluster's own PostgreSQL image (DESIRED_DB_IMAGE).
+# is about to be applied), the Cluster's own PostgreSQL image (DESIRED_DB_IMAGE)
+# or, for a Cluster that takes its image from an image catalog, the catalog's
+# major (DESIRED_DB_MAJOR, raising it runs an in-place pg_upgrade).
 # Every other sync, including the Canary Follower's hourly full sync on Ring 0,
 # finds nothing changed and returns at once.
 #
@@ -97,6 +99,8 @@ spec:
               value: ""
             - name: DESIRED_DB_IMAGE
               value: ""
+            - name: DESIRED_DB_MAJOR
+              value: ""
             - name: TIMEOUT_SECONDS
               value: "1800"
             - name: KEEP
@@ -116,12 +120,16 @@ spec:
               live=$(kubectl -n "$ns" get "$WORKLOAD" \
                 -o jsonpath="{.spec.template.spec.containers[?(@.name==\"$CONTAINER\")].image}" 2>/dev/null)
               live_db=$(kubectl -n "$ns" get clusters.postgresql.cnpg.io "$CLUSTER" -o jsonpath='{.spec.imageName}')
+              live_major=$(kubectl -n "$ns" get clusters.postgresql.cnpg.io "$CLUSTER" -o jsonpath='{.spec.imageCatalogRef.major}')
               changes=()
               if [[ -n "$live" && -n "$DESIRED_IMAGE" && "$live" != "$DESIRED_IMAGE" ]]; then
                 changes+=("$WORKLOAD $live -> $DESIRED_IMAGE")
               fi
               if [[ -n "$live_db" && -n "$DESIRED_DB_IMAGE" && "$live_db" != "$DESIRED_DB_IMAGE" ]]; then
                 changes+=("PostgreSQL $live_db -> $DESIRED_DB_IMAGE")
+              fi
+              if [[ -n "$live_major" && -n "$DESIRED_DB_MAJOR" && "$live_major" != "$DESIRED_DB_MAJOR" ]]; then
+                changes+=("PostgreSQL major $live_major -> $DESIRED_DB_MAJOR")
               fi
               if [[ ${#changes[@]} -eq 0 ]]; then
                 say "no image changes for $CLUSTER: no backup needed"; exit 0
