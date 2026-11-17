@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-17T17:13:46Z",
+ "updated": "2026-11-17T17:15:52Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "c381abb8ec73211b260e819e4824e748e882aa06",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-17T17:14:35Z"
  },
  "now": {
   "state": "updating",
@@ -26,9 +26,9 @@
     "traefik"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-17T17:14:51Z",
+  "started": "2026-11-17T17:14:35Z",
   "queued": [
    {
     "number": 127,
@@ -98,7 +98,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-17T16:01:24Z",
+    "finished": "2026-11-17T17:15:08Z",
     "message": null
    },
    "wave": -10
@@ -130,7 +130,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "3e2514f815f338045f6ef9357f9375255bfd3ce9",
+   "revision": "c381abb8ec73211b260e819e4824e748e882aa06",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
@@ -260,7 +260,7 @@
    "name": "keycloak",
    "group": "platform",
    "health": "Healthy",
-   "sync": "OutOfSync",
+   "sync": "Synced",
    "source": "overlay",
    "chart": null,
    "version": null,
@@ -272,8 +272,8 @@
     "quay.io/keycloak/keycloak@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc496969a319a76bbf0"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
+    "phase": "Succeeded",
+    "finished": "2026-11-17T17:14:38Z",
     "message": null
    },
    "wave": 0
@@ -336,7 +336,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-17T17:08:37Z",
+    "finished": "2026-11-17T17:15:38Z",
     "message": null
    },
    "wave": 0
@@ -596,7 +596,11 @@
     "smallworlds-root",
     "traefik"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-17T17:14:35Z"
+   }
   },
   {
    "commit": "2687d8249ecc04835425a8c53facceeb24999757",
