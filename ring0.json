@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-17T00:25:18Z",
+ "updated": "2026-11-17T00:27:24Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -984,7 +984,7 @@
   },
   {
    "number": 117,
-   "title": "Update immich (major)",
+   "title": "Update Docker image ghcr.io/tensorchord/cloudnative-vectorchord to v18",
    "author": "renovate[bot]",
    "created": "2026-11-16T18:26:50Z",
    "draft": false,
