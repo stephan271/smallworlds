@@ -532,7 +532,7 @@ kind: Cluster
 metadata: {name: database, namespace: immich}
 spec:
   instances: 1
-  imageCatalogRef: {apiGroup: postgresql.cnpg.io, kind: ClusterImageCatalog, name: immich-catalog, major: 16}
+  imageCatalogRef: {apiGroup: postgresql.cnpg.io, kind: ClusterImageCatalog, name: immich-catalog, major: 18}
   postgresql: {shared_preload_libraries: [vchord.so]}
   storage: {size: 20Gi}
   bootstrap: {recovery: {source: recovery-source}}
@@ -540,7 +540,7 @@ spec:
     - name: recovery-source
       plugin:
         name: barman-cloud.cloudnative-pg.io
-        parameters: {barmanObjectName: postgres-backups, serverName: immich-database}
+        parameters: {barmanObjectName: postgres-backups, serverName: immich-database-pg18}
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
