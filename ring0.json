@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-17T17:11:41Z",
+ "updated": "2026-11-17T17:13:46Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -29,7 +29,16 @@
   "step": "waiting",
   "step_since": null,
   "started": null,
-  "queued": [],
+  "queued": [
+   {
+    "number": 127,
+    "title": "Update Docker image docker.io/tailscale/tailscale to v1.104.7",
+    "cards": [
+     "headscale"
+    ],
+    "since": "2026-11-17T17:12:22Z"
+   }
+  ],
   "stuck": null,
   "action": "merged #124",
   "waiting": "no queued update is ready"
@@ -178,7 +187,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "3e2514f815f338045f6ef9357f9375255bfd3ce9",
+   "revision": "c381abb8ec73211b260e819e4824e748e882aa06",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
@@ -241,9 +250,9 @@
     "docker.io/tailscale/tailscale:v1.104.4@sha256:ed6480b33c6eb67c9cbd203ed42b9fb57e361986725b6856def71b7a3d9e276c"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for healthy state of apps/Deployment/private-gateway"
+    "phase": "Succeeded",
+    "finished": "2026-11-17T17:11:51Z",
+    "message": null
    },
    "wave": 0
   },
@@ -251,11 +260,11 @@
    "name": "keycloak",
    "group": "platform",
    "health": "Healthy",
-   "sync": "Synced",
+   "sync": "OutOfSync",
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
+   "revision": "1f9eb795704434702f0057e75f6ba34c0da91d01",
    "images": [
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -263,8 +272,8 @@
     "quay.io/keycloak/keycloak@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc496969a319a76bbf0"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-17T16:03:34Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 0
@@ -318,7 +327,7 @@
   {
    "name": "smallworlds-root",
    "group": "machinery",
-   "health": "Progressing",
+   "health": "Healthy",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -340,7 +349,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "3e2514f815f338045f6ef9357f9375255bfd3ce9",
+   "revision": "c381abb8ec73211b260e819e4824e748e882aa06",
    "images": [
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
@@ -360,7 +369,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
+   "revision": "1f9eb795704434702f0057e75f6ba34c0da91d01",
    "images": [
     "ghcr.io/bulwarkmail/webmail:1.21.2@sha256:037b85b1433233d2d7eebb83f928df5ecc3b4adc91dc7e4c55f0a2f69024e754"
    ],
@@ -379,13 +388,13 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "3e2514f815f338045f6ef9357f9375255bfd3ce9",
+   "revision": "c381abb8ec73211b260e819e4824e748e882aa06",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-17T16:01:16Z",
+    "finished": "2026-11-17T17:13:17Z",
     "message": null
    },
    "wave": 1
@@ -417,7 +426,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
+   "revision": "1f9eb795704434702f0057e75f6ba34c0da91d01",
    "images": [
     "code.forgejo.org/forgejo/forgejo:15.0.11-rootless",
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
@@ -441,7 +450,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
+   "revision": "1f9eb795704434702f0057e75f6ba34c0da91d01",
    "images": [
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
@@ -485,19 +494,18 @@
    "name": "join",
    "group": "apps",
    "health": "Healthy",
-   "sync": "OutOfSync",
+   "sync": "Synced",
    "source": "overlay",
    "chart": null,
    "version": null,
    "revision": "1f9eb795704434702f0057e75f6ba34c0da91d01",
    "images": [
-    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for healthy state of /ServiceAccount/setup-sa and 1 more resources"
+    "phase": "Succeeded",
+    "finished": "2026-11-17T17:12:23Z",
+    "message": null
    },
    "wave": 1
   },
@@ -509,7 +517,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
+   "revision": "1f9eb795704434702f0057e75f6ba34c0da91d01",
    "images": [
     "docker.io/library/nextcloud:35.0.2-apache",
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
@@ -533,7 +541,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
+   "revision": "1f9eb795704434702f0057e75f6ba34c0da91d01",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
@@ -552,7 +560,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "f2a403ec9a533708a2a95cf4c8be805724c130e5",
+   "revision": "1f9eb795704434702f0057e75f6ba34c0da91d01",
    "images": [
     "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
@@ -982,6 +990,21 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 127,
+   "title": "Update Docker image docker.io/tailscale/tailscale to v1.104.7",
+   "author": "renovate[bot]",
+   "created": "2026-11-17T17:12:22Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "headscale"
    ]
   }
  ]
