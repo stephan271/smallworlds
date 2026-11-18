@@ -1,22 +1,37 @@
 {
  "schema": 1,
- "updated": "2026-11-18T19:24:51Z",
+ "updated": "2026-11-18T19:37:26Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "738a5a55e4af01eb752ea550f64c73127ccd0275",
-  "state": "success",
-  "description": "Ring 0: converged, load still 1.5/CPU after 15 min, smoke 16 hosts, e2e 33 passed, 14 skipped; data 4/4 apps intact, storage: Garage v2.5.0\u2026",
-  "date": "2026-11-18T18:35:21Z"
+  "commit": "4d0d1934d567f0e0d242c0332ff171ce027741b3",
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-18T19:36:23Z"
  },
  "now": {
-  "state": "up-to-date",
-  "commit": "738a5a55e4af01eb752ea550f64c73127ccd0275",
-  "pull": null,
-  "step": null,
-  "step_since": null,
-  "started": null,
-  "queued": [],
+  "state": "updating",
+  "commit": "4d0d1934d567f0e0d242c0332ff171ce027741b3",
+  "pull": {
+   "number": 137,
+   "title": "Run the Nextcloud guest suite on every Ring 0 commit (ADR 0066)",
+   "cards": [
+    "canary-follower"
+   ]
+  },
+  "step": "sync",
+  "step_since": "2026-11-18T19:36:23Z",
+  "started": "2026-11-18T19:36:23Z",
+  "queued": [
+   {
+    "number": 138,
+    "title": "Update gallery to v5.11.0",
+    "cards": [
+     "immich"
+    ],
+    "since": "2026-11-18T19:36:55Z"
+   }
+  ],
   "stuck": null,
   "action": "not reverted: main has moved on",
   "waiting": "no queued update is ready"
@@ -108,7 +123,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "738a5a55e4af01eb752ea550f64c73127ccd0275",
+   "revision": "4d0d1934d567f0e0d242c0332ff171ce027741b3",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
@@ -165,7 +180,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "738a5a55e4af01eb752ea550f64c73127ccd0275",
+   "revision": "4d0d1934d567f0e0d242c0332ff171ce027741b3",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
@@ -314,7 +329,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-18T17:59:46Z",
+    "finished": "2026-11-18T19:37:11Z",
     "message": null
    },
    "wave": 0
@@ -327,7 +342,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "738a5a55e4af01eb752ea550f64c73127ccd0275",
+   "revision": "4d0d1934d567f0e0d242c0332ff171ce027741b3",
    "images": [
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
@@ -362,18 +377,18 @@
    "name": "canary-follower",
    "group": "machinery",
    "health": "Healthy",
-   "sync": "Synced",
+   "sync": "OutOfSync",
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "738a5a55e4af01eb752ea550f64c73127ccd0275",
+   "revision": "4d0d1934d567f0e0d242c0332ff171ce027741b3",
    "images": [
     "mcr.microsoft.com/playwright:v1.65.1-noble@sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579",
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-18T18:01:10Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 1
@@ -581,6 +596,32 @@
   }
  ],
  "commits": [
+  {
+   "commit": "4d0d1934d567f0e0d242c0332ff171ce027741b3",
+   "title": "Run the Nextcloud guest suite on every Ring 0 commit (ADR 0066)",
+   "author": "stephan271",
+   "date": "2026-11-18T19:35:39Z",
+   "pull": 137,
+   "cards": [
+    "canary-follower"
+   ],
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-18T19:36:23Z"
+   }
+  },
+  {
+   "commit": "024416a2f9e7ce6ad1c92a221e971056ee0a6b0b",
+   "title": "Run the Nextcloud guest suite on every Ring 0 commit (ADR 0066)",
+   "author": "stephan271",
+   "date": "2026-11-18T19:23:56Z",
+   "pull": null,
+   "cards": [
+    "canary-follower"
+   ],
+   "verdict": null
+  },
   {
    "commit": "738a5a55e4af01eb752ea550f64c73127ccd0275",
    "title": "Make Nextcloud's guest Ingress valid: prefixes, one anchored regex",
@@ -933,36 +974,6 @@
     "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
     "date": "2026-11-17T00:09:33Z"
    }
-  },
-  {
-   "commit": "e950a69ef4ab1d2a37dd9be4a703679edf48c6a5",
-   "title": "Update Helm chart kube-prometheus-stack to v93.3.0 (#122)",
-   "author": "smallworlds-steward[bot]",
-   "date": "2026-11-16T23:17:44Z",
-   "pull": 122,
-   "cards": [
-    "kube-prometheus-stack"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-16T23:39:36Z"
-   }
-  },
-  {
-   "commit": "e8eb1e5306e4c01c6a1360c132d31fac5a1dc02d",
-   "title": "Update dependency @playwright/test to v1.65.1 (#121)",
-   "author": "renovate[bot]",
-   "date": "2026-11-16T22:47:10Z",
-   "pull": 121,
-   "cards": [
-    "canary-follower"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 5 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-16T23:12:28Z"
-   }
   }
  ],
  "pulls": [
@@ -993,16 +1004,18 @@
    ]
   },
   {
-   "number": 137,
-   "title": "Run the Nextcloud guest suite on every Ring 0 commit (ADR 0066)",
-   "author": "stephan271",
-   "created": "2026-11-18T19:24:01Z",
+   "number": 138,
+   "title": "Update gallery to v5.11.0",
+   "author": "renovate[bot]",
+   "created": "2026-11-18T19:36:55Z",
    "draft": false,
-   "queued": false,
+   "queued": true,
    "rejected": false,
-   "labels": [],
+   "labels": [
+    "ring0-queue"
+   ],
    "cards": [
-    "canary-follower"
+    "immich"
    ]
   }
  ]
