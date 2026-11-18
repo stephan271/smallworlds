@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-18T20:04:52Z",
+ "updated": "2026-11-18T20:07:00Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -254,12 +254,13 @@
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
     "ghcr.io/tensorchord/cloudnative-pgvecto.rs:16.4-v0.3.0",
+    "quay.io/keycloak/keycloak:26.8.2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc496969a319a76bbf0",
     "quay.io/keycloak/keycloak@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc496969a319a76bbf0"
    ],
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": "waiting for completion of hook batch/Job/pre-update-backup"
+    "message": "waiting for completion of hook batch/Job/keycloak-realm-config"
    },
    "wave": 0
   },
@@ -274,6 +275,7 @@
    "revision": null,
    "images": [
     "docker.io/grafana/grafana:13.3.1-distroless",
+    "ghcr.io/jkroepke/kube-webhook-certgen:1.11.1",
     "quay.io/kiwigrid/k8s-sidecar:2.14.3",
     "quay.io/prometheus-operator/prometheus-config-reloader:v0.95.2",
     "quay.io/prometheus-operator/prometheus-operator:v0.95.2",
@@ -285,7 +287,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": "waiting for completion of hook batch/Job/kube-prometheus-stack-admission-create"
+    "message": "waiting for completion of hook batch/Job/kube-prometheus-stack-admission-patch"
    },
    "wave": 0
   },
@@ -336,14 +338,13 @@
    "version": null,
    "revision": "a25b97258a29f816e47ee3cb686812990efea236",
    "images": [
-    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/velero-garage-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-18T20:05:50Z",
+    "message": null
    },
    "wave": 0
   },
@@ -357,13 +358,12 @@
    "version": null,
    "revision": "1914f8e37447664f1d387fa9f7f1e93bca0e20d3",
    "images": [
-    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/bulwarkmail/webmail:1.21.2@sha256:037b85b1433233d2d7eebb83f928df5ecc3b4adc91dc7e4c55f0a2f69024e754"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-18T20:05:35Z",
+    "message": null
    },
    "wave": 1
   },
@@ -426,7 +426,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": "waiting for completion of hook batch/Job/pre-update-backup"
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -454,7 +454,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": "waiting for completion of hook batch/Job/pre-update-backup"
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -468,7 +468,6 @@
    "version": null,
    "revision": "1914f8e37447664f1d387fa9f7f1e93bca0e20d3",
    "images": [
-    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/jitsi-contrib/jitsi-oidc-adapter:v20260328@sha256:c4a28b215f5ea4893e308cd3f15b1f1c6954231ab784cac6362f420e6648a745",
     "ghcr.io/jitsi/jicofo:stable-11248-3",
     "ghcr.io/jitsi/jvb:stable-11248-3",
@@ -476,9 +475,9 @@
     "ghcr.io/jitsi/web:stable-11248-3"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-18T20:05:47Z",
+    "message": null
    },
    "wave": 1
   },
@@ -498,7 +497,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
+    "message": "waiting for completion of hook batch/Job/join-keycloak-setup"
    },
    "wave": 1
   },
@@ -517,9 +516,9 @@
     "docker.io/tailscale/tailscale:v1.104.7@sha256:72c1e19e0aedca96b8533bbb0b4368564410ff20b17e53b804eb6c1f04a31be4"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-18T20:06:35Z",
+    "message": null
    },
    "wave": 1
   },
@@ -544,7 +543,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": "waiting for completion of hook batch/Job/pre-update-backup"
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -558,13 +557,12 @@
    "version": null,
    "revision": "1914f8e37447664f1d387fa9f7f1e93bca0e20d3",
    "images": [
-    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for healthy state of /ConfigMap/pod-gateway-config and 4 more resources"
+    "phase": "Succeeded",
+    "finished": "2026-11-18T20:04:52Z",
+    "message": null
    },
    "wave": 1
   },
@@ -578,6 +576,7 @@
    "version": null,
    "revision": "1914f8e37447664f1d387fa9f7f1e93bca0e20d3",
    "images": [
+    "alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf",
     "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -590,7 +589,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": "waiting for completion of hook batch/Job/pre-update-backup"
+    "message": "waiting for completion of hook batch/Job/stalwart-init"
    },
    "wave": 1
   }
