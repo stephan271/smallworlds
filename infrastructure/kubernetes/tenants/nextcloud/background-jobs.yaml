@@ -1,0 +1,122 @@
+# Nextcloud's background jobs, run from cron every five minutes.
+#
+# Without this they run in AJAX mode: only while someone has a page open. On a
+# quiet instance, file scans, share expiry, trash and version cleanup and
+# notification mails then simply stop, and nothing warns about it. A Nextcloud
+# that only members on a tailnet can reach (docs/adr/0066) would be quieter
+# still. The first CLI run switches backgroundjobs_mode to "cron" by itself
+# (core/Service/CronService.php), so no occ step is needed.
+#
+# Why exec into the running container instead of the chart's own options
+# (a crond sidecar, or a CronJob running the Nextcloud image): both start a
+# second container from the chart's base environment. Overlays patch the
+# object-storage settings (OBJECTSTORE_S3_*, generate_storage_patches.py) into
+# the `nextcloud` container only, and Nextcloud reads them on every run. A
+# second container would run background jobs against the base's Garage
+# address, not the community's store. Exec'ing into `nextcloud` runs cron.php
+# with exactly the environment the application has, whatever an overlay
+# changes.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nextcloud-cron
+  namespace: nextcloud
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: nextcloud-cron
+  namespace: nextcloud
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["nextcloud"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create", "get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: nextcloud-cron
+  namespace: nextcloud
+subjects:
+  - kind: ServiceAccount
+    name: nextcloud-cron
+    namespace: nextcloud
+roleRef:
+  kind: Role
+  name: nextcloud-cron
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: nextcloud-cron
+  namespace: nextcloud
+spec:
+  schedule: "*/5 * * * *"
+  # One run at a time: a long file scan must not be joined by a second one.
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 240
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 3600
+      template:
+        spec:
+          serviceAccountName: nextcloud-cron
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: cron
+              image: docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0
+              env:
+                - name: HOME
+                  value: /tmp
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -eu
+                  # A Nextcloud that is starting, upgrading or scaled down has
+                  # no ready container to run in. Skipping is right: the next
+                  # run catches up, and a failed Job every five minutes during
+                  # an upgrade would only raise alerts about nothing.
+                  ready="$(kubectl -n nextcloud get deployment nextcloud -o jsonpath='{.status.readyReplicas}')"
+                  if [ "${ready:-0}" -lt 1 ]; then
+                    echo "Nextcloud has no ready pod; skipping this run."
+                    exit 0
+                  fi
+                  # cron.php refuses to run as anyone but the owner of
+                  # config.php, which is www-data in the official image.
+                  exec kubectl -n nextcloud exec deployment/nextcloud -c nextcloud -- \
+                    su -s /bin/sh www-data -c 'php -f /var/www/html/cron.php'
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: tmp
+              emptyDir: {}
