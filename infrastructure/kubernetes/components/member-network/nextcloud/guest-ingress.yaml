@@ -1,0 +1,68 @@
+# Nextcloud's Guest Paths: what a signed-out guest's browser needs to open a
+# share link, on the public entrypoint only. Recorded on Ring 0 (2026-11-14 and
+# 2026-11-18, Nextcloud 35, Euro-Office 9.3.4) for a shared folder with an
+# image, a Markdown note and a document, and for a shared document opened in
+# Euro-Office. Everything else answers 404 in public: sign-in, the Files app,
+# WebDAV, OCS. `office.<domain>` stays wholly public (its own Ingress).
+#
+# An update can add a path, and then only guests notice. e2e spec 12 opens a
+# share link through this entrypoint on every Ring 0 commit and fails on any
+# request it answers with 404.
+#
+# Ingress, not IngressRoute, so overlays patch its host by name like every
+# other one. It cannot match a query: Euro-Office's config endpoint is public
+# by path, and without `?shareToken=` Nextcloud answers it with an error.
+# No cert-manager annotation: it serves the certificate `nextcloud` requests.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nextcloud-guest
+  namespace: nextcloud
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.pathmatcher: PathRegexp
+    traefik.ingress.kubernetes.io/router.middlewares: nextcloud-edge-ratelimit@kubernetescrd,nextcloud-edge-headers@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - secretName: nextcloud-tls
+      hosts:
+        - files.smallworlds.network
+  rules:
+    - host: files.smallworlds.network
+      http:
+        paths:
+          # The share page, its download and password form.
+          - path: ^/s/[A-Za-z0-9_-]+(/.*)?$
+            pathType: ImplementationSpecific
+            backend: &nextcloud
+              service:
+                name: nextcloud
+                port:
+                  number: 8080
+          # The share's files: listing, download, upload to a file drop.
+          - path: ^/public\.php/dav/files/[A-Za-z0-9_-]+(/.*)?$
+            pathType: ImplementationSpecific
+            backend: *nextcloud
+          - path: ^/apps/files_sharing/publicpreview/[A-Za-z0-9_-]+$
+            pathType: ImplementationSpecific
+            backend: *nextcloud
+          # Text's editing session for a shared note (the share token travels
+          # in the body).
+          - path: ^/apps/text/public/session/.+$
+            pathType: ImplementationSpecific
+            backend: *nextcloud
+          - path: ^/apps/eurooffice/s/[A-Za-z0-9_-]+$
+            pathType: ImplementationSpecific
+            backend: *nextcloud
+          - path: ^/ocs/v2\.php/apps/eurooffice/api/v1/config/[0-9]+$
+            pathType: ImplementationSpecific
+            backend: *nextcloud
+          - path: ^/avatar/guest/.+$
+            pathType: ImplementationSpecific
+            backend: *nextcloud
+          # Scripts, styles, images and fonts. Theming's per-theme CSS is a
+          # route, not a file, but public and named like one.
+          - path: ^/(core|dist|apps|custom_apps)/.+\.(js|mjs|css|svg|png|webp|gif|jpe?g|ico|woff2?|ttf|otf)$
+            pathType: ImplementationSpecific
+            backend: *nextcloud

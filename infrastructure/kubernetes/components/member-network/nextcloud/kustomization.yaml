@@ -1,0 +1,25 @@
+# Nextcloud on the Member Network (docs/adr/0066). An overlay with the Member
+# Network on includes this Component in its nextcloud/ kustomization:
+#
+#   components:
+#     - https://github.com/stephan271/smallworlds.git/infrastructure/kubernetes/components/member-network/nextcloud?ref=<tag>
+#
+# and patches the host of `nextcloud-guest` as it does that of `nextcloud`.
+#
+# The full application moves to the `members` entrypoint, which members'
+# devices reach through the Member Gateway and pods through traefik-members.
+# The public entrypoint keeps only the Guest Paths (guest-ingress.yaml).
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - guest-ingress.yaml
+
+patches:
+  - target:
+      kind: Ingress
+      name: nextcloud
+    patch: |-
+      - op: add
+        path: /metadata/annotations/traefik.ingress.kubernetes.io~1router.entrypoints
+        value: members
