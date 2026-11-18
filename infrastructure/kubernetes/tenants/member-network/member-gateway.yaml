@@ -1,0 +1,139 @@
+# The Member Gateway (docs/adr/0066): the Private Gateway's pattern
+# (tenants/headscale/private-gateway.yaml) on the Member Network. A tailscale
+# node enrolled in the member Headscale with the tag `tag:member-gateway`,
+# which forwards its tailnet address's :443 to Traefik's `members` entrypoint.
+# That entrypoint is not on the LoadBalancer, so this is the only way onto it
+# from outside the cluster.
+#
+# Members' devices find it through the member Headscale's DNS records, which
+# send each member application's hostname here. The address is in this
+# Secret, key `device_ips`, once the gateway has enrolled.
+#
+# Userspace networking, no NET_ADMIN, non-root. TLS passes through untouched
+# and Traefik answers with the hostname's own certificate.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: member-gateway
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: member-gateway
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["member-gateway-state"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: member-gateway
+subjects:
+  - kind: ServiceAccount
+    name: member-gateway
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: member-gateway
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: member-gateway-serve
+data:
+  # Raw TCP from the tailnet's :443 to the `members` entrypoint
+  # (apps/traefik.yaml).
+  serve.json: |
+    {
+      "TCP": {
+        "443": {
+          "TCPForward": "traefik-internal.traefik-system.svc.cluster.local:9444"
+        }
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: member-gateway
+  labels:
+    app.kubernetes.io/name: member-gateway
+spec:
+  replicas: 1
+  # One tailnet identity per state Secret: two pods must never run at once.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: member-gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: member-gateway
+    spec:
+      serviceAccountName: member-gateway
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: tailscale
+          image: docker.io/tailscale/tailscale:v1.104.7@sha256:72c1e19e0aedca96b8533bbb0b4368564410ff20b17e53b804eb6c1f04a31be4
+          env:
+            - name: TS_KUBE_SECRET
+              value: member-gateway-state
+            - name: TS_USERSPACE
+              value: "true"
+            - name: TS_AUTH_ONCE
+              value: "true"
+            - name: TS_HOSTNAME
+              value: member-gateway
+            # The member Headscale through its Service: no hairpin through the
+            # public address.
+            - name: TS_EXTRA_ARGS
+              value: --login-server=http://headscale.member-network.svc.cluster.local
+            - name: TS_SERVE_CONFIG
+              value: /config/serve.json
+            - name: TS_SOCKET
+              value: /tmp/tailscaled.sock
+            - name: TS_STATE_DIR
+              value: /tmp
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 48Mi
+            limits:
+              memory: 192Mi
+          volumeMounts:
+            - name: serve
+              mountPath: /config
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: serve
+          configMap:
+            name: member-gateway-serve
+        - name: tmp
+          emptyDir: {}

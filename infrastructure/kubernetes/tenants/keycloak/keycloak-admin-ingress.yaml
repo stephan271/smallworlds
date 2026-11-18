@@ -44,7 +44,11 @@ metadata:
   name: keycloak-admin
   namespace: keycloak
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    # `members` too (docs/adr/0066): without a router there, /admin would fall
+    # through to the chart's `/` route, which names no entrypoint and so
+    # attaches to `members`. The Member Gateway's traffic arrives from a pod
+    # address, which the allow-list never admits, so it gets 403 there.
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure,members
     traefik.ingress.kubernetes.io/router.middlewares: keycloak-keycloak-admin-private@kubernetescrd
     # Must outrank the chart's `/` route for this host.
     traefik.ingress.kubernetes.io/router.priority: "1000"

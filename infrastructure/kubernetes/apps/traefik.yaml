@@ -56,6 +56,23 @@ spec:
             http:
               tls:
                 enabled: true
+          # The Member Gateway's entrypoint (docs/adr/0066), built like
+          # `operators`: on `traefik-internal` only, reached from outside the
+          # cluster only through the Member Gateway in the member-network
+          # namespace, which exists only where the Member Network is on.
+          # Routers that name no entrypoint attach here, which is what members
+          # get: the full applications. Operator-only routers name `operators`
+          # alone and never attach here.
+          members:
+            port: 9444
+            exposedPort: 9444
+            protocol: TCP
+            expose:
+              default: false
+              internal: true
+            http:
+              tls:
+                enabled: true
         ingressRoute:
           dashboard:
             enabled: false
@@ -76,7 +93,8 @@ spec:
             type: LoadBalancer
             externalTrafficPolicy: Local
           # Renders as `traefik-internal`, with the ports whose
-          # `expose.internal` is true: the `operators` entrypoint only.
+          # `expose.internal` is true: the `operators` and `members`
+          # entrypoints only.
           additionalServices:
             internal:
               spec:

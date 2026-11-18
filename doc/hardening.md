@@ -42,6 +42,17 @@ land on `operators` for the same rule. Where an operator path shares a host
 with a public route (`identity/admin`, `join/desk`), the public partner also
 keeps the path from falling through to the public route.
 
+A third entrypoint, **`members`** (`traefik-internal:9444`), is where the Member
+Gateway carries members' devices when an install has the Member Network on
+(`tenants/member-network`, ADR 0066). It exists in both modes and nothing reaches
+it from outside unless that gateway exists. Routers that name no entrypoint
+attach to it, which is what members are meant to get. Operator-only routers do
+not, so Argo CD, Grafana and the Desk answer `404` there. `identity/admin` and
+`identity/realms/master` would fall through to the realm's public route, so
+their LAN-only router names `websecure,members`. The gateway forwards from a pod
+address, which that allow-list never admits, so those paths answer `403` there.
+Ring 0 checks all three entrypoints on every commit (spec 11).
+
 **The allow-list only means something because Traefik sees the visitor's real
 address.** Its Service sets `externalTrafficPolicy: Local` for that reason
 (`apps/traefik.yaml`). With the default, kube-proxy rewrites the source of
@@ -216,8 +227,9 @@ and check before trusting it.
   `trivy config` against the rendered manifests gives the same list on demand.)
 - **Namespace-wide default-deny NetworkPolicies** (§4).
 - **A NetworkPolicy on Traefik admitting the `operators` port (9443) from the
-  Private Gateway only** (§1). Until then any pod can reach the operator pages
-  directly, as before the entrypoint split.
+  Private Gateway only** (§1), and `members` (9444) from the Member Gateway.
+  Until then any pod can reach the operator pages directly, as before the
+  entrypoint split.
 - **A TLSOption** pinning minimum version and cipher suites. Traefik's defaults
   are already sane, so this is low value.
 - **Application-level hardening** inside Nextcloud and Immich, each of which has

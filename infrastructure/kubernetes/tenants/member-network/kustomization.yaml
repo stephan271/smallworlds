@@ -1,0 +1,35 @@
+# The Member Network (docs/adr/0066): a second Headscale that members' devices
+# join by signing in, and the Member Gateway that carries them to Traefik's
+# `members` entrypoint. Only an overlay with the Member Network on includes
+# apps/member-network.yaml; nothing in the base refers to this directory. With
+# it off, the only trace is the unused `members` entrypoint in apps/traefik.yaml.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: member-network
+
+resources:
+  - ../../bases/setup-rbac
+  - ../../bases/keycloak-client-job
+  - headscale.yaml
+  - member-gateway.yaml
+  - member-gateway-enroll-job.yaml
+
+patches:
+  - target:
+      kind: ClusterRoleBinding
+      name: setup-binding
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: setup-binding-member-network
+  # Headscale's OIDC callback. The client is named after the namespace
+  # (`member-network`) and its secret lands in `keycloak-secret`.
+  - target:
+      kind: Job
+      name: keycloak-client-init
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env
+        value:
+          - name: REDIRECT_URIS
+            value: '["https://network.smallworlds.network/oidc/callback"]'

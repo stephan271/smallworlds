@@ -213,8 +213,16 @@ but it is not instant for members:
 The operator half of the routing change — the `operators` entrypoint, the
 Private Gateway and the narrowed public allow-lists — is built (2026-11-17), and
 Ring 0 checks it on every commit (`e2e-tests/tests/11-operator-entrypoint.spec.ts`).
-The Member Network is not built. The Guest Path lists come from signed-out browser
-recordings on Ring 0 and are the only part observed.
+The Member Network's own parts are built (`tenants/member-network`, 2026-11-18):
+the member Headscale, the Member Gateway and the `members` entrypoint. No
+application has moved onto it yet. The Guest Path lists come from signed-out
+browser recordings on Ring 0.
+
+Proven (2026-11-18, the same versions in containers): a key carrying
+`tag:member-gateway` and no user enrolls the gateway as a tagged device. Under
+the member Headscale's policy, a member's device reaches the gateway's `:443`
+and nothing else, and members' devices do not see each other. Headscale reloads
+`extra_records_path` when the file is replaced.
 
 Proven (2026-11-18, Headscale v0.29.7 and Tailscale 1.104.7 in containers):
 Headscale's `extra_records` answer for a name in the community's own domain

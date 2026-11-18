@@ -1,0 +1,127 @@
+# Enrolls the Member Gateway (member-gateway.yaml) in the member Headscale and
+# tells Headscale its address. PostSync, after every sync of the Application.
+#
+# 1. If the gateway has no address yet (`device_ips` in its state Secret), mint
+#    a one-time key carrying `tag:member-gateway` (no user: the gateway is not
+#    a member), write it into the state Secret's `authkey` field, where
+#    containerboot reads and then deletes it, and restart the gateway. Then
+#    wait for the address.
+# 2. Put the address on Headscale's pod template as the annotation
+#    `smallworlds.network/member-gateway-ip`, if it is not already there. That
+#    restarts Headscale, whose `dns-records` init container then points every
+#    member hostname at the gateway. An unchanged address changes nothing.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: member-gateway-enroll
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: member-gateway-enroll
+rules:
+  # `kubectl exec deploy/headscale -- headscale ...` and the annotation.
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["headscale"]
+    verbs: ["get", "patch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  # `kubectl rollout restart deploy/member-gateway`
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["member-gateway"]
+    verbs: ["get", "patch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["member-gateway-state"]
+    verbs: ["get", "patch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: member-gateway-enroll
+subjects:
+  - kind: ServiceAccount
+    name: member-gateway-enroll
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: member-gateway-enroll
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: member-gateway-enroll
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      serviceAccountName: member-gateway-enroll
+      restartPolicy: Never
+      containers:
+        - name: enroll
+          image: docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+              SECRET=member-gateway-state
+              ANNOTATION=smallworlds.network/member-gateway-ip
+
+              gateway_ip() {
+                kubectl get secret $SECRET -o jsonpath='{.data.device_ips}' 2>/dev/null \
+                  | base64 -d 2>/dev/null \
+                  | jq -r '[.[] | select(test("^[0-9.]+$"))][0] // empty' 2>/dev/null || true
+              }
+
+              ip=$(gateway_ip)
+              if [[ -z "$ip" ]]; then
+                key=$(kubectl exec deploy/headscale -c headscale -- \
+                  headscale preauthkeys create --tags tag:member-gateway --expiration 1h \
+                  | tr -d '[:space:]')
+                if [[ -z "$key" ]]; then
+                  echo "Headscale returned no preauth key" >&2
+                  exit 1
+                fi
+                if kubectl get secret $SECRET >/dev/null 2>&1; then
+                  kubectl patch secret $SECRET --type merge \
+                    -p "{\"stringData\":{\"authkey\":\"$key\"}}" >/dev/null
+                else
+                  kubectl create secret generic $SECRET --from-literal=authkey="$key" >/dev/null
+                fi
+                kubectl rollout restart deploy/member-gateway
+                echo "Member Gateway given a one-time key and restarted; waiting for its address."
+                for _ in $(seq 60); do
+                  ip=$(gateway_ip)
+                  [[ -n "$ip" ]] && break
+                  sleep 5
+                done
+                if [[ -z "$ip" ]]; then
+                  echo "The Member Gateway did not enroll within five minutes." >&2
+                  exit 1
+                fi
+              fi
+              echo "Member Gateway address: $ip"
+
+              current=$(kubectl get deploy headscale \
+                -o jsonpath="{.spec.template.metadata.annotations.smallworlds\.network/member-gateway-ip}")
+              if [[ "$current" == "$ip" ]]; then
+                echo "Headscale already points member hostnames at it."
+                exit 0
+              fi
+              kubectl patch deploy headscale --type merge \
+                -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"$ANNOTATION\":\"$ip\"}}}}}"
+              echo "Headscale restarted to point member hostnames at $ip."
