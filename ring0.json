@@ -1,34 +1,31 @@
 {
  "schema": 1,
- "updated": "2026-11-18T03:24:58Z",
+ "updated": "2026-11-18T03:29:12Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "05eb59449878d6b2cba69b429cbacc675717cf07",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 29 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-17T17:49:47Z"
+  "commit": "f1a2d565e78b14a5b92313fe6ebde62cb54e70e7",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "05eb59449878d6b2cba69b429cbacc675717cf07",
-  "pull": null,
-  "step": "merge",
+  "commit": "f1a2d565e78b14a5b92313fe6ebde62cb54e70e7",
+  "pull": {
+   "number": 128,
+   "title": "Update Helm chart nextcloud to v9.4.4 (#128)",
+   "cards": [
+    "nextcloud"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
-  "queued": [
-   {
-    "number": 128,
-    "title": "Update Helm chart nextcloud to v9.4.4",
-    "cards": [
-     "nextcloud"
-    ],
-    "since": "2026-11-18T03:24:35Z"
-   }
-  ],
+  "queued": [],
   "stuck": null,
-  "action": "merged #127",
-  "waiting": "no queued update is ready"
+  "action": "merged #128",
+  "waiting": null
  },
  "applications": [
   {
@@ -568,6 +565,17 @@
  ],
  "commits": [
   {
+   "commit": "f1a2d565e78b14a5b92313fe6ebde62cb54e70e7",
+   "title": "Update Helm chart nextcloud to v9.4.4 (#128)",
+   "author": "renovate[bot]",
+   "date": "2026-11-18T03:27:48Z",
+   "pull": 128,
+   "cards": [
+    "nextcloud"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "05eb59449878d6b2cba69b429cbacc675717cf07",
    "title": "Update Docker image docker.io/tailscale/tailscale to v1.104.7 (#127)",
    "author": "renovate[bot]",
@@ -933,17 +941,6 @@
     "nextcloud"
    ],
    "verdict": null
-  },
-  {
-   "commit": "a1df23071598bf4b37cd4e4aec3eeebbaf2b2387",
-   "title": "Leave majors in .github/ out of ring0-major",
-   "author": "stephan271",
-   "date": "2026-11-16T09:23:28Z",
-   "pull": null,
-   "cards": [
-    "repository"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -971,21 +968,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 128,
-   "title": "Update Helm chart nextcloud to v9.4.4",
-   "author": "renovate[bot]",
-   "created": "2026-11-18T03:24:35Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "nextcloud"
    ]
   }
  ]
