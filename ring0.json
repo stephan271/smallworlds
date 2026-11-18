@@ -1,21 +1,29 @@
 {
  "schema": 1,
- "updated": "2026-11-18T15:44:37Z",
+ "updated": "2026-11-18T15:54:58Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "c5e0cd0fb7232daa3f7268385d9ad178c458d785",
-  "state": "success",
-  "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 15 hosts, e2e 33 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
-  "date": "2026-11-18T13:02:08Z"
+  "commit": "9e8fcaed37d10fefc8abce94e6ec44f26830547b",
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-18T15:54:35Z"
  },
  "now": {
-  "state": "up-to-date",
-  "commit": "c5e0cd0fb7232daa3f7268385d9ad178c458d785",
-  "pull": null,
-  "step": null,
-  "step_since": null,
-  "started": null,
+  "state": "updating",
+  "commit": "9e8fcaed37d10fefc8abce94e6ec44f26830547b",
+  "pull": {
+   "number": 133,
+   "title": "Restart a gateway that has lost Headscale (ADR 0066)",
+   "cards": [
+    "headscale",
+    "member-network",
+    "repository"
+   ]
+  },
+  "step": "sync",
+  "step_since": "2026-11-18T15:54:35Z",
+  "started": "2026-11-18T15:54:34Z",
   "queued": [],
   "stuck": null,
   "action": "merged #130",
@@ -108,7 +116,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "c5e0cd0fb7232daa3f7268385d9ad178c458d785",
+   "revision": "9e8fcaed37d10fefc8abce94e6ec44f26830547b",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
@@ -165,7 +173,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "c5e0cd0fb7232daa3f7268385d9ad178c458d785",
+   "revision": "9e8fcaed37d10fefc8abce94e6ec44f26830547b",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
@@ -313,9 +321,9 @@
    "revision": "a2ed8c85f248912b572375d0764b5b119fbc56f1",
    "images": [],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-18T14:34:12Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of storage.k8s.io/StorageClass/static-local and 4 more resources"
    },
    "wave": 0
   },
@@ -366,7 +374,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "c5e0cd0fb7232daa3f7268385d9ad178c458d785",
+   "revision": "9e8fcaed37d10fefc8abce94e6ec44f26830547b",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
@@ -580,6 +588,36 @@
   }
  ],
  "commits": [
+  {
+   "commit": "9e8fcaed37d10fefc8abce94e6ec44f26830547b",
+   "title": "Restart a gateway that has lost Headscale (ADR 0066)",
+   "author": "stephan271",
+   "date": "2026-11-18T15:52:50Z",
+   "pull": 133,
+   "cards": [
+    "headscale",
+    "member-network",
+    "repository"
+   ],
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-18T15:54:35Z"
+   }
+  },
+  {
+   "commit": "b6822f5f87e1b1f38c462739e899c7c8e64257c4",
+   "title": "Restart a gateway that has lost Headscale (ADR 0066)",
+   "author": "stephan271",
+   "date": "2026-11-18T15:43:21Z",
+   "pull": null,
+   "cards": [
+    "headscale",
+    "member-network",
+    "repository"
+   ],
+   "verdict": null
+  },
   {
    "commit": "c5e0cd0fb7232daa3f7268385d9ad178c458d785",
    "title": "Add the Member Network's own parts, no application moved (ADR 0066)",
@@ -935,37 +973,6 @@
     "repository"
    ],
    "verdict": null
-  },
-  {
-   "commit": "fd8e3d81e40f2ffbe282f4a75efb6a810a24405c",
-   "title": "Update Docker image ghcr.io/cloudnative-pg/postgresql to v18 (#92)",
-   "author": "renovate[bot]",
-   "date": "2026-11-16T17:49:52Z",
-   "pull": 92,
-   "cards": [
-    "stalwart"
-   ],
-   "verdict": {
-    "state": "error",
-    "description": "Superseded before verified: backup-replicator@10cee5c63b21, cnpg-barman-plugin@10cee5c63b21, velero@10cee5c63b21",
-    "date": "2026-11-16T18:00:42Z"
-   }
-  },
-  {
-   "commit": "bd1e9252b136d91a52e47be79f7adc43b3f38cc3",
-   "title": "Stalwart: send acceptedAudiences as a set, as v1 expects (#113)",
-   "author": "smallworlds-steward[bot]",
-   "date": "2026-11-16T17:06:57Z",
-   "pull": 113,
-   "cards": [
-    "repository",
-    "stalwart"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: backup 1 databases, converged, load settled after 5 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
-    "date": "2026-11-16T17:34:15Z"
-   }
   }
  ],
  "pulls": [
@@ -992,21 +999,6 @@
    "rejected": false,
    "labels": [],
    "cards": [
-    "repository"
-   ]
-  },
-  {
-   "number": 133,
-   "title": "Restart a gateway that has lost Headscale (ADR 0066)",
-   "author": "stephan271",
-   "created": "2026-11-18T15:43:39Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "headscale",
-    "member-network",
     "repository"
    ]
   }
