@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-18T17:07:50Z",
+ "updated": "2026-11-18T17:09:58Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -21,8 +21,8 @@
     "smallworlds-root"
    ]
   },
-  "step": "sync",
-  "step_since": "2026-11-18T17:06:49Z",
+  "step": "converge",
+  "step_since": "2026-11-18T17:08:18Z",
   "started": "2026-11-18T17:06:48Z",
   "queued": [],
   "stuck": null,
@@ -46,7 +46,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-18T16:31:36Z",
+    "finished": "2026-11-18T17:09:19Z",
     "message": null
    },
    "wave": -10
@@ -65,7 +65,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-18T16:31:02Z",
+    "finished": "2026-11-18T17:08:27Z",
     "message": null
    },
    "wave": -10
@@ -84,7 +84,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-18T16:31:17Z",
+    "finished": "2026-11-18T17:08:52Z",
     "message": null
    },
    "wave": -10
@@ -103,7 +103,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-18T16:30:59Z",
+    "finished": "2026-11-18T17:08:24Z",
     "message": null
    },
    "wave": -9
@@ -122,7 +122,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-18T16:31:02Z",
+    "finished": "2026-11-18T17:08:27Z",
     "message": null
    },
    "wave": -9
@@ -141,7 +141,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-18T16:31:05Z",
+    "finished": "2026-11-18T17:08:31Z",
     "message": null
    },
    "wave": -5
@@ -160,7 +160,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-18T16:31:06Z",
+    "finished": "2026-11-18T17:08:34Z",
     "message": null
    },
    "wave": -5
@@ -179,7 +179,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-18T16:30:53Z",
+    "finished": "2026-11-18T17:08:15Z",
     "message": null
    },
    "wave": 0
@@ -192,13 +192,13 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "a2ed8c85f248912b572375d0764b5b119fbc56f1",
+   "revision": "1914f8e37447664f1d387fa9f7f1e93bca0e20d3",
    "images": [
     "ghcr.io/gethomepage/homepage:v2.8.0@sha256:019d8f063a7299e7c1c51ee4a70b692291809af3244894fbec2c2ac7d1f71b18"
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-18T16:31:01Z",
+    "finished": "2026-11-18T17:08:26Z",
     "message": null
    },
    "wave": 0
@@ -211,13 +211,13 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "a2ed8c85f248912b572375d0764b5b119fbc56f1",
+   "revision": "1914f8e37447664f1d387fa9f7f1e93bca0e20d3",
    "images": [
     "ghcr.io/euro-office/documentserver:v9.3.4-hotfix.1@sha256:889e681923d2dcc8bdfb92fe128d10e185fcff880d302b6a0c0c7bf339499290"
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-18T16:31:30Z",
+    "finished": "2026-11-18T17:09:10Z",
     "message": null
    },
    "wave": 0
@@ -230,14 +230,14 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "a2ed8c85f248912b572375d0764b5b119fbc56f1",
+   "revision": "1914f8e37447664f1d387fa9f7f1e93bca0e20d3",
    "images": [
     "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970",
     "docker.io/tailscale/tailscale:v1.104.7@sha256:72c1e19e0aedca96b8533bbb0b4368564410ff20b17e53b804eb6c1f04a31be4"
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-18T16:31:29Z",
+    "finished": "2026-11-18T17:09:07Z",
     "message": null
    },
    "wave": 0
@@ -250,17 +250,18 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "a2ed8c85f248912b572375d0764b5b119fbc56f1",
+   "revision": "1914f8e37447664f1d387fa9f7f1e93bca0e20d3",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
     "ghcr.io/tensorchord/cloudnative-pgvecto.rs:16.4-v0.3.0",
     "quay.io/keycloak/keycloak@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc496969a319a76bbf0"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-18T16:33:33Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/pre-update-backup"
    },
    "wave": 0
   },
@@ -275,6 +276,7 @@
    "revision": null,
    "images": [
     "docker.io/grafana/grafana:13.3.1-distroless",
+    "ghcr.io/jkroepke/kube-webhook-certgen:1.11.1",
     "quay.io/kiwigrid/k8s-sidecar:2.14.3",
     "quay.io/prometheus-operator/prometheus-config-reloader:v0.95.2",
     "quay.io/prometheus-operator/prometheus-operator:v0.95.2",
@@ -284,9 +286,9 @@
     "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.20.0"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-18T16:32:47Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/kube-prometheus-stack-admission-create"
    },
    "wave": 0
   },
@@ -305,7 +307,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-18T16:31:16Z",
+    "finished": "2026-11-18T17:08:52Z",
     "message": null
    },
    "wave": 0
@@ -337,13 +339,14 @@
    "version": null,
    "revision": "e01a3772272f745be52b98f5b6ed206ba49e5a85",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-18T16:32:16Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/velero-garage-init"
    },
    "wave": 0
   },
@@ -357,12 +360,13 @@
    "version": null,
    "revision": "1914f8e37447664f1d387fa9f7f1e93bca0e20d3",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/bulwarkmail/webmail:1.21.2@sha256:037b85b1433233d2d7eebb83f928df5ecc3b4adc91dc7e4c55f0a2f69024e754"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-18T16:32:13Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -380,7 +384,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-18T16:31:07Z",
+    "finished": "2026-11-18T17:08:34Z",
     "message": null
    },
    "wave": 1
@@ -393,13 +397,13 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "a2ed8c85f248912b572375d0764b5b119fbc56f1",
+   "revision": "1914f8e37447664f1d387fa9f7f1e93bca0e20d3",
    "images": [
     "excalidraw/excalidraw:latest@sha256:f7ee194addd607bf831d2af0f0a34463dd4225e426cf35199ef0b12a803398e9"
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-18T16:30:57Z",
+    "finished": "2026-11-18T17:08:21Z",
     "message": null
    },
    "wave": 1
@@ -412,9 +416,10 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "a2ed8c85f248912b572375d0764b5b119fbc56f1",
+   "revision": "1914f8e37447664f1d387fa9f7f1e93bca0e20d3",
    "images": [
     "code.forgejo.org/forgejo/forgejo:15.0.11-rootless",
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -422,9 +427,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-18T16:33:34Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/pre-update-backup"
    },
    "wave": 1
   },
@@ -436,8 +441,9 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "a2ed8c85f248912b572375d0764b5b119fbc56f1",
+   "revision": "1914f8e37447664f1d387fa9f7f1e93bca0e20d3",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -447,9 +453,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-18T16:33:36Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/pre-update-backup"
    },
    "wave": 1
   },
@@ -461,8 +467,9 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "a2ed8c85f248912b572375d0764b5b119fbc56f1",
+   "revision": "1914f8e37447664f1d387fa9f7f1e93bca0e20d3",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/jitsi-contrib/jitsi-oidc-adapter:v20260328@sha256:c4a28b215f5ea4893e308cd3f15b1f1c6954231ab784cac6362f420e6648a745",
     "ghcr.io/jitsi/jicofo:stable-11248-3",
     "ghcr.io/jitsi/jvb:stable-11248-3",
@@ -470,9 +477,9 @@
     "ghcr.io/jitsi/web:stable-11248-3"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-18T16:32:16Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -484,14 +491,15 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "a2ed8c85f248912b572375d0764b5b119fbc56f1",
+   "revision": "1914f8e37447664f1d387fa9f7f1e93bca0e20d3",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-18T16:33:26Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -503,16 +511,16 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "a2ed8c85f248912b572375d0764b5b119fbc56f1",
+   "revision": "1914f8e37447664f1d387fa9f7f1e93bca0e20d3",
    "images": [
     "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970",
     "docker.io/tailscale/tailscale:v1.104.7@sha256:72c1e19e0aedca96b8533bbb0b4368564410ff20b17e53b804eb6c1f04a31be4"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-18T16:32:28Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -520,11 +528,11 @@
    "name": "nextcloud",
    "group": "apps",
    "health": "Healthy",
-   "sync": "Synced",
+   "sync": "OutOfSync",
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "a2ed8c85f248912b572375d0764b5b119fbc56f1",
+   "revision": "1914f8e37447664f1d387fa9f7f1e93bca0e20d3",
    "images": [
     "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/library/nextcloud:35.0.2-apache",
@@ -535,9 +543,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-18T16:33:43Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/garage-init"
    },
    "wave": 1
   },
@@ -555,7 +563,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-18T16:31:47Z",
+    "finished": "2026-11-18T17:09:41Z",
     "message": null
    },
    "wave": 1
@@ -568,7 +576,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "a2ed8c85f248912b572375d0764b5b119fbc56f1",
+   "revision": "1914f8e37447664f1d387fa9f7f1e93bca0e20d3",
    "images": [
     "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
@@ -580,9 +588,9 @@
     "stalwartlabs/stalwart:v1.1.0@sha256:0aacd114054f56c34e98063140e2102a04dc0bcb4933ff08925cf8e9938b0d16"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-18T16:33:01Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/pre-update-backup"
    },
    "wave": 1
   }
