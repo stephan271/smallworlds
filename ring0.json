@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-18T03:33:19Z",
+ "updated": "2026-11-18T03:35:25Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -19,8 +19,8 @@
     "nextcloud"
    ]
   },
-  "step": "backup",
-  "step_since": "2026-11-18T03:32:54Z",
+  "step": "sync",
+  "step_since": "2026-11-18T03:33:40Z",
   "started": "2026-11-18T03:32:53Z",
   "queued": [],
   "stuck": null,
@@ -320,7 +320,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-17T17:35:58Z",
+    "finished": "2026-11-18T03:35:11Z",
     "message": null
    },
    "wave": 0
