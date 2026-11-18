@@ -1,31 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-18T06:32:57Z",
+ "updated": "2026-11-18T06:37:06Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "01590ae0efad802be38cb18fcd73ad905216c710",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-18T06:11:50Z"
+  "state": "success",
+  "description": "Ring 0: backup 1 databases, converged, load settled after 3 min, smoke 15 hosts, e2e 29 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
+  "date": "2026-11-18T06:36:57Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "01590ae0efad802be38cb18fcd73ad905216c710",
-  "pull": {
-   "number": 130,
-   "title": "Update the immich pod-export psql client image to postgres 18 (#130)",
-   "cards": [
-    "immich"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-18T06:31:57Z",
-  "started": "2026-11-18T06:11:49Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #130",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -574,9 +568,9 @@
     "immich"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-18T06:11:50Z"
+    "state": "success",
+    "description": "Ring 0: backup 1 databases, converged, load settled after 3 min, smoke 15 hosts, e2e 29 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
+    "date": "2026-11-18T06:36:57Z"
    }
   },
   {
