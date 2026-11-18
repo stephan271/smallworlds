@@ -61,6 +61,12 @@ spec:
                 # cluster address and answer on the `operators` one.
                 - name: OPERATOR_ENTRYPOINT_CHECK
                   value: "1"
+                # e2e 12: the member applications Ring 0 runs on the Member
+                # Network (docs/adr/0066). Their share links must open for a
+                # signed-out guest through the public entrypoint, and nothing
+                # else may answer there.
+                - name: MEMBER_NETWORK_APPS
+                  value: nextcloud
                 # The admin REST API answers only on the tailnet at the
                 # Ingress; in the cluster the Service is reachable directly.
                 - name: KC_ADMIN_URL

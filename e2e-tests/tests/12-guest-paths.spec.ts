@@ -31,10 +31,15 @@ const PUBLIC_ENTRYPOINT = 'traefik.traefik-system.svc.cluster.local';
 const FILES = `files.${DOMAIN}`;
 
 /** GET with SNI and Host set to `host`, connecting to `connect` if given. */
-function get(host: string, path: string, connect?: string): Promise<{ status: number; body: string; location?: string }> {
+function get(
+  host: string,
+  path: string,
+  connect?: string,
+  headers: Record<string, string> = {},
+): Promise<{ status: number; body: string; location?: string }> {
   return new Promise((resolve, reject) => {
     const request = https.request(
-      { host: connect ?? host, port: 443, path, servername: host, headers: { host }, timeout: 15_000 },
+      { host: connect ?? host, port: 443, path, servername: host, headers: { ...headers, host }, timeout: 15_000 },
       (response) => {
         let body = '';
         response.setEncoding('utf8');
@@ -161,8 +166,13 @@ test.describe('Nextcloud Guest Paths', () => {
 
   // The guest router matches paths only. Euro-Office's config endpoint is
   // public by path and must still hand out nothing without a share token.
+  // With the OCS header the editor sends, the request gets past Nextcloud's
+  // CSRF check to the share-token logic this is about.
   test("Euro-Office's config gives nothing away without the share token", async () => {
-    const config = await get(FILES, '/ocs/v2.php/apps/eurooffice/api/v1/config/1', PUBLIC_ENTRYPOINT);
+    const config = await get(FILES, '/ocs/v2.php/apps/eurooffice/api/v1/config/1', PUBLIC_ENTRYPOINT, {
+      'OCS-APIRequest': 'true',
+      Accept: 'application/json',
+    });
     expect(config.body).toContain('"error"');
     expect(config.body).not.toContain('"document"');
   });
