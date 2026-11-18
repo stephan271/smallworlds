@@ -1,34 +1,31 @@
 {
  "schema": 1,
- "updated": "2026-11-18T06:05:59Z",
+ "updated": "2026-11-18T06:08:06Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "f1a2d565e78b14a5b92313fe6ebde62cb54e70e7",
-  "state": "success",
-  "description": "Ring 0: backup 1 databases, converged, load settled after 6 min, smoke 15 hosts, e2e 29 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
-  "date": "2026-11-18T04:04:37Z"
+  "commit": "01590ae0efad802be38cb18fcd73ad905216c710",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "f1a2d565e78b14a5b92313fe6ebde62cb54e70e7",
-  "pull": null,
-  "step": "merge",
+  "commit": "01590ae0efad802be38cb18fcd73ad905216c710",
+  "pull": {
+   "number": 130,
+   "title": "Update the immich pod-export psql client image to postgres 18 (#130)",
+   "cards": [
+    "immich"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
-  "queued": [
-   {
-    "number": 130,
-    "title": "Update the immich pod-export psql client image to postgres 18",
-    "cards": [
-     "immich"
-    ],
-    "since": "2026-11-18T06:04:54Z"
-   }
-  ],
+  "queued": [],
   "stuck": null,
-  "action": "merged #128",
-  "waiting": "no queued update is ready"
+  "action": "merged #130",
+  "waiting": null
  },
  "applications": [
   {
@@ -568,6 +565,17 @@
  ],
  "commits": [
   {
+   "commit": "01590ae0efad802be38cb18fcd73ad905216c710",
+   "title": "Update the immich pod-export psql client image to postgres 18 (#130)",
+   "author": "smallworlds-steward[bot]",
+   "date": "2026-11-18T06:06:44Z",
+   "pull": 130,
+   "cards": [
+    "immich"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "f1a2d565e78b14a5b92313fe6ebde62cb54e70e7",
    "title": "Update Helm chart nextcloud to v9.4.4 (#128)",
    "author": "renovate[bot]",
@@ -937,17 +945,6 @@
     "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
     "date": "2026-11-16T09:46:08Z"
    }
-  },
-  {
-   "commit": "6740ea91fc9db54101e6a992fe6b49662afa7073",
-   "title": "Update Helm chart nextcloud to v9.4.3 (#103)",
-   "author": "renovate[bot]",
-   "date": "2026-11-16T09:23:32Z",
-   "pull": 103,
-   "cards": [
-    "nextcloud"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -975,38 +972,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 129,
-   "title": "Update Docker image docker.io/postgres to v18",
-   "author": "renovate[bot]",
-   "created": "2026-11-18T06:00:09Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [
-    "ring0-major",
-    "steward-prepare-4bc0c3c375"
-   ],
-   "cards": [
-    "immich"
-   ]
-  },
-  {
-   "number": 130,
-   "title": "Update the immich pod-export psql client image to postgres 18",
-   "author": "smallworlds-steward[bot]",
-   "created": "2026-11-18T06:04:54Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue",
-    "steward"
-   ],
-   "cards": [
-    "immich"
    ]
   }
  ]
