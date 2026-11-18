@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-18T10:42:06Z",
+ "updated": "2026-11-18T10:52:24Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -969,6 +969,20 @@
    "rejected": false,
    "labels": [],
    "cards": [
+    "repository"
+   ]
+  },
+  {
+   "number": 131,
+   "title": "Run Nextcloud's background jobs from cron",
+   "author": "stephan271",
+   "created": "2026-11-18T10:51:40Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "nextcloud",
     "repository"
    ]
   }
