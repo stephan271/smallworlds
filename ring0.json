@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-18T15:40:28Z",
+ "updated": "2026-11-18T15:44:37Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -992,6 +992,21 @@
    "rejected": false,
    "labels": [],
    "cards": [
+    "repository"
+   ]
+  },
+  {
+   "number": 133,
+   "title": "Restart a gateway that has lost Headscale (ADR 0066)",
+   "author": "stephan271",
+   "created": "2026-11-18T15:43:39Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "headscale",
+    "member-network",
     "repository"
    ]
   }
