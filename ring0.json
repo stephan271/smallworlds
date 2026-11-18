@@ -1,31 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-18T04:00:26Z",
+ "updated": "2026-11-18T04:06:42Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "f1a2d565e78b14a5b92313fe6ebde62cb54e70e7",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-18T03:32:53Z"
+  "state": "success",
+  "description": "Ring 0: backup 1 databases, converged, load settled after 6 min, smoke 15 hosts, e2e 29 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
+  "date": "2026-11-18T04:04:37Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "f1a2d565e78b14a5b92313fe6ebde62cb54e70e7",
-  "pull": {
-   "number": 128,
-   "title": "Update Helm chart nextcloud to v9.4.4 (#128)",
-   "cards": [
-    "nextcloud"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-18T03:59:37Z",
-  "started": "2026-11-18T03:32:53Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #128",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -574,9 +568,9 @@
     "nextcloud"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-18T03:32:53Z"
+    "state": "success",
+    "description": "Ring 0: backup 1 databases, converged, load settled after 6 min, smoke 15 hosts, e2e 29 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
+    "date": "2026-11-18T04:04:37Z"
    }
   },
   {
