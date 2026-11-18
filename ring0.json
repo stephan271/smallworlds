@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-18T12:45:29Z",
+ "updated": "2026-11-18T12:47:33Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "c5e0cd0fb7232daa3f7268385d9ad178c458d785",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-18T12:46:33Z"
  },
  "now": {
   "state": "updating",
@@ -24,9 +24,9 @@
     "traefik"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-18T12:46:50Z",
+  "started": "2026-11-18T12:46:33Z",
   "queued": [],
   "stuck": null,
   "action": "merged #130",
@@ -87,7 +87,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-18T11:02:19Z",
+    "finished": "2026-11-18T12:46:59Z",
     "message": null
    },
    "wave": -10
@@ -119,7 +119,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "1945d8e876efe50172d7d0cf4a72e25c0f543d69",
+   "revision": "c5e0cd0fb7232daa3f7268385d9ad178c458d785",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
@@ -325,7 +325,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-18T11:01:32Z",
+    "finished": "2026-11-18T12:47:25Z",
     "message": null
    },
    "wave": 0
@@ -338,7 +338,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "1945d8e876efe50172d7d0cf4a72e25c0f543d69",
+   "revision": "c5e0cd0fb7232daa3f7268385d9ad178c458d785",
    "images": [
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
@@ -377,7 +377,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "1945d8e876efe50172d7d0cf4a72e25c0f543d69",
+   "revision": "c5e0cd0fb7232daa3f7268385d9ad178c458d785",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
@@ -584,7 +584,11 @@
     "repository",
     "traefik"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-18T12:46:33Z"
+   }
   },
   {
    "commit": "df5a11523d638e9a68ff2372c1f7e0af52a033bf",
