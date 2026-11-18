@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-18T10:56:33Z",
+ "updated": "2026-11-18T11:00:41Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "1945d8e876efe50172d7d0cf4a72e25c0f543d69",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-18T11:00:27Z"
  },
  "now": {
   "state": "updating",
@@ -20,9 +20,9 @@
     "repository"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "backup",
+  "step_since": "2026-11-18T11:00:28Z",
+  "started": "2026-11-18T11:00:27Z",
   "queued": [],
   "stuck": null,
   "action": "merged #130",
@@ -115,7 +115,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "01590ae0efad802be38cb18fcd73ad905216c710",
+   "revision": "1945d8e876efe50172d7d0cf4a72e25c0f543d69",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
@@ -172,7 +172,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "01590ae0efad802be38cb18fcd73ad905216c710",
+   "revision": "1945d8e876efe50172d7d0cf4a72e25c0f543d69",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
@@ -334,7 +334,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "01590ae0efad802be38cb18fcd73ad905216c710",
+   "revision": "1945d8e876efe50172d7d0cf4a72e25c0f543d69",
    "images": [
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
@@ -575,7 +575,11 @@
     "nextcloud",
     "repository"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-18T11:00:27Z"
+   }
   },
   {
    "commit": "a055a5745808fa0ad0ba968901f8acbf5206721d",
