@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-18T17:37:27Z",
+ "updated": "2026-11-18T17:39:35Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -999,6 +999,20 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 136,
+   "title": "Make Nextcloud's guest Ingress valid: prefixes, one anchored regex",
+   "author": "stephan271",
+   "created": "2026-11-18T17:37:36Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "repository",
+    "smallworlds-root"
    ]
   }
  ]
