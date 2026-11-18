@@ -1,31 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-18T20:59:41Z",
+ "updated": "2026-11-18T21:06:01Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "a25b97258a29f816e47ee3cb686812990efea236",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-18T20:00:49Z"
+  "state": "success",
+  "description": "Ring 0: backup 1 databases, converged, load settled after 10 min, smoke 16 hosts, e2e 38 passed, 9 skipped; data 4/4 apps intact, storage: \u2026",
+  "date": "2026-11-18T21:04:30Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "a25b97258a29f816e47ee3cb686812990efea236",
-  "pull": {
-   "number": 138,
-   "title": "Update gallery to v5.11.0 (#138)",
-   "cards": [
-    "immich"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-18T20:59:30Z",
-  "started": "2026-11-18T20:00:48Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #138",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -596,9 +590,9 @@
     "immich"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-18T20:00:49Z"
+    "state": "success",
+    "description": "Ring 0: backup 1 databases, converged, load settled after 10 min, smoke 16 hosts, e2e 38 passed, 9 skipped; data 4/4 apps intact, storage: \u2026",
+    "date": "2026-11-18T21:04:30Z"
    }
   },
   {
