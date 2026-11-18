@@ -161,7 +161,8 @@
     },
     {
       "matchFileNames": [
-        "infrastructure/kubernetes/tenants/headscale/**"
+        "infrastructure/kubernetes/tenants/headscale/**",
+        "infrastructure/kubernetes/tenants/member-network/**"
       ],
       "groupName": "headscale"
     },

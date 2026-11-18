@@ -1,0 +1,276 @@
+# The member Headscale (docs/adr/0066): the control server of the Member
+# Network. It is a second instance, not the Private Network's Headscale with an
+# ACL, so a broken policy here can never put a member's phone beside the
+# Operator's laptop.
+#
+# Members add a device by signing in to the `smallworlds` realm with the passkey
+# they already have; there is no key to hand out. The access policy lets a
+# member's device reach the Member Gateway's :443 and nothing else, not even
+# another member's device.
+#
+# Its DNS answers each member application's hostname with the Member Gateway's
+# address (`extra_records`). Every other name stays with the device's own
+# resolver: the client routes only those exact names to Tailscale (ADR 0066,
+# Verification).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: headscale-config
+data:
+  # Like tenants/headscale: only what differs from Headscale's defaults, plus
+  # DNS, which must be stated. The public address and the OIDC issuer are set
+  # through the environment on the Deployment, so an overlay changes a value
+  # rather than this file.
+  config.yaml: |
+    listen_addr: 0.0.0.0:8080
+
+    prefixes:
+      v4: 100.96.0.0/12
+      allocation: sequential
+
+    derp:
+      server:
+        enabled: false
+      urls:
+        - https://controlplane.tailscale.com/derpmap/default
+      auto_update_enabled: true
+      update_frequency: 24h
+
+    database:
+      type: sqlite
+      sqlite:
+        path: /var/lib/headscale/db.sqlite
+        write_ahead_log: true
+
+    node:
+      # No expiry yet. The Member Network must not be offered to an Operator
+      # before removing a member also removes their devices (ADR 0066, "Leaving
+      # removes the devices").
+      expiry: 0
+
+    policy:
+      mode: file
+      path: /etc/headscale/policy.hujson
+
+    oidc:
+      # The client secret from keycloak-secret, mounted as a file.
+      client_secret_path: /etc/headscale-oidc/client-secret
+      pkce:
+        enabled: true
+        method: S256
+      # Headscale ties a device to the account's `sub`, not to its email, and
+      # no allow-list here reads the email. join marks invited members'
+      # addresses verified anyway; an account made in the admin console might
+      # not be, and should not fail to enroll for that reason.
+      email_verified_required: false
+
+    dns:
+      magic_dns: true
+      base_domain: members.smallworlds.internal
+      override_local_dns: false
+      nameservers:
+        global: []
+      # Written by the `dns-records` init container: one A record per member
+      # application, pointing at the Member Gateway.
+      extra_records_path: /etc/headscale-records/extra-records.json
+
+    noise:
+      private_key_path: /var/lib/headscale/noise_private.key
+
+  # A member's device reaches the Member Gateway's :443 and nothing else.
+  # Tagged devices (the gateway) are not `autogroup:member`, and without a rule
+  # naming them as a destination, members' devices do not even see each other.
+  # The tag has no owners: only a key the enroll Job mints can carry it.
+  policy.hujson: |
+    {
+      "tagOwners": {
+        "tag:member-gateway": []
+      },
+      "acls": [
+        {
+          "action": "accept",
+          "src": ["autogroup:member"],
+          "dst": ["tag:member-gateway:443"]
+        }
+      ]
+    }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: headscale-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 256Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: headscale
+  labels:
+    app.kubernetes.io/name: headscale
+spec:
+  replicas: 1
+  # SQLite on a ReadWriteOnce volume: never two pods at once.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: headscale
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: headscale
+      # member-gateway-enroll-job.yaml sets the annotation
+      # `smallworlds.network/member-gateway-ip` here once the gateway has an
+      # address, and changes it only when that address does. Each change
+      # restarts Headscale, which writes the records again.
+    spec:
+      initContainers:
+        - name: dns-records
+          image: docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0
+          env:
+            - name: GATEWAY_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.annotations['smallworlds.network/member-gateway-ip']
+            # The hostnames members reach on the Member Network, separated by
+            # spaces. An overlay sets them for its own domain.
+            - name: MEMBER_HOSTS
+              value: files.smallworlds.network
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+              out=/etc/headscale-records/extra-records.json
+              # Before the gateway has enrolled there is nothing to point at.
+              # Headscale still needs the file to exist.
+              if [ -z "${GATEWAY_IP:-}" ]; then
+                echo '[]' > "$out"
+                echo "No Member Gateway address yet; no records."
+                exit 0
+              fi
+              for host in $MEMBER_HOSTS; do
+                jq -n --arg name "$host" --arg ip "$GATEWAY_IP" \
+                  '{name: $name, type: "A", value: $ip}'
+              done | jq -s . > "$out"
+              echo "Records for $MEMBER_HOSTS -> $GATEWAY_IP"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              memory: 64Mi
+          volumeMounts:
+            - name: records
+              mountPath: /etc/headscale-records
+      containers:
+        - name: headscale
+          image: docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970
+          imagePullPolicy: IfNotPresent
+          args: ["serve"]
+          env:
+            # The address members type into the Tailscale app as their login
+            # server. An overlay moves it onto its own domain.
+            - name: HEADSCALE_SERVER_URL
+              value: https://network.smallworlds.network
+            - name: HEADSCALE_OIDC_ISSUER
+              value: https://identity.smallworlds.network/realms/smallworlds
+            - name: HEADSCALE_OIDC_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-secret
+                  key: clientId
+          ports:
+            - name: http
+              containerPort: 8080
+          volumeMounts:
+            - name: config
+              mountPath: /etc/headscale/config.yaml
+              subPath: config.yaml
+            - name: config
+              mountPath: /etc/headscale/policy.hujson
+              subPath: policy.hujson
+            - name: oidc
+              mountPath: /etc/headscale-oidc
+              readOnly: true
+            - name: records
+              mountPath: /etc/headscale-records
+              readOnly: true
+            - name: data
+              mountPath: /var/lib/headscale
+          resources:
+            requests:
+              cpu: 20m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+      volumes:
+        - name: config
+          configMap:
+            name: headscale-config
+        - name: oidc
+          secret:
+            secretName: keycloak-secret
+            items:
+              - key: client-secret
+                path: client-secret
+        - name: records
+          emptyDir: {}
+        - name: data
+          persistentVolumeClaim:
+            claimName: headscale-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: headscale
+  labels:
+    app.kubernetes.io/name: headscale
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: headscale
+---
+# Public, like vpn.<domain>: a member's device signs in here before it is on
+# the Member Network.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: member-headscale
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - network.smallworlds.network
+      secretName: member-headscale-tls
+  rules:
+    - host: network.smallworlds.network
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: headscale
+                port:
+                  number: 80

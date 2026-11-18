@@ -11,7 +11,10 @@ import https from 'node:https';
  *   - refuse the public entrypoint (403): the allow-list now admits the node's
  *     LAN only, not cluster or tailnet sources;
  *   - answer on the `operators` entrypoint (traefik-internal:9443), which is
- *     what the Private Gateway forwards the Private Network to.
+ *     what the Private Gateway forwards the Private Network to;
+ *   - not answer on the `members` entrypoint (traefik-internal:9444), which is
+ *     what the Member Gateway forwards members' devices to. That entrypoint
+ *     exists in both modes, so this runs whether the Member Network is on or not.
  *
  * Runs only inside the cluster (OPERATOR_ENTRYPOINT_CHECK=1, set by Ring 0's
  * checks Job): from an operator's own machine on the LAN or the tailnet the
@@ -21,6 +24,7 @@ import https from 'node:https';
 const DOMAIN = process.env.DOMAIN!;
 const IN_CLUSTER = process.env.OPERATOR_ENTRYPOINT_CHECK === '1';
 const OPERATORS = { host: 'traefik-internal.traefik-system.svc.cluster.local', port: 9443 };
+const MEMBERS = { host: 'traefik-internal.traefik-system.svc.cluster.local', port: 9444 };
 
 const PAGES: { host: string; path: string; private: number[] }[] = [
   { host: `deploy.${DOMAIN}`, path: '/', private: [200] },
@@ -64,6 +68,14 @@ test.describe('operator entrypoint', () => {
 
     test(`${page.host}${page.path} answers on the operators entrypoint`, async () => {
       expect(page.private).toContain(await status(page.host, page.path, OPERATORS));
+    });
+
+    // 404 where no router exists for the host or path (Argo CD, Grafana, the
+    // Desk, which is on a port of its own); 403 for the Keycloak admin paths,
+    // whose LAN-only router names `members` so that they cannot fall through
+    // to the realm's public route.
+    test(`${page.host}${page.path} does not answer on the members entrypoint`, async () => {
+      expect([403, 404]).toContain(await status(page.host, page.path, MEMBERS));
     });
   }
 });

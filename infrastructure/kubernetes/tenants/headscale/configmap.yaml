@@ -21,8 +21,13 @@ data:
     # entire file.
     listen_addr: 0.0.0.0:8080
 
+    # The Private Network's half of 100.64.0.0/10. The Member Network
+    # (tenants/member-network) takes 100.96.0.0/12, so an address in a log
+    # says which tailnet it came from (docs/adr/0066). Devices enrolled under
+    # the old /10 got their addresses sequentially from 100.64.0.1, so they
+    # are all inside.
     prefixes:
-      v4: 100.64.0.0/10
+      v4: 100.64.0.0/12
       allocation: sequential
 
     derp:
