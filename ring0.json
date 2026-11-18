@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-18T16:09:34Z",
+ "updated": "2026-11-18T16:28:08Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -992,6 +992,20 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 134,
+   "title": "Send in-cluster callers of member apps to the members entrypoint (ADR 0066)",
+   "author": "stephan271",
+   "created": "2026-11-18T16:26:27Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "repository",
+    "traefik"
    ]
   }
  ]
