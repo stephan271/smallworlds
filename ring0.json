@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-18T17:48:02Z",
+ "updated": "2026-11-18T17:50:14Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -173,7 +173,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "e01a3772272f745be52b98f5b6ed206ba49e5a85",
+   "revision": "738a5a55e4af01eb752ea550f64c73127ccd0275",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
@@ -520,7 +520,7 @@
    "name": "nextcloud",
    "group": "apps",
    "health": "Healthy",
-   "sync": "OutOfSync",
+   "sync": "Synced",
    "source": "overlay",
    "chart": null,
    "version": null,
@@ -535,9 +535,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for healthy state of /ServiceAccount/setup-sa and 1 more resources"
+    "phase": "Succeeded",
+    "finished": "2026-11-18T17:50:14Z",
+    "message": null
    },
    "wave": 1
   },
