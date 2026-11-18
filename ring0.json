@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-18T12:22:49Z",
+ "updated": "2026-11-18T12:31:03Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -969,6 +969,24 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 132,
+   "title": "Add the Member Network's own parts, no application moved (ADR 0066)",
+   "author": "stephan271",
+   "created": "2026-11-18T12:30:40Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "canary-follower",
+    "headscale",
+    "keycloak",
+    "member-network",
+    "repository",
+    "traefik"
    ]
   }
  ]
