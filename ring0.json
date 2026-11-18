@@ -1,19 +1,26 @@
 {
  "schema": 1,
- "updated": "2026-11-18T10:52:24Z",
+ "updated": "2026-11-18T10:56:33Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "01590ae0efad802be38cb18fcd73ad905216c710",
-  "state": "success",
-  "description": "Ring 0: backup 1 databases, converged, load settled after 3 min, smoke 15 hosts, e2e 29 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
-  "date": "2026-11-18T06:36:57Z"
+  "commit": "1945d8e876efe50172d7d0cf4a72e25c0f543d69",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
-  "state": "up-to-date",
-  "commit": "01590ae0efad802be38cb18fcd73ad905216c710",
-  "pull": null,
-  "step": null,
+  "state": "updating",
+  "commit": "1945d8e876efe50172d7d0cf4a72e25c0f543d69",
+  "pull": {
+   "number": 131,
+   "title": "Run Nextcloud's background jobs from cron",
+   "cards": [
+    "nextcloud",
+    "repository"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [],
@@ -559,6 +566,30 @@
  ],
  "commits": [
   {
+   "commit": "1945d8e876efe50172d7d0cf4a72e25c0f543d69",
+   "title": "Run Nextcloud's background jobs from cron",
+   "author": "stephan271",
+   "date": "2026-11-18T10:55:41Z",
+   "pull": 131,
+   "cards": [
+    "nextcloud",
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "a055a5745808fa0ad0ba968901f8acbf5206721d",
+   "title": "Run Nextcloud's background jobs from cron",
+   "author": "stephan271",
+   "date": "2026-11-18T10:51:23Z",
+   "pull": null,
+   "cards": [
+    "nextcloud",
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "01590ae0efad802be38cb18fcd73ad905216c710",
    "title": "Update the immich pod-export psql client image to postgres 18 (#130)",
    "author": "smallworlds-steward[bot]",
@@ -913,36 +944,6 @@
     "description": "Not converged: stalwart: sync Failed: Job stalwart-init: Job has reached the specified backoff limit; touches stalwart: restore, do not rev\u2026",
     "date": "2026-11-16T11:24:58Z"
    }
-  },
-  {
-   "commit": "80d7867d20715b32785d0cf18de1b088e9eab3f4",
-   "title": "Update Homepage (dashboard) to v2.8.0 (#107)",
-   "author": "smallworlds-steward[bot]",
-   "date": "2026-11-16T09:51:20Z",
-   "pull": 107,
-   "cards": [
-    "dashboard"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
-    "date": "2026-11-16T10:13:06Z"
-   }
-  },
-  {
-   "commit": "b079f3ff484202ca3513be73e9c22ba5a8833c72",
-   "title": "Leave majors in .github/ out of ring0-major",
-   "author": "stephan271",
-   "date": "2026-11-16T09:24:46Z",
-   "pull": 109,
-   "cards": [
-    "repository"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.4.1, rclone\u2026",
-    "date": "2026-11-16T09:46:08Z"
-   }
   }
  ],
  "pulls": [
@@ -969,20 +970,6 @@
    "rejected": false,
    "labels": [],
    "cards": [
-    "repository"
-   ]
-  },
-  {
-   "number": 131,
-   "title": "Run Nextcloud's background jobs from cron",
-   "author": "stephan271",
-   "created": "2026-11-18T10:51:40Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "nextcloud",
     "repository"
    ]
   }
