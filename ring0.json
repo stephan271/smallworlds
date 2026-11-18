@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-18T20:13:19Z",
+ "updated": "2026-11-18T20:32:20Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -440,7 +440,6 @@
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
-    "ghcr.io/open-noodle/gallery-ml:v5.10.0@sha256:6f7e2a6687a485a06f67030595bde5bedb0024b75ef936d738aa8937ed8e671e",
     "ghcr.io/open-noodle/gallery-ml:v5.11.0@sha256:0688149a40fb202a71e70e31dda2a4948191d65e4f7a06a42ac0dc9ce421b925",
     "ghcr.io/open-noodle/gallery-server:v5.10.0@sha256:08b9818252bdef75eb599d7db6a97080cbd399056c6ee2787403e8310f234734",
     "ghcr.io/open-noodle/gallery-server:v5.11.0@sha256:82d1710fa48fa57c16f923d074c90350d91d86ac6cf98458908d7a4b2b5c6761",
