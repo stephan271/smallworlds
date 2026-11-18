@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-18T03:39:36Z",
+ "updated": "2026-11-18T03:41:41Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -284,9 +284,9 @@
     "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.20.0"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/kube-prometheus-stack-admission-create"
+    "phase": "Succeeded",
+    "finished": "2026-11-18T03:41:12Z",
+    "message": null
    },
    "wave": 0
   },
@@ -425,7 +425,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": "waiting for completion of hook batch/Job/forgejo-secret-init and 1 more hooks"
+    "message": "waiting for completion of hook batch/Job/forgejo-oidc-config"
    },
    "wave": 1
   },
@@ -451,7 +451,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": "waiting for completion of hook batch/Job/immich-secret-init and 1 more hooks"
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -519,7 +519,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": "waiting for completion of hook batch/Job/keycloak-client-init and 1 more hooks"
+    "message": "waiting for completion of hook batch/Job/nextcloud-oidc-config"
    },
    "wave": 1
   },
@@ -562,9 +562,9 @@
     "stalwartlabs/stalwart:v1.1.0@sha256:0aacd114054f56c34e98063140e2102a04dc0bcb4933ff08925cf8e9938b0d16"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/garage-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-18T03:41:38Z",
+    "message": null
    },
    "wave": 1
   }
