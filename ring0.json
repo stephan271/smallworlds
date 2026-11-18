@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-18T14:36:38Z",
+ "updated": "2026-11-18T14:38:43Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -453,7 +453,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "1f9eb795704434702f0057e75f6ba34c0da91d01",
+   "revision": "a2ed8c85f248912b572375d0764b5b119fbc56f1",
    "images": [
     "ghcr.io/jitsi-contrib/jitsi-oidc-adapter:v20260328@sha256:c4a28b215f5ea4893e308cd3f15b1f1c6954231ab784cac6362f420e6648a745",
     "ghcr.io/jitsi/jicofo:stable-11248-3",
@@ -560,7 +560,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "1f9eb795704434702f0057e75f6ba34c0da91d01",
+   "revision": "a2ed8c85f248912b572375d0764b5b119fbc56f1",
    "images": [
     "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
