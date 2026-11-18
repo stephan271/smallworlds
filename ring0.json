@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-18T06:01:51Z",
+ "updated": "2026-11-18T06:05:59Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -10,13 +10,22 @@
   "date": "2026-11-18T04:04:37Z"
  },
  "now": {
-  "state": "up-to-date",
+  "state": "updating",
   "commit": "f1a2d565e78b14a5b92313fe6ebde62cb54e70e7",
   "pull": null,
-  "step": null,
+  "step": "merge",
   "step_since": null,
   "started": null,
-  "queued": [],
+  "queued": [
+   {
+    "number": 130,
+    "title": "Update the immich pod-export psql client image to postgres 18",
+    "cards": [
+     "immich"
+    ],
+    "since": "2026-11-18T06:04:54Z"
+   }
+  ],
   "stuck": null,
   "action": "merged #128",
   "waiting": "no queued update is ready"
@@ -979,6 +988,22 @@
    "labels": [
     "ring0-major",
     "steward-prepare-4bc0c3c375"
+   ],
+   "cards": [
+    "immich"
+   ]
+  },
+  {
+   "number": 130,
+   "title": "Update the immich pod-export psql client image to postgres 18",
+   "author": "smallworlds-steward[bot]",
+   "created": "2026-11-18T06:04:54Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue",
+    "steward"
    ],
    "cards": [
     "immich"
