@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-18T20:32:20Z",
+ "updated": "2026-11-18T20:40:43Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -311,7 +311,7 @@
   {
    "name": "smallworlds-root",
    "group": "machinery",
-   "health": "Degraded",
+   "health": "Healthy",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -429,7 +429,7 @@
   {
    "name": "immich",
    "group": "apps",
-   "health": "Degraded",
+   "health": "Healthy",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -441,15 +441,14 @@
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
     "ghcr.io/open-noodle/gallery-ml:v5.11.0@sha256:0688149a40fb202a71e70e31dda2a4948191d65e4f7a06a42ac0dc9ce421b925",
-    "ghcr.io/open-noodle/gallery-server:v5.10.0@sha256:08b9818252bdef75eb599d7db6a97080cbd399056c6ee2787403e8310f234734",
     "ghcr.io/open-noodle/gallery-server:v5.11.0@sha256:82d1710fa48fa57c16f923d074c90350d91d86ac6cf98458908d7a4b2b5c6761",
     "ghcr.io/tensorchord/cloudnative-vectorchord:18.6-1.1.1@sha256:c7672bc011351a587cc292a94aac7eeebb593ed2e120077bd9c9944c9467db93",
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Failed",
-    "finished": "2026-11-18T20:12:59Z",
-    "message": "one or more synchronization tasks completed unsuccessfully"
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/pre-update-backup"
    },
    "wave": 1
   },
