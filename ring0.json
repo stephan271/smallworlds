@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-18T11:15:09Z",
+ "updated": "2026-11-18T11:17:15Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -20,8 +20,8 @@
     "repository"
    ]
   },
-  "step": "storage",
-  "step_since": "2026-11-18T11:14:18Z",
+  "step": "quiet",
+  "step_since": "2026-11-18T11:15:19Z",
   "started": "2026-11-18T11:00:27Z",
   "queued": [],
   "stuck": null,
