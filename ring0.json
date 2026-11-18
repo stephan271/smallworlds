@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-18T03:08:25Z",
+ "updated": "2026-11-18T03:24:58Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -10,13 +10,22 @@
   "date": "2026-11-17T17:49:47Z"
  },
  "now": {
-  "state": "up-to-date",
+  "state": "updating",
   "commit": "05eb59449878d6b2cba69b429cbacc675717cf07",
   "pull": null,
-  "step": null,
+  "step": "merge",
   "step_since": null,
   "started": null,
-  "queued": [],
+  "queued": [
+   {
+    "number": 128,
+    "title": "Update Helm chart nextcloud to v9.4.4",
+    "cards": [
+     "nextcloud"
+    ],
+    "since": "2026-11-18T03:24:35Z"
+   }
+  ],
   "stuck": null,
   "action": "merged #127",
   "waiting": "no queued update is ready"
@@ -962,6 +971,21 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 128,
+   "title": "Update Helm chart nextcloud to v9.4.4",
+   "author": "renovate[bot]",
+   "created": "2026-11-18T03:24:35Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "nextcloud"
    ]
   }
  ]
