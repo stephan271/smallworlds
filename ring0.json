@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-18T16:47:00Z",
+ "updated": "2026-11-18T17:03:36Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -992,6 +992,21 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 135,
+   "title": "Put Nextcloud on the Member Network, Guest Paths alone in public (ADR 0066)",
+   "author": "stephan271",
+   "created": "2026-11-18T17:03:00Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "canary-follower",
+    "repository",
+    "smallworlds-root"
    ]
   }
  ]
