@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-18T18:07:17Z",
+ "updated": "2026-11-18T18:09:24Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -20,8 +20,8 @@
     "smallworlds-root"
    ]
   },
-  "step": "converge",
-  "step_since": "2026-11-18T18:00:45Z",
+  "step": "settle",
+  "step_since": "2026-11-18T18:07:40Z",
   "started": "2026-11-18T17:58:38Z",
   "queued": [],
   "stuck": null,
@@ -534,9 +534,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/nextcloud-oidc-config"
+    "phase": "Succeeded",
+    "finished": "2026-11-18T18:07:36Z",
+    "message": null
    },
    "wave": 1
   },
