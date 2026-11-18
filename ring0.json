@@ -1,40 +1,31 @@
 {
  "schema": 1,
- "updated": "2026-11-18T19:52:10Z",
+ "updated": "2026-11-18T19:56:21Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "4d0d1934d567f0e0d242c0332ff171ce027741b3",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-18T19:36:23Z"
+  "commit": "a25b97258a29f816e47ee3cb686812990efea236",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "4d0d1934d567f0e0d242c0332ff171ce027741b3",
+  "commit": "a25b97258a29f816e47ee3cb686812990efea236",
   "pull": {
-   "number": 137,
-   "title": "Run the Nextcloud guest suite on every Ring 0 commit (ADR 0066)",
+   "number": 138,
+   "title": "Update gallery to v5.11.0 (#138)",
    "cards": [
-    "canary-follower"
+    "immich"
    ]
   },
-  "step": "quiet",
-  "step_since": "2026-11-18T19:50:36Z",
-  "started": "2026-11-18T19:36:23Z",
-  "queued": [
-   {
-    "number": 138,
-    "title": "Update gallery to v5.11.0",
-    "cards": [
-     "immich"
-    ],
-    "since": "2026-11-18T19:36:55Z"
-   }
-  ],
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
+  "queued": [],
   "stuck": null,
-  "action": "not reverted: main has moved on",
-  "waiting": "no queued update is ready"
+  "action": "merged #138",
+  "waiting": null
  },
  "applications": [
   {
@@ -596,6 +587,17 @@
  ],
  "commits": [
   {
+   "commit": "a25b97258a29f816e47ee3cb686812990efea236",
+   "title": "Update gallery to v5.11.0 (#138)",
+   "author": "renovate[bot]",
+   "date": "2026-11-18T19:55:43Z",
+   "pull": 138,
+   "cards": [
+    "immich"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "4d0d1934d567f0e0d242c0332ff171ce027741b3",
    "title": "Run the Nextcloud guest suite on every Ring 0 commit (ADR 0066)",
    "author": "stephan271",
@@ -605,9 +607,9 @@
     "canary-follower"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-18T19:36:23Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 3 min, smoke 16 hosts, e2e 38 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-18T19:55:36Z"
    }
   },
   {
@@ -958,21 +960,6 @@
     "description": "Ring 0: backup 1 databases, converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
     "date": "2026-11-17T00:55:03Z"
    }
-  },
-  {
-   "commit": "f430b6f2b1be931135d3a34902c69599492326a2",
-   "title": "Update the Traefik chart to 42.4.0, with its values moved to the new layout (#123)",
-   "author": "smallworlds-steward[bot]",
-   "date": "2026-11-16T23:49:57Z",
-   "pull": 123,
-   "cards": [
-    "traefik"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-17T00:09:33Z"
-   }
   }
  ],
  "pulls": [
@@ -1000,21 +987,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 138,
-   "title": "Update gallery to v5.11.0",
-   "author": "renovate[bot]",
-   "created": "2026-11-18T19:36:55Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "immich"
    ]
   }
  ]
