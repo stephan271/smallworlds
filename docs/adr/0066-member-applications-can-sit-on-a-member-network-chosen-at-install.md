@@ -233,7 +233,22 @@ everything else. This held both where Tailscale owns `resolv.conf` (as on Androi
 and iOS) and under `systemd-resolved`. No AAAA record comes back for such a name,
 so a client preferring IPv6 cannot fall through to the public address. No split
 DNS route for `<domain>` is needed. Windows and macOS were not run; they get the
-same per-name routes.
+same per-name routes. **The per-name routes need Tailscale 1.104.0 or later**
+(`coverExtraRecords` in `ipn/ipnlocal`): on Ring 0, a Linux client on 1.102.2 got
+the record from `100.100.100.100` but resolved the public address everywhere else.
+Members' devices need 1.104 or later; app stores update phones by themselves.
+
+Proven on Ring 0 (2026-11-18): a device enrolled by signing in with a member's
+passkey, as that member and untagged, and received the record. The same run
+showed that a Headscale restart strands a gateway. It reaches Headscale by
+Service name, so Tailscale keeps a port-443 fallback, and any reconnect within
+two minutes of the previous dial is forced onto it. Every failed retry counts as
+a dial, so the gateway stays on 443, where the Service has no listener. The
+Private Gateway has the same fault. Both now carry a liveness probe on
+`Self.Online`, and a fresh process dials port 80 again. Pointing the gateways at
+the Service's ClusterIP also avoids the fallback, but with `TS_AUTH_ONCE` an
+enrolled gateway ignores a changed login server until it re-authenticates with a
+new key, and the address would then be fixed in its saved settings.
 
 Not yet proven:
 
