@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-18T17:29:03Z",
+ "updated": "2026-11-18T17:31:10Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -536,8 +536,8 @@
    ],
    "operation": {
     "phase": "Running",
-    "finished": null,
-    "message": "Retrying operation. Attempt #5"
+    "finished": "2026-11-18T17:29:56Z",
+    "message": "one or more synchronization tasks completed unsuccessfully, reason: Ingress.networking.k8s.io \"nextcloud-guest\" is invalid: [spec.rules[0].http.paths[0].path: Invalid value: \"^/s/[A-Za-z0-9_-]+(/.*)?$\": must be an absolute path, spec.rules[0].http.paths[1].path: Invalid value: \"^/public\\\\.php/dav/f\u2026"
    },
    "wave": 1
   },
