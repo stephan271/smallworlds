@@ -277,6 +277,10 @@ runcmd:
   # public DNS — on an ephemeral staging node that points at the PRODUCTION
   # server, and OIDC token exchanges silently talk to the wrong Keycloak.
   # Generated at runtime because $NODE_IP may be dynamic.
+  # The member applications answer with 10.43.0.44, Traefik's `members`
+  # entrypoint (Service traefik-members, apps/traefik.yaml), so callers in the
+  # cluster see the full applications when the Member Network is on
+  # (docs/adr/0066). Mirrored in bootstrap-local-node.sh.
   - |
     cat > /var/lib/rancher/k3s/server/manifests/coredns-custom.yaml <<COREDNS
     apiVersion: v1
@@ -288,7 +292,8 @@ runcmd:
       smallworlds.server: |
         ${domain_name}:53 {
           hosts {
-            $NODE_IP identity${env_ext}.${domain_name} files${env_ext}.${domain_name} photos${env_ext}.${domain_name} git${env_ext}.${domain_name} mail${env_ext}.${domain_name} meet${env_ext}.${domain_name} webmail${env_ext}.${domain_name} whiteboard${env_ext}.${domain_name} office${env_ext}.${domain_name} dashboard${env_ext}.${domain_name} monitoring${env_ext}.${domain_name} pod${env_ext}.${domain_name} join${env_ext}.${domain_name}
+            $NODE_IP identity${env_ext}.${domain_name} mail${env_ext}.${domain_name} meet${env_ext}.${domain_name} webmail${env_ext}.${domain_name} office${env_ext}.${domain_name} monitoring${env_ext}.${domain_name} join${env_ext}.${domain_name}
+            10.43.0.44 files${env_ext}.${domain_name} photos${env_ext}.${domain_name} git${env_ext}.${domain_name} whiteboard${env_ext}.${domain_name} dashboard${env_ext}.${domain_name} pod${env_ext}.${domain_name}
             fallthrough
           }
           forward . /etc/resolv.conf
