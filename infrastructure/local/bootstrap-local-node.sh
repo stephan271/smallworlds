@@ -774,6 +774,10 @@ fi
 
 # In-cluster DNS override: pods must resolve the app domains to this node,
 # not to whatever public DNS says (usually nothing, for a LAN install).
+# The member applications answer with 10.43.0.44, Traefik's `members`
+# entrypoint (Service traefik-members, apps/traefik.yaml), so callers in the
+# cluster see the full applications when the Member Network is on
+# (docs/adr/0066). Mirrored in the cloud-init template.
 cat > /var/lib/rancher/k3s/server/manifests/coredns-custom.yaml <<COREDNS
 apiVersion: v1
 kind: ConfigMap
@@ -784,7 +788,8 @@ data:
   smallworlds.server: |
     ${DOMAIN}:53 {
       hosts {
-        $NODE_IP identity${ENV_EXT}.${DOMAIN} files${ENV_EXT}.${DOMAIN} photos${ENV_EXT}.${DOMAIN} git${ENV_EXT}.${DOMAIN} mail${ENV_EXT}.${DOMAIN} meet${ENV_EXT}.${DOMAIN} webmail${ENV_EXT}.${DOMAIN} whiteboard${ENV_EXT}.${DOMAIN} office${ENV_EXT}.${DOMAIN} dashboard${ENV_EXT}.${DOMAIN} monitoring${ENV_EXT}.${DOMAIN} pod${ENV_EXT}.${DOMAIN} join${ENV_EXT}.${DOMAIN}
+        $NODE_IP identity${ENV_EXT}.${DOMAIN} mail${ENV_EXT}.${DOMAIN} meet${ENV_EXT}.${DOMAIN} webmail${ENV_EXT}.${DOMAIN} office${ENV_EXT}.${DOMAIN} monitoring${ENV_EXT}.${DOMAIN} join${ENV_EXT}.${DOMAIN}
+        10.43.0.44 files${ENV_EXT}.${DOMAIN} photos${ENV_EXT}.${DOMAIN} git${ENV_EXT}.${DOMAIN} whiteboard${ENV_EXT}.${DOMAIN} dashboard${ENV_EXT}.${DOMAIN} pod${ENV_EXT}.${DOMAIN}
         fallthrough
       }
       forward . /etc/resolv.conf

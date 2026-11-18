@@ -99,6 +99,33 @@ spec:
             internal:
               spec:
                 type: ClusterIP
+        # `members` on port 443 at a fixed address, for callers inside the
+        # cluster (docs/adr/0066). The CoreDNS override that both bootstrap
+        # paths write answers the member applications' hostnames with this
+        # address, so Euro-Office and Ring 0's checks Job see the full
+        # applications, as members do, while the public entrypoint serves only
+        # Guest Paths. The address is in the part of the Service range that
+        # Kubernetes keeps for fixed assignments (the first 256 of
+        # 10.43.0.0/16), so no Service created before it can hold it. It is
+        # also written in infrastructure/cloud-init/k3s-node.yaml.tpl and
+        # infrastructure/local/bootstrap-local-node.sh: change all three.
+        extraObjects:
+          - apiVersion: v1
+            kind: Service
+            metadata:
+              name: traefik-members
+              namespace: traefik-system
+            spec:
+              type: ClusterIP
+              clusterIP: 10.43.0.44
+              selector:
+                app.kubernetes.io/name: traefik
+                app.kubernetes.io/instance: traefik-traefik-system
+              ports:
+                - name: https
+                  port: 443
+                  targetPort: members
+                  protocol: TCP
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: traefik-system

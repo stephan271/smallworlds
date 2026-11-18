@@ -68,13 +68,26 @@ its hostname would get the guest's view:
 - **Ring 0's checks Job.** It runs the full-sign-in e2e suite and
   `seed.py check` from inside the cluster, so it would reject every commit.
 
-So with the Member Network on, the override answers the member application
-hostnames with a cluster-only Service in front of the `members` entrypoint.
+So the override answers the member application hostnames (`files`, `photos`,
+`git`, `whiteboard`, `dashboard`, `pod`) with `traefik-members`, a cluster-only
+Service in front of the `members` entrypoint at the fixed address `10.43.0.44`.
 In-cluster callers then see the full applications, the way members do. Identity,
-`join` and the Headscales still resolve to `websecure`. The override is generated
-at boot, so a change to it needs mirroring in both bootstrap paths. An install
-that switches the Member Network on later needs the ConfigMap rewritten on the
-node, because cloud-init does not run again.
+`join`, `office`, `meet`, mail and the operator pages still resolve to the node
+address. `webmail` and `mail` follow once their routers attach to `members`.
+
+It does so in both modes. With the Member Network off, `members` serves the same
+full applications as `websecure`, so nothing changes for the callers. The
+bootstrap therefore needs no mode input, and switching the Member Network on
+later needs no step on the node. A node bootstrapped before this change keeps
+its old override until `/var/lib/rancher/k3s/server/manifests/coredns-custom.yaml`
+is rewritten on it, because cloud-init does not run again. That has to happen
+before such an install turns the Member Network on.
+
+The address is fixed because the override answers through the `hosts` plugin in
+a server block of its own, which cannot resolve a Service name. It lies in the
+part of the Service range that Kubernetes keeps for fixed assignments, so no
+Service created before it can hold it. It is written in three places: the
+Traefik Application and both bootstrap paths.
 
 ## The Member Network
 

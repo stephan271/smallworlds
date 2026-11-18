@@ -51,7 +51,10 @@ not, so Argo CD, Grafana and the Desk answer `404` there. `identity/admin` and
 `identity/realms/master` would fall through to the realm's public route, so
 their LAN-only router names `websecure,members`. The gateway forwards from a pod
 address, which that allow-list never admits, so those paths answer `403` there.
-Ring 0 checks all three entrypoints on every commit (spec 11).
+Ring 0 checks all three entrypoints on every commit (spec 11). Pods reach
+`members` too: the CoreDNS override sends the member applications' hostnames to
+`traefik-members` (`10.43.0.44:443`), so Euro-Office and Ring 0's checks see the
+full applications whether or not the Member Network is on.
 
 **The allow-list only means something because Traefik sees the visitor's real
 address.** Its Service sets `externalTrafficPolicy: Local` for that reason
@@ -227,7 +230,8 @@ and check before trusting it.
   `trivy config` against the rendered manifests gives the same list on demand.)
 - **Namespace-wide default-deny NetworkPolicies** (§4).
 - **A NetworkPolicy on Traefik admitting the `operators` port (9443) from the
-  Private Gateway only** (§1), and `members` (9444) from the Member Gateway.
+  Private Gateway only** (§1). `members` (9444) must stay open to the Member
+  Gateway and to every pod that calls a member application by hostname.
   Until then any pod can reach the operator pages directly, as before the
   entrypoint split.
 - **A TLSOption** pinning minimum version and cipher suites. Traefik's defaults
