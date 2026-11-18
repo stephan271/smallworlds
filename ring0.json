@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-18T05:08:18Z",
+ "updated": "2026-11-18T06:01:51Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -966,6 +966,22 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 129,
+   "title": "Update Docker image docker.io/postgres to v18",
+   "author": "renovate[bot]",
+   "created": "2026-11-18T06:00:09Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [
+    "ring0-major",
+    "steward-prepare-4bc0c3c375"
+   ],
+   "cards": [
+    "immich"
    ]
   }
  ]
