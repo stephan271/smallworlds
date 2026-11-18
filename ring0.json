@@ -1,28 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-18T11:17:15Z",
+ "updated": "2026-11-18T11:21:23Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "1945d8e876efe50172d7d0cf4a72e25c0f543d69",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-18T11:00:27Z"
+  "state": "success",
+  "description": "Ring 0: backup 1 databases, converged, load settled after 4 min, smoke 15 hosts, e2e 29 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
+  "date": "2026-11-18T11:20:20Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "1945d8e876efe50172d7d0cf4a72e25c0f543d69",
-  "pull": {
-   "number": 131,
-   "title": "Run Nextcloud's background jobs from cron",
-   "cards": [
-    "nextcloud",
-    "repository"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-18T11:15:19Z",
-  "started": "2026-11-18T11:00:27Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #130",
@@ -577,9 +570,9 @@
     "repository"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-18T11:00:27Z"
+    "state": "success",
+    "description": "Ring 0: backup 1 databases, converged, load settled after 4 min, smoke 15 hosts, e2e 29 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
+    "date": "2026-11-18T11:20:20Z"
    }
   },
   {
