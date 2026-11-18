@@ -1,28 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-18T16:42:49Z",
+ "updated": "2026-11-18T16:47:00Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "d0a34733ce0453161555e0934a3520824b9258ac",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-18T16:29:46Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 3 min, smoke 16 hosts, e2e 33 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+  "date": "2026-11-18T16:46:29Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "d0a34733ce0453161555e0934a3520824b9258ac",
-  "pull": {
-   "number": 134,
-   "title": "Send in-cluster callers of member apps to the members entrypoint (ADR 0066)",
-   "cards": [
-    "repository",
-    "traefik"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-18T16:41:28Z",
-  "started": "2026-11-18T16:29:45Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #130",
@@ -598,9 +591,9 @@
     "traefik"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-18T16:29:46Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 3 min, smoke 16 hosts, e2e 33 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-18T16:46:29Z"
    }
   },
   {
