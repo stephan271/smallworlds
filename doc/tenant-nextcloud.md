@@ -48,6 +48,22 @@ internal service directories would make the nominally safer deployment less
 likely to start. `strategy: Recreate` prevents two generations of its bundled
 PostgreSQL/RabbitMQ processes from serving concurrently during an update.
 
+### 5. Background jobs from cron (`background-jobs.yaml`)
+
+The CronJob `nextcloud-cron` runs `cron.php` every five minutes **inside the
+running `nextcloud` container** (`kubectl exec`, as `www-data`). Until it existed,
+Nextcloud ran its background jobs in AJAX mode, which runs them only while
+someone has a page open. On Ring 0 they had last run a day earlier. The first
+run switches `backgroundjobs_mode` to `cron` by itself.
+
+Do not swap it for the chart's `cronjob` options. Both the crond sidecar and the
+chart's CronJob start a second container from the base environment. The
+overlay's object-storage patches (`OBJECTSTORE_S3_*`) reach only the `nextcloud`
+container, so background jobs would run against the base's Garage address instead
+of the community's store. A run with no ready Nextcloud pod, for example during
+an upgrade, skips quietly and the next one catches up. `concurrencyPolicy: Forbid`
+keeps a long file scan from being joined by a second run.
+
 ## Backup, and why the database is part of it
 
 User files are stored in the `nextcloud` Garage bucket as Nextcloud's **primary**

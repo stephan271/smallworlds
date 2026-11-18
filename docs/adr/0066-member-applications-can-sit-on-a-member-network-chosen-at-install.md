@@ -142,7 +142,9 @@ stops on a broken share link the same way it stops on a broken login.
   today (no cron in the values, `backgroundjobs_mode` unset), so they run only
   while someone has a page open. A Nextcloud reachable only by members would run
   them even less, and nothing would warn about it. This change belongs on
-  `main` regardless of the Member Network.
+  `main` regardless of the Member Network. Done (2026-11-18): the CronJob
+  `nextcloud-cron` runs `cron.php` inside the `nextcloud` container
+  (`doc/tenant-nextcloud.md` §5).
 
 ## How the choice is made
 
@@ -212,10 +214,20 @@ The operator half of the routing change — the `operators` entrypoint, the
 Private Gateway and the narrowed public allow-lists — is built (2026-11-17), and
 Ring 0 checks it on every commit (`e2e-tests/tests/11-operator-entrypoint.spec.ts`).
 The Member Network is not built. The Guest Path lists come from signed-out browser
-recordings on Ring 0 and are the only part observed. Not yet proven:
+recordings on Ring 0 and are the only part observed.
 
-- Headscale's `extra_records` answering for the community's own domain while
-  `override_local_dns` is `false` on the clients. If that fails, the Member Network
-  needs split DNS for `<domain>` or `override_local_dns: true`.
+Proven (2026-11-18, Headscale v0.29.7 and Tailscale 1.104.7 in containers):
+Headscale's `extra_records` answer for a name in the community's own domain
+while `override_local_dns` is `false`. The client turns each record's name into a
+route of its own (`MatchDomains: [files.<domain>. …]`), so the operating system
+sends exactly those names to Tailscale's resolver and keeps its own resolver for
+everything else. This held both where Tailscale owns `resolv.conf` (as on Android
+and iOS) and under `systemd-resolved`. No AAAA record comes back for such a name,
+so a client preferring IPv6 cannot fall through to the public address. No split
+DNS route for `<domain>` is needed. Windows and macOS were not run; they get the
+same per-name routes.
+
+Not yet proven:
+
 - Upload speed when a member's device cannot connect to the node directly and
   falls back to a DERP relay.
