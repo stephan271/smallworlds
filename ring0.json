@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-18T18:36:45Z",
+ "updated": "2026-11-18T19:24:51Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -990,6 +990,19 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 137,
+   "title": "Run the Nextcloud guest suite on every Ring 0 commit (ADR 0066)",
+   "author": "stephan271",
+   "created": "2026-11-18T19:24:01Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "canary-follower"
    ]
   }
  ]
