@@ -1,19 +1,27 @@
 {
  "schema": 1,
- "updated": "2026-11-18T17:03:36Z",
+ "updated": "2026-11-18T17:05:43Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "d0a34733ce0453161555e0934a3520824b9258ac",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 3 min, smoke 16 hosts, e2e 33 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-18T16:46:29Z"
+  "commit": "e01a3772272f745be52b98f5b6ed206ba49e5a85",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
-  "state": "up-to-date",
-  "commit": "d0a34733ce0453161555e0934a3520824b9258ac",
-  "pull": null,
-  "step": null,
+  "state": "updating",
+  "commit": "e01a3772272f745be52b98f5b6ed206ba49e5a85",
+  "pull": {
+   "number": 135,
+   "title": "Put Nextcloud on the Member Network, Guest Paths alone in public (ADR 0066)",
+   "cards": [
+    "canary-follower",
+    "repository",
+    "smallworlds-root"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [],
@@ -581,6 +589,32 @@
  ],
  "commits": [
   {
+   "commit": "e01a3772272f745be52b98f5b6ed206ba49e5a85",
+   "title": "Put Nextcloud on the Member Network, Guest Paths alone in public (ADR 0066)",
+   "author": "stephan271",
+   "date": "2026-11-18T17:04:38Z",
+   "pull": 135,
+   "cards": [
+    "canary-follower",
+    "repository",
+    "smallworlds-root"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "54cc8c76694047387dfd2b0af9f886715f166f24",
+   "title": "Put Nextcloud on the Member Network, Guest Paths alone in public (ADR 0066)",
+   "author": "stephan271",
+   "date": "2026-11-18T17:02:56Z",
+   "pull": null,
+   "cards": [
+    "canary-follower",
+    "repository",
+    "smallworlds-root"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "d0a34733ce0453161555e0934a3520824b9258ac",
    "title": "Send in-cluster callers of member apps to the members entrypoint (ADR 0066)",
    "author": "stephan271",
@@ -934,37 +968,6 @@
     "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
     "date": "2026-11-16T19:56:24Z"
    }
-  },
-  {
-   "commit": "9198ff6e0a71994579ee4c2ff9974397e256b404",
-   "title": "Update the jitsi-meet chart to 3.12.0 (#118)",
-   "author": "smallworlds-steward[bot]",
-   "date": "2026-11-16T19:05:30Z",
-   "pull": 118,
-   "cards": [
-    "jitsi"
-   ],
-   "verdict": {
-    "state": "failure",
-    "description": "Checks failed: e2e 20 passed, 1 failed, 9 skipped; data 4/4 apps intact",
-    "date": "2026-11-16T19:30:12Z"
-   }
-  },
-  {
-   "commit": "b529aabed1bfc40848a490015a2dab27219afaff",
-   "title": "Garage chart 1.0.0 (Garage v2.5.0) (#114)",
-   "author": "smallworlds-steward[bot]",
-   "date": "2026-11-16T18:25:07Z",
-   "pull": 114,
-   "cards": [
-    "garage",
-    "garage-backup"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-16T18:49:52Z"
-   }
   }
  ],
  "pulls": [
@@ -992,21 +995,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 135,
-   "title": "Put Nextcloud on the Member Network, Guest Paths alone in public (ADR 0066)",
-   "author": "stephan271",
-   "created": "2026-11-18T17:03:00Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "canary-follower",
-    "repository",
-    "smallworlds-root"
    ]
   }
  ]
