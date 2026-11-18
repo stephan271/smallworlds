@@ -64,6 +64,30 @@ of the community's store. A run with no ready Nextcloud pod, for example during
 an upgrade, skips quietly and the next one catches up. `concurrencyPolicy: Forbid`
 keeps a long file scan from being joined by a second run.
 
+### 6. On the Member Network (`components/member-network/nextcloud`)
+
+With the Member Network on (ADR 0066), the overlay adds this Component to its
+`nextcloud/` kustomization and patches the host of `nextcloud-guest` like that of
+`nextcloud`. The Helm Ingress `nextcloud` then names the `members` entrypoint
+only: members' devices reach it through the Member Gateway, pods through
+`traefik-members`. The public entrypoint keeps `nextcloud-guest`, eight path
+regexes (`router.pathmatcher: PathRegexp`) covering what a signed-out guest's
+browser requests for a share link: the share page and its download, the share's
+WebDAV path, previews, Text's public session, Euro-Office's share page and its
+config endpoint, the guest avatar and static files. Everything else, sign-in
+included, answers `404` in public. Members open shares with the same URLs,
+because their DNS sends `files.<domain>` to the gateway.
+
+The list was recorded with a signed-out browser on Ring 0. An update that adds a
+path breaks share links for guests only, so e2e spec 12 opens a share link
+through the public entrypoint on every Ring 0 commit and fails on any request
+answered `404`. To re-record: share a folder with an image, a note and a
+document, open it signed out, and list the requested paths.
+
+An Ingress cannot match a query, so Euro-Office's config endpoint is public by
+path. Without `?shareToken=` Nextcloud answers it with an error and no data;
+spec 12 checks that too.
+
 ## Backup, and why the database is part of it
 
 User files are stored in the `nextcloud` Garage bucket as Nextcloud's **primary**

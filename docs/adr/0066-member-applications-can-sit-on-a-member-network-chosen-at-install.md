@@ -263,6 +263,13 @@ the Service's ClusterIP also avoids the fallback, but with `TS_AUTH_ONCE` an
 enrolled gateway ignores a changed login server until it re-authenticates with a
 new key, and the address would then be fixed in its saved settings.
 
+Nextcloud's Guest Paths, re-recorded on Ring 0 (2026-11-18) for a shared folder
+with an image, a note and a document and for a document opened in Euro-Office,
+are exactly the list above: no other path was requested. They are built as an
+Ingress with path regexes (`components/member-network/nextcloud`), so the
+`?shareToken=` condition on Euro-Office's config endpoint is left to Nextcloud,
+which answers it without a token with an error and no data.
+
 Not yet proven:
 
 - Upload speed when a member's device cannot connect to the node directly and
