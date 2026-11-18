@@ -130,6 +130,26 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.uid
+          # Restart the gateway once it has lost Headscale for five minutes.
+          # Headscale is reached by name, so Tailscale keeps a port-443
+          # fallback; a reconnect within two minutes of the previous dial is
+          # forced onto it, and every failed retry counts as a dial. After a
+          # Headscale restart the gateway therefore stays on 443, where the
+          # Service has no listener, and never comes back. A fresh process
+          # dials port 80 again. "NeedsLogin" passes: a gateway waiting for its
+          # key is not stuck.
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - >-
+                  tailscale --socket=/tmp/tailscaled.sock status --json --peers=false
+                  | grep -qE '"Online": true|"BackendState": "NeedsLogin"'
+            initialDelaySeconds: 120
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 5
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

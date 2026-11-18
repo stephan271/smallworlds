@@ -114,6 +114,20 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.uid
+          # Restart once Headscale has been lost for five minutes: see the
+          # same probe in tenants/headscale/private-gateway.yaml.
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - >-
+                  tailscale --socket=/tmp/tailscaled.sock status --json --peers=false
+                  | grep -qE '"Online": true|"BackendState": "NeedsLogin"'
+            initialDelaySeconds: 120
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 5
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
