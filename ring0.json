@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-18T17:41:40Z",
+ "updated": "2026-11-18T17:43:48Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "e01a3772272f745be52b98f5b6ed206ba49e5a85",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-18T17:06:49Z"
+  "commit": "738a5a55e4af01eb752ea550f64c73127ccd0275",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
@@ -536,8 +536,8 @@
    ],
    "operation": {
     "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/pre-update-backup"
+    "finished": "2026-11-18T17:42:33Z",
+    "message": "one or more synchronization tasks completed unsuccessfully, reason: Ingress.networking.k8s.io \"nextcloud-guest\" is invalid: [spec.rules[0].http.paths[0].path: Invalid value: \"^/s/[A-Za-z0-9_-]+(/.*)?$\": must be an absolute path, spec.rules[0].http.paths[1].path: Invalid value: \"^/public\\\\.php/dav/f\u2026"
    },
    "wave": 1
   },
@@ -588,6 +588,30 @@
   }
  ],
  "commits": [
+  {
+   "commit": "738a5a55e4af01eb752ea550f64c73127ccd0275",
+   "title": "Make Nextcloud's guest Ingress valid: prefixes, one anchored regex",
+   "author": "stephan271",
+   "date": "2026-11-18T17:43:40Z",
+   "pull": 136,
+   "cards": [
+    "repository",
+    "smallworlds-root"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "1299e0f54c5a47ac0352b4698ab54341dd9a9490",
+   "title": "Make Nextcloud's guest Ingress valid: prefixes, one anchored regex",
+   "author": "stephan271",
+   "date": "2026-11-18T17:37:32Z",
+   "pull": null,
+   "cards": [
+    "repository",
+    "smallworlds-root"
+   ],
+   "verdict": null
+  },
   {
    "commit": "e01a3772272f745be52b98f5b6ed206ba49e5a85",
    "title": "Put Nextcloud on the Member Network, Guest Paths alone in public (ADR 0066)",
@@ -942,36 +966,6 @@
     "description": "Ring 0: converged, load settled after 5 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
     "date": "2026-11-16T23:12:28Z"
    }
-  },
-  {
-   "commit": "7d7b7864d36158624f3334e3cf46234a1985bc32",
-   "title": "Update the jitsi-meet chart to 3.12.0, with the OIDC adapter's port renamed (#120)",
-   "author": "smallworlds-steward[bot]",
-   "date": "2026-11-16T22:18:44Z",
-   "pull": 120,
-   "cards": [
-    "jitsi"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-16T22:47:04Z"
-   }
-  },
-  {
-   "commit": "0f199137f96934b6f2c75c41d22af5c9a3e2a325",
-   "title": "Revert \"Update the jitsi-meet chart to 3.12.0\" (#119)",
-   "author": "stephan271",
-   "date": "2026-11-16T19:30:21Z",
-   "pull": 119,
-   "cards": [
-    "jitsi"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-16T19:56:24Z"
-   }
   }
  ],
  "pulls": [
@@ -999,20 +993,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 136,
-   "title": "Make Nextcloud's guest Ingress valid: prefixes, one anchored regex",
-   "author": "stephan271",
-   "created": "2026-11-18T17:37:36Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "repository",
-    "smallworlds-root"
    ]
   }
  ]
