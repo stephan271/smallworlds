@@ -1,29 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-18T16:05:25Z",
+ "updated": "2026-11-18T16:09:34Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "9e8fcaed37d10fefc8abce94e6ec44f26830547b",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-18T15:54:35Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 33 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+  "date": "2026-11-18T16:09:29Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "9e8fcaed37d10fefc8abce94e6ec44f26830547b",
-  "pull": {
-   "number": 133,
-   "title": "Restart a gateway that has lost Headscale (ADR 0066)",
-   "cards": [
-    "headscale",
-    "member-network",
-    "repository"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-18T16:04:29Z",
-  "started": "2026-11-18T15:54:34Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #130",
@@ -600,9 +592,9 @@
     "repository"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-18T15:54:35Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 33 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-18T16:09:29Z"
    }
   },
   {
