@@ -12,6 +12,14 @@
 # Ingress, not IngressRoute, so overlays patch its host by name like every
 # other one. It cannot match a query: Euro-Office's config endpoint is public
 # by path, and without `?shareToken=` Nextcloud answers it with an error.
+#
+# Prefix paths wherever a prefix says enough. Only the static files need a
+# regex (`router.pathmatcher` applies to ImplementationSpecific paths only),
+# and Kubernetes requires every path to start with `/`, while Traefik does not
+# anchor PathRegexp. Hence `/?^`: an empty `/?` is the only way to reach `^`,
+# which then holds at the start of the path only, so `/x/apps/a.js` (say,
+# inside /remote.php/dav) does not match.
+#
 # No cert-manager annotation: it serves the certificate `nextcloud` requests.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -33,36 +41,36 @@ spec:
       http:
         paths:
           # The share page, its download and password form.
-          - path: ^/s/[A-Za-z0-9_-]+(/.*)?$
-            pathType: ImplementationSpecific
+          - path: /s/
+            pathType: Prefix
             backend: &nextcloud
               service:
                 name: nextcloud
                 port:
                   number: 8080
           # The share's files: listing, download, upload to a file drop.
-          - path: ^/public\.php/dav/files/[A-Za-z0-9_-]+(/.*)?$
-            pathType: ImplementationSpecific
+          - path: /public.php/dav/files/
+            pathType: Prefix
             backend: *nextcloud
-          - path: ^/apps/files_sharing/publicpreview/[A-Za-z0-9_-]+$
-            pathType: ImplementationSpecific
+          - path: /apps/files_sharing/publicpreview/
+            pathType: Prefix
             backend: *nextcloud
           # Text's editing session for a shared note (the share token travels
           # in the body).
-          - path: ^/apps/text/public/session/.+$
-            pathType: ImplementationSpecific
+          - path: /apps/text/public/session/
+            pathType: Prefix
             backend: *nextcloud
-          - path: ^/apps/eurooffice/s/[A-Za-z0-9_-]+$
-            pathType: ImplementationSpecific
+          - path: /apps/eurooffice/s/
+            pathType: Prefix
             backend: *nextcloud
-          - path: ^/ocs/v2\.php/apps/eurooffice/api/v1/config/[0-9]+$
-            pathType: ImplementationSpecific
+          - path: /ocs/v2.php/apps/eurooffice/api/v1/config/
+            pathType: Prefix
             backend: *nextcloud
-          - path: ^/avatar/guest/.+$
-            pathType: ImplementationSpecific
+          - path: /avatar/guest/
+            pathType: Prefix
             backend: *nextcloud
           # Scripts, styles, images and fonts. Theming's per-theme CSS is a
           # route, not a file, but public and named like one.
-          - path: ^/(core|dist|apps|custom_apps)/.+\.(js|mjs|css|svg|png|webp|gif|jpe?g|ico|woff2?|ttf|otf)$
+          - path: /?^/(core|dist|apps|custom_apps)/.+\.(js|mjs|css|svg|png|webp|gif|jpe?g|ico|woff2?|ttf|otf)$
             pathType: ImplementationSpecific
             backend: *nextcloud

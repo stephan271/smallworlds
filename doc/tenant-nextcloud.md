@@ -70,9 +70,10 @@ With the Member Network on (ADR 0066), the overlay adds this Component to its
 `nextcloud/` kustomization and patches the host of `nextcloud-guest` like that of
 `nextcloud`. The Helm Ingress `nextcloud` then names the `members` entrypoint
 only: members' devices reach it through the Member Gateway, pods through
-`traefik-members`. The public entrypoint keeps `nextcloud-guest`, eight path
-regexes (`router.pathmatcher: PathRegexp`) covering what a signed-out guest's
-browser requests for a share link: the share page and its download, the share's
+`traefik-members`. The public entrypoint keeps `nextcloud-guest`: seven path
+prefixes and one regex for static files (`router.pathmatcher: PathRegexp`,
+anchored with `/?^` because Kubernetes wants a leading `/` and Traefik does not
+anchor), covering what a signed-out guest's browser requests for a share link: the share page and its download, the share's
 WebDAV path, previews, Text's public session, Euro-Office's share page and its
 config endpoint, the guest avatar and static files. Everything else, sign-in
 included, answers `404` in public. Members open shares with the same URLs,
