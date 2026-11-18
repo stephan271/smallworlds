@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-18T17:52:23Z",
+ "updated": "2026-11-18T17:54:31Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -11,22 +11,21 @@
  },
  "now": {
   "state": "updating",
-  "commit": "e01a3772272f745be52b98f5b6ed206ba49e5a85",
+  "commit": "738a5a55e4af01eb752ea550f64c73127ccd0275",
   "pull": {
-   "number": 135,
-   "title": "Put Nextcloud on the Member Network, Guest Paths alone in public (ADR 0066)",
+   "number": 136,
+   "title": "Make Nextcloud's guest Ingress valid: prefixes, one anchored regex",
    "cards": [
-    "canary-follower",
     "repository",
     "smallworlds-root"
    ]
   },
-  "step": "converge",
-  "step_since": "2026-11-18T17:08:18Z",
-  "started": "2026-11-18T17:06:48Z",
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
-  "action": "merged #130",
+  "action": "not reverted: main has moved on",
   "waiting": "no queued update is ready"
  },
  "applications": [
@@ -535,9 +534,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-18T17:53:38Z",
+    "message": null
    },
    "wave": 1
   },
@@ -624,9 +623,9 @@
     "smallworlds-root"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-18T17:06:49Z"
+    "state": "failure",
+    "description": "Not converged: nextcloud: Synced/Healthy",
+    "date": "2026-11-18T17:53:30Z"
    }
   },
   {
