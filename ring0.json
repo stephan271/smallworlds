@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-18T20:09:08Z",
+ "updated": "2026-11-18T20:13:19Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -311,7 +311,7 @@
   {
    "name": "smallworlds-root",
    "group": "machinery",
-   "health": "Progressing",
+   "health": "Degraded",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -429,7 +429,7 @@
   {
    "name": "immich",
    "group": "apps",
-   "health": "Progressing",
+   "health": "Degraded",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -448,9 +448,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for healthy state of apps/Deployment/immich-machine-learning and 1 more resources"
+    "phase": "Failed",
+    "finished": "2026-11-18T20:12:59Z",
+    "message": "one or more synchronization tasks completed unsuccessfully"
    },
    "wave": 1
   },
