@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-18T20:00:35Z",
+ "updated": "2026-11-18T20:02:44Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "a25b97258a29f816e47ee3cb686812990efea236",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-18T20:00:49Z"
  },
  "now": {
   "state": "updating",
@@ -19,9 +19,9 @@
     "immich"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-18T20:01:36Z",
+  "started": "2026-11-18T20:00:48Z",
   "queued": [],
   "stuck": null,
   "action": "merged #138",
@@ -320,7 +320,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-18T19:37:11Z",
+    "finished": "2026-11-18T20:02:27Z",
     "message": null
    },
    "wave": 0
@@ -595,7 +595,11 @@
    "cards": [
     "immich"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-18T20:00:49Z"
+   }
   },
   {
    "commit": "4d0d1934d567f0e0d242c0332ff171ce027741b3",
