@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-19T09:06:29Z",
+ "updated": "2026-11-19T09:08:35Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "b1d3e6e52c5eb7c5e1d418763d737aa2a6c70897",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-19T09:07:45Z"
  },
  "now": {
   "state": "updating",
@@ -19,9 +19,9 @@
     "forgejo"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-19T09:08:32Z",
+  "started": "2026-11-19T09:07:45Z",
   "queued": [],
   "stuck": null,
   "action": "merged #141",
@@ -333,7 +333,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "c10a0d29b47d0072d80be090b799602583d73965",
+   "revision": "b1d3e6e52c5eb7c5e1d418763d737aa2a6c70897",
    "images": [
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
@@ -372,7 +372,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "c10a0d29b47d0072d80be090b799602583d73965",
+   "revision": "b1d3e6e52c5eb7c5e1d418763d737aa2a6c70897",
    "images": [
     "mcr.microsoft.com/playwright:v1.65.1-noble@sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579",
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
@@ -596,7 +596,11 @@
    "cards": [
     "forgejo"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-19T09:07:45Z"
+   }
   },
   {
    "commit": "c10a0d29b47d0072d80be090b799602583d73965",
