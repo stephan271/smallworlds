@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-19T12:41:36Z",
+ "updated": "2026-11-19T13:41:36Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -992,6 +992,24 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 143,
+   "title": "Move the members-only applications and mail's private ports onto the Member Network",
+   "author": "stephan271",
+   "created": "2026-11-19T13:40:50Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "bulwark",
+    "canary-follower",
+    "member-network",
+    "repository",
+    "smallworlds-root",
+    "stalwart"
    ]
   }
  ]
