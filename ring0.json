@@ -1,27 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-19T15:20:04Z",
+ "updated": "2026-11-19T15:24:15Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "d04416eeeb513f3a1a1256b7e4ea5e729023431d",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-19T15:09:14Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+  "date": "2026-11-19T15:23:43Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "d04416eeeb513f3a1a1256b7e4ea5e729023431d",
-  "pull": {
-   "number": 145,
-   "title": "Run the members-only and mail checks on every Ring 0 commit",
-   "cards": [
-    "canary-follower"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-19T15:18:43Z",
-  "started": "2026-11-19T15:09:14Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #144",
@@ -596,9 +590,9 @@
     "canary-follower"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-19T15:09:14Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-19T15:23:43Z"
    }
   },
   {
