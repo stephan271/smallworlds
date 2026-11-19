@@ -69,6 +69,24 @@ Proven on Ring 0 on 2026-11-11, going from v5.10.0 back to v5.8.0
   Immich base (3.3.5), not the Gallery release. Read the Deployment's image tag
   instead.
 
+### On the Member Network (`components/member-network/gallery`)
+
+With the Member Network on (ADR 0066), an overlay that selects Gallery adds this
+Component to its `immich/` kustomization. The Helm Ingress `immich-server` then
+names the `members` entrypoint only, and the public entrypoint keeps the
+IngressRoute `immich-guest`: the share page, the app's code and root static
+files, three public `/api/server/*` endpoints, and the share's own API
+(`/api/shared-links/me`, `/api/assets/`, `/api/albums/`, `/api/timeline/`) only
+together with `?key=`. Everything else answers `404` in public, including
+`/api/auth/login?key=…`: a key overrides a member's credentials where it is
+read, but sign-in ignores it, so a key alone must never open a route.
+
+It is an IngressRoute because an Ingress cannot match a query, and its host is
+`HostRegexp(`^photos\.`)` because overlays cannot patch a host inside `match`;
+no host patch is needed. The list was recorded for Gallery 5.11 with the service
+worker blocked; plain Immich has not been recorded. e2e spec 12 opens a
+single-photo link through the public entrypoint on every Ring 0 commit.
+
 ### PostgreSQL 16 to 18
 
 The database moved from PostgreSQL 16 to 18 by raising the image catalog major
