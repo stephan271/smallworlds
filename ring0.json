@@ -1,19 +1,26 @@
 {
  "schema": 1,
- "updated": "2026-11-19T16:24:28Z",
+ "updated": "2026-11-19T16:32:50Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "d04416eeeb513f3a1a1256b7e4ea5e729023431d",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-19T15:23:43Z"
+  "commit": "ff20122f25edae4bc7f0d711b2623b54d7581f86",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
-  "state": "up-to-date",
-  "commit": "d04416eeeb513f3a1a1256b7e4ea5e729023431d",
-  "pull": null,
-  "step": null,
+  "state": "updating",
+  "commit": "ff20122f25edae4bc7f0d711b2623b54d7581f86",
+  "pull": {
+   "number": 146,
+   "title": "Remove a member's devices from the Member Network when their account is deleted",
+   "cards": [
+    "member-network",
+    "repository"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [],
@@ -581,6 +588,30 @@
  ],
  "commits": [
   {
+   "commit": "ff20122f25edae4bc7f0d711b2623b54d7581f86",
+   "title": "Remove a member's devices from the Member Network when their account is deleted",
+   "author": "stephan271",
+   "date": "2026-11-19T16:32:02Z",
+   "pull": 146,
+   "cards": [
+    "member-network",
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "3f3681c160b69c4d479242cbdea679d053058523",
+   "title": "Remove a member's devices from the Member Network when their account is deleted",
+   "author": "stephan271",
+   "date": "2026-11-19T16:30:36Z",
+   "pull": null,
+   "cards": [
+    "member-network",
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "d04416eeeb513f3a1a1256b7e4ea5e729023431d",
    "title": "Run the members-only and mail checks on every Ring 0 commit",
    "author": "stephan271",
@@ -922,38 +953,6 @@
     "state": "success",
     "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 15 hosts, e2e 33 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
     "date": "2026-11-18T13:02:08Z"
-   }
-  },
-  {
-   "commit": "df5a11523d638e9a68ff2372c1f7e0af52a033bf",
-   "title": "Add the Member Network's own parts, no application moved (ADR 0066)",
-   "author": "stephan271",
-   "date": "2026-11-18T12:30:19Z",
-   "pull": null,
-   "cards": [
-    "canary-follower",
-    "headscale",
-    "keycloak",
-    "member-network",
-    "repository",
-    "traefik"
-   ],
-   "verdict": null
-  },
-  {
-   "commit": "1945d8e876efe50172d7d0cf4a72e25c0f543d69",
-   "title": "Run Nextcloud's background jobs from cron",
-   "author": "stephan271",
-   "date": "2026-11-18T10:55:41Z",
-   "pull": 131,
-   "cards": [
-    "nextcloud",
-    "repository"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: backup 1 databases, converged, load settled after 4 min, smoke 15 hosts, e2e 29 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
-    "date": "2026-11-18T11:20:20Z"
    }
   }
  ],
