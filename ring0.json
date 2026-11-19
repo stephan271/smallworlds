@@ -1,31 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-19T09:44:39Z",
+ "updated": "2026-11-19T09:48:52Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "b1d3e6e52c5eb7c5e1d418763d737aa2a6c70897",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-19T09:07:45Z"
+  "state": "success",
+  "description": "Ring 0: backup 1 databases, converged, load still 2.0/CPU after 15 min, smoke 16 hosts, e2e 38 passed, 13 skipped; data 4/4 apps intact, st\u2026",
+  "date": "2026-11-19T09:47:42Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "b1d3e6e52c5eb7c5e1d418763d737aa2a6c70897",
-  "pull": {
-   "number": 141,
-   "title": "Update Docker image forgejo to v17.3.3 (#141)",
-   "cards": [
-    "forgejo"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-19T09:42:42Z",
-  "started": "2026-11-19T09:07:45Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #141",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -596,9 +590,9 @@
     "forgejo"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-19T09:07:45Z"
+    "state": "success",
+    "description": "Ring 0: backup 1 databases, converged, load still 2.0/CPU after 15 min, smoke 16 hosts, e2e 38 passed, 13 skipped; data 4/4 apps intact, st\u2026",
+    "date": "2026-11-19T09:47:42Z"
    }
   },
   {
