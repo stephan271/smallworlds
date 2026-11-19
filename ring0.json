@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-19T07:10:40Z",
+ "updated": "2026-11-19T07:46:06Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -10,13 +10,22 @@
   "date": "2026-11-18T21:04:30Z"
  },
  "now": {
-  "state": "up-to-date",
+  "state": "updating",
   "commit": "a25b97258a29f816e47ee3cb686812990efea236",
   "pull": null,
-  "step": null,
+  "step": "merge",
   "step_since": null,
   "started": null,
-  "queued": [],
+  "queued": [
+   {
+    "number": 140,
+    "title": "Update Docker image quay.io/keycloak/keycloak to 7e66a96",
+    "cards": [
+     "keycloak"
+    ],
+    "since": "2026-11-19T07:45:40Z"
+   }
+  ],
   "stuck": null,
   "action": "merged #138",
   "waiting": "no queued update is ready"
@@ -985,6 +994,36 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 139,
+   "title": "Put Gallery on the Member Network, Guest Paths alone in public (ADR 0066)",
+   "author": "stephan271",
+   "created": "2026-11-19T07:44:41Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "canary-follower",
+    "repository",
+    "smallworlds-root"
+   ]
+  },
+  {
+   "number": 140,
+   "title": "Update Docker image quay.io/keycloak/keycloak to 7e66a96",
+   "author": "renovate[bot]",
+   "created": "2026-11-19T07:45:40Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "keycloak"
    ]
   }
  ]
