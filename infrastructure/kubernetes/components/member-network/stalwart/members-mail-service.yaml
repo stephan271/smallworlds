@@ -1,0 +1,17 @@
+# Submission and IMAP inside the cluster only. The Member Gateway forwards
+# its tailnet :465 and :993 here (tenants/member-network/member-gateway.yaml).
+apiVersion: v1
+kind: Service
+metadata:
+  name: stalwart-mail-members
+  namespace: stalwart
+spec:
+  selector:
+    app: stalwart-mail
+  ports:
+    - name: submissions
+      port: 465
+      targetPort: 465
+    - name: imaps
+      port: 993
+      targetPort: 993

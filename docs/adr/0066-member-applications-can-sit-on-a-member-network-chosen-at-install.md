@@ -69,11 +69,13 @@ its hostname would get the guest's view:
   `seed.py check` from inside the cluster, so it would reject every commit.
 
 So the override answers the member application hostnames (`files`, `photos`,
-`git`, `whiteboard`, `dashboard`, `pod`) with `traefik-members`, a cluster-only
-Service in front of the `members` entrypoint at the fixed address `10.43.0.44`.
-In-cluster callers then see the full applications, the way members do. Identity,
-`join`, `office`, `meet`, mail and the operator pages still resolve to the node
-address. `webmail` and `mail` follow once their routers attach to `members`.
+`git`, `whiteboard`, `dashboard`, `pod`, `webmail`, `mail`) with
+`traefik-members`, a cluster-only Service in front of the `members` entrypoint
+at the fixed address `10.43.0.44`. In-cluster callers then see the full
+applications, the way members do. Identity, `join`, `office`, `meet` and the
+operator pages still resolve to the node address. Nothing in the cluster sends
+mail through `mail.<domain>`: Keycloak and the other senders use Stalwart's
+Service on port 25.
 
 It does so in both modes. With the Member Network off, `members` serves the same
 full applications as `websecure`, so nothing changes for the callers. The
@@ -139,9 +141,9 @@ Euro-Office 9.3.4):
   as a guest.
 - **Mail.** Only port 25 stays public. Submission, IMAP and the webmail move to
   the Member Network.
-- **Excalidraw, Forgejo, pod-gateway.** These are members-only unless decided
-  otherwise. Excalidraw's collaboration links would need the room websocket
-  public. Members' home devices for pod-gateway (ADR 0047) join the Member
+- **Excalidraw, Forgejo, the dashboard, pod-gateway.** These are members-only.
+  Excalidraw's collaboration links would need a room server, and none is
+  deployed. Members' home devices for pod-gateway (ADR 0047) join the Member
   Network like any other device.
 
 Guest Paths are versioned knowledge about each application. An update can add
@@ -281,6 +283,17 @@ With it deployed under a test host, `/api/auth/login?key=…` and the share API
 without a key answered `404`. The update to 5.11 showed why the guest suite is
 needed: its share page added `/api/public/config`, and the first run of spec 12
 for Gallery failed on it while members saw nothing wrong.
+
+The members-only applications (Forgejo, Excalidraw, the dashboard,
+pod-gateway, Bulwark) have no Guest Paths, so one Component moves every Ingress
+of such a tenant to `members` (`components/member-network/members-only`).
+Stalwart's Component does the same for `mail.<domain>` and takes 465 and 993
+off its LoadBalancer Service, which is what publishes ports on the node. They
+are then closed whatever the firewall allows, and the Member Gateway forwards
+its own `:465` and `:993` to a cluster-only Service. The firewall allow-lists
+follow with the installer's choice (issue 08). Spec 12 checks on every commit
+that Traefik itself answers `404` in public for each of them, that members get
+the application, and that only port 25 is published.
 
 Not yet proven:
 

@@ -5,8 +5,8 @@
 #
 # Members add a device by signing in to the `smallworlds` realm with the passkey
 # they already have; there is no key to hand out. The access policy lets a
-# member's device reach the Member Gateway's :443 and nothing else, not even
-# another member's device.
+# member's device reach the Member Gateway's :443, and its :465 and :993 for
+# mail, and nothing else, not even another member's device.
 #
 # Its DNS answers each member application's hostname with the Member Gateway's
 # address (`extra_records`). Every other name stays with the device's own
@@ -77,7 +77,8 @@ data:
     noise:
       private_key_path: /var/lib/headscale/noise_private.key
 
-  # A member's device reaches the Member Gateway's :443 and nothing else.
+  # A member's device reaches the Member Gateway's :443 (the `members`
+  # entrypoint) and :465 and :993 (mail), and nothing else.
   # Tagged devices (the gateway) are not `autogroup:member`, and without a rule
   # naming them as a destination, members' devices do not even see each other.
   # The tag has no owners: only a key the enroll Job mints can carry it.
@@ -90,7 +91,7 @@ data:
         {
           "action": "accept",
           "src": ["autogroup:member"],
-          "dst": ["tag:member-gateway:443"]
+          "dst": ["tag:member-gateway:443,465,993"]
         }
       ]
     }
@@ -124,6 +125,11 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: headscale
+      annotations:
+        # config.yaml and policy.hujson are mounted by subPath, which a running
+        # pod never sees change. Raise this with every change to either, so
+        # that Headscale restarts and reads them. 2: mail ports in the policy.
+        smallworlds.network/config-revision: "2"
       # member-gateway-enroll-job.yaml sets the annotation
       # `smallworlds.network/member-gateway-ip` here once the gateway has an
       # address, and changes it only when that address does. Each change
