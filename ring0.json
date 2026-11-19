@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-19T08:38:55Z",
+ "updated": "2026-11-19T08:41:04Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -447,21 +447,18 @@
    "version": null,
    "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
    "images": [
-    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
-    "docker.io/postgres:18-alpine@sha256:b6972e1115a4ff8eba5d7f7d19184926d1e16d7d1136ae1e1a7ebf286da0f015",
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
     "ghcr.io/open-noodle/gallery-ml:v5.11.0@sha256:0688149a40fb202a71e70e31dda2a4948191d65e4f7a06a42ac0dc9ce421b925",
     "ghcr.io/open-noodle/gallery-server:v5.11.0@sha256:82d1710fa48fa57c16f923d074c90350d91d86ac6cf98458908d7a4b2b5c6761",
     "ghcr.io/tensorchord/cloudnative-vectorchord:18.6-1.1.1@sha256:c7672bc011351a587cc292a94aac7eeebb593ed2e120077bd9c9944c9467db93",
-    "python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd",
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/pod-export-grants"
+    "phase": "Succeeded",
+    "finished": "2026-11-19T08:39:02Z",
+    "message": null
    },
    "wave": 1
   },
@@ -548,9 +545,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/nextcloud-oidc-config"
+    "phase": "Succeeded",
+    "finished": "2026-11-19T08:39:31Z",
+    "message": null
    },
    "wave": 1
   },
