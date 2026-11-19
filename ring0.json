@@ -1,19 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-19T14:56:56Z",
+ "updated": "2026-11-19T15:05:19Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "4c6507c2ccf319f7929946970dba3dc646686470",
-  "state": "success",
-  "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 16 hosts, e2e 42 passed, 16 skipped; data 4/4 apps intact, storage: \u2026",
-  "date": "2026-11-19T14:23:37Z"
+  "commit": "d04416eeeb513f3a1a1256b7e4ea5e729023431d",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
-  "state": "up-to-date",
-  "commit": "4c6507c2ccf319f7929946970dba3dc646686470",
-  "pull": null,
-  "step": null,
+  "state": "updating",
+  "commit": "d04416eeeb513f3a1a1256b7e4ea5e729023431d",
+  "pull": {
+   "number": 145,
+   "title": "Run the members-only and mail checks on every Ring 0 commit",
+   "cards": [
+    "canary-follower"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [],
@@ -581,6 +587,28 @@
  ],
  "commits": [
   {
+   "commit": "d04416eeeb513f3a1a1256b7e4ea5e729023431d",
+   "title": "Run the members-only and mail checks on every Ring 0 commit",
+   "author": "stephan271",
+   "date": "2026-11-19T15:04:51Z",
+   "pull": 145,
+   "cards": [
+    "canary-follower"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "3e9c98c908f9996252a2d1fedf692afaba2406c1",
+   "title": "Run the members-only and mail checks on every Ring 0 commit",
+   "author": "stephan271",
+   "date": "2026-11-19T15:03:35Z",
+   "pull": null,
+   "cards": [
+    "canary-follower"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "4c6507c2ccf319f7929946970dba3dc646686470",
    "title": "Update Docker image stalwartlabs/stalwart to v1.1.1 (#144)",
    "author": "renovate[bot]",
@@ -928,33 +956,6 @@
     "state": "success",
     "description": "Ring 0: backup 1 databases, converged, load settled after 4 min, smoke 15 hosts, e2e 29 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
     "date": "2026-11-18T11:20:20Z"
-   }
-  },
-  {
-   "commit": "a055a5745808fa0ad0ba968901f8acbf5206721d",
-   "title": "Run Nextcloud's background jobs from cron",
-   "author": "stephan271",
-   "date": "2026-11-18T10:51:23Z",
-   "pull": null,
-   "cards": [
-    "nextcloud",
-    "repository"
-   ],
-   "verdict": null
-  },
-  {
-   "commit": "01590ae0efad802be38cb18fcd73ad905216c710",
-   "title": "Update the immich pod-export psql client image to postgres 18 (#130)",
-   "author": "smallworlds-steward[bot]",
-   "date": "2026-11-18T06:06:44Z",
-   "pull": 130,
-   "cards": [
-    "immich"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: backup 1 databases, converged, load settled after 3 min, smoke 15 hosts, e2e 29 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
-    "date": "2026-11-18T06:36:57Z"
    }
   }
  ],
