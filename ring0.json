@@ -1,32 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-19T13:56:18Z",
+ "updated": "2026-11-19T14:00:29Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "92e6694ca385511077215ee3df7762b37e8dca70",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-19T13:45:31Z"
+  "state": "success",
+  "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 16 hosts, e2e 42 passed, 16 skipped; data 4/4 apps intact, storage: \u2026",
+  "date": "2026-11-19T13:59:37Z"
  },
  "now": {
   "state": "updating",
   "commit": "92e6694ca385511077215ee3df7762b37e8dca70",
-  "pull": {
-   "number": 143,
-   "title": "Move the members-only applications and mail's private ports onto the Member Network",
-   "cards": [
-    "bulwark",
-    "canary-follower",
-    "member-network",
-    "repository",
-    "smallworlds-root",
-    "stalwart"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-19T13:54:37Z",
-  "started": "2026-11-19T13:45:31Z",
+  "pull": null,
+  "step": "merge",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 144,
@@ -615,9 +604,9 @@
     "stalwart"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-19T13:45:31Z"
+    "state": "success",
+    "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 16 hosts, e2e 42 passed, 16 skipped; data 4/4 apps intact, storage: \u2026",
+    "date": "2026-11-19T13:59:37Z"
    }
   },
   {
