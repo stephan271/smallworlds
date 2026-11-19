@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-19T09:42:32Z",
+ "updated": "2026-11-19T09:44:39Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -19,8 +19,8 @@
     "forgejo"
    ]
   },
-  "step": "storage",
-  "step_since": "2026-11-19T09:41:10Z",
+  "step": "quiet",
+  "step_since": "2026-11-19T09:42:42Z",
   "started": "2026-11-19T09:07:45Z",
   "queued": [],
   "stuck": null,
