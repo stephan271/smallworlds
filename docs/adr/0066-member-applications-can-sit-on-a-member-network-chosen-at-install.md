@@ -270,14 +270,17 @@ Ingress with path regexes (`components/member-network/nextcloud`), so the
 `?shareToken=` condition on Euro-Office's config endpoint is left to Nextcloud,
 which answers it without a token with an error and no data.
 
-Gallery's Guest Paths, recorded on Ring 0 (2026-11-18, Gallery 5.11) for an album
-link and a single-photo link with the service worker blocked: the share page,
-the app's code and root static files, `/api/server/{config,features,media-types}`
+Gallery's Guest Paths, recorded on Ring 0 for an album link and a single-photo
+link with the service worker blocked (Gallery 5.10, 2026-11-18; again on 5.11,
+2026-11-19): the share page, the app's code and root static files,
+`/api/server/{config,features,media-types}` and, from 5.11, `/api/public/config`
 without a key, and `/api/shared-links/me`, `/api/assets/…`, `/api/albums/…/map-markers`
 and `/api/timeline/…` with `?key=`. They need a query matcher, so they are a
 Traefik IngressRoute (`components/member-network/gallery`) whose host is a regex.
 With it deployed under a test host, `/api/auth/login?key=…` and the share API
-without a key answered `404`.
+without a key answered `404`. The update to 5.11 showed why the guest suite is
+needed: its share page added `/api/public/config`, and the first run of spec 12
+for Gallery failed on it while members saw nothing wrong.
 
 Not yet proven:
 

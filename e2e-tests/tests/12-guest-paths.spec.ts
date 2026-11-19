@@ -234,6 +234,15 @@ test.describe('Gallery Guest Paths', () => {
     expect(upload.status(), 'upload the photo').toBeLessThan(300);
     assetId = (await upload.json()).id;
 
+    // Gallery makes the thumbnail after the upload, a few seconds later and
+    // longer under load. The share page shows no image until it exists and
+    // does not look again, so wait for it before a guest opens the link.
+    await expect
+      .poll(async () => (await member.request.get(api(`/assets/${assetId}/thumbnail?size=thumbnail`))).status(), {
+        timeout: 120_000,
+      })
+      .toBe(200);
+
     const made = await member.request.post(api('/shared-links'), {
       data: { type: 'INDIVIDUAL', assetIds: [assetId], allowDownload: true, description: 'e2e spec 12' },
     });

@@ -66,7 +66,7 @@ spec:
                 # signed-out guest through the public entrypoint, and nothing
                 # else may answer there.
                 - name: MEMBER_NETWORK_APPS
-                  value: nextcloud
+                  value: nextcloud gallery
                 # The admin REST API answers only on the tailnet at the
                 # Ingress; in the cluster the Service is reachable directly.
                 - name: KC_ADMIN_URL

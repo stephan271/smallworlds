@@ -1,8 +1,9 @@
 # Gallery's Guest Paths: what a signed-out guest's browser needs to open a
-# share link, on the public entrypoint only. Recorded on Ring 0 (2026-11-18,
-# Gallery 5.11) for an album link (album view, one photo, a download) and a
-# single-photo link, with the service worker blocked so that nothing was
-# hidden behind it. Everything else answers 404 in public: sign-in, the
+# share link, on the public entrypoint only. Recorded on Ring 0 for an album
+# link (album view, one photo, a download) and a single-photo link, with the
+# service worker blocked so that nothing was hidden behind it: on Gallery 5.10
+# (2026-11-18), and again on 5.11 (2026-11-19), whose share page also reads
+# /api/public/config. Everything else answers 404 in public: sign-in, the
 # timeline, the members' API.
 #
 # A share key overrides a member's credentials on the endpoints that read it,
@@ -23,14 +24,14 @@ spec:
   entryPoints:
     - websecure
   routes:
-    # The share page, the app's code and the three server endpoints it reads
-    # before it knows the key, all public in Gallery itself.
+    # The share page, the app's code and the server endpoints it reads before
+    # it knows the key, all public in Gallery itself.
     - kind: Rule
       match: >-
         HostRegexp(`^photos\.`) && (
         PathPrefix(`/share/`) || PathPrefix(`/_app/`) ||
         Path(`/api/server/config`) || Path(`/api/server/features`) ||
-        Path(`/api/server/media-types`) ||
+        Path(`/api/server/media-types`) || Path(`/api/public/config`) ||
         PathRegexp(`^/[^/]+\.(css|js|svg|png|ico|webmanifest)$`))
       middlewares: &edge
         - name: edge-ratelimit
