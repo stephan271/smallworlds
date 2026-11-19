@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-19T11:31:13Z",
+ "updated": "2026-11-19T12:27:01Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -21,9 +21,9 @@
     "smallworlds-root"
    ]
   },
-  "step": "retry",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-19T12:26:14Z",
+  "started": "2026-11-19T12:26:13Z",
   "queued": [],
   "stuck": null,
   "action": "merged #141",
@@ -322,7 +322,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T11:25:19Z",
+    "finished": "2026-11-19T12:26:44Z",
     "message": null
    },
    "wave": 0
