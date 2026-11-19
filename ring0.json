@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-19T13:41:36Z",
+ "updated": "2026-11-19T13:43:42Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -24,7 +24,16 @@
   "step": "retry",
   "step_since": null,
   "started": null,
-  "queued": [],
+  "queued": [
+   {
+    "number": 144,
+    "title": "Update Docker image stalwartlabs/stalwart to v1.1.1",
+    "cards": [
+     "stalwart"
+    ],
+    "since": "2026-11-19T13:41:46Z"
+   }
+  ],
   "stuck": null,
   "action": "merged #141",
   "waiting": "no queued update is ready"
@@ -1009,6 +1018,21 @@
     "member-network",
     "repository",
     "smallworlds-root",
+    "stalwart"
+   ]
+  },
+  {
+   "number": 144,
+   "title": "Update Docker image stalwartlabs/stalwart to v1.1.1",
+   "author": "renovate[bot]",
+   "created": "2026-11-19T13:41:46Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
     "stalwart"
    ]
   }
