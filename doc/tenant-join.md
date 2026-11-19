@@ -95,6 +95,12 @@ needs the `/etc/hosts` line for operator pages, which lists `join.<domain>`.
    destroyed. That also ends all their sessions.
 3. Send the recovery invitation like any other.
 
+**A member leaves.** The Desk has no step for this: delete the account in
+Keycloak's admin console (`smallworlds` realm, Users). With the Member Network
+on, their devices leave it within five minutes (`member-reconciler`, ADR 0066).
+Disabling the account instead keeps their devices on the network; the
+applications still ask them to sign in, which then fails.
+
 **From a shell** — for scripting, or when the Desk is unreachable:
 
 ```bash

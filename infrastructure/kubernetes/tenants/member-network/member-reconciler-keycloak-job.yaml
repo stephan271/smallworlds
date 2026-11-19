@@ -1,0 +1,84 @@
+# The Keycloak client member-reconciler.yaml reads members with:
+# `member-network-reconciler` in the smallworlds realm, a service account and
+# nothing else (no sign-in flows), holding view-users alone.
+#
+# It is its own client, not the `member-network` one Headscale signs members in
+# with, because the Admin REST API needs the client scope kc-admin-api
+# (Keycloak 26.8.2 on). On Headscale's client that scope would put the admin
+# API's audience into every member's token.
+#
+# Each sync gives the client a new secret and writes it into the Secret
+# `member-reconciler-keycloak`, so the Secret and Keycloak cannot drift apart.
+# Every step is safe to repeat.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: member-reconciler-keycloak
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 10
+  template:
+    spec:
+      serviceAccountName: setup-sa
+      restartPolicy: OnFailure
+      containers:
+        - name: setup
+          image: docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+
+              POD=keycloak-keycloakx-0
+              CFG=/tmp/kcadm-member-reconciler.config
+              CLIENT=member-network-reconciler
+              kc() { kubectl exec -n keycloak $POD -- /opt/keycloak/bin/kcadm.sh "$@" --config $CFG; }
+
+              echo "Waiting for Keycloak to be ready..."
+              until kubectl get pods -n keycloak $POD -o jsonpath='{.status.containerStatuses[0].ready}' 2>/dev/null | grep -q true; do
+                sleep 5
+              done
+
+              PASSWORD=$(kubectl get secret keycloak-admin-creds -n keycloak -o jsonpath='{.data.admin-password}' | base64 -d)
+              kubectl exec -n keycloak $POD -- /opt/keycloak/bin/kcadm.sh config credentials \
+                --server http://localhost:8080 --realm master --user admin --password "$PASSWORD" --config $CFG
+
+              uuid() { kc get clients -r smallworlds -q clientId=$CLIENT --fields id --format csv --noquotes | head -1; }
+              ID=$(uuid)
+              if [[ -z "$ID" ]]; then
+                echo "Creating client $CLIENT..."
+                kc create clients -r smallworlds -s clientId=$CLIENT -s enabled=true \
+                  -s publicClient=false -s serviceAccountsEnabled=true \
+                  -s standardFlowEnabled=false -s implicitFlowEnabled=false \
+                  -s directAccessGrantsEnabled=false
+                ID=$(uuid)
+              fi
+
+              # Adding a role that is already mapped is a no-op.
+              kc add-roles -r smallworlds --uusername service-account-$CLIENT \
+                --cclientid realm-management --rolename view-users
+
+              # As for join (join-keycloak-setup-job.yaml): from Keycloak 26.8.2
+              # the Admin REST API answers only tokens with this scope.
+              SCOPE=$(kc get client-scopes -r smallworlds --fields id,name --format csv --noquotes \
+                | sed -n 's/^\([^,]*\),kc-admin-api$/\1/p')
+              if [[ -n "$SCOPE" ]]; then
+                kc update clients/$ID/default-client-scopes/$SCOPE -r smallworlds
+              fi
+
+              kc create clients/$ID/client-secret -r smallworlds >/dev/null
+              SECRET=$(kc get clients/$ID/client-secret -r smallworlds --fields value --format csv --noquotes)
+              [[ -n "$SECRET" ]] || { echo "Keycloak gave no secret for $CLIENT." >&2; exit 1; }
+              kubectl create secret generic member-reconciler-keycloak -n "$NAMESPACE" \
+                --from-literal=clientId=$CLIENT --from-literal=client-secret="$SECRET" \
+                --dry-run=client -o yaml | kubectl apply -f -
+              echo "Client $CLIENT ready; secret written to member-reconciler-keycloak."

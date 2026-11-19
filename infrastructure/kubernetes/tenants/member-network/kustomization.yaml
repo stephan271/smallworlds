@@ -13,6 +13,15 @@ resources:
   - headscale.yaml
   - member-gateway.yaml
   - member-gateway-enroll-job.yaml
+  - member-reconciler.yaml
+  - member-reconciler-keycloak-job.yaml
+
+# The reconciler's script runs from a ConfigMap; the hash suffix rolls the
+# CronJob onto each new version.
+configMapGenerator:
+  - name: member-reconciler-script
+    files:
+      - reconcile-members.sh
 
 patches:
   - target:
