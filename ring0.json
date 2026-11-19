@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-19T14:08:52Z",
+ "updated": "2026-11-19T14:10:58Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "4c6507c2ccf319f7929946970dba3dc646686470",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-19T14:09:52Z"
  },
  "now": {
   "state": "updating",
@@ -19,9 +19,9 @@
     "stalwart"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-19T14:10:07Z",
+  "started": "2026-11-19T14:09:51Z",
   "queued": [],
   "stuck": null,
   "action": "merged #144",
@@ -311,7 +311,7 @@
   {
    "name": "smallworlds-root",
    "group": "machinery",
-   "health": "Healthy",
+   "health": "Progressing",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -320,7 +320,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:46:19Z",
+    "finished": "2026-11-19T14:10:38Z",
     "message": null
    },
    "wave": 0
@@ -372,7 +372,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "92e6694ca385511077215ee3df7762b37e8dca70",
+   "revision": "4c6507c2ccf319f7929946970dba3dc646686470",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
@@ -561,7 +561,7 @@
   {
    "name": "stalwart",
    "group": "apps",
-   "health": "Healthy",
+   "health": "Progressing",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -575,11 +575,11 @@
     "ghcr.io/cloudnative-pg/postgresql:18@sha256:899d3ed526b659d77935dde0e6bf2d69dbbf17d3d8c6486ca8cfd04bd3c18533",
     "python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd",
     "stalwartlabs/stalwart-migrate:1.0.8@sha256:fa4ed9864bd9c1ee2da858c3db556d713d2c964b92a743f952f7a71da54d80e7",
-    "stalwartlabs/stalwart:v1.1.0@sha256:0aacd114054f56c34e98063140e2102a04dc0bcb4933ff08925cf8e9938b0d16"
+    "stalwartlabs/stalwart:v1.1.1@sha256:544760db45608ef39d969eca7cfc040af771a0825cdf5c673935825abe3fad0f"
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:48:24Z",
+    "finished": "2026-11-19T14:10:52Z",
     "message": null
    },
    "wave": 1
@@ -595,7 +595,11 @@
    "cards": [
     "stalwart"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-19T14:09:52Z"
+   }
   },
   {
    "commit": "92e6694ca385511077215ee3df7762b37e8dca70",
