@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-19T08:30:24Z",
+ "updated": "2026-11-19T08:32:32Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "c10a0d29b47d0072d80be090b799602583d73965",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-19T08:30:44Z"
  },
  "now": {
   "state": "updating",
@@ -19,9 +19,9 @@
     "keycloak"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-19T08:31:31Z",
+  "started": "2026-11-19T08:30:44Z",
   "queued": [
    {
     "number": 141,
@@ -328,9 +328,9 @@
    "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
    "images": [],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-19T07:49:46Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of /Namespace/bulwark and 25 more resources"
    },
    "wave": 0
   },
@@ -605,7 +605,11 @@
    "cards": [
     "keycloak"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-19T08:30:44Z"
+   }
   },
   {
    "commit": "1b007723b361c099e665261d973aad2e42325e2c",
