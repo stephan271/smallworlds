@@ -109,9 +109,14 @@ Traefik Application and both bootstrap paths.
 - **Leaving removes the devices.** Today's Headscale never expires a node
   (`node.expiry: 0`), which is acceptable for the Operator's own devices and not
   for members. Removing a member in Keycloak must also remove their devices.
-  Whether that is a node expiry, a reconciling job or a step in the Invitation
-  Desk is left to the implementation, but the member Headscale must not ship
-  without one.
+  A reconciling job does it (`member-reconciler`, every five minutes): it asks
+  Keycloak about each member the member Headscale knows and removes the devices
+  of every account that has been deleted. Members are removed in Keycloak's
+  admin console, so a step in the Invitation Desk would miss most removals, and
+  an expiry would leave a removed member on the network until it ran out while
+  making everyone sign in again periodically. Only deletion counts as leaving:
+  a disabled account keeps its devices. Only Keycloak's own "User not found"
+  removes anything, so an outage or a wrong setting cannot.
 - **Same hostnames, two answers.** Public DNS keeps sending `nextcloud.<domain>`
   to the public address, where only the Guest Paths answer. The member
   Headscale's DNS sends the same name to the Member Gateway, where the full
@@ -294,6 +299,14 @@ its own `:465` and `:993` to a cluster-only Service. The firewall allow-lists
 follow with the installer's choice (issue 08). Spec 12 checks on every commit
 that Traefik itself answers `404` in public for each of them, that members get
 the application, and that only port 25 is published.
+
+Devices leave with the member (`tenants/member-network/member-reconciler.yaml`).
+Against Keycloak 26.8.2 (2026-11-19, in a container): a deleted account's id is
+answered `404 {"error":"User not found"}`, a missing realm `404 Realm not
+found.`, and only the first removes devices; the reconciler's service account
+reads a user and is refused (`403`) everything else. Its script is tested with
+Keycloak and Headscale stubbed (`tests/test-reconcile-members.sh`), including
+that errors, foreign 404s and users of other realms remove nothing.
 
 Not yet proven:
 

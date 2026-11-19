@@ -43,9 +43,10 @@ data:
         write_ahead_log: true
 
     node:
-      # No expiry yet. The Member Network must not be offered to an Operator
-      # before removing a member also removes their devices (ADR 0066, "Leaving
-      # removes the devices").
+      # Devices do not expire. A member who leaves is deleted in Keycloak, and
+      # member-reconciler.yaml then removes their devices within five minutes
+      # (ADR 0066, "Leaving removes the devices"). An expiry would only make
+      # every member sign in again on every device from time to time.
       expiry: 0
 
     policy:

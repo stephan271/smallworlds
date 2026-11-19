@@ -1,0 +1,108 @@
+# Devices go when the member goes (docs/adr/0066, "Leaving removes the
+# devices"). Every five minutes reconcile-members.sh asks Keycloak about each
+# member the member Headscale knows, and removes the devices of those whose
+# account has been deleted. Members are removed in Keycloak's admin console, so
+# this covers every way of removing one.
+#
+# Keycloak is read with the service account `member-network-reconciler`
+# (view-users only), which member-reconciler-keycloak-job.yaml creates and whose
+# secret it writes into `member-reconciler-keycloak`.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: member-reconciler
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: member-reconciler
+rules:
+  # `kubectl exec deploy/headscale -- headscale ...`
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["headscale"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: member-reconciler
+subjects:
+  - kind: ServiceAccount
+    name: member-reconciler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: member-reconciler
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: member-reconciler
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 240
+      template:
+        spec:
+          serviceAccountName: member-reconciler
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: reconcile
+              image: docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0
+              command: ["bash", "/scripts/reconcile-members.sh"]
+              env:
+                - name: KEYCLOAK_URL
+                  value: http://keycloak-keycloakx-http.keycloak
+                - name: KEYCLOAK_REALM
+                  value: smallworlds
+                - name: CLIENT_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: member-reconciler-keycloak
+                      key: clientId
+                - name: CLIENT_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: member-reconciler-keycloak
+                      key: client-secret
+                - name: HOME
+                  value: /tmp
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  memory: 128Mi
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: scripts
+              configMap:
+                name: member-reconciler-script
+            - name: tmp
+              emptyDir: {}
