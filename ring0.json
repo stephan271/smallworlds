@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-19T14:10:58Z",
+ "updated": "2026-11-19T14:13:05Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -19,8 +19,8 @@
     "stalwart"
    ]
   },
-  "step": "sync",
-  "step_since": "2026-11-19T14:10:07Z",
+  "step": "settle",
+  "step_since": "2026-11-19T14:13:05Z",
   "started": "2026-11-19T14:09:51Z",
   "queued": [],
   "stuck": null,
@@ -44,7 +44,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:47:19Z",
+    "finished": "2026-11-19T14:11:35Z",
     "message": null
    },
    "wave": -10
@@ -63,7 +63,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:46:50Z",
+    "finished": "2026-11-19T14:11:09Z",
     "message": null
    },
    "wave": -10
@@ -82,7 +82,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:47:04Z",
+    "finished": "2026-11-19T14:11:21Z",
     "message": null
    },
    "wave": -10
@@ -101,7 +101,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:46:50Z",
+    "finished": "2026-11-19T14:11:08Z",
     "message": null
    },
    "wave": -9
@@ -120,7 +120,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:46:50Z",
+    "finished": "2026-11-19T14:11:09Z",
     "message": null
    },
    "wave": -9
@@ -139,7 +139,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:46:52Z",
+    "finished": "2026-11-19T14:11:11Z",
     "message": null
    },
    "wave": -5
@@ -158,7 +158,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:46:53Z",
+    "finished": "2026-11-19T14:11:13Z",
     "message": null
    },
    "wave": -5
@@ -177,7 +177,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:46:43Z",
+    "finished": "2026-11-19T14:11:03Z",
     "message": null
    },
    "wave": 0
@@ -196,7 +196,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:46:50Z",
+    "finished": "2026-11-19T14:11:09Z",
     "message": null
    },
    "wave": 0
@@ -215,7 +215,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:47:15Z",
+    "finished": "2026-11-19T14:11:30Z",
     "message": null
    },
    "wave": 0
@@ -235,7 +235,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:47:13Z",
+    "finished": "2026-11-19T14:11:30Z",
     "message": null
    },
    "wave": 0
@@ -257,7 +257,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:48:47Z",
+    "finished": "2026-11-19T14:12:55Z",
     "message": null
    },
    "wave": 0
@@ -283,7 +283,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:48:12Z",
+    "finished": "2026-11-19T14:12:24Z",
     "message": null
    },
    "wave": 0
@@ -303,7 +303,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:47:03Z",
+    "finished": "2026-11-19T14:11:19Z",
     "message": null
    },
    "wave": 0
@@ -311,7 +311,7 @@
   {
    "name": "smallworlds-root",
    "group": "machinery",
-   "health": "Progressing",
+   "health": "Healthy",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -340,7 +340,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:47:49Z",
+    "finished": "2026-11-19T14:12:04Z",
     "message": null
    },
    "wave": 0
@@ -359,7 +359,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:47:46Z",
+    "finished": "2026-11-19T14:11:56Z",
     "message": null
    },
    "wave": 1
@@ -378,7 +378,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:46:53Z",
+    "finished": "2026-11-19T14:11:12Z",
     "message": null
    },
    "wave": 1
@@ -397,7 +397,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:46:47Z",
+    "finished": "2026-11-19T14:11:06Z",
     "message": null
    },
    "wave": 1
@@ -421,7 +421,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:48:50Z",
+    "finished": "2026-11-19T14:12:58Z",
     "message": null
    },
    "wave": 1
@@ -446,7 +446,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:48:50Z",
+    "finished": "2026-11-19T14:13:01Z",
     "message": null
    },
    "wave": 1
@@ -469,7 +469,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:47:45Z",
+    "finished": "2026-11-19T14:11:57Z",
     "message": null
    },
    "wave": 1
@@ -488,7 +488,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:48:40Z",
+    "finished": "2026-11-19T14:12:47Z",
     "message": null
    },
    "wave": 1
@@ -509,7 +509,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:47:56Z",
+    "finished": "2026-11-19T14:12:10Z",
     "message": null
    },
    "wave": 1
@@ -534,7 +534,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:48:54Z",
+    "finished": "2026-11-19T14:13:00Z",
     "message": null
    },
    "wave": 1
@@ -553,7 +553,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T13:47:28Z",
+    "finished": "2026-11-19T14:11:44Z",
     "message": null
    },
    "wave": 1
@@ -561,7 +561,7 @@
   {
    "name": "stalwart",
    "group": "apps",
-   "health": "Progressing",
+   "health": "Healthy",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -579,7 +579,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T14:10:52Z",
+    "finished": "2026-11-19T14:12:39Z",
     "message": null
    },
    "wave": 1
