@@ -1,0 +1,27 @@
+# Gallery on the Member Network (docs/adr/0066). An overlay with the Member
+# Network on and Gallery selected (tenants/gallery) includes this Component in
+# its immich/ kustomization:
+#
+#   components:
+#     - https://github.com/stephan271/smallworlds.git/infrastructure/kubernetes/components/member-network/gallery?ref=<tag>
+#
+# No host patch is needed: the guest routes match `photos.` by regex.
+#
+# The full application moves to the `members` entrypoint, which members'
+# devices reach through the Member Gateway and pods through traefik-members.
+# The public entrypoint keeps only the Guest Paths (guest-ingressroute.yaml).
+# Recorded for Gallery; plain Immich has not been recorded.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - guest-ingressroute.yaml
+
+patches:
+  - target:
+      kind: Ingress
+      name: immich-server
+    patch: |-
+      - op: add
+        path: /metadata/annotations/traefik.ingress.kubernetes.io~1router.entrypoints
+        value: members

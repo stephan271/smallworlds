@@ -270,6 +270,15 @@ Ingress with path regexes (`components/member-network/nextcloud`), so the
 `?shareToken=` condition on Euro-Office's config endpoint is left to Nextcloud,
 which answers it without a token with an error and no data.
 
+Gallery's Guest Paths, recorded on Ring 0 (2026-11-18, Gallery 5.11) for an album
+link and a single-photo link with the service worker blocked: the share page,
+the app's code and root static files, `/api/server/{config,features,media-types}`
+without a key, and `/api/shared-links/me`, `/api/assets/…`, `/api/albums/…/map-markers`
+and `/api/timeline/…` with `?key=`. They need a query matcher, so they are a
+Traefik IngressRoute (`components/member-network/gallery`) whose host is a regex.
+With it deployed under a test host, `/api/auth/login?key=…` and the share API
+without a key answered `404`.
+
 Not yet proven:
 
 - Upload speed when a member's device cannot connect to the node directly and

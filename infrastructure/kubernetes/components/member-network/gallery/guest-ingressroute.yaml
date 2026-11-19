@@ -1,0 +1,50 @@
+# Gallery's Guest Paths: what a signed-out guest's browser needs to open a
+# share link, on the public entrypoint only. Recorded on Ring 0 (2026-11-18,
+# Gallery 5.11) for an album link (album view, one photo, a download) and a
+# single-photo link, with the service worker blocked so that nothing was
+# hidden behind it. Everything else answers 404 in public: sign-in, the
+# timeline, the members' API.
+#
+# A share key overrides a member's credentials on the endpoints that read it,
+# but endpoints such as /api/auth/login ignore it. So the share API counts
+# only as a path AND `?key=` together, never the key alone, and that takes a
+# query matcher: an IngressRoute, not an Ingress. Its host is a regex so that
+# overlays need no host patch for it (patches cannot reach into `match`).
+#
+# An update can add a path, and then only guests notice. e2e spec 12 opens a
+# share link through this entrypoint on every Ring 0 commit and fails on any
+# request it answers with 404.
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: immich-guest
+  namespace: immich
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    # The share page, the app's code and the three server endpoints it reads
+    # before it knows the key, all public in Gallery itself.
+    - kind: Rule
+      match: >-
+        HostRegexp(`^photos\.`) && (
+        PathPrefix(`/share/`) || PathPrefix(`/_app/`) ||
+        Path(`/api/server/config`) || Path(`/api/server/features`) ||
+        Path(`/api/server/media-types`) ||
+        PathRegexp(`^/[^/]+\.(css|js|svg|png|ico|webmanifest)$`))
+      middlewares: &edge
+        - name: edge-ratelimit
+        - name: edge-headers
+      services: &gallery
+        - name: immich-server
+          port: 2283
+    # The share's own data, read with its key.
+    - kind: Rule
+      match: >-
+        HostRegexp(`^photos\.`) && QueryRegexp(`key`, `.+`) && (
+        Path(`/api/shared-links/me`) || PathPrefix(`/api/assets/`) ||
+        PathPrefix(`/api/albums/`) || PathPrefix(`/api/timeline/`))
+      middlewares: *edge
+      services: *gallery
+  tls:
+    secretName: immich-tls

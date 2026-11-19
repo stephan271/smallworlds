@@ -182,3 +182,114 @@ test.describe('Nextcloud Guest Paths', () => {
     expect((await get(FILES, '/status.php')).status).toBe(200);
   });
 });
+
+/**
+ * Gallery's Guest Paths (components/member-network/gallery). The share API
+ * answers in public only with `?key=`, and only on the share's own endpoints:
+ * a key does not open sign-in or the members' API.
+ */
+const PHOTOS = `photos.${DOMAIN}`;
+// A 1×1 PNG. Gallery deduplicates by checksum; a leftover from an earlier run
+// comes back as `duplicate` with its id, which serves as well.
+const PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+);
+
+test.describe('Gallery Guest Paths', () => {
+  test.skip(!APPS.includes('gallery'), 'runs where MEMBER_NETWORK_APPS names gallery');
+  test.skip(!FULL_OIDC, SKIP_REASON);
+  test.describe.configure({ mode: 'serial' });
+
+  const api = (path: string) => `https://${PHOTOS}/api${path}`;
+  let member: Page;
+  let assetId = '';
+  let link = { id: '', key: '' };
+
+  test.beforeAll(async ({ browser }) => {
+    // The member's session, through `members` (in-cluster DNS).
+    const context = await browser.newContext({ storageState: 'setup/.auth/alice.json' });
+    member = await context.newPage();
+    await member.goto(`https://${PHOTOS}/`);
+    const signIn = member.getByRole('button', { name: /keycloak|smallworlds|oidc|log in with/i })
+      .or(member.getByRole('link', { name: /keycloak|smallworlds|oidc/i }))
+      .first();
+    if (await signIn.isVisible({ timeout: 5_000 }).catch(() => false) && await signIn.isEnabled().catch(() => false)) {
+      await signIn.click({ timeout: 10_000 }).catch(() => {});
+    }
+    await expect
+      .poll(async () => (await member.request.get(api('/users/me'))).status(), { timeout: 60_000 })
+      .toBe(200);
+
+    const now = new Date().toISOString();
+    const upload = await member.request.post(api('/assets'), {
+      multipart: {
+        assetData: { name: 'guest-paths.png', mimeType: 'image/png', buffer: PNG },
+        deviceAssetId: `guest-paths-${Date.now()}`,
+        deviceId: 'e2e-spec-12',
+        fileCreatedAt: now,
+        fileModifiedAt: now,
+      },
+    });
+    expect(upload.status(), 'upload the photo').toBeLessThan(300);
+    assetId = (await upload.json()).id;
+
+    const made = await member.request.post(api('/shared-links'), {
+      data: { type: 'INDIVIDUAL', assetIds: [assetId], allowDownload: true, description: 'e2e spec 12' },
+    });
+    expect(made.status(), 'make the share link').toBeLessThan(300);
+    const data = await made.json();
+    link = { id: data.id, key: data.key };
+  });
+
+  test.afterAll(async () => {
+    if (!member) return;
+    if (link.id) await member.request.delete(api(`/shared-links/${link.id}`));
+    if (assetId) await member.request.delete(api('/assets'), { data: { ids: [assetId], force: true } });
+    await member.context().close();
+  });
+
+  test('a share link opens for a guest, and the public entrypoint refuses none of its requests', async () => {
+    const browser = await guestBrowser(PHOTOS);
+    try {
+      const page = await browser.newPage();
+      const refused: string[] = [];
+      page.on('response', (response) => {
+        const url = new URL(response.url());
+        if (url.hostname === PHOTOS && response.status() === 404) refused.push(url.pathname);
+      });
+      await page.goto(`https://${PHOTOS}/share/${link.key}`, { waitUntil: 'networkidle' });
+      await expect(page.locator(`img[src*="${assetId}"]`).first()).toBeVisible({ timeout: 30_000 });
+      expect(refused, 'paths the share page needs that the public entrypoint answers 404').toEqual([]);
+    } finally {
+      await browser.close();
+    }
+  });
+
+  test('a guest can download the original with the key', async () => {
+    const original = await get(PHOTOS, `/api/assets/${assetId}/original?key=${link.key}`, PUBLIC_ENTRYPOINT);
+    expect(original.status).toBe(200);
+    expect(original.body).toContain('PNG');
+  });
+
+  test('sign-in and the members’ API answer 404 in public, with or without the key', async () => {
+    const closed = [
+      '/',
+      '/auth/login',
+      '/photos',
+      '/api/users/me',
+      `/api/auth/login?key=${link.key}`,
+      `/api/assets/${assetId}/original`,
+      `/api/shared-links?key=${link.key}`,
+      `/api/search/metadata?key=${link.key}`,
+      '/api/server/about',
+    ];
+    const answers: Record<string, number> = {};
+    for (const path of closed) answers[path] = (await get(PHOTOS, path, PUBLIC_ENTRYPOINT)).status;
+    expect(answers).toEqual(Object.fromEntries(closed.map((path) => [path, 404])));
+  });
+
+  test('members still get the full application', async () => {
+    expect((await get(PHOTOS, '/api/server/ping')).status).toBe(200);
+  });
+});
