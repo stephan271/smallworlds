@@ -1,28 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-19T16:45:27Z",
+ "updated": "2026-11-19T16:49:38Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "ff20122f25edae4bc7f0d711b2623b54d7581f86",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-19T16:34:37Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+  "date": "2026-11-19T16:48:57Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "ff20122f25edae4bc7f0d711b2623b54d7581f86",
-  "pull": {
-   "number": 146,
-   "title": "Remove a member's devices from the Member Network when their account is deleted",
-   "cards": [
-    "member-network",
-    "repository"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-19T16:43:57Z",
-  "started": "2026-11-19T16:34:37Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #144",
@@ -598,9 +591,9 @@
     "repository"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-19T16:34:37Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-19T16:48:57Z"
    }
   },
   {
