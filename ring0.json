@@ -1,42 +1,31 @@
 {
  "schema": 1,
- "updated": "2026-11-19T08:21:51Z",
+ "updated": "2026-11-19T08:26:06Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "1b007723b361c099e665261d973aad2e42325e2c",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-19T07:48:48Z"
+  "commit": "c10a0d29b47d0072d80be090b799602583d73965",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "1b007723b361c099e665261d973aad2e42325e2c",
+  "commit": "c10a0d29b47d0072d80be090b799602583d73965",
   "pull": {
-   "number": 139,
-   "title": "Put Gallery on the Member Network, Guest Paths alone in public (ADR 0066)",
+   "number": 140,
+   "title": "Update Docker image quay.io/keycloak/keycloak to 7e66a96 (#140)",
    "cards": [
-    "canary-follower",
-    "repository",
-    "smallworlds-root"
+    "keycloak"
    ]
   },
-  "step": "quiet",
-  "step_since": "2026-11-19T08:20:33Z",
-  "started": "2026-11-19T07:48:48Z",
-  "queued": [
-   {
-    "number": 140,
-    "title": "Update Docker image quay.io/keycloak/keycloak to 7e66a96",
-    "cards": [
-     "keycloak"
-    ],
-    "since": "2026-11-19T07:45:40Z"
-   }
-  ],
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
+  "queued": [],
   "stuck": null,
-  "action": "merged #138",
-  "waiting": "no queued update is ready"
+  "action": "merged #140",
+  "waiting": null
  },
  "applications": [
   {
@@ -385,6 +374,7 @@
    "version": null,
    "revision": "1b007723b361c099e665261d973aad2e42325e2c",
    "images": [
+    "mcr.microsoft.com/playwright:v1.65.1-noble@sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579",
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
@@ -598,6 +588,17 @@
  ],
  "commits": [
   {
+   "commit": "c10a0d29b47d0072d80be090b799602583d73965",
+   "title": "Update Docker image quay.io/keycloak/keycloak to 7e66a96 (#140)",
+   "author": "renovate[bot]",
+   "date": "2026-11-19T08:25:38Z",
+   "pull": 140,
+   "cards": [
+    "keycloak"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "1b007723b361c099e665261d973aad2e42325e2c",
    "title": "Put Gallery on the Member Network, Guest Paths alone in public (ADR 0066)",
    "author": "stephan271",
@@ -609,9 +610,9 @@
     "smallworlds-root"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-19T07:48:48Z"
+    "state": "success",
+    "description": "Ring 0: converged, load still 1.8/CPU after 15 min, smoke 16 hosts, e2e 38 passed, 13 skipped; data 4/4 apps intact, storage: Garage v2.5.0\u2026",
+    "date": "2026-11-19T08:25:33Z"
    }
   },
   {
@@ -962,21 +963,6 @@
     "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
     "date": "2026-11-17T15:54:44Z"
    }
-  },
-  {
-   "commit": "02f27a94d436c97f599af765063309c8892b7980",
-   "title": "Keep Immich's PostgreSQL 16 catalog entry on 16 (instead of #117)",
-   "author": "stephan271",
-   "date": "2026-11-17T10:38:32Z",
-   "pull": 125,
-   "cards": [
-    "repository"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 6 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-17T11:11:57Z"
-   }
   }
  ],
  "pulls": [
@@ -1004,21 +990,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 140,
-   "title": "Update Docker image quay.io/keycloak/keycloak to 7e66a96",
-   "author": "renovate[bot]",
-   "created": "2026-11-19T07:45:40Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "keycloak"
    ]
   }
  ]
