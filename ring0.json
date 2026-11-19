@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-19T16:32:50Z",
+ "updated": "2026-11-19T16:34:55Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "ff20122f25edae4bc7f0d711b2623b54d7581f86",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-19T16:34:37Z"
  },
  "now": {
   "state": "updating",
@@ -20,9 +20,9 @@
     "repository"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-19T16:34:38Z",
+  "started": "2026-11-19T16:34:37Z",
   "queued": [],
   "stuck": null,
   "action": "merged #144",
@@ -320,9 +320,9 @@
    "revision": "f0f9f1ea340afed0d0fe0398d75c1cada7dd7ec3",
    "images": [],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-19T15:09:44Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of scheduling.k8s.io/PriorityClass/smallworlds-monitoring"
    },
    "wave": 0
   },
@@ -597,7 +597,11 @@
     "member-network",
     "repository"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-19T16:34:37Z"
+   }
   },
   {
    "commit": "3f3681c160b69c4d479242cbdea679d053058523",
