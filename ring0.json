@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-19T15:07:25Z",
+ "updated": "2026-11-19T15:09:31Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "d04416eeeb513f3a1a1256b7e4ea5e729023431d",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-19T15:09:14Z"
  },
  "now": {
   "state": "updating",
@@ -19,9 +19,9 @@
     "canary-follower"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-19T15:09:14Z",
+  "started": "2026-11-19T15:09:14Z",
   "queued": [],
   "stuck": null,
   "action": "merged #144",
@@ -171,7 +171,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "4c6507c2ccf319f7929946970dba3dc646686470",
+   "revision": "d04416eeeb513f3a1a1256b7e4ea5e729023431d",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
@@ -319,9 +319,9 @@
    "revision": "f0f9f1ea340afed0d0fe0398d75c1cada7dd7ec3",
    "images": [],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-19T14:10:38Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of scheduling.k8s.io/PriorityClass/smallworlds-monitoring"
    },
    "wave": 0
   },
@@ -372,13 +372,13 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "4c6507c2ccf319f7929946970dba3dc646686470",
+   "revision": "d04416eeeb513f3a1a1256b7e4ea5e729023431d",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T14:11:12Z",
+    "finished": "2026-11-19T15:08:03Z",
     "message": null
    },
    "wave": 1
@@ -595,7 +595,11 @@
    "cards": [
     "canary-follower"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-19T15:09:14Z"
+   }
   },
   {
    "commit": "3e9c98c908f9996252a2d1fedf692afaba2406c1",
