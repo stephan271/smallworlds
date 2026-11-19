@@ -4,7 +4,7 @@ http:
 image:
   repository: quay.io/keycloak/keycloak
   tag: "26.8.2"
-  digest: "sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc496969a319a76bbf0"
+  digest: "sha256:7e66a96e4739239070aeaf72e4c5decf0f7f682cfc725b9f7ea2b336eaba38b3"
 
 proxy:
   # Keycloak 26 removed KC_PROXY; configure trusted Traefik headers below.
