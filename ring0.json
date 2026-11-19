@@ -1,34 +1,31 @@
 {
  "schema": 1,
- "updated": "2026-11-19T14:00:29Z",
+ "updated": "2026-11-19T14:06:46Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "92e6694ca385511077215ee3df7762b37e8dca70",
-  "state": "success",
-  "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 16 hosts, e2e 42 passed, 16 skipped; data 4/4 apps intact, storage: \u2026",
-  "date": "2026-11-19T13:59:37Z"
+  "commit": "4c6507c2ccf319f7929946970dba3dc646686470",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "92e6694ca385511077215ee3df7762b37e8dca70",
-  "pull": null,
-  "step": "merge",
+  "commit": "4c6507c2ccf319f7929946970dba3dc646686470",
+  "pull": {
+   "number": 144,
+   "title": "Update Docker image stalwartlabs/stalwart to v1.1.1 (#144)",
+   "cards": [
+    "stalwart"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
-  "queued": [
-   {
-    "number": 144,
-    "title": "Update Docker image stalwartlabs/stalwart to v1.1.1",
-    "cards": [
-     "stalwart"
-    ],
-    "since": "2026-11-19T13:41:46Z"
-   }
-  ],
+  "queued": [],
   "stuck": null,
-  "action": "merged #141",
-  "waiting": "no queued update is ready"
+  "action": "merged #144",
+  "waiting": null
  },
  "applications": [
   {
@@ -590,6 +587,17 @@
  ],
  "commits": [
   {
+   "commit": "4c6507c2ccf319f7929946970dba3dc646686470",
+   "title": "Update Docker image stalwartlabs/stalwart to v1.1.1 (#144)",
+   "author": "renovate[bot]",
+   "date": "2026-11-19T14:04:47Z",
+   "pull": 144,
+   "cards": [
+    "stalwart"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "92e6694ca385511077215ee3df7762b37e8dca70",
    "title": "Move the members-only applications and mail's private ports onto the Member Network",
    "author": "stephan271",
@@ -950,21 +958,6 @@
     "description": "Ring 0: backup 1 databases, converged, load settled after 3 min, smoke 15 hosts, e2e 29 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
     "date": "2026-11-18T06:36:57Z"
    }
-  },
-  {
-   "commit": "f1a2d565e78b14a5b92313fe6ebde62cb54e70e7",
-   "title": "Update Helm chart nextcloud to v9.4.4 (#128)",
-   "author": "renovate[bot]",
-   "date": "2026-11-18T03:27:48Z",
-   "pull": 128,
-   "cards": [
-    "nextcloud"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: backup 1 databases, converged, load settled after 6 min, smoke 15 hosts, e2e 29 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
-    "date": "2026-11-18T04:04:37Z"
-   }
   }
  ],
  "pulls": [
@@ -992,21 +985,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 144,
-   "title": "Update Docker image stalwartlabs/stalwart to v1.1.1",
-   "author": "renovate[bot]",
-   "created": "2026-11-19T13:41:46Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "stalwart"
    ]
   }
  ]
