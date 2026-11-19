@@ -1,19 +1,27 @@
 {
  "schema": 1,
- "updated": "2026-11-19T07:46:06Z",
+ "updated": "2026-11-19T07:48:13Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "a25b97258a29f816e47ee3cb686812990efea236",
-  "state": "success",
-  "description": "Ring 0: backup 1 databases, converged, load settled after 10 min, smoke 16 hosts, e2e 38 passed, 9 skipped; data 4/4 apps intact, storage: \u2026",
-  "date": "2026-11-18T21:04:30Z"
+  "commit": "1b007723b361c099e665261d973aad2e42325e2c",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "a25b97258a29f816e47ee3cb686812990efea236",
-  "pull": null,
-  "step": "merge",
+  "commit": "1b007723b361c099e665261d973aad2e42325e2c",
+  "pull": {
+   "number": 139,
+   "title": "Put Gallery on the Member Network, Guest Paths alone in public (ADR 0066)",
+   "cards": [
+    "canary-follower",
+    "repository",
+    "smallworlds-root"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
@@ -590,6 +598,32 @@
  ],
  "commits": [
   {
+   "commit": "1b007723b361c099e665261d973aad2e42325e2c",
+   "title": "Put Gallery on the Member Network, Guest Paths alone in public (ADR 0066)",
+   "author": "stephan271",
+   "date": "2026-11-19T07:46:34Z",
+   "pull": 139,
+   "cards": [
+    "canary-follower",
+    "repository",
+    "smallworlds-root"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "2a4db53e5dd4fe3b94ab6e51c96c4e29fe622341",
+   "title": "Put Gallery on the Member Network, Guest Paths alone in public (ADR 0066)",
+   "author": "stephan271",
+   "date": "2026-11-19T07:44:18Z",
+   "pull": null,
+   "cards": [
+    "canary-follower",
+    "repository",
+    "smallworlds-root"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "a25b97258a29f816e47ee3cb686812990efea236",
    "title": "Update gallery to v5.11.0 (#138)",
    "author": "renovate[bot]",
@@ -939,34 +973,6 @@
     "description": "Ring 0: converged, load settled after 6 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
     "date": "2026-11-17T11:11:57Z"
    }
-  },
-  {
-   "commit": "fe82730928e76fbae40eafa0e33416f483cb9886",
-   "title": "Keep Immich's PostgreSQL 16 catalog entry on 16",
-   "author": "smallworlds-steward[bot]",
-   "date": "2026-11-17T01:02:26Z",
-   "pull": null,
-   "cards": [
-    "repository"
-   ],
-   "verdict": null
-  },
-  {
-   "commit": "7e054db44a6ccdce3134dc384847d096e443534b",
-   "title": "Upgrade Immich's database to PostgreSQL 18 and Redis to 8.10 (#124)",
-   "author": "smallworlds-steward[bot]",
-   "date": "2026-11-17T00:25:00Z",
-   "pull": 124,
-   "cards": [
-    "immich",
-    "repository",
-    "smallworlds-root"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: backup 1 databases, converged, load settled after 3 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
-    "date": "2026-11-17T00:55:03Z"
-   }
   }
  ],
  "pulls": [
@@ -994,21 +1000,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 139,
-   "title": "Put Gallery on the Member Network, Guest Paths alone in public (ADR 0066)",
-   "author": "stephan271",
-   "created": "2026-11-19T07:44:41Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "canary-follower",
-    "repository",
-    "smallworlds-root"
    ]
   },
   {
