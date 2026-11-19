@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-19T14:40:13Z",
+ "updated": "2026-11-19T14:42:19Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -184,13 +184,13 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
+   "revision": "f0f9f1ea340afed0d0fe0398d75c1cada7dd7ec3",
    "images": [
     "ghcr.io/gethomepage/homepage:v2.8.0@sha256:019d8f063a7299e7c1c51ee4a70b692291809af3244894fbec2c2ac7d1f71b18"
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T14:11:09Z",
+    "finished": "2026-11-19T14:42:05Z",
     "message": null
    },
    "wave": 0
@@ -203,7 +203,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
+   "revision": "f0f9f1ea340afed0d0fe0398d75c1cada7dd7ec3",
    "images": [
     "ghcr.io/euro-office/documentserver:v9.3.4-hotfix.1@sha256:889e681923d2dcc8bdfb92fe128d10e185fcff880d302b6a0c0c7bf339499290"
    ],
@@ -222,7 +222,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
+   "revision": "f0f9f1ea340afed0d0fe0398d75c1cada7dd7ec3",
    "images": [
     "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970",
     "docker.io/tailscale/tailscale:v1.104.7@sha256:72c1e19e0aedca96b8533bbb0b4368564410ff20b17e53b804eb6c1f04a31be4"
@@ -242,7 +242,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
+   "revision": "f0f9f1ea340afed0d0fe0398d75c1cada7dd7ec3",
    "images": [
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -347,13 +347,13 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
+   "revision": "f0f9f1ea340afed0d0fe0398d75c1cada7dd7ec3",
    "images": [
     "ghcr.io/bulwarkmail/webmail:1.21.2@sha256:037b85b1433233d2d7eebb83f928df5ecc3b4adc91dc7e4c55f0a2f69024e754"
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T14:11:56Z",
+    "finished": "2026-11-19T14:41:30Z",
     "message": null
    },
    "wave": 1
@@ -385,13 +385,13 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
+   "revision": "f0f9f1ea340afed0d0fe0398d75c1cada7dd7ec3",
    "images": [
     "excalidraw/excalidraw:latest@sha256:f7ee194addd607bf831d2af0f0a34463dd4225e426cf35199ef0b12a803398e9"
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T14:11:06Z",
+    "finished": "2026-11-19T14:42:01Z",
     "message": null
    },
    "wave": 1
@@ -404,9 +404,10 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
+   "revision": "f0f9f1ea340afed0d0fe0398d75c1cada7dd7ec3",
    "images": [
     "code.forgejo.org/forgejo/forgejo:15.0.12-rootless",
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -414,9 +415,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-19T14:12:58Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/forgejo-oidc-config"
    },
    "wave": 1
   },
@@ -453,7 +454,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
+   "revision": "f0f9f1ea340afed0d0fe0398d75c1cada7dd7ec3",
    "images": [
     "ghcr.io/jitsi-contrib/jitsi-oidc-adapter:v20260328@sha256:c4a28b215f5ea4893e308cd3f15b1f1c6954231ab784cac6362f420e6648a745",
     "ghcr.io/jitsi/jicofo:stable-11248-3",
@@ -516,7 +517,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
+   "revision": "f0f9f1ea340afed0d0fe0398d75c1cada7dd7ec3",
    "images": [
     "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/library/nextcloud:35.0.2-apache",
@@ -556,11 +557,11 @@
    "name": "stalwart",
    "group": "apps",
    "health": "Healthy",
-   "sync": "Synced",
+   "sync": "OutOfSync",
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
+   "revision": "f0f9f1ea340afed0d0fe0398d75c1cada7dd7ec3",
    "images": [
     "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
@@ -572,9 +573,9 @@
     "stalwartlabs/stalwart:v1.1.1@sha256:544760db45608ef39d969eca7cfc040af771a0825cdf5c673935825abe3fad0f"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-19T14:12:39Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/pre-update-backup"
    },
    "wave": 1
   }
