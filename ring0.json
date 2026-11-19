@@ -1,39 +1,30 @@
 {
  "schema": 1,
- "updated": "2026-11-19T08:58:00Z",
+ "updated": "2026-11-19T09:04:21Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "c10a0d29b47d0072d80be090b799602583d73965",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-19T08:30:44Z"
+  "commit": "b1d3e6e52c5eb7c5e1d418763d737aa2a6c70897",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "c10a0d29b47d0072d80be090b799602583d73965",
+  "commit": "b1d3e6e52c5eb7c5e1d418763d737aa2a6c70897",
   "pull": {
-   "number": 140,
-   "title": "Update Docker image quay.io/keycloak/keycloak to 7e66a96 (#140)",
+   "number": 141,
+   "title": "Update Docker image forgejo to v17.3.3 (#141)",
    "cards": [
-    "keycloak"
+    "forgejo"
    ]
   },
-  "step": "quiet",
-  "step_since": "2026-11-19T08:57:33Z",
-  "started": "2026-11-19T08:30:44Z",
-  "queued": [
-   {
-    "number": 141,
-    "title": "Update Docker image forgejo to v17.3.3",
-    "cards": [
-     "forgejo"
-    ],
-    "since": "2026-11-19T08:26:35Z"
-   }
-  ],
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
+  "queued": [],
   "stuck": null,
-  "action": "merged #140",
+  "action": "merged #141",
   "waiting": null
  },
  "applications": [
@@ -383,6 +374,7 @@
    "version": null,
    "revision": "c10a0d29b47d0072d80be090b799602583d73965",
    "images": [
+    "mcr.microsoft.com/playwright:v1.65.1-noble@sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579",
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
@@ -596,6 +588,17 @@
  ],
  "commits": [
   {
+   "commit": "b1d3e6e52c5eb7c5e1d418763d737aa2a6c70897",
+   "title": "Update Docker image forgejo to v17.3.3 (#141)",
+   "author": "renovate[bot]",
+   "date": "2026-11-19T09:02:39Z",
+   "pull": 141,
+   "cards": [
+    "forgejo"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "c10a0d29b47d0072d80be090b799602583d73965",
    "title": "Update Docker image quay.io/keycloak/keycloak to 7e66a96 (#140)",
    "author": "renovate[bot]",
@@ -605,9 +608,9 @@
     "keycloak"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-19T08:30:44Z"
+    "state": "success",
+    "description": "Ring 0: backup 1 databases, converged, load settled after 6 min, smoke 16 hosts, e2e 38 passed, 13 skipped; data 4/4 apps intact, storage: \u2026",
+    "date": "2026-11-19T09:02:33Z"
    }
   },
   {
@@ -960,21 +963,6 @@
     "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
     "date": "2026-11-17T16:13:49Z"
    }
-  },
-  {
-   "commit": "1ea655f6be9b51666149ac12af69295c916e2db7",
-   "title": "Propose an optional Member Network for member applications (ADR 0066)",
-   "author": "stephan271",
-   "date": "2026-11-17T15:40:15Z",
-   "pull": null,
-   "cards": [
-    "repository"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-17T15:54:44Z"
-   }
   }
  ],
  "pulls": [
@@ -1002,21 +990,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 141,
-   "title": "Update Docker image forgejo to v17.3.3",
-   "author": "renovate[bot]",
-   "created": "2026-11-19T08:26:35Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "forgejo"
    ]
   }
  ]
