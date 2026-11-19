@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-19T12:27:01Z",
+ "updated": "2026-11-19T12:29:07Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -21,8 +21,8 @@
     "smallworlds-root"
    ]
   },
-  "step": "sync",
-  "step_since": "2026-11-19T12:26:14Z",
+  "step": "converge",
+  "step_since": "2026-11-19T12:27:09Z",
   "started": "2026-11-19T12:26:13Z",
   "queued": [],
   "stuck": null,
@@ -46,7 +46,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T09:12:42Z",
+    "finished": "2026-11-19T12:27:39Z",
     "message": null
    },
    "wave": -10
@@ -65,7 +65,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T09:11:01Z",
+    "finished": "2026-11-19T12:27:14Z",
     "message": null
    },
    "wave": -10
@@ -84,7 +84,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T09:11:39Z",
+    "finished": "2026-11-19T12:27:24Z",
     "message": null
    },
    "wave": -10
@@ -103,7 +103,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T09:10:56Z",
+    "finished": "2026-11-19T12:27:12Z",
     "message": null
    },
    "wave": -9
@@ -122,7 +122,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T09:11:02Z",
+    "finished": "2026-11-19T12:27:13Z",
     "message": null
    },
    "wave": -9
@@ -141,7 +141,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T09:11:07Z",
+    "finished": "2026-11-19T12:27:17Z",
     "message": null
    },
    "wave": -5
@@ -160,7 +160,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T09:11:06Z",
+    "finished": "2026-11-19T12:27:16Z",
     "message": null
    },
    "wave": -5
@@ -179,7 +179,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T09:10:35Z",
+    "finished": "2026-11-19T12:27:09Z",
     "message": null
    },
    "wave": 0
@@ -198,7 +198,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T09:10:54Z",
+    "finished": "2026-11-19T12:27:12Z",
     "message": null
    },
    "wave": 0
@@ -217,7 +217,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T09:12:22Z",
+    "finished": "2026-11-19T12:27:31Z",
     "message": null
    },
    "wave": 0
@@ -237,7 +237,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T09:12:15Z",
+    "finished": "2026-11-19T12:27:31Z",
     "message": null
    },
    "wave": 0
@@ -259,7 +259,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T09:17:34Z",
+    "finished": "2026-11-19T12:28:59Z",
     "message": null
    },
    "wave": 0
@@ -285,7 +285,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T09:15:12Z",
+    "finished": "2026-11-19T12:28:28Z",
     "message": null
    },
    "wave": 0
@@ -305,7 +305,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T09:11:36Z",
+    "finished": "2026-11-19T12:27:23Z",
     "message": null
    },
    "wave": 0
@@ -342,7 +342,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T09:14:08Z",
+    "finished": "2026-11-19T12:28:05Z",
     "message": null
    },
    "wave": 0
@@ -361,7 +361,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T09:13:50Z",
+    "finished": "2026-11-19T12:28:02Z",
     "message": null
    },
    "wave": 1
@@ -380,7 +380,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T11:29:13Z",
+    "finished": "2026-11-19T12:27:16Z",
     "message": null
    },
    "wave": 1
@@ -399,7 +399,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T09:10:49Z",
+    "finished": "2026-11-19T12:27:11Z",
     "message": null
    },
    "wave": 1
@@ -423,7 +423,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T09:16:26Z",
+    "finished": "2026-11-19T12:29:01Z",
     "message": null
    },
    "wave": 1
@@ -438,18 +438,21 @@
    "version": null,
    "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
+    "docker.io/postgres:18-alpine@sha256:b6972e1115a4ff8eba5d7f7d19184926d1e16d7d1136ae1e1a7ebf286da0f015",
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
     "ghcr.io/open-noodle/gallery-ml:v5.11.0@sha256:0688149a40fb202a71e70e31dda2a4948191d65e4f7a06a42ac0dc9ce421b925",
     "ghcr.io/open-noodle/gallery-server:v5.11.0@sha256:82d1710fa48fa57c16f923d074c90350d91d86ac6cf98458908d7a4b2b5c6761",
     "ghcr.io/tensorchord/cloudnative-vectorchord:18.6-1.1.1@sha256:c7672bc011351a587cc292a94aac7eeebb593ed2e120077bd9c9944c9467db93",
+    "python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd",
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-19T11:29:30Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/pod-export-grants"
    },
    "wave": 1
   },
@@ -471,7 +474,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T09:13:56Z",
+    "finished": "2026-11-19T12:28:04Z",
     "message": null
    },
    "wave": 1
@@ -490,7 +493,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T09:16:41Z",
+    "finished": "2026-11-19T12:28:55Z",
     "message": null
    },
    "wave": 1
@@ -511,7 +514,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T09:14:23Z",
+    "finished": "2026-11-19T12:28:17Z",
     "message": null
    },
    "wave": 1
@@ -535,9 +538,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-19T09:18:19Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/nextcloud-oidc-config"
    },
    "wave": 1
   },
@@ -555,7 +558,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T09:13:03Z",
+    "finished": "2026-11-19T12:27:49Z",
     "message": null
    },
    "wave": 1
@@ -581,7 +584,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T09:16:00Z",
+    "finished": "2026-11-19T12:28:43Z",
     "message": null
    },
    "wave": 1
