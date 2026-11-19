@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-19T08:34:40Z",
+ "updated": "2026-11-19T08:36:46Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -52,9 +52,9 @@
     "quay.io/jetstack/cert-manager-webhook:v1.21.3"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for healthy state of /ServiceAccount/cert-manager and 43 more resources"
+    "phase": "Succeeded",
+    "finished": "2026-11-19T08:35:45Z",
+    "message": null
    },
    "wave": -10
   },
@@ -91,7 +91,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T07:51:38Z",
+    "finished": "2026-11-19T08:34:52Z",
     "message": null
    },
    "wave": -10
@@ -223,9 +223,9 @@
     "ghcr.io/euro-office/documentserver:v9.3.4-hotfix.1@sha256:889e681923d2dcc8bdfb92fe128d10e185fcff880d302b6a0c0c7bf339499290"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for healthy state of /ServiceAccount/euro-office-secret-init and 2 more resources"
+    "phase": "Succeeded",
+    "finished": "2026-11-19T08:35:18Z",
+    "message": null
    },
    "wave": 0
   },
@@ -233,18 +233,18 @@
    "name": "headscale",
    "group": "platform",
    "health": "Healthy",
-   "sync": "Unknown",
+   "sync": "Synced",
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "HEAD",
+   "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
    "images": [
     "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970",
     "docker.io/tailscale/tailscale:v1.104.7@sha256:72c1e19e0aedca96b8533bbb0b4368564410ff20b17e53b804eb6c1f04a31be4"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
+    "phase": "Succeeded",
+    "finished": "2026-11-19T08:35:20Z",
     "message": null
    },
    "wave": 0
@@ -253,12 +253,13 @@
    "name": "keycloak",
    "group": "platform",
    "health": "Healthy",
-   "sync": "Unknown",
+   "sync": "OutOfSync",
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "HEAD",
+   "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
     "ghcr.io/tensorchord/cloudnative-pgvecto.rs:16.4-v0.3.0",
@@ -267,7 +268,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": null
+    "message": "waiting for completion of hook batch/Job/pre-update-backup"
    },
    "wave": 0
   },
@@ -282,6 +283,7 @@
    "revision": null,
    "images": [
     "docker.io/grafana/grafana:13.3.1-distroless",
+    "ghcr.io/jkroepke/kube-webhook-certgen:1.11.1",
     "quay.io/kiwigrid/k8s-sidecar:2.14.3",
     "quay.io/prometheus-operator/prometheus-config-reloader:v0.95.2",
     "quay.io/prometheus-operator/prometheus-operator:v0.95.2",
@@ -293,7 +295,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": null
+    "message": "waiting for completion of hook batch/Job/kube-prometheus-stack-admission-create"
    },
    "wave": 0
   },
@@ -311,8 +313,8 @@
     "grafana/loki:2.6.1"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
+    "phase": "Succeeded",
+    "finished": "2026-11-19T08:34:42Z",
     "message": null
    },
    "wave": 0
@@ -349,7 +351,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T07:53:21Z",
+    "finished": "2026-11-19T08:36:41Z",
     "message": null
    },
    "wave": 0
@@ -364,12 +366,13 @@
    "version": null,
    "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/bulwarkmail/webmail:1.21.2@sha256:037b85b1433233d2d7eebb83f928df5ecc3b4adc91dc7e4c55f0a2f69024e754"
    ],
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": "waiting for healthy state of /ServiceAccount/setup-sa and 1 more resources"
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -423,6 +426,7 @@
    "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
    "images": [
     "code.forgejo.org/forgejo/forgejo:15.0.11-rootless",
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -432,7 +436,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": "waiting for deletion of hook /ServiceAccount/pre-update-backup and 2 more hooks"
+    "message": "waiting for completion of hook batch/Job/forgejo-secret-init and 1 more hooks"
    },
    "wave": 1
   },
@@ -440,12 +444,13 @@
    "name": "immich",
    "group": "apps",
    "health": "Healthy",
-   "sync": "Unknown",
+   "sync": "Synced",
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "HEAD",
+   "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -457,7 +462,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": null
+    "message": "waiting for completion of hook batch/Job/garage-init"
    },
    "wave": 1
   },
@@ -465,12 +470,13 @@
    "name": "jitsi",
    "group": "apps",
    "health": "Healthy",
-   "sync": "Unknown",
+   "sync": "Synced",
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "HEAD",
+   "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/jitsi-contrib/jitsi-oidc-adapter:v20260328@sha256:c4a28b215f5ea4893e308cd3f15b1f1c6954231ab784cac6362f420e6648a745",
     "ghcr.io/jitsi/jicofo:stable-11248-3",
     "ghcr.io/jitsi/jvb:stable-11248-3",
@@ -480,7 +486,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": null
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -488,18 +494,19 @@
    "name": "join",
    "group": "apps",
    "health": "Healthy",
-   "sync": "Unknown",
+   "sync": "Synced",
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "HEAD",
+   "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": null
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -507,11 +514,11 @@
    "name": "member-network",
    "group": "platform",
    "health": "Healthy",
-   "sync": "Unknown",
+   "sync": "Synced",
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "HEAD",
+   "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
    "images": [
     "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970",
@@ -520,7 +527,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": null
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -528,11 +535,11 @@
    "name": "nextcloud",
    "group": "apps",
    "health": "Healthy",
-   "sync": "Unknown",
+   "sync": "Synced",
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "HEAD",
+   "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
    "images": [
     "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/library/nextcloud:35.0.2-apache",
@@ -545,7 +552,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": null
+    "message": "waiting for completion of hook batch/Job/garage-init"
    },
    "wave": 1
   },
@@ -553,17 +560,17 @@
    "name": "pod-gateway",
    "group": "apps",
    "health": "Healthy",
-   "sync": "Unknown",
+   "sync": "Synced",
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "HEAD",
+   "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-19T07:52:45Z",
+    "finished": "2026-11-19T08:36:20Z",
     "message": null
    },
    "wave": 1
@@ -572,11 +579,11 @@
    "name": "stalwart",
    "group": "apps",
    "health": "Healthy",
-   "sync": "Unknown",
+   "sync": "Synced",
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "HEAD",
+   "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
    "images": [
     "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
@@ -590,7 +597,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": null
+    "message": "waiting for completion of hook batch/Job/garage-init"
    },
    "wave": 1
   }
