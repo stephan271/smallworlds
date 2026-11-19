@@ -1,29 +1,32 @@
 {
  "schema": 1,
- "updated": "2026-11-19T13:43:42Z",
+ "updated": "2026-11-19T13:45:49Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "9f9eaacdb63d35a7a63eb837f4073a02c9f78f8c",
-  "state": "error",
-  "description": "Follower error: RemoteDisconnected: Remote end closed connection without response",
-  "date": "2026-11-19T11:25:49Z"
+  "commit": "92e6694ca385511077215ee3df7762b37e8dca70",
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-19T13:45:31Z"
  },
  "now": {
   "state": "updating",
-  "commit": "9f9eaacdb63d35a7a63eb837f4073a02c9f78f8c",
+  "commit": "92e6694ca385511077215ee3df7762b37e8dca70",
   "pull": {
-   "number": 142,
-   "title": "Open /api/public/config to Gallery guests and run Gallery's guest suite on Ring 0",
+   "number": 143,
+   "title": "Move the members-only applications and mail's private ports onto the Member Network",
    "cards": [
+    "bulwark",
     "canary-follower",
+    "member-network",
     "repository",
-    "smallworlds-root"
+    "smallworlds-root",
+    "stalwart"
    ]
   },
-  "step": "retry",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-19T13:45:47Z",
+  "started": "2026-11-19T13:45:31Z",
   "queued": [
    {
     "number": 144,
@@ -598,6 +601,42 @@
  ],
  "commits": [
   {
+   "commit": "92e6694ca385511077215ee3df7762b37e8dca70",
+   "title": "Move the members-only applications and mail's private ports onto the Member Network",
+   "author": "stephan271",
+   "date": "2026-11-19T13:43:54Z",
+   "pull": 143,
+   "cards": [
+    "bulwark",
+    "canary-follower",
+    "member-network",
+    "repository",
+    "smallworlds-root",
+    "stalwart"
+   ],
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-19T13:45:31Z"
+   }
+  },
+  {
+   "commit": "e5b586d5d4709404756f11a1e1ffc536fcf71a09",
+   "title": "Move the members-only applications and mail's private ports onto the Member Network",
+   "author": "stephan271",
+   "date": "2026-11-19T13:40:23Z",
+   "pull": null,
+   "cards": [
+    "bulwark",
+    "canary-follower",
+    "member-network",
+    "repository",
+    "smallworlds-root",
+    "stalwart"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "9f9eaacdb63d35a7a63eb837f4073a02c9f78f8c",
    "title": "Open /api/public/config to Gallery guests and run Gallery's guest suite on Ring 0",
    "author": "stephan271",
@@ -937,43 +976,6 @@
     "description": "Ring 0: backup 1 databases, converged, load settled after 6 min, smoke 15 hosts, e2e 29 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
     "date": "2026-11-18T04:04:37Z"
    }
-  },
-  {
-   "commit": "05eb59449878d6b2cba69b429cbacc675717cf07",
-   "title": "Update Docker image docker.io/tailscale/tailscale to v1.104.7 (#127)",
-   "author": "renovate[bot]",
-   "date": "2026-11-17T17:30:24Z",
-   "pull": 127,
-   "cards": [
-    "headscale"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 29 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-17T17:49:47Z"
-   }
-  },
-  {
-   "commit": "c381abb8ec73211b260e819e4824e748e882aa06",
-   "title": "Separate operator interfaces by Traefik entrypoint (ADR 0066, operator half)",
-   "author": "stephan271",
-   "date": "2026-11-17T17:11:25Z",
-   "pull": 126,
-   "cards": [
-    "canary-follower",
-    "headscale",
-    "join",
-    "keycloak",
-    "kube-prometheus-stack",
-    "repository",
-    "smallworlds-root",
-    "traefik"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 15 hosts, e2e 29 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
-    "date": "2026-11-17T17:30:19Z"
-   }
   }
  ],
  "pulls": [
@@ -1001,24 +1003,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 143,
-   "title": "Move the members-only applications and mail's private ports onto the Member Network",
-   "author": "stephan271",
-   "created": "2026-11-19T13:40:50Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "bulwark",
-    "canary-follower",
-    "member-network",
-    "repository",
-    "smallworlds-root",
-    "stalwart"
    ]
   },
   {
