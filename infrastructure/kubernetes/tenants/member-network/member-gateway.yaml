@@ -47,12 +47,21 @@ metadata:
   name: member-gateway-serve
 data:
   # Raw TCP from the tailnet's :443 to the `members` entrypoint
-  # (apps/traefik.yaml).
+  # (apps/traefik.yaml), and members' mail clients to Stalwart's submission
+  # and IMAP ports, which are not public with the Member Network on
+  # (components/member-network/stalwart). Without Stalwart those two lead
+  # nowhere, and a connection to them is refused.
   serve.json: |
     {
       "TCP": {
         "443": {
           "TCPForward": "traefik-internal.traefik-system.svc.cluster.local:9444"
+        },
+        "465": {
+          "TCPForward": "stalwart-mail-members.stalwart.svc.cluster.local:465"
+        },
+        "993": {
+          "TCPForward": "stalwart-mail-members.stalwart.svc.cluster.local:993"
         }
       }
     }

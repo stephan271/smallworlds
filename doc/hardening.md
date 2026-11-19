@@ -56,6 +56,14 @@ Ring 0 checks all three entrypoints on every commit (spec 11). Pods reach
 `traefik-members` (`10.43.0.44:443`), so Euro-Office and Ring 0's checks see the
 full applications whether or not the Member Network is on.
 
+With the Member Network on, mail's public surface shrinks to port 25, where
+other servers deliver. Stalwart's Component (`components/member-network/
+stalwart`) takes submission (465) and IMAP (993) off the LoadBalancer Service,
+so the node does not publish them at all, and the Member Gateway forwards its
+own `:465` and `:993` to the cluster-only `stalwart-mail-members`. Both
+firewalls still allow 465 and 993 until the installer drops them in member mode;
+nothing answers there.
+
 **The allow-list only means something because Traefik sees the visitor's real
 address.** Its Service sets `externalTrafficPolicy: Local` for that reason
 (`apps/traefik.yaml`). With the default, kube-proxy rewrites the source of

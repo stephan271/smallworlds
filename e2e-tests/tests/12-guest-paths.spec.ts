@@ -1,6 +1,8 @@
 import { test, expect, chromium, type Browser, type Page } from '@playwright/test';
 import https from 'node:https';
 import dns from 'node:dns/promises';
+import net from 'node:net';
+import tls from 'node:tls';
 import { FULL_OIDC, SKIP_REASON } from './oidc-mode';
 
 /**
@@ -302,3 +304,74 @@ test.describe('Gallery Guest Paths', () => {
     expect((await get(PHOTOS, '/api/server/ping')).status).toBe(200);
   });
 });
+
+/**
+ * Members-only applications (components/member-network/members-only and
+ * stalwart): no Guest Paths, so the public entrypoint has no router for them
+ * and Traefik itself answers 404, while members get the application. Each
+ * path below answers without a session, so this needs no sign-in.
+ */
+const MEMBERS_ONLY: { app: string; host: string; path: string }[] = [
+  { app: 'forgejo', host: 'git', path: '/api/healthz' },
+  { app: 'excalidraw', host: 'whiteboard', path: '/' },
+  { app: 'dashboard', host: 'dashboard', path: '/' },
+  { app: 'pod-gateway', host: 'pod', path: '/healthz' },
+  { app: 'bulwark', host: 'webmail', path: '/' },
+  { app: 'stalwart', host: 'mail', path: '/.well-known/jmap' },
+];
+
+test.describe('Members-only applications', () => {
+  for (const { app, host: name, path } of MEMBERS_ONLY) {
+    const host = `${name}.${DOMAIN}`;
+    test(`${name}: Traefik answers 404 in public, members get the application`, async () => {
+      test.skip(!APPS.includes(app), `runs where MEMBER_NETWORK_APPS names ${app}`);
+      const outside = await get(host, path, PUBLIC_ENTRYPOINT);
+      expect(outside.status).toBe(404);
+      // Traefik's own answer, not the application's: no router took it.
+      expect(outside.body.trim()).toBe('404 page not found');
+      expect((await get(host, path)).status).toBeLessThan(400);
+    });
+  }
+
+  /**
+   * Port 25 stays public for other mail servers. Submission (465) and IMAP
+   * (993) are taken off Stalwart's LoadBalancer Service, which is what
+   * publishes ports on the node, and reach members' clients only through the
+   * Member Gateway, which forwards to stalwart-mail-members.
+   */
+  test('mail: only port 25 is published, submission and IMAP answer members', async () => {
+    test.skip(!APPS.includes('stalwart'), 'runs where MEMBER_NETWORK_APPS names stalwart');
+    const published = 'stalwart-mail.stalwart.svc.cluster.local';
+    const members = 'stalwart-mail-members.stalwart.svc.cluster.local';
+    const open = { 25: await greeting(published, 25), 465: await greeting(published, 465), 993: await greeting(published, 993) };
+    expect(open[25]).toMatch(/^220 /);
+    expect(open[465]).toBeNull();
+    expect(open[993]).toBeNull();
+    expect(await greeting(members, 465, `mail.${DOMAIN}`)).toMatch(/^220 /);
+    expect(await greeting(members, 993, `mail.${DOMAIN}`)).toMatch(/^\* OK/);
+  });
+});
+
+/**
+ * The server's first line on `host:port`, over TLS when `servername` is given
+ * (465 and 993 are implicit TLS), or null when nothing accepts the connection.
+ */
+function greeting(host: string, port: number, servername?: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    const socket = servername
+      ? tls.connect({ host, port, servername, timeout: 10_000 })
+      : net.connect({ host, port, timeout: 10_000 });
+    let data = '';
+    const done = (value: string | null) => {
+      socket.destroy();
+      resolve(value);
+    };
+    socket.setEncoding('utf8');
+    socket.on('data', (chunk) => {
+      data += chunk;
+      if (data.includes('\n')) done(data.split(/\r?\n/)[0]);
+    });
+    socket.on('timeout', () => done(null));
+    socket.on('error', () => done(null));
+  });
+}

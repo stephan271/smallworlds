@@ -788,8 +788,8 @@ data:
   smallworlds.server: |
     ${DOMAIN}:53 {
       hosts {
-        $NODE_IP identity${ENV_EXT}.${DOMAIN} mail${ENV_EXT}.${DOMAIN} meet${ENV_EXT}.${DOMAIN} webmail${ENV_EXT}.${DOMAIN} office${ENV_EXT}.${DOMAIN} monitoring${ENV_EXT}.${DOMAIN} join${ENV_EXT}.${DOMAIN}
-        10.43.0.44 files${ENV_EXT}.${DOMAIN} photos${ENV_EXT}.${DOMAIN} git${ENV_EXT}.${DOMAIN} whiteboard${ENV_EXT}.${DOMAIN} dashboard${ENV_EXT}.${DOMAIN} pod${ENV_EXT}.${DOMAIN}
+        $NODE_IP identity${ENV_EXT}.${DOMAIN} meet${ENV_EXT}.${DOMAIN} office${ENV_EXT}.${DOMAIN} monitoring${ENV_EXT}.${DOMAIN} join${ENV_EXT}.${DOMAIN}
+        10.43.0.44 files${ENV_EXT}.${DOMAIN} photos${ENV_EXT}.${DOMAIN} git${ENV_EXT}.${DOMAIN} whiteboard${ENV_EXT}.${DOMAIN} dashboard${ENV_EXT}.${DOMAIN} pod${ENV_EXT}.${DOMAIN} mail${ENV_EXT}.${DOMAIN} webmail${ENV_EXT}.${DOMAIN}
         fallthrough
       }
       forward . /etc/resolv.conf

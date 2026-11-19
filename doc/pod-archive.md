@@ -56,7 +56,9 @@ ADR 0052 and `doc/storage-and-backup.md` §7.
 Base URL is `https://pod.<domain>`. All requests carry `Authorization: Bearer
 <token>`. There are exactly two kinds of principal and they share no verbs.
 
-That public address exists for **devices**, which are outside the cluster. The
+That public address exists for **devices**, which are outside the cluster.
+With the Member Network on (ADR 0066), it is not public any more: a device joins
+the Member Network as its member's device and reaches the gateway there. The
 one in-cluster client, `immich-pod-export`, reaches the same gateway through
 `http://pod-gateway.pod-gateway.svc.cluster.local` instead: routing a nightly
 job that never leaves the node out through Traefik and back would make it depend
