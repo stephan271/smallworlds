@@ -1,21 +1,29 @@
 {
  "schema": 1,
- "updated": "2026-11-19T11:22:48Z",
+ "updated": "2026-11-19T11:24:56Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "b1d3e6e52c5eb7c5e1d418763d737aa2a6c70897",
-  "state": "success",
-  "description": "Ring 0: backup 1 databases, converged, load still 2.0/CPU after 15 min, smoke 16 hosts, e2e 38 passed, 13 skipped; data 4/4 apps intact, st\u2026",
-  "date": "2026-11-19T09:47:42Z"
+  "commit": "9f9eaacdb63d35a7a63eb837f4073a02c9f78f8c",
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-19T11:24:07Z"
  },
  "now": {
-  "state": "up-to-date",
-  "commit": "b1d3e6e52c5eb7c5e1d418763d737aa2a6c70897",
-  "pull": null,
-  "step": null,
-  "step_since": null,
-  "started": null,
+  "state": "updating",
+  "commit": "9f9eaacdb63d35a7a63eb837f4073a02c9f78f8c",
+  "pull": {
+   "number": 142,
+   "title": "Open /api/public/config to Gallery guests and run Gallery's guest suite on Ring 0",
+   "cards": [
+    "canary-follower",
+    "repository",
+    "smallworlds-root"
+   ]
+  },
+  "step": "sync",
+  "step_since": "2026-11-19T11:24:08Z",
+  "started": "2026-11-19T11:24:06Z",
   "queued": [],
   "stuck": null,
   "action": "merged #141",
@@ -313,9 +321,9 @@
    "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
    "images": [],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-19T09:09:24Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of argoproj.io/Application/garage and 1 more resources"
    },
    "wave": 0
   },
@@ -580,6 +588,36 @@
   }
  ],
  "commits": [
+  {
+   "commit": "9f9eaacdb63d35a7a63eb837f4073a02c9f78f8c",
+   "title": "Open /api/public/config to Gallery guests and run Gallery's guest suite on Ring 0",
+   "author": "stephan271",
+   "date": "2026-11-19T11:23:08Z",
+   "pull": 142,
+   "cards": [
+    "canary-follower",
+    "repository",
+    "smallworlds-root"
+   ],
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-19T11:24:07Z"
+   }
+  },
+  {
+   "commit": "832a15648e2525c6a4a70d1e7ddb1f1081b59179",
+   "title": "Open /api/public/config to guests and run Gallery's guest suite on Ring 0",
+   "author": "stephan271",
+   "date": "2026-11-19T09:22:17Z",
+   "pull": null,
+   "cards": [
+    "canary-follower",
+    "repository",
+    "smallworlds-root"
+   ],
+   "verdict": null
+  },
   {
    "commit": "b1d3e6e52c5eb7c5e1d418763d737aa2a6c70897",
    "title": "Update Docker image forgejo to v17.3.3 (#141)",
@@ -927,39 +965,6 @@
     "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 15 hosts, e2e 29 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
     "date": "2026-11-17T17:30:19Z"
    }
-  },
-  {
-   "commit": "2687d8249ecc04835425a8c53facceeb24999757",
-   "title": "Separate operator interfaces by Traefik entrypoint (ADR 0066, operator half)",
-   "author": "stephan271",
-   "date": "2026-11-17T16:04:19Z",
-   "pull": null,
-   "cards": [
-    "canary-follower",
-    "headscale",
-    "join",
-    "keycloak",
-    "kube-prometheus-stack",
-    "repository",
-    "smallworlds-root",
-    "traefik"
-   ],
-   "verdict": null
-  },
-  {
-   "commit": "3e2514f815f338045f6ef9357f9375255bfd3ce9",
-   "title": "ADR 0066: in-cluster DNS and Ring 0's outside guest suite",
-   "author": "stephan271",
-   "date": "2026-11-17T15:49:03Z",
-   "pull": null,
-   "cards": [
-    "repository"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 15 hosts, e2e 21 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-17T16:13:49Z"
-   }
   }
  ],
  "pulls": [
@@ -987,21 +992,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 142,
-   "title": "Open /api/public/config to Gallery guests and run Gallery's guest suite on Ring 0",
-   "author": "stephan271",
-   "created": "2026-11-19T11:20:59Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "canary-follower",
-    "repository",
-    "smallworlds-root"
    ]
   }
  ]
