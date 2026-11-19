@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-19T08:26:06Z",
+ "updated": "2026-11-19T08:28:15Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -22,7 +22,16 @@
   "step": "waiting",
   "step_since": null,
   "started": null,
-  "queued": [],
+  "queued": [
+   {
+    "number": 141,
+    "title": "Update Docker image forgejo to v17.3.3",
+    "cards": [
+     "forgejo"
+    ],
+    "since": "2026-11-19T08:26:35Z"
+   }
+  ],
   "stuck": null,
   "action": "merged #140",
   "waiting": null
@@ -990,6 +999,21 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 141,
+   "title": "Update Docker image forgejo to v17.3.3",
+   "author": "renovate[bot]",
+   "created": "2026-11-19T08:26:35Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "forgejo"
    ]
   }
  ]
