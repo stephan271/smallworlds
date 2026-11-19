@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-19T08:41:04Z",
+ "updated": "2026-11-19T08:43:13Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -252,7 +252,7 @@
   {
    "name": "keycloak",
    "group": "platform",
-   "health": "Progressing",
+   "health": "Healthy",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -263,12 +263,13 @@
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
     "ghcr.io/tensorchord/cloudnative-pgvecto.rs:16.4-v0.3.0",
+    "quay.io/keycloak/keycloak:26.8.2@sha256:7e66a96e4739239070aeaf72e4c5decf0f7f682cfc725b9f7ea2b336eaba38b3",
     "quay.io/keycloak/keycloak@sha256:7e66a96e4739239070aeaf72e4c5decf0f7f682cfc725b9f7ea2b336eaba38b3"
    ],
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": "waiting for healthy state of apps/StatefulSet/keycloak-keycloakx"
+    "message": "waiting for completion of hook batch/Job/keycloak-realm-config"
    },
    "wave": 0
   },
@@ -321,7 +322,7 @@
   {
    "name": "smallworlds-root",
    "group": "machinery",
-   "health": "Progressing",
+   "health": "Healthy",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -580,7 +581,6 @@
    "version": null,
    "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
    "images": [
-    "alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf",
     "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -591,9 +591,9 @@
     "stalwartlabs/stalwart:v1.1.0@sha256:0aacd114054f56c34e98063140e2102a04dc0bcb4933ff08925cf8e9938b0d16"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/stalwart-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-19T08:42:28Z",
+    "message": null
    },
    "wave": 1
   }
