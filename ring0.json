@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-19T09:17:11Z",
+ "updated": "2026-11-19T09:19:20Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -19,8 +19,8 @@
     "forgejo"
    ]
   },
-  "step": "converge",
-  "step_since": "2026-11-19T09:10:45Z",
+  "step": "settle",
+  "step_since": "2026-11-19T09:18:25Z",
   "started": "2026-11-19T09:07:45Z",
   "queued": [],
   "stuck": null,
@@ -250,17 +250,15 @@
    "version": null,
    "revision": "cb8eef20f8c096bb5164be272ff93aceb902ac38",
    "images": [
-    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
     "ghcr.io/tensorchord/cloudnative-pgvecto.rs:16.4-v0.3.0",
-    "quay.io/keycloak/keycloak:26.8.2@sha256:7e66a96e4739239070aeaf72e4c5decf0f7f682cfc725b9f7ea2b336eaba38b3",
     "quay.io/keycloak/keycloak@sha256:7e66a96e4739239070aeaf72e4c5decf0f7f682cfc725b9f7ea2b336eaba38b3"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/keycloak-realm-config"
+    "phase": "Succeeded",
+    "finished": "2026-11-19T09:17:34Z",
+    "message": null
    },
    "wave": 0
   },
@@ -536,9 +534,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/nextcloud-oidc-config"
+    "phase": "Succeeded",
+    "finished": "2026-11-19T09:18:19Z",
+    "message": null
    },
    "wave": 1
   },
