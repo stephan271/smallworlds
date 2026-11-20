@@ -1,34 +1,31 @@
 {
  "schema": 1,
- "updated": "2026-11-20T12:32:42Z",
+ "updated": "2026-11-20T12:38:55Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "d145dd188f87bf5fdaca9c600d9fb53aa6e10289",
-  "state": "success",
-  "description": "Ring 0: backup 1 databases, converged, load settled after 1 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
-  "date": "2026-11-20T12:31:48Z"
+  "commit": "5805eeb12d927a6ca6399f91365725b97e04f1b7",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "d145dd188f87bf5fdaca9c600d9fb53aa6e10289",
-  "pull": null,
-  "step": "merge",
+  "commit": "5805eeb12d927a6ca6399f91365725b97e04f1b7",
+  "pull": {
+   "number": 152,
+   "title": "Update Helm chart jitsi-meet to v3.13.0 (#152)",
+   "cards": [
+    "jitsi"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
-  "queued": [
-   {
-    "number": 152,
-    "title": "Update Helm chart jitsi-meet to v3.13.0",
-    "cards": [
-     "jitsi"
-    ],
-    "since": "2026-11-20T12:06:33Z"
-   }
-  ],
+  "queued": [],
   "stuck": null,
-  "action": "merged #151",
-  "waiting": "no queued update is ready"
+  "action": "merged #152",
+  "waiting": null
  },
  "applications": [
   {
@@ -336,7 +333,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "d145dd188f87bf5fdaca9c600d9fb53aa6e10289",
+   "revision": "5805eeb12d927a6ca6399f91365725b97e04f1b7",
    "images": [
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
@@ -589,6 +586,17 @@
   }
  ],
  "commits": [
+  {
+   "commit": "5805eeb12d927a6ca6399f91365725b97e04f1b7",
+   "title": "Update Helm chart jitsi-meet to v3.13.0 (#152)",
+   "author": "renovate[bot]",
+   "date": "2026-11-20T12:36:58Z",
+   "pull": 152,
+   "cards": [
+    "jitsi"
+   ],
+   "verdict": null
+  },
   {
    "commit": "d145dd188f87bf5fdaca9c600d9fb53aa6e10289",
    "title": "Update gallery to v5.11.1 (#151)",
@@ -936,23 +944,6 @@
     "smallworlds-root"
    ],
    "verdict": null
-  },
-  {
-   "commit": "e01a3772272f745be52b98f5b6ed206ba49e5a85",
-   "title": "Put Nextcloud on the Member Network, Guest Paths alone in public (ADR 0066)",
-   "author": "stephan271",
-   "date": "2026-11-18T17:04:38Z",
-   "pull": 135,
-   "cards": [
-    "canary-follower",
-    "repository",
-    "smallworlds-root"
-   ],
-   "verdict": {
-    "state": "failure",
-    "description": "Not converged: nextcloud: Synced/Healthy",
-    "date": "2026-11-18T17:53:30Z"
-   }
   }
  ],
  "pulls": [
@@ -994,21 +985,6 @@
    "cards": [
     "join",
     "repository"
-   ]
-  },
-  {
-   "number": 152,
-   "title": "Update Helm chart jitsi-meet to v3.13.0",
-   "author": "renovate[bot]",
-   "created": "2026-11-20T12:06:33Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "jitsi"
    ]
   }
  ]
