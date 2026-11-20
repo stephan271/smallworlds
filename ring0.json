@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-20T12:57:41Z",
+ "updated": "2026-11-20T13:05:59Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -976,6 +976,20 @@
    "title": "Restart join when its settings change, and correct the Android steps",
    "author": "stephan271",
    "created": "2026-11-20T12:06:05Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "join",
+    "repository"
+   ]
+  },
+  {
+   "number": 153,
+   "title": "Document the Member Network, accept ADR 0066, and refuse Collabora in member mode",
+   "author": "stephan271",
+   "created": "2026-11-20T13:04:05Z",
    "draft": false,
    "queued": false,
    "rejected": false,
