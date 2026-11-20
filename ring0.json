@@ -1,19 +1,26 @@
 {
  "schema": 1,
- "updated": "2026-11-20T10:06:59Z",
+ "updated": "2026-11-20T10:11:10Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "f80ed97863a7a8d6f6f569839592459ce480a0f6",
-  "state": "success",
-  "description": "Ring 0: backup 1 databases, converged, load settled after 1 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
-  "date": "2026-11-20T07:28:15Z"
+  "commit": "4a5471c87b3c9b60992dfbaa9a9aadb34a5ddb09",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
-  "state": "up-to-date",
-  "commit": "f80ed97863a7a8d6f6f569839592459ce480a0f6",
-  "pull": null,
-  "step": null,
+  "state": "updating",
+  "commit": "4a5471c87b3c9b60992dfbaa9a9aadb34a5ddb09",
+  "pull": {
+   "number": 149,
+   "title": "Let the Operator choose the Member Network at install, and onboard members onto it",
+   "cards": [
+    "join",
+    "repository"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [],
@@ -581,6 +588,41 @@
  ],
  "commits": [
   {
+   "commit": "4a5471c87b3c9b60992dfbaa9a9aadb34a5ddb09",
+   "title": "Let the Operator choose the Member Network at install, and onboard members onto it",
+   "author": "stephan271",
+   "date": "2026-11-20T10:10:45Z",
+   "pull": 149,
+   "cards": [
+    "join",
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "645ea2030eed16bf7e6e97dae6efaefa7aa8af3a",
+   "title": "Show new members how to connect their devices to the Member Network",
+   "author": "stephan271",
+   "date": "2026-11-20T10:06:27Z",
+   "pull": null,
+   "cards": [
+    "join",
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "c708536e19cbc8a5bcb3a56cb6b74e1c1a8cbffd",
+   "title": "Let the Operator choose the Member Network at install",
+   "author": "stephan271",
+   "date": "2026-11-20T10:06:27Z",
+   "pull": null,
+   "cards": [
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "f80ed97863a7a8d6f6f569839592459ce480a0f6",
    "title": "Update Helm chart nextcloud to v9.4.5 (#148)",
    "author": "renovate[bot]",
@@ -903,51 +945,6 @@
     "smallworlds-root"
    ],
    "verdict": null
-  },
-  {
-   "commit": "d0a34733ce0453161555e0934a3520824b9258ac",
-   "title": "Send in-cluster callers of member apps to the members entrypoint (ADR 0066)",
-   "author": "stephan271",
-   "date": "2026-11-18T16:29:14Z",
-   "pull": 134,
-   "cards": [
-    "repository",
-    "traefik"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 3 min, smoke 16 hosts, e2e 33 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-18T16:46:29Z"
-   }
-  },
-  {
-   "commit": "1c9d39a65a5a898548042eaf606deff74613be5f",
-   "title": "Send in-cluster callers of member apps to the members entrypoint (ADR 0066)",
-   "author": "stephan271",
-   "date": "2026-11-18T16:26:23Z",
-   "pull": null,
-   "cards": [
-    "repository",
-    "traefik"
-   ],
-   "verdict": null
-  },
-  {
-   "commit": "9e8fcaed37d10fefc8abce94e6ec44f26830547b",
-   "title": "Restart a gateway that has lost Headscale (ADR 0066)",
-   "author": "stephan271",
-   "date": "2026-11-18T15:52:50Z",
-   "pull": 133,
-   "cards": [
-    "headscale",
-    "member-network",
-    "repository"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 33 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-18T16:09:29Z"
-   }
   }
  ],
  "pulls": [
@@ -974,20 +971,6 @@
    "rejected": false,
    "labels": [],
    "cards": [
-    "repository"
-   ]
-  },
-  {
-   "number": 149,
-   "title": "Let the Operator choose the Member Network at install, and onboard members onto it",
-   "author": "stephan271",
-   "created": "2026-11-20T10:06:56Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "join",
     "repository"
    ]
   }
