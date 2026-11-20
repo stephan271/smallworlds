@@ -581,6 +581,8 @@ set_stored STORED_MEMBER_NETWORK on
 output="$(run_prepare)"
 status=$?
 check_contains "$output" "needs Gallery" "plain Immich on the Member Network is refused, with the reason"
+check_contains "$output" ">>> guidance	The Member Network cannot serve this selection yet" \
+    "and the wizard gets it as advice"
 if [[ "$status" -ne 0 && "$(cat "$overlay/kustomization.yaml")" == "$before" ]]; then
     pass "and the overlay is left untouched"
 else

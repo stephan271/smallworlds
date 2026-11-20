@@ -19,7 +19,9 @@ prepare-community-repo.sh like any selected application's; `--app root --mode
 off` removes it.
 
 Plain Immich has no recorded Guest Paths, so the Member Network refuses it
-(`--check`): only Gallery may be the photo application.
+(`--check`): only Gallery may be the photo application. Nextcloud's Guest
+Paths were recorded with Euro-Office; Collabora's paths inside Nextcloud were
+not, so it is refused too.
 """
 import argparse
 import re
@@ -77,6 +79,12 @@ def check(mode, apps, photo_backend):
             "the Member Network needs Gallery as the photo application. Plain Immich's "
             "share links have not been recorded, so it cannot tell which of its paths "
             "guests need (docs/adr/0066). Choose gallery, or leave the Member Network off.")
+    if mode == "on" and "collabora" in apps:
+        raise MemberNetworkError(
+            "the Member Network cannot run with Collabora yet. Nextcloud's share links "
+            "were recorded with Euro-Office; with Collabora a guest could open a shared "
+            "document only as far as Nextcloud's own pages (docs/adr/0066). Choose "
+            "euro-office or no Office editor, or leave the Member Network off.")
 
 
 def host(subdomain, domain, ext):

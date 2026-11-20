@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Member applications can sit on a Member Network of their own, chosen at install
@@ -313,7 +313,9 @@ The choice is built (2026-11-20). `prepare-community-repo.sh` asks
 each member application's Component, Nextcloud's guest host and the member
 Headscale's settings between marker comments, so a re-run replaces them and
 `off` removes them. It refuses plain Immich, whose share links have not been
-recorded: with the Member Network on, Photos has to run Gallery.
+recorded: with the Member Network on, Photos has to run Gallery. For the same
+reason it refuses Collabora, whose paths inside Nextcloud were not recorded
+(Nextcloud's list was made with Euro-Office); the editor is Euro-Office or none.
 `smallworlds-init.sh` refuses a LAN-only target, adds the `network.<domain>`
 record, and leaves 465 and 993 out of both firewalls (Terraform
 `member_network`, the host allow-list); the wizard offers the question on the

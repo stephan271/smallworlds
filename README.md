@@ -205,6 +205,8 @@ The cluster is running, but not ready to use: nobody has an account yet, and on 
 
 A LAN-only machine behind a router skips steps 2 to 4 and 6: nothing of it faces the internet.
 
+**With the Member Network on** (`MEMBER_NETWORK`, [`docs/adr/0066`](docs/adr/0066-member-applications-can-sit-on-a-member-network-chosen-at-install.md)), the member applications answer only on members' devices, and only share links, video calls, sign-in and the join page stay public. Every member then installs the Tailscale app and signs in to `network.<domain>` with their passkey; the join page shows how on its last screen, and [`doc/member-network-guide.md`](doc/member-network-guide.md) is the guide to pass on. It is off unless chosen, needs a server reachable from the internet, needs Gallery if Photos is selected, and Euro-Office or no Office editor (the Guest Paths of plain Immich and of Collabora have not been recorded). Turning it on for a running community cuts members off until they have enrolled a device, so announce it first.
+
 ### 6. Authentication Configuration
 By default, registration is invitation-only (step 5 above). To enable self-registration, patch the Keycloak configuration via your `kustomization.yaml`:
 

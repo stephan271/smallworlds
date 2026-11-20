@@ -12,11 +12,21 @@ private), `doc/tenant-keycloak.md` §5–§6 (authentication and the admin path)
 
 ## 1. The exposure decision
 
-Member applications stay reachable from the public internet. Two independent
-reasons make network-level restriction unworkable for them: **share links have
-to reach non-members**, who are arbitrary addresses on the internet, and members
-open the apps from phones and work laptops. A tailnet would also cost the
-property that onboarding requires no installed software (`doc/mail.md` §1).
+Whether member applications are reachable from the public internet is the
+Operator's choice at install (`docs/adr/0066`, `MEMBER_NETWORK`):
+
+- **Member Network off** (the default): member applications stay public. Share
+  links have to reach non-members, who are arbitrary addresses on the internet,
+  and members open the apps from phones and work laptops without installing
+  anything (`doc/mail.md` §1).
+- **Member Network on**: the full applications answer only on the `members`
+  entrypoint, which members' devices reach through a tailnet of their own, and
+  the public entrypoint keeps only what guests need: each application's Guest
+  Paths for share links, Jitsi, the `smallworlds` realm and the join page. The
+  share-link argument does not rule this out, because guests use a small, known
+  set of paths per application (recorded on Ring 0, checked there on every
+  commit by e2e spec 12). The price is that every member installs the
+  Tailscale app; `doc/member-network-guide.md` is what they follow.
 
 Operator interfaces are the opposite: nobody outside the operator ever needs
 them. They are separated by **Traefik entrypoint** (`docs/adr/0066`), and each
@@ -56,13 +66,22 @@ Ring 0 checks all three entrypoints on every commit (spec 11). Pods reach
 `traefik-members` (`10.43.0.44:443`), so Euro-Office and Ring 0's checks see the
 full applications whether or not the Member Network is on.
 
+Members' devices join a Headscale of their own (`tenants/member-network`,
+`network.<domain>`), never the Operator's: in Headscale a missing or broken
+policy lets everyone reach everything, and separate instances cannot make that
+mistake. Its policy lets a member's device reach the Member Gateway's `:443`,
+`:465` and `:993` and nothing else, not even another member's device. Devices
+enroll by signing in with the member's passkey, and leave when the member's
+Keycloak account is deleted (`member-reconciler`, every five minutes; a
+disabled account keeps its devices).
+
 With the Member Network on, mail's public surface shrinks to port 25, where
 other servers deliver. Stalwart's Component (`components/member-network/
 stalwart`) takes submission (465) and IMAP (993) off the LoadBalancer Service,
 so the node does not publish them at all, and the Member Gateway forwards its
-own `:465` and `:993` to the cluster-only `stalwart-mail-members`. Both
-firewalls still allow 465 and 993 until the installer drops them in member mode;
-nothing answers there.
+own `:465` and `:993` to the cluster-only `stalwart-mail-members`. The installer
+also leaves 465 and 993 out of both firewalls in member mode (Terraform
+`member_network`, the host allow-list), so they are closed twice.
 
 **The allow-list only means something because Traefik sees the visitor's real
 address.** Its Service sets `externalTrafficPolicy: Local` for that reason
@@ -95,9 +114,17 @@ Two consequences to keep in mind:
   before through a cluster source. Closing that needs a NetworkPolicy on
   Traefik's pods admitting that port from the gateway alone (§6).
 
-| Public | Restricted (`operators` entrypoint, plus the node's LAN) |
-|---|---|
-| Nextcloud, Immich, Collabora, Forgejo, Excalidraw, Bulwark, dashboard, Jitsi, pod-gateway, Headscale, `identity/realms/smallworlds`, `join` (the join page) | ArgoCD, Grafana, `identity/admin`, `identity/realms/master`, `join/desk` (the Invitation Desk) |
+| | Member Network off | Member Network on |
+|---|---|---|
+| **Public** | Nextcloud, Immich or Gallery, Collabora or Euro-Office, Forgejo, Excalidraw, Bulwark, Stalwart (25, 465, 993, JMAP), dashboard, Jitsi, pod-gateway, Headscale, `identity/realms/smallworlds`, `join` | Nextcloud's and Gallery's Guest Paths, the Office editor (`office.<domain>`), Jitsi, Stalwart port 25, both Headscales, `identity/realms/smallworlds`, `join` |
+| **`members` entrypoint** (members' devices, and pods) | the same applications as in public; nobody outside the cluster reaches it | Nextcloud, Gallery, Forgejo, Excalidraw, Bulwark, Stalwart (JMAP; 465 and 993 through the Member Gateway), dashboard, pod-gateway |
+| **Restricted** (`operators` entrypoint, plus the node's LAN) | ArgoCD, Grafana, `identity/admin`, `identity/realms/master`, `join/desk` (the Invitation Desk) | the same |
+
+Plain Immich cannot be put on the Member Network: its Guest Paths have not
+been recorded, so the installer refuses it in member mode. Nextcloud's were
+recorded with Euro-Office as the editor; Collabora's paths inside Nextcloud
+(`/apps/richdocuments/…`) were not, so the installer refuses Collabora in member
+mode too (Euro-Office or no editor).
 
 The Invitation Desk is the one restricted interface that shares a host with a
 public one. It is served on a port of its own that the public Ingress never

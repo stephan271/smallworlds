@@ -339,10 +339,13 @@ case "$MEMBER_NETWORK" in
         exit 1
         ;;
 esac
-if ! python3 "$SCRIPT_DIR/generate_member_network_patches.py" --check --app root \
-        --mode "$MEMBER_NETWORK" --apps "${SELECTED_APPS[*]}" --photo-backend "$PHOTO_BACKEND"; then
-    sw_guidance "The Member Network needs Gallery" \
-        "Plain Immich's share links have not been recorded yet, so it cannot run on the Member Network. Choose gallery as the photo application, or leave the Member Network off."
+if ! member_network_refusal="$(python3 "$SCRIPT_DIR/generate_member_network_patches.py" --check \
+        --app root --mode "$MEMBER_NETWORK" --apps "${SELECTED_APPS[*]}" \
+        --photo-backend "$PHOTO_BACKEND" 2>&1)"; then
+    echo -e "${RED}${member_network_refusal}${NC}" >&2
+    member_network_refusal="${member_network_refusal#Error: the }"
+    sw_guidance "The Member Network cannot serve this selection yet" \
+        "The ${member_network_refusal}"
     exit 1
 fi
 # An overlay that exists but does not deploy the member Headscale yet is a

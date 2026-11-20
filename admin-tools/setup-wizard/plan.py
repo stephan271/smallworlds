@@ -465,6 +465,11 @@ def validate_answers(answers: dict) -> list[dict]:
                     "The Member Network needs Gallery for Photos: Immich's share links "
                     "have not been recorded yet, so it cannot tell which of its paths "
                     "guests need.")
+        if "collabora" in apps:
+            problem("member_network",
+                    "The Member Network cannot run with Collabora yet: Nextcloud's share "
+                    "links were recorded with Euro-Office. Choose Euro-Office or no "
+                    "Office editor.")
 
     return problems
 

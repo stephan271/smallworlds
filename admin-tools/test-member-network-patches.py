@@ -124,6 +124,15 @@ with tempfile.TemporaryDirectory() as outer:
     result = run("--check", "--app", "root", "--mode", "on", "--apps", "nextcloud",
                  "--photo-backend", "immich")
     check("the photo answer does not matter without Photos", result.returncode == 0, result.stderr)
+    result = run("--check", "--app", "root", "--mode", "on", "--apps", "nextcloud collabora",
+                 "--photo-backend", "gallery")
+    check("Collabora is refused with the Member Network on",
+          result.returncode == 2 and "Euro-Office" in result.stderr, result.stderr)
+    result = run("--check", "--app", "root", "--mode", "on", "--apps", "nextcloud euro-office",
+                 "--photo-backend", "gallery")
+    check("Euro-Office is fine", result.returncode == 0, result.stderr)
+    result = run("--check", "--app", "root", "--mode", "off", "--apps", "nextcloud collabora")
+    check("Collabora is fine with it off", result.returncode == 0, result.stderr)
 
     # --- applications that stay public -------------------------------------
     path = overlay(tmp, "join")
