@@ -275,6 +275,10 @@ def test_plan_module():
           and {"host": "network.example.org", "app": "Member Network"} in member_plan["hostnames"])
     check("plain Immich is refused with it",
           "member_network" in fields({"member_network": "on", "photo_backend": "immich"}))
+    check("Collabora is refused with it",
+          "member_network" in fields({**member, "apps": ["nextcloud", "immich", "collabora"]}))
+    check("Euro-Office is fine with it",
+          fields({**member, "apps": ["nextcloud", "immich", "euro-office"]}) == set())
     check("without Photos, the photo answer does not matter",
           fields({"member_network": "on", "apps": ["nextcloud"]}) == set())
     lan_member = fields({**member, "target": "local", "ssh_target": "root@10.0.0.2",
