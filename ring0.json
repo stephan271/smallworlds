@@ -1,28 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-20T10:25:50Z",
+ "updated": "2026-11-20T10:30:00Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "4a5471c87b3c9b60992dfbaa9a9aadb34a5ddb09",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-20T10:15:13Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+  "date": "2026-11-20T10:29:36Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "4a5471c87b3c9b60992dfbaa9a9aadb34a5ddb09",
-  "pull": {
-   "number": 149,
-   "title": "Let the Operator choose the Member Network at install, and onboard members onto it",
-   "cards": [
-    "join",
-    "repository"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-20T10:24:35Z",
-  "started": "2026-11-20T10:15:13Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #148",
@@ -598,9 +591,9 @@
     "repository"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-20T10:15:13Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-20T10:29:36Z"
    }
   },
   {
