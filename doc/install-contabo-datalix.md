@@ -238,7 +238,8 @@ key is wrong, and the install would fail later for the same reason.
 
 Tick **Files**, **Photos** and **Meet**; untick everything else. Under the app
 list, set **Photos runs** to **Gallery**. Leave the Office editor at "No online
-office editor". Leave **New SmallWorlds releases** at "Offer them once they are
+office editor". Leave **Member applications** at "Reachable from the internet,
+as usual". Leave **New SmallWorlds releases** at "Offer them once they are
 two weeks old".
 
 **Panel 5 — Ready to install**
@@ -465,8 +466,8 @@ username, and is done in about three minutes, in German or English.
 `doc/tenant-join.md` shows the Keycloak pages they go through, in case someone
 asks what to expect.
 
-Members need nothing installed and are never on the private network: the
-dashboard and the applications are public by design.
+Members need nothing installed and are never on the private network: in this
+setup the dashboard and the applications are public by design.
 
 ## 14. Check from outside
 
