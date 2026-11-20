@@ -320,6 +320,51 @@ else
     S3_ENDPOINT="" S3_REGION="" S3_BUCKET_PREFIX="" S3_BACKUP_ENDPOINT="" S3_BACKUP_REGION=""
 fi
 
+# The Member Network (docs/adr/0066): member applications reachable only from
+# members' devices, which join a tailnet of their own; only what guests need for
+# share links stays public. Off is the default. It applies only to a server
+# reachable from the internet, which smallworlds-init.sh checks — on a LAN-only
+# cluster the applications are not public in the first place.
+echo ""
+echo "Should the member applications sit on a Member Network?"
+echo "  off  they stay reachable from the internet, as they are today (default)"
+echo "  on   members reach them through the Tailscale app on their devices, signed in"
+echo "       with their passkey; only share links, video calls and sign-in stay public"
+echo "Only for a server reachable from the internet."
+ask_prefilled "Member Network (off/on): " MEMBER_NETWORK "${STORED_MEMBER_NETWORK:-off}" required
+case "$MEMBER_NETWORK" in
+    off|on) ;;
+    *)
+        echo -e "${RED}Choose exactly one of: off, on.${NC}" >&2
+        exit 1
+        ;;
+esac
+if ! python3 "$SCRIPT_DIR/generate_member_network_patches.py" --check --app root \
+        --mode "$MEMBER_NETWORK" --apps "${SELECTED_APPS[*]}" --photo-backend "$PHOTO_BACKEND"; then
+    sw_guidance "The Member Network needs Gallery" \
+        "Plain Immich's share links have not been recorded yet, so it cannot run on the Member Network. Choose gallery as the photo application, or leave the Member Network off."
+    exit 1
+fi
+# An overlay that exists but does not deploy the member Headscale yet is a
+# running community being switched over (the overlay is the record: the wizard
+# writes the new answer before this script runs).
+if [[ "$MEMBER_NETWORK" == "on" && -f "$ABS_REPO_PATH/kustomization.yaml" ]] \
+        && ! grep -q "apps/member-network.yaml" "$ABS_REPO_PATH/kustomization.yaml"; then
+    echo ""
+    echo -e "${YELLOW}Turning the Member Network on for a community that already runs.${NC}"
+    echo -e "Once this reaches the cluster, members' applications stop answering on the"
+    echo -e "internet: each member first installs the Tailscale app and signs in with their"
+    echo -e "passkey (the join page shows how). Tell them, and give them time to do it,"
+    echo -e "before you push this overlay. Share links keep working throughout."
+    echo -e "A node installed before the Member Network existed keeps its old in-cluster"
+    echo -e "DNS override until it is rebuilt or bootstrapped again (re-running"
+    echo -e "smallworlds-init.sh does it for a local or rented server; a Hetzner node needs"
+    echo -e "SMALLWORLDS_REPLACE_NODE=1). Do that first, or Office and other in-cluster"
+    echo -e "callers see only the public side (docs/adr/0066)."
+    echo ""
+fi
+MEMBER_NETWORK_APPS="${SELECTED_APPS[*]}"
+
 # Ring 0 only (plans-and-walkthroughs/design-update-strategy.md §3.2): keep both
 # Garage instances and the replicator running, unused, beside the provider, so
 # that updates to them can be verified there. Never asked — an operator has no
@@ -344,6 +389,19 @@ apply_storage_patches() {
         --backup-endpoint "$S3_BACKUP_ENDPOINT" --backup-region "$S3_BACKUP_REGION" \
         "${KEEP_GARAGE_FLAG[@]}"
 }
+
+# Applied to every overlay kustomization on every run, like the storage
+# patches: on adds the Member Network's Components and patches, off removes them.
+apply_member_network_patches() {
+    python3 "$SCRIPT_DIR/generate_member_network_patches.py" \
+        --app "$1" --mode "$MEMBER_NETWORK" --kustomization-file "$2" \
+        --apps "$MEMBER_NETWORK_APPS" --photo-backend "$PHOTO_BACKEND" \
+        --domain "$TARGET_DOMAIN" --ext "$ENV_EXT" --version "$SMALLWORLDS_VERSION"
+}
+# With it on, the member Headscale is one more application of this overlay.
+if [[ "$MEMBER_NETWORK" == "on" ]]; then
+    SELECTED_APPS+=("member-network")
+fi
 
 sw_step_ok repo-init
 sw_step repo-apps "Writing the application overlays"
@@ -392,6 +450,16 @@ EOF
             "$ABS_REPO_PATH/$app/kustomization.yaml"
     fi
     apply_storage_patches "$app" "$ABS_REPO_PATH/$app/kustomization.yaml"
+    apply_member_network_patches "$app" "$ABS_REPO_PATH/$app/kustomization.yaml"
+done
+# A directory the loop above no longer visits keeps no Member Network block:
+# an application deselected while it was on, or member-network itself.
+for dir in */; do
+    dir="${dir%/}"
+    if [[ -f "$dir/kustomization.yaml" && " ${APPS[*]} " != *" $dir "* ]] \
+            && grep -q "smallworlds:member-network" "$dir/kustomization.yaml"; then
+        MEMBER_NETWORK=off apply_member_network_patches "$dir" "$ABS_REPO_PATH/$dir/kustomization.yaml"
+    fi
 done
 
 # 4. Create or Update root kustomization.yaml
@@ -520,6 +588,9 @@ fi
 # Without Garage the root loses the two Garage Applications, their volumes and
 # the replicator, and Velero is pointed at the provider (docs/adr/0053).
 apply_storage_patches root "$ABS_REPO_PATH/kustomization.yaml"
+# Off: the member Headscale's Application leaves the root. Its directory stays,
+# like an Office editor's, so turning the Member Network on again is lossless.
+apply_member_network_patches root "$ABS_REPO_PATH/kustomization.yaml"
 
 # Renovate no longer runs in the cluster: the Renovate GitHub App, installed on
 # this overlay repository, reads renovate.json below and opens the base-tag
@@ -584,6 +655,7 @@ STORED_S3_BUCKET_PREFIX="${S3_BUCKET_PREFIX}"
 STORED_S3_BACKUP_ENDPOINT="${S3_BACKUP_ENDPOINT}"
 STORED_S3_BACKUP_REGION="${S3_BACKUP_REGION}"
 STORED_KEEP_GARAGE_FOR_TESTS="${KEEP_GARAGE_FOR_TESTS}"
+STORED_MEMBER_NETWORK="${MEMBER_NETWORK}"
 EOF
 for app in "${OPTIONAL_APPS[@]}"; do
     var_name="$(app_pref_var "$app")"

@@ -118,6 +118,10 @@ function answers() {
       ? el("local_dns").value : "hetzner",
     library_dir: el("library_dir").value.trim(),
     photo_backend: el("photo_backend").value,
+    // Only a question for a server reachable from the internet.
+    member_network: (target && (target.value === "hetzner" || rented
+      || (target.value === "local" && el("local_public").value === "yes")))
+      ? el("member_network").value : "off",
     follow_policy: el("follow_policy").value,
     hcloud_token: usingLocal ? el("hcloud_token_local").value : el("hcloud_token").value,
     use_saved_hcloud_token: state ? state.has_saved_hcloud_token : false,
@@ -209,6 +213,7 @@ const FIELD_PANEL = {
   alert_push_url: 0, heartbeat_url: 0,
   target: 1, ssh_target: 1, data_dir: 1, backup_dir: 1, hcloud_token: 1,
   library_dir: 1, host_firewall: 1, local_dns: 1, photo_backend: 3, follow_policy: 3,
+  member_network: 3,
   object_storage: 1, s3_endpoint: 1, s3_region: 1, s3_bucket_prefix: 1,
   s3_access_key_id: 1, s3_secret_access_key: 1, s3_backup_endpoint: 1,
   s3_backup_region: 1, s3_backup_access_key_id: 1, s3_backup_secret_access_key: 1,
@@ -365,6 +370,7 @@ function renderPlan(target, result) {
     ["Files and backups", result.summary.storage],
     ["Alerts", result.summary.alerts],
     ["Photos", result.summary.photos],
+    ["Member applications", result.summary.member_network],
     ["Members join", result.summary.onboarding === "invitation"
       ? "by invitation" : "by signing up themselves"],
     ["Settings repo", result.summary.repository],
@@ -474,10 +480,20 @@ function applyDnsVisibility() {
   const exposed = rented || el("local_public").value === "yes";
   const manual = exposed && el("local_dns").value === "manual";
   el("local-dns-field").hidden = !exposed;
+  applyMemberNetworkVisibility();
   el("manual-dns-hint").hidden = !manual;
   el("hcloud-token-local-field").hidden = manual;
   el("wildcard-name").textContent =
     "*" + el("env_ext").value.trim() + "." + (el("domain").value.trim().toLowerCase() || "your-domain");
+}
+
+/* The Member Network is offered only for a server reachable from the
+   internet: on a LAN-only cluster the applications are not public anyway. */
+function applyMemberNetworkVisibility() {
+  const target = document.querySelector('input[name="target"]:checked');
+  const value = target ? target.value : "";
+  el("member-network-field").hidden = !(value === "hetzner" || value === "vps"
+    || (value === "local" && el("local_public").value === "yes"));
 }
 
 /* Which photo application is only a question once Photos is selected. */
@@ -559,6 +575,7 @@ function fill() {
   el("local_dns").value = state.local_dns;
   el("photo_backend").value = state.photo_backend;
   el("follow_policy").value = state.follow_policy;
+  el("member_network").value = state.member_network;
   if (target) target.checked = true;
   el("ssh_target").value = state.ssh_target;
   el("data_dir").value = state.data_dir;

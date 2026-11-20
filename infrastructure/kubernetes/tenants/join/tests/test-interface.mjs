@@ -175,6 +175,62 @@ console.log("done page");
 }
 
 // ---------------------------------------------------------------------------
+console.log("done page with the Member Network");
+{
+  // docs/adr/0066: with the Member Network on, /api/config names its server.
+  const memberConfig = (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({ dashboardUrl: "https://dashboard.example.test",
+                           memberNetworkUrl: "https://network.example.test" }),
+  });
+  const page = await newPage("en-US", { width: 1200, height: 900 });
+  await page.goto(`${url}/done/en`);
+  await page.waitForFunction(() => document.querySelector("h1").textContent.length > 0);
+  check("without the Member Network, no device steps",
+        await page.locator("#member-network").isHidden());
+  await page.route("**/api/config", memberConfig);
+  await page.reload();
+  await page.waitForSelector("#member-network:not([hidden])");
+  check("with it, the device steps come before the dashboard",
+        (await page.textContent("#member-network h2")) === "One more step: your devices");
+  check("a computer gets its own steps opened, with the login command",
+        (await page.locator('[data-platform="computer"]').getAttribute("open")) !== null &&
+        (await page.textContent("#login-command")) ===
+          "tailscale login --login-server=https://network.example.test");
+  check("the server's guides are linked",
+        (await page.getAttribute("#guide-windows", "href")) === "https://network.example.test/windows");
+  check("the dashboard button says it needs a connected device",
+        (await page.textContent("#dashboard")).includes("once this device is connected"));
+  await page.click('[data-lang="de"]');
+  check("and it all follows the language switch",
+        (await page.textContent("#member-network h2")) === "Noch ein Schritt: deine Geräte" &&
+        (await page.textContent('[data-platform="computer"] summary')).startsWith("Computer"));
+  await page.context().close();
+
+  for (const [name, agent, platform, label] of [
+    ["an Android phone", "Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 Chrome/131.0 Mobile Safari/537.36",
+     "android", "Use an alternate server"],
+    ["an iPhone", "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 Version/18.1 Mobile/15E148 Safari/604.1",
+     "ios", "Use a custom coordination server"],
+  ]) {
+    const context = await browser.newContext({ locale: "en-US", viewport: { width: 320, height: 640 }, userAgent: agent });
+    const phone = await context.newPage();
+    phone.on("pageerror", (error) => problems.push("pageerror: " + error.message));
+    await phone.route("**/api/config", memberConfig);
+    await phone.goto(`${url}/done/en`);
+    await phone.waitForSelector("#member-network:not([hidden])");
+    const opened = await phone.locator("#member-network details[open]").getAttribute("data-platform");
+    check(`${name} gets its own steps opened`, opened === platform, opened);
+    check(`${name}: the steps name the app's menu entry and the server`,
+          (await phone.textContent(`[data-platform="${platform}"]`)).includes(label) &&
+          (await phone.textContent(`[data-platform="${platform}"]`)).includes("https://network.example.test"));
+    const overflow = await phone.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    check(`${name}: no horizontal scrolling at 320 px`, overflow <= 0, `${overflow}px too wide`);
+    await context.close();
+  }
+}
+
+// ---------------------------------------------------------------------------
 console.log("layout at phone width");
 {
   const page = await newPage("en-US", { width: 320, height: 640 });

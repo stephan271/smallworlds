@@ -87,28 +87,22 @@ resource "hcloud_firewall" "k8s_firewall" {
     ]
   }
 
-  # Allow Email Submission from mail apps: implicit TLS on 465, which is
-  # where Stalwart listens and what its SRV records name. Nothing listens on 587.
-  rule {
-    direction = "in"
-    protocol  = "tcp"
-    port      = "465"
-    source_ips = [
-      "0.0.0.0/0",
-      "::/0"
-    ]
-  }
-
-
-  # Allow IMAPS
-  rule {
-    direction = "in"
-    protocol  = "tcp"
-    port      = "993"
-    source_ips = [
-      "0.0.0.0/0",
-      "::/0"
-    ]
+  # Allow Email Submission from mail apps (465: implicit TLS, which is where
+  # Stalwart listens and what its SRV records name; nothing listens on 587) and
+  # IMAPS (993). With the Member Network on they reach members through the
+  # Member Gateway instead and stay closed here (docs/adr/0066). Mirrors
+  # FIREWALL_TCP_PORTS in smallworlds-init.sh.
+  dynamic "rule" {
+    for_each = var.member_network ? [] : ["465", "993"]
+    content {
+      direction = "in"
+      protocol  = "tcp"
+      port      = rule.value
+      source_ips = [
+        "0.0.0.0/0",
+        "::/0"
+      ]
+    }
   }
 
   # Allow Jitsi Videobridge (UDP)
@@ -223,6 +217,8 @@ locals {
   record_names = concat(
     var.env_ext == "" ? ["@"] : [],
     local.core_subdomains,
+    # The member Headscale, which members' devices enroll with (docs/adr/0066).
+    var.member_network ? ["network"] : [],
     local.selected_subdomains,
   )
 

@@ -230,6 +230,7 @@ def initial_state() -> dict:
         "library_dir": cached.get("LIBRARY_DIR", ""),
         "photo_backend": stored.get("STORED_PHOTO_BACKEND") or "immich",
         "follow_policy": stored.get("STORED_FOLLOW_POLICY") or follow_policy.DEFAULT,
+        "member_network": "on" if stored.get("STORED_MEMBER_NETWORK") == "on" else "off",
 
         # The overlay's record wins, as it does in smallworlds-init.sh: the
         # overlay is what was actually written for one mode or the other.
@@ -448,6 +449,23 @@ def validate_answers(answers: dict) -> list[dict]:
     if office and "nextcloud" not in apps:
         problem("apps", f"{office} requires Files (Nextcloud).")
 
+    # The Member Network (docs/adr/0066). Mirrors the checks in
+    # prepare-community-repo.sh and smallworlds-init.sh.
+    member_network = answers.get("member_network") or "off"
+    if member_network not in ("off", "on"):
+        problem("member_network", "Choose whether member applications sit on a Member Network.")
+    elif member_network == "on":
+        exposed = target == "hetzner" or (target == "local" and answers.get("local_public") == "yes")
+        if not exposed:
+            problem("member_network",
+                    "A Member Network is for a server reachable from the internet. On a "
+                    "LAN-only cluster the applications are not public in the first place.")
+        if "immich" in apps and answers.get("photo_backend") != "gallery":
+            problem("member_network",
+                    "The Member Network needs Gallery for Photos: Immich's share links "
+                    "have not been recorded yet, so it cannot tell which of its paths "
+                    "guests need.")
+
     return problems
 
 
@@ -464,8 +482,11 @@ _SUBDOMAIN_BY_APP = {
 }
 
 
-def _hostnames(domain: str, env_ext: str, apps: list[str]) -> list[dict]:
+def _hostnames(domain: str, env_ext: str, apps: list[str],
+               member_network: bool = False) -> list[dict]:
     pairs = [("identity", "Identity"), ("dashboard", "Dashboard"), ("join", "Invitations")]
+    if member_network:
+        pairs.append(("network", "Member Network"))
     labels = {app["name"]: app["label"] for app in OPTIONAL_APPS}
     for app in apps:
         if app in _SUBDOMAIN_BY_APP:
@@ -500,6 +521,7 @@ def build_plan(answers: dict) -> dict:
     manual_dns = target == "local" and answers.get("local_dns") == "manual"
     wildcard = f"*{env_ext}.{domain}"
     gallery = "immich" in apps and answers.get("photo_backend") == "gallery"
+    member_network = answers.get("member_network") == "on"
     library_dir = (answers.get("library_dir") or "").strip()
     if "immich" not in apps:
         photos_summary = "not installed"
@@ -709,6 +731,9 @@ def build_plan(answers: dict) -> dict:
                        f"the rented server {answers['ssh_target']}" if rented
                        else answers["ssh_target"]),
             "photos": photos_summary,
+            "member_network": ("on a Member Network: members' devices only, guests "
+                               "keep share links, calls and sign-in") if member_network
+                              else "reachable from the internet",
             "certificates": certificates,
             "reachable": reachable,
             "storage": storage_summary,
@@ -721,7 +746,7 @@ def build_plan(answers: dict) -> dict:
             "application_count": len(apps) + 2,
         },
         "steps": steps,
-        "hostnames": _hostnames(domain, env_ext, apps),
+        "hostnames": _hostnames(domain, env_ext, apps, member_network),
         "warnings": warnings,
         "commands": [
             {

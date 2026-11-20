@@ -690,6 +690,8 @@ dns_subdomains() {
     local app sub
     {
         printf '%s\n' identity dashboard monitoring deploy vpn join
+        # The member Headscale (docs/adr/0066), only with the Member Network on.
+        [[ "${MEMBER_NETWORK:-off}" == "on" ]] && printf '%s\n' network
         while IFS= read -r app; do
             case "$app" in
                 nextcloud)             sub=files ;;
@@ -840,6 +842,11 @@ ask_with_default "8. Paste your Git Access Token" "GITOPS_REPO_TOKEN" "true" "re
 # single object. So what the overlay recorded is the answer where it exists,
 # and only the credentials, which never go into the overlay, are asked here.
 RECORDED_OBJECT_STORAGE="$(community_setting STORED_OBJECT_STORAGE)"
+# The Member Network (docs/adr/0066) is decided in the overlay too. Here it only
+# changes what the firewalls let in and which DNS records exist, and it needs a
+# server reachable from the internet (checked below, once the target is known).
+MEMBER_NETWORK="$(community_setting STORED_MEMBER_NETWORK)"
+MEMBER_NETWORK="${MEMBER_NETWORK:-off}"
 if [[ -n "$RECORDED_OBJECT_STORAGE" ]]; then
     OBJECT_STORAGE="$RECORDED_OBJECT_STORAGE"
     echo -e "Object storage: ${CYAN}${OBJECT_STORAGE}${NC} (as recorded when the overlay was prepared)"
@@ -1014,6 +1021,16 @@ else
     if [[ "$LOCAL_DNS" != "manual" && ( "$LOCAL_TLS" == "letsencrypt" || "$LOCAL_PUBLIC" == "yes" ) ]]; then
         ask_with_default "14. Paste your Hetzner API Token (used for DNS records only)" "HCLOUD_TOKEN" "true" "required"
     fi
+fi
+
+# The Member Network keeps member applications off the internet. A LAN-only
+# cluster never had them on it, and members could not reach its Headscale from
+# outside to enroll a device, so the overlay's answer is refused here.
+if [[ "$MEMBER_NETWORK" == "on" && "$DEPLOY_TARGET" == "local" && "$LOCAL_PUBLIC" != "yes" ]]; then
+    echo -e "${RED}The overlay has the Member Network on, but this server is not reachable from the internet.${NC}" >&2
+    sw_guidance "The Member Network needs a server on the internet" \
+        "Members enroll their devices from wherever they are, so its Headscale has to be public. On a LAN-only cluster the applications are not public in the first place: run prepare-community-repo.sh again and answer off, or expose this server."
+    exit 1
 fi
 
 # Auto-convert SSH URLs to HTTPS if access token is used
@@ -1357,10 +1374,13 @@ ssh_key_id        = ${SSH_KEY_ID}
 location          = "${HETZNER_LOCATION}"
 server_type       = "${HETZNER_SERVER_TYPE}"
 apps              = [${TF_APPS_LIST}]
+member_network    = $([[ "$MEMBER_NETWORK" == "on" ]] && echo true || echo false)
 
 EOF
     _SELECTED_LIST="$(selected_apps | paste -sd, - | sed 's/,/, /g')"
-    echo -e "${CYAN}DNS records: identity, dashboard, monitoring, deploy, vpn, join${_SELECTED_LIST:+, and one for each of: }${_SELECTED_LIST}${NC}"
+    _MEMBER_RECORD=""
+    [[ "$MEMBER_NETWORK" == "on" ]] && _MEMBER_RECORD=", network"
+    echo -e "${CYAN}DNS records: identity, dashboard, monitoring, deploy, vpn, join${_MEMBER_RECORD}${_SELECTED_LIST:+, and one for each of: }${_SELECTED_LIST}${NC}"
 
     # 3. Execute Terraform
     sw_step terraform-apply "Provisioning the Hetzner VM and DNS records"
@@ -1678,7 +1698,12 @@ EOF
         if selected_apps | grep -qx stalwart; then
             # 465, not 587: Stalwart submits on implicit TLS there (and its SRV
             # records say so), and nothing listens on 587. Mirrors main.tf.
-            FIREWALL_TCP_PORTS="$FIREWALL_TCP_PORTS 25 465 993"
+            FIREWALL_TCP_PORTS="$FIREWALL_TCP_PORTS 25"
+            # Submission and IMAP reach members through the Member Gateway
+            # when the Member Network is on (docs/adr/0066). Mirrors main.tf.
+            if [[ "$MEMBER_NETWORK" != "on" ]]; then
+                FIREWALL_TCP_PORTS="$FIREWALL_TCP_PORTS 465 993"
+            fi
         fi
         if selected_apps | grep -qx jitsi; then
             FIREWALL_UDP_PORTS="10000"

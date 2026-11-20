@@ -58,6 +58,20 @@ against a local Keycloak; the recovery codes are from that throwaway instance.
 
    <img src="../docs/join-flow-de-5-done.png" alt="The join page's done page" width="320">
 
+   With the Member Network on (`docs/adr/0066`), the applications open only on
+   devices that have joined it, so the done page adds the device steps before
+   the dashboard button: install the Tailscale app, point it at
+   `https://network.<domain>` before signing in, sign in with the passkey. The
+   steps for the device in hand are opened (Android, iPhone and iPad, or a
+   computer, which gets the `tailscale login --login-server=…` command and
+   Headscale's own `/apple` and `/windows` guides). It learns the address from
+   `MEMBER_NETWORK_URL` in `join-config`, which
+   `admin-tools/generate_member_network_patches.py` sets; empty means off.
+   The app labels come from Tailscale's documentation (2026-09); check them when
+   a member reports a menu that is not there.
+
+   <img src="../docs/join-flow-de-5-done-member-network.png" alt="The done page with the Member Network on, as an Android phone sees it" width="320">
+
 Every later sign-in uses the same theme:
 
 <img src="../docs/join-signin-de.png" alt="The sign-in page in the smallworlds theme" width="640">

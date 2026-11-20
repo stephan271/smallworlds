@@ -145,7 +145,7 @@ decided per install:
   `local.core_subdomains` (always deployed) and the apex on production. The map mirrors
   `admin-tools/generate_domain_patches.py`, `plan.py`'s `_SUBDOMAIN_BY_APP` and
   `dns_subdomains()` in `smallworlds-init.sh` (which feeds the `local` target's DDNS job its
-  `DNS_SUBDOMAINS`) — change one, change all four. The PTR follows too: no Stalwart means no `mail.<domain>` to point at.
+  `DNS_SUBDOMAINS`) — change one, change all four. The PTR follows too: no Stalwart means no `mail.<domain>` to point at. `network.<domain>` (the member Headscale) exists only with the Member Network on (`var.member_network`, `MEMBER_NETWORK` in `dns_subdomains()`, `plan.py`'s `_hostnames`); its Ingress host comes from `generate_member_network_patches.py`, not the domain generator.
   `var.apps` defaults to every optional app, so a `terraform apply` that does not pass it
   keeps the zone it had.
 

@@ -139,6 +139,18 @@ class PublicSurface(Fresh):
         status, _, raw = call("GET", "/api/config")
         self.assertEqual(json.loads(raw), {"dashboardUrl": "https://dashboard.example.test"})
 
+    def test_config_names_the_member_network_only_when_it_is_on(self):
+        # docs/adr/0066: the done page shows how to connect a device.
+        before = config.MEMBER_NETWORK_URL
+        config.MEMBER_NETWORK_URL = "https://network.example.test"
+        try:
+            status, _, raw = call("GET", "/api/config")
+            self.assertEqual(json.loads(raw), {
+                "dashboardUrl": "https://dashboard.example.test",
+                "memberNetworkUrl": "https://network.example.test"})
+        finally:
+            config.MEMBER_NETWORK_URL = before
+
 
 class Lookup(Fresh):
     def test_open_invitation(self):

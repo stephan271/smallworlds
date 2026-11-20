@@ -88,6 +88,14 @@ p { margin: 0 0 14px; }
 .steps { padding-left: 1.4rem; margin: 0 0 18px; }
 .steps li { margin-bottom: 10px; padding-left: 4px; }
 
+.member-network { margin: 22px 0 18px; padding-top: 18px; border-top: 1px solid var(--line); }
+.member-network h2 { font-size: 1.2rem; margin: 0 0 10px; }
+.member-network details { margin: 0 0 10px; }
+.member-network summary { cursor: pointer; font-weight: 600; padding: 10px 0; }
+.member-network .steps li { overflow-wrap: anywhere; }
+.member-network code { display: block; margin-top: 6px; padding: 8px 10px; overflow-wrap: anywhere;
+  background: var(--accent-soft); border-radius: 8px; font-size: 0.9rem; }
+
 .notice {
   background: var(--warn-soft);
   border: 1px solid var(--warn-line);

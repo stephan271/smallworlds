@@ -16,6 +16,9 @@ CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET", "")
 
 JOIN_URL = os.getenv("JOIN_URL", "https://join.smallworlds.network").rstrip("/")
 DASHBOARD_URL = os.getenv("DASHBOARD_URL", "https://dashboard.smallworlds.network").rstrip("/")
+# The member Headscale (docs/adr/0066), when the community runs the Member
+# Network; empty otherwise. The done page then shows how to connect a device.
+MEMBER_NETWORK_URL = os.getenv("MEMBER_NETWORK_URL", "").rstrip("/")
 
 DB_PATH = os.getenv("DB_PATH", "/data/invitations.db")
 STATIC_DIR = os.getenv("STATIC_DIR", "/static")

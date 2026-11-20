@@ -106,6 +106,17 @@ variable "server_type" {
   default     = "cx43"
 }
 
+variable "member_network" {
+  description = <<-DESC
+    Whether the community runs the Member Network (docs/adr/0066), as recorded
+    by admin-tools/prepare-community-repo.sh. On adds the A record for the
+    member Headscale (network.<domain>) and keeps submission (465) and IMAP
+    (993) closed: members reach those through the Member Gateway.
+  DESC
+  type        = bool
+  default     = false
+}
+
 variable "apps" {
   description = <<-DESC
     The optional applications this community selected, by the names
