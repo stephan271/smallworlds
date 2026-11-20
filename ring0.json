@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-20T09:33:52Z",
+ "updated": "2026-11-20T10:06:59Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -974,6 +974,20 @@
    "rejected": false,
    "labels": [],
    "cards": [
+    "repository"
+   ]
+  },
+  {
+   "number": 149,
+   "title": "Let the Operator choose the Member Network at install, and onboard members onto it",
+   "author": "stephan271",
+   "created": "2026-11-20T10:06:56Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "join",
     "repository"
    ]
   }
