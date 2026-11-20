@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-20T10:48:44Z",
+ "updated": "2026-11-20T10:50:50Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -495,7 +495,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "f0f9f1ea340afed0d0fe0398d75c1cada7dd7ec3",
+   "revision": "90c873517a790f66141b4e90b051625457f356fc",
    "images": [
     "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970",
