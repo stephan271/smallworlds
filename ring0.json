@@ -1,29 +1,37 @@
 {
  "schema": 1,
- "updated": "2026-11-20T13:55:34Z",
+ "updated": "2026-11-20T13:57:43Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "1ce6ef0e122205b504a257dd6f4f050780b4c341",
-  "state": null,
-  "description": null,
-  "date": null
+  "commit": "d27d5404fe46aef023c8bed62e6e989ede0e5968",
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-20T13:57:30Z"
  },
  "now": {
   "state": "updating",
-  "commit": "1ce6ef0e122205b504a257dd6f4f050780b4c341",
+  "commit": "d27d5404fe46aef023c8bed62e6e989ede0e5968",
   "pull": {
-   "number": 150,
-   "title": "Restart join when its settings change, and correct the Android steps",
+   "number": 153,
+   "title": "Document the Member Network, accept ADR 0066, and refuse Collabora in member mode",
    "cards": [
-    "join",
     "repository"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
-  "queued": [],
+  "step": "sync",
+  "step_since": "2026-11-20T13:57:31Z",
+  "started": "2026-11-20T13:57:30Z",
+  "queued": [
+   {
+    "number": 154,
+    "title": "Update Helm chart cloudnative-pg to v0.29.2",
+    "cards": [
+     "cloudnative-pg"
+    ],
+    "since": "2026-11-20T13:56:36Z"
+   }
+  ],
   "stuck": null,
   "action": "merged #152",
   "waiting": "no queued update is ready"
@@ -172,7 +180,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "5805eeb12d927a6ca6399f91365725b97e04f1b7",
+   "revision": "d27d5404fe46aef023c8bed62e6e989ede0e5968",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
@@ -320,9 +328,9 @@
    "revision": "90c873517a790f66141b4e90b051625457f356fc",
    "images": [],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-20T12:42:34Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of scheduling.k8s.io/PriorityClass/smallworlds-monitoring"
    },
    "wave": 0
   },
@@ -588,6 +596,21 @@
  ],
  "commits": [
   {
+   "commit": "d27d5404fe46aef023c8bed62e6e989ede0e5968",
+   "title": "Document the Member Network, accept ADR 0066, and refuse Collabora in member mode",
+   "author": "stephan271",
+   "date": "2026-11-20T13:55:53Z",
+   "pull": 153,
+   "cards": [
+    "repository"
+   ],
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-20T13:57:30Z"
+   }
+  },
+  {
    "commit": "1ce6ef0e122205b504a257dd6f4f050780b4c341",
    "title": "Restart join when its settings change, and correct the Android steps",
    "author": "stephan271",
@@ -595,6 +618,28 @@
    "pull": 150,
    "cards": [
     "join",
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "83fc652101b1ca7135cde9aac3744a555afdd06b",
+   "title": "Document the Member Network for members and Operators, and accept ADR 0066",
+   "author": "stephan271",
+   "date": "2026-11-20T13:03:47Z",
+   "pull": null,
+   "cards": [
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "171a48cb7d7fa7e4215c422adaae48476bd08a6b",
+   "title": "Refuse Collabora with the Member Network on",
+   "author": "stephan271",
+   "date": "2026-11-20T13:03:47Z",
+   "pull": null,
+   "cards": [
     "repository"
    ],
    "verdict": null
@@ -904,47 +949,6 @@
     "smallworlds-root"
    ],
    "verdict": null
-  },
-  {
-   "commit": "a25b97258a29f816e47ee3cb686812990efea236",
-   "title": "Update gallery to v5.11.0 (#138)",
-   "author": "renovate[bot]",
-   "date": "2026-11-18T19:55:43Z",
-   "pull": 138,
-   "cards": [
-    "immich"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: backup 1 databases, converged, load settled after 10 min, smoke 16 hosts, e2e 38 passed, 9 skipped; data 4/4 apps intact, storage: \u2026",
-    "date": "2026-11-18T21:04:30Z"
-   }
-  },
-  {
-   "commit": "4d0d1934d567f0e0d242c0332ff171ce027741b3",
-   "title": "Run the Nextcloud guest suite on every Ring 0 commit (ADR 0066)",
-   "author": "stephan271",
-   "date": "2026-11-18T19:35:39Z",
-   "pull": 137,
-   "cards": [
-    "canary-follower"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 3 min, smoke 16 hosts, e2e 38 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-18T19:55:36Z"
-   }
-  },
-  {
-   "commit": "024416a2f9e7ce6ad1c92a221e971056ee0a6b0b",
-   "title": "Run the Nextcloud guest suite on every Ring 0 commit (ADR 0066)",
-   "author": "stephan271",
-   "date": "2026-11-18T19:23:56Z",
-   "pull": null,
-   "cards": [
-    "canary-follower"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -975,17 +979,18 @@
    ]
   },
   {
-   "number": 153,
-   "title": "Document the Member Network, accept ADR 0066, and refuse Collabora in member mode",
-   "author": "stephan271",
-   "created": "2026-11-20T13:04:05Z",
+   "number": 154,
+   "title": "Update Helm chart cloudnative-pg to v0.29.2",
+   "author": "renovate[bot]",
+   "created": "2026-11-20T13:56:36Z",
    "draft": false,
-   "queued": false,
+   "queued": true,
    "rejected": false,
-   "labels": [],
+   "labels": [
+    "ring0-queue"
+   ],
    "cards": [
-    "join",
-    "repository"
+    "cloudnative-pg"
    ]
   }
  ]
