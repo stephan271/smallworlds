@@ -1,30 +1,28 @@
 {
  "schema": 1,
- "updated": "2026-11-20T12:07:34Z",
+ "updated": "2026-11-20T12:11:44Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "4a5471c87b3c9b60992dfbaa9a9aadb34a5ddb09",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-20T10:29:36Z"
+  "commit": "d145dd188f87bf5fdaca9c600d9fb53aa6e10289",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "4a5471c87b3c9b60992dfbaa9a9aadb34a5ddb09",
-  "pull": null,
-  "step": "merge",
+  "commit": "d145dd188f87bf5fdaca9c600d9fb53aa6e10289",
+  "pull": {
+   "number": 151,
+   "title": "Update gallery to v5.11.1 (#151)",
+   "cards": [
+    "immich"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
-   {
-    "number": 151,
-    "title": "Update gallery to v5.11.1",
-    "cards": [
-     "immich"
-    ],
-    "since": "2026-11-20T12:06:24Z"
-   },
    {
     "number": 152,
     "title": "Update Helm chart jitsi-meet to v3.13.0",
@@ -35,8 +33,8 @@
    }
   ],
   "stuck": null,
-  "action": "merged #148",
-  "waiting": "no queued update is ready"
+  "action": "merged #151",
+  "waiting": null
  },
  "applications": [
   {
@@ -598,6 +596,17 @@
  ],
  "commits": [
   {
+   "commit": "d145dd188f87bf5fdaca9c600d9fb53aa6e10289",
+   "title": "Update gallery to v5.11.1 (#151)",
+   "author": "renovate[bot]",
+   "date": "2026-11-20T12:10:56Z",
+   "pull": 151,
+   "cards": [
+    "immich"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "4a5471c87b3c9b60992dfbaa9a9aadb34a5ddb09",
    "title": "Let the Operator choose the Member Network at install, and onboard members onto it",
    "author": "stephan271",
@@ -946,19 +955,6 @@
     "description": "Not converged: nextcloud: Synced/Healthy",
     "date": "2026-11-18T17:53:30Z"
    }
-  },
-  {
-   "commit": "54cc8c76694047387dfd2b0af9f886715f166f24",
-   "title": "Put Nextcloud on the Member Network, Guest Paths alone in public (ADR 0066)",
-   "author": "stephan271",
-   "date": "2026-11-18T17:02:56Z",
-   "pull": null,
-   "cards": [
-    "canary-follower",
-    "repository",
-    "smallworlds-root"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -1000,21 +996,6 @@
    "cards": [
     "join",
     "repository"
-   ]
-  },
-  {
-   "number": 151,
-   "title": "Update gallery to v5.11.1",
-   "author": "renovate[bot]",
-   "created": "2026-11-20T12:06:24Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "immich"
    ]
   },
   {
