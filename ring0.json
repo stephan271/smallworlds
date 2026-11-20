@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-20T12:41:00Z",
+ "updated": "2026-11-20T12:43:06Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "5805eeb12d927a6ca6399f91365725b97e04f1b7",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-20T12:42:03Z"
  },
  "now": {
   "state": "updating",
@@ -19,9 +19,9 @@
     "jitsi"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "converge",
+  "step_since": "2026-11-20T12:43:01Z",
+  "started": "2026-11-20T12:42:02Z",
   "queued": [],
   "stuck": null,
   "action": "merged #152",
@@ -43,8 +43,8 @@
     "quay.io/jetstack/cert-manager-webhook:v1.21.3"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-20T12:17:40Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": -10
@@ -62,8 +62,8 @@
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.1"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-20T12:17:11Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": -10
@@ -100,8 +100,8 @@
     "docker.io/hetzner/cert-manager-webhook-hetzner:v0.9.1"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-20T12:17:12Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": -9
@@ -119,8 +119,8 @@
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-20T12:17:11Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": -9
@@ -138,8 +138,8 @@
     "dxflrs/garage:v2.5.0"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-20T12:17:16Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": -5
@@ -157,8 +157,8 @@
     "dxflrs/garage:v2.5.0"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-20T12:17:17Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": -5
@@ -177,7 +177,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-20T12:17:00Z",
+    "finished": "2026-11-20T12:42:59Z",
     "message": null
    },
    "wave": 0
@@ -195,8 +195,8 @@
     "ghcr.io/gethomepage/homepage:v2.8.0@sha256:019d8f063a7299e7c1c51ee4a70b692291809af3244894fbec2c2ac7d1f71b18"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-20T12:17:11Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 0
@@ -214,8 +214,8 @@
     "ghcr.io/euro-office/documentserver:v9.3.4-hotfix.1@sha256:889e681923d2dcc8bdfb92fe128d10e185fcff880d302b6a0c0c7bf339499290"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-20T12:17:36Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 0
@@ -311,7 +311,7 @@
   {
    "name": "smallworlds-root",
    "group": "machinery",
-   "health": "Healthy",
+   "health": "Progressing",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -320,7 +320,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-20T12:16:40Z",
+    "finished": "2026-11-20T12:42:34Z",
     "message": null
    },
    "wave": 0
@@ -358,9 +358,9 @@
     "ghcr.io/bulwarkmail/webmail:1.21.2@sha256:037b85b1433233d2d7eebb83f928df5ecc3b4adc91dc7e4c55f0a2f69024e754"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-20T12:18:03Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of /ServiceAccount/setup-sa and 1 more resources"
    },
    "wave": 1
   },
@@ -377,8 +377,8 @@
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-20T12:17:15Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 1
@@ -397,7 +397,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-20T12:17:08Z",
+    "finished": "2026-11-20T12:43:04Z",
     "message": null
    },
    "wave": 1
@@ -420,8 +420,8 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-20T12:19:05Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 1
@@ -454,7 +454,7 @@
   {
    "name": "jitsi",
    "group": "apps",
-   "health": "Healthy",
+   "health": "Progressing",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -463,13 +463,16 @@
    "images": [
     "ghcr.io/jitsi-contrib/jitsi-oidc-adapter:v20260328@sha256:c4a28b215f5ea4893e308cd3f15b1f1c6954231ab784cac6362f420e6648a745",
     "ghcr.io/jitsi/jicofo:stable-11248-3",
+    "ghcr.io/jitsi/jicofo:stable-11509",
     "ghcr.io/jitsi/jvb:stable-11248-3",
-    "ghcr.io/jitsi/prosody:stable-11248-3",
-    "ghcr.io/jitsi/web:stable-11248-3"
+    "ghcr.io/jitsi/jvb:stable-11509",
+    "ghcr.io/jitsi/prosody:stable-11509",
+    "ghcr.io/jitsi/web:stable-11248-3",
+    "ghcr.io/jitsi/web:stable-11509"
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-20T12:18:10Z",
+    "finished": "2026-11-20T12:42:53Z",
     "message": null
    },
    "wave": 1
@@ -595,7 +598,11 @@
    "cards": [
     "jitsi"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-20T12:42:03Z"
+   }
   },
   {
    "commit": "d145dd188f87bf5fdaca9c600d9fb53aa6e10289",
