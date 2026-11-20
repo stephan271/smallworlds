@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-20T12:01:18Z",
+ "updated": "2026-11-20T12:07:34Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -10,13 +10,30 @@
   "date": "2026-11-20T10:29:36Z"
  },
  "now": {
-  "state": "up-to-date",
+  "state": "updating",
   "commit": "4a5471c87b3c9b60992dfbaa9a9aadb34a5ddb09",
   "pull": null,
-  "step": null,
+  "step": "merge",
   "step_since": null,
   "started": null,
-  "queued": [],
+  "queued": [
+   {
+    "number": 151,
+    "title": "Update gallery to v5.11.1",
+    "cards": [
+     "immich"
+    ],
+    "since": "2026-11-20T12:06:24Z"
+   },
+   {
+    "number": 152,
+    "title": "Update Helm chart jitsi-meet to v3.13.0",
+    "cards": [
+     "jitsi"
+    ],
+    "since": "2026-11-20T12:06:33Z"
+   }
+  ],
   "stuck": null,
   "action": "merged #148",
   "waiting": "no queued update is ready"
@@ -969,6 +986,50 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 150,
+   "title": "Restart join when its settings change, and correct the Android steps",
+   "author": "stephan271",
+   "created": "2026-11-20T12:06:05Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "join",
+    "repository"
+   ]
+  },
+  {
+   "number": 151,
+   "title": "Update gallery to v5.11.1",
+   "author": "renovate[bot]",
+   "created": "2026-11-20T12:06:24Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "immich"
+   ]
+  },
+  {
+   "number": 152,
+   "title": "Update Helm chart jitsi-meet to v3.13.0",
+   "author": "renovate[bot]",
+   "created": "2026-11-20T12:06:33Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "jitsi"
    ]
   }
  ]
