@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-20T06:02:37Z",
+ "updated": "2026-11-20T06:41:54Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -10,13 +10,30 @@
   "date": "2026-11-19T16:48:57Z"
  },
  "now": {
-  "state": "up-to-date",
+  "state": "updating",
   "commit": "ff20122f25edae4bc7f0d711b2623b54d7581f86",
   "pull": null,
-  "step": null,
+  "step": "merge",
   "step_since": null,
   "started": null,
-  "queued": [],
+  "queued": [
+   {
+    "number": 147,
+    "title": "Update Helm chart kube-prometheus-stack to v93.3.1",
+    "cards": [
+     "kube-prometheus-stack"
+    ],
+    "since": "2026-11-20T06:40:35Z"
+   },
+   {
+    "number": 148,
+    "title": "Update Helm chart nextcloud to v9.4.5",
+    "cards": [
+     "nextcloud"
+    ],
+    "since": "2026-11-20T06:40:45Z"
+   }
+  ],
   "stuck": null,
   "action": "merged #144",
   "waiting": "no queued update is ready"
@@ -978,6 +995,36 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 147,
+   "title": "Update Helm chart kube-prometheus-stack to v93.3.1",
+   "author": "renovate[bot]",
+   "created": "2026-11-20T06:40:35Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "kube-prometheus-stack"
+   ]
+  },
+  {
+   "number": 148,
+   "title": "Update Helm chart nextcloud to v9.4.5",
+   "author": "renovate[bot]",
+   "created": "2026-11-20T06:40:45Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "nextcloud"
    ]
   }
  ]
