@@ -1,19 +1,26 @@
 {
  "schema": 1,
- "updated": "2026-11-20T13:05:59Z",
+ "updated": "2026-11-20T13:55:34Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "5805eeb12d927a6ca6399f91365725b97e04f1b7",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-20T12:56:46Z"
+  "commit": "1ce6ef0e122205b504a257dd6f4f050780b4c341",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
-  "state": "up-to-date",
-  "commit": "5805eeb12d927a6ca6399f91365725b97e04f1b7",
-  "pull": null,
-  "step": null,
+  "state": "updating",
+  "commit": "1ce6ef0e122205b504a257dd6f4f050780b4c341",
+  "pull": {
+   "number": 150,
+   "title": "Restart join when its settings change, and correct the Android steps",
+   "cards": [
+    "join",
+    "repository"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [],
@@ -581,6 +588,18 @@
  ],
  "commits": [
   {
+   "commit": "1ce6ef0e122205b504a257dd6f4f050780b4c341",
+   "title": "Restart join when its settings change, and correct the Android steps",
+   "author": "stephan271",
+   "date": "2026-11-20T13:55:26Z",
+   "pull": 150,
+   "cards": [
+    "join",
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "5805eeb12d927a6ca6399f91365725b97e04f1b7",
    "title": "Update Helm chart jitsi-meet to v3.13.0 (#152)",
    "author": "renovate[bot]",
@@ -609,6 +628,18 @@
     "description": "Ring 0: backup 1 databases, converged, load settled after 1 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
     "date": "2026-11-20T12:31:48Z"
    }
+  },
+  {
+   "commit": "93fc6b94564af2c71fa9b9257a94f12bd0714a91",
+   "title": "Restart join when its settings change, and correct the Android steps",
+   "author": "stephan271",
+   "date": "2026-11-20T12:05:33Z",
+   "pull": null,
+   "cards": [
+    "join",
+    "repository"
+   ],
+   "verdict": null
   },
   {
    "commit": "4a5471c87b3c9b60992dfbaa9a9aadb34a5ddb09",
@@ -914,34 +945,6 @@
     "canary-follower"
    ],
    "verdict": null
-  },
-  {
-   "commit": "738a5a55e4af01eb752ea550f64c73127ccd0275",
-   "title": "Make Nextcloud's guest Ingress valid: prefixes, one anchored regex",
-   "author": "stephan271",
-   "date": "2026-11-18T17:43:40Z",
-   "pull": 136,
-   "cards": [
-    "repository",
-    "smallworlds-root"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load still 1.5/CPU after 15 min, smoke 16 hosts, e2e 33 passed, 14 skipped; data 4/4 apps intact, storage: Garage v2.5.0\u2026",
-    "date": "2026-11-18T18:35:21Z"
-   }
-  },
-  {
-   "commit": "1299e0f54c5a47ac0352b4698ab54341dd9a9490",
-   "title": "Make Nextcloud's guest Ingress valid: prefixes, one anchored regex",
-   "author": "stephan271",
-   "date": "2026-11-18T17:37:32Z",
-   "pull": null,
-   "cards": [
-    "repository",
-    "smallworlds-root"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -968,20 +971,6 @@
    "rejected": false,
    "labels": [],
    "cards": [
-    "repository"
-   ]
-  },
-  {
-   "number": 150,
-   "title": "Restart join when its settings change, and correct the Android steps",
-   "author": "stephan271",
-   "created": "2026-11-20T12:06:05Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "join",
     "repository"
    ]
   },
