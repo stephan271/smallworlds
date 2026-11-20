@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-20T07:17:26Z",
+ "updated": "2026-11-20T07:19:32Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -19,8 +19,8 @@
     "nextcloud"
    ]
   },
-  "step": "converge",
-  "step_since": "2026-11-20T07:14:29Z",
+  "step": "checks",
+  "step_since": "2026-11-20T07:18:44Z",
   "started": "2026-11-20T07:13:24Z",
   "queued": [],
   "stuck": null,
@@ -311,7 +311,7 @@
   {
    "name": "smallworlds-root",
    "group": "machinery",
-   "health": "Progressing",
+   "health": "Healthy",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -517,7 +517,7 @@
   {
    "name": "nextcloud",
    "group": "apps",
-   "health": "Progressing",
+   "health": "Healthy",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -533,9 +533,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for healthy state of apps/Deployment/nextcloud"
+    "phase": "Succeeded",
+    "finished": "2026-11-20T07:18:10Z",
+    "message": null
    },
    "wave": 1
   },
