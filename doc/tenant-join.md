@@ -67,8 +67,13 @@ against a local Keycloak; the recovery codes are from that throwaway instance.
    Headscale's own `/apple` and `/windows` guides). It learns the address from
    `MEMBER_NETWORK_URL` in `join-config`, which
    `admin-tools/generate_member_network_patches.py` sets; empty means off.
-   The app labels come from Tailscale's documentation (2026-09); check them when
-   a member reports a menu that is not there.
+   `join-config` is generated from `join-config.properties`, so a changed value
+   restarts join: it reads its settings only at start.
+   On Android (Tailscale 1.104) "Use an alternate server" is reachable only
+   after "Connect" and the VPN permission, through Settings, the account row
+   and the menu; found with a real phone on Ring 0 (2026-11-20). The iPhone
+   labels come from Tailscale's documentation (2026-09) and have not been
+   tried; check them when a member reports a menu that is not there.
 
    <img src="../docs/join-flow-de-5-done-member-network.png" alt="The done page with the Member Network on, as an Android phone sees it" width="320">
 
