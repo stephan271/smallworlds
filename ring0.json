@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-20T14:25:06Z",
+ "updated": "2026-11-20T14:27:12Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -19,8 +19,8 @@
     "cloudnative-pg"
    ]
   },
-  "step": "checks",
-  "step_since": "2026-11-20T14:23:40Z",
+  "step": "storage",
+  "step_since": "2026-11-20T14:27:10Z",
   "started": "2026-11-20T14:16:50Z",
   "queued": [],
   "stuck": null,
