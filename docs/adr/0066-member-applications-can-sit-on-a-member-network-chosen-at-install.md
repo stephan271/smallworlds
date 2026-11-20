@@ -308,7 +308,27 @@ reads a user and is refused (`403`) everything else. Its script is tested with
 Keycloak and Headscale stubbed (`tests/test-reconcile-members.sh`), including
 that errors, foreign 404s and users of other realms remove nothing.
 
+The choice is built (2026-11-20). `prepare-community-repo.sh` asks
+`MEMBER_NETWORK` and records it; `generate_member_network_patches.py` writes
+each member application's Component, Nextcloud's guest host and the member
+Headscale's settings between marker comments, so a re-run replaces them and
+`off` removes them. It refuses plain Immich, whose share links have not been
+recorded: with the Member Network on, Photos has to run Gallery.
+`smallworlds-init.sh` refuses a LAN-only target, adds the `network.<domain>`
+record, and leaves 465 and 993 out of both firewalls (Terraform
+`member_network`, the host allow-list); the wizard offers the question on the
+applications panel, only for a server reachable from the internet. For Ring
+0's settings the generator reproduces its hand-written overlay exactly: all
+nine directories render to the same objects.
+
+Onboarding is built too (2026-11-20): with the Member Network on, the join
+page's done screen shows the Tailscale steps for the member's device before the
+dashboard, with the community's server address filled in.
+
 Not yet proven:
+
+- A new member reaching Files on a phone from an invitation alone (issue 09's
+  proof), and a mail app through the gateway's 465 and 993.
 
 - Upload speed when a member's device cannot connect to the node directly and
   falls back to a DERP relay.

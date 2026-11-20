@@ -24,6 +24,46 @@
     <h1 data-t="done.title"></h1>
     <p data-t="done.text"></p>
     <p class="notice" data-t="done.codes"></p>
+    <!-- With the Member Network on (docs/adr/0066): the applications open only
+         on devices that have joined it, so this comes before the dashboard. -->
+    <section class="member-network" id="member-network" hidden>
+      <h2 data-t="mn.title"></h2>
+      <p data-t="mn.intro"></p>
+      <details data-platform="android">
+        <summary data-t="mn.android"></summary>
+        <ol class="steps">
+          <li><span data-t="mn.install"></span>
+            <a href="https://play.google.com/store/apps/details?id=com.tailscale.ipn" rel="noopener" data-t="mn.store.play"></a></li>
+          <li data-t="mn.android.server"></li>
+          <li data-t="mn.enter"></li>
+          <li data-t="mn.passkey"></li>
+        </ol>
+      </details>
+      <details data-platform="ios">
+        <summary data-t="mn.ios"></summary>
+        <ol class="steps">
+          <li><span data-t="mn.install"></span>
+            <a href="https://apps.apple.com/app/tailscale/id1470499037" rel="noopener" data-t="mn.store.apple"></a></li>
+          <li data-t="mn.ios.server"></li>
+          <li data-t="mn.enter"></li>
+          <li data-t="mn.passkey"></li>
+        </ol>
+      </details>
+      <details data-platform="computer">
+        <summary data-t="mn.computer"></summary>
+        <ol class="steps">
+          <li><span data-t="mn.install"></span>
+            <a href="https://tailscale.com/download" rel="noopener" data-t="mn.store.download"></a></li>
+          <li><span data-t="mn.computer.command"></span>
+            <code id="login-command"></code></li>
+          <li><span data-t="mn.computer.guide"></span>
+            <a id="guide-apple" rel="noopener">macOS</a> ·
+            <a id="guide-windows" rel="noopener">Windows</a></li>
+          <li data-t="mn.passkey"></li>
+        </ol>
+      </details>
+      <p class="notice" data-t="mn.update"></p>
+    </section>
     <a class="button primary" id="dashboard" href="/" data-t="done.dashboard"></a>
   </main>
 </body>

@@ -13,6 +13,8 @@ data:
   PUBLIC_IDENTITY_URL: "https://identity.smallworlds.network"
   JOIN_URL: "https://join.smallworlds.network"
   DASHBOARD_URL: "https://dashboard.smallworlds.network"
+  # Set by the overlay when the Member Network is on (docs/adr/0066).
+  MEMBER_NETWORK_URL: ""
   DB_PATH: "/data/invitations.db"
   PUBLIC_PORT: "8080"
   DESK_PORT: "8081"

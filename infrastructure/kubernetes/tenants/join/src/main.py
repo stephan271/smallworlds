@@ -40,7 +40,10 @@ class PublicHandler(web.BaseHandler):
         elif path.startswith("/static/"):
             self.send_file(path[len("/static/"):], "public, max-age=300")
         elif path == "/api/config":
-            self.send_json(200, {"dashboardUrl": config.DASHBOARD_URL})
+            settings = {"dashboardUrl": config.DASHBOARD_URL}
+            if config.MEMBER_NETWORK_URL:
+                settings["memberNetworkUrl"] = config.MEMBER_NETWORK_URL
+            self.send_json(200, settings)
         else:
             self.send_json(404, {"error": "not_found"})
 
