@@ -1,34 +1,31 @@
 {
  "schema": 1,
- "updated": "2026-11-20T07:04:55Z",
+ "updated": "2026-11-20T07:09:05Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "c848c99465019bf0f5e02cd8131598f92a0b7a64",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-20T07:03:10Z"
+  "commit": "f80ed97863a7a8d6f6f569839592459ce480a0f6",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "c848c99465019bf0f5e02cd8131598f92a0b7a64",
-  "pull": null,
-  "step": "merge",
+  "commit": "f80ed97863a7a8d6f6f569839592459ce480a0f6",
+  "pull": {
+   "number": 148,
+   "title": "Update Helm chart nextcloud to v9.4.5 (#148)",
+   "cards": [
+    "nextcloud"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
-  "queued": [
-   {
-    "number": 148,
-    "title": "Update Helm chart nextcloud to v9.4.5",
-    "cards": [
-     "nextcloud"
-    ],
-    "since": "2026-11-20T06:40:45Z"
-   }
-  ],
+  "queued": [],
   "stuck": null,
-  "action": "merged #147",
-  "waiting": "no queued update is ready"
+  "action": "merged #148",
+  "waiting": null
  },
  "applications": [
   {
@@ -590,6 +587,17 @@
  ],
  "commits": [
   {
+   "commit": "f80ed97863a7a8d6f6f569839592459ce480a0f6",
+   "title": "Update Helm chart nextcloud to v9.4.5 (#148)",
+   "author": "renovate[bot]",
+   "date": "2026-11-20T07:08:20Z",
+   "pull": 148,
+   "cards": [
+    "nextcloud"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "c848c99465019bf0f5e02cd8131598f92a0b7a64",
    "title": "Update Helm chart kube-prometheus-stack to v93.3.1 (#147)",
    "author": "renovate[bot]",
@@ -942,19 +950,6 @@
     "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 33 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
     "date": "2026-11-18T16:09:29Z"
    }
-  },
-  {
-   "commit": "b6822f5f87e1b1f38c462739e899c7c8e64257c4",
-   "title": "Restart a gateway that has lost Headscale (ADR 0066)",
-   "author": "stephan271",
-   "date": "2026-11-18T15:43:21Z",
-   "pull": null,
-   "cards": [
-    "headscale",
-    "member-network",
-    "repository"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -982,21 +977,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 148,
-   "title": "Update Helm chart nextcloud to v9.4.5",
-   "author": "renovate[bot]",
-   "created": "2026-11-20T06:40:45Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "nextcloud"
    ]
   }
  ]
