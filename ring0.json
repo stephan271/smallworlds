@@ -1,31 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-20T14:29:18Z",
+ "updated": "2026-11-20T14:33:29Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "a20fe9db7010cbe2cfdf48826dbbf23a878a6fc4",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-20T14:16:50Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 1 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+  "date": "2026-11-20T14:32:40Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "a20fe9db7010cbe2cfdf48826dbbf23a878a6fc4",
-  "pull": {
-   "number": 154,
-   "title": "Update Helm chart cloudnative-pg to v0.29.2 (#154)",
-   "cards": [
-    "cloudnative-pg"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-20T14:27:40Z",
-  "started": "2026-11-20T14:16:50Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #154",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -596,9 +590,9 @@
     "cloudnative-pg"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-20T14:16:50Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 1 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-20T14:32:40Z"
    }
   },
   {
