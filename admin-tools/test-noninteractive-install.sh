@@ -189,6 +189,50 @@ check_absent "$output" "Ensuring the Hetzner DNS zone exists" "and never touches
 printf '#!/bin/sh\nexit 0\n' > "$stub_bin/ssh"
 
 # --------------------------------------------------------------------------
+echo "smallworlds-init.sh — the Member Network"
+# --------------------------------------------------------------------------
+# The answer comes from the overlay's record, like the object storage choice.
+member_conf="$temporary_directory/member-network.conf"
+printf 'STORED_MEMBER_NETWORK="on"\nSTORED_APP_stalwart=y\n' > "$member_conf"
+write_init_cache
+cat >> "$init_root/.smallworlds-cache.env" <<CACHE
+DEPLOY_TARGET="local"
+LOCAL_SSH_TARGET="root@192.168.1.20"
+LOCAL_TLS="letsencrypt"
+LOCAL_PUBLIC="no"
+CACHE
+output="$(run_init SMALLWORLDS_NONINTERACTIVE=1 SMALLWORLDS_COMMUNITY_CONFIG="$member_conf")"
+status=$?
+check_contains "$output" "The Member Network needs a server on the internet" \
+    "a LAN-only cluster with the Member Network on is refused, with advice"
+check_absent "$output" ">>> step:bootstrap" "before the machine is touched"
+if [[ "$status" -ne 0 ]]; then pass "and the script stops"; else fail "and the script stops"; fi
+
+# The bootstrap's settings travel to the machine by scp; keep a copy of them.
+printf '#!/bin/sh\necho 203.0.113.9\n' > "$stub_bin/ssh"
+cat > "$stub_bin/scp" <<STUB
+#!/bin/sh
+for a in "\$@"; do case "\$a" in *-local.env) cp "\$a" "$temporary_directory/sent-local.env" ;; esac; done
+exit 0
+STUB
+# The overlay's commit is resolved with git ls-remote before anything is sent.
+printf '#!/bin/sh\nprintf "0123456789abcdef0123456789abcdef01234567\\tHEAD\\n"\n' > "$stub_bin/git"
+chmod +x "$stub_bin/git"
+mkdir -p "$init_root/infrastructure/local"
+cp "$repository_root/infrastructure/local/bootstrap-local-node.sh" "$init_root/infrastructure/local/"
+cp "$repository_root/infrastructure/bootstrap-pins.env" "$init_root/infrastructure/"
+write_rented_cache manual
+output="$(run_init SMALLWORLDS_NONINTERACTIVE=1 SW_SKIP_DNS_CHECK=1 SMALLWORLDS_COMMUNITY_CONFIG="$member_conf")"
+printf '#!/bin/sh\nexit 0\n' > "$stub_bin/ssh"
+printf '#!/bin/sh\nexit 0\n' > "$stub_bin/scp"
+rm -f "$stub_bin/git"
+rm -rf "$init_root/infrastructure/local" "$init_root/infrastructure/bootstrap-pins.env"
+local_env="$(cat "$temporary_directory/sent-local.env" 2>/dev/null)"
+check_contains "$local_env" 'FIREWALL_TCP_PORTS="80 443 6443 25"' \
+    "an exposed server's firewall opens 25 for Stalwart, not 465 or 993"
+check_contains "$local_env" "network" "and its DNS records include the member Headscale"
+
+# --------------------------------------------------------------------------
 echo "smallworlds-init.sh — interactive is unchanged"
 # --------------------------------------------------------------------------
 # read -p only renders its prompt on a terminal, so this needs a real pty:
@@ -517,6 +561,84 @@ status=$?
 check_contains "$output" "immediately, two-weeks, security-now, manual" "an unknown Follow Policy is refused"
 if [[ "$status" -ne 0 ]]; then pass "and the script stops"; else fail "and the script stops"; fi
 set_stored STORED_FOLLOW_POLICY two-weeks
+
+# --------------------------------------------------------------------------
+echo "prepare-community-repo.sh — the Member Network"
+# --------------------------------------------------------------------------
+mn='smallworlds:member-network'
+output="$(run_prepare)"
+check_contains "$output" "MEMBER_NETWORK: off" "the Member Network is off unless told otherwise"
+if grep -rq "$mn" "$overlay" || grep -q "apps/member-network.yaml" "$overlay/kustomization.yaml"; then
+    fail "off writes nothing of it"
+else
+    pass "off writes nothing of it"
+fi
+
+set_stored STORED_APP_immich y
+set_stored STORED_PHOTO_BACKEND immich
+before="$(cat "$overlay/kustomization.yaml")"
+set_stored STORED_MEMBER_NETWORK on
+output="$(run_prepare)"
+status=$?
+check_contains "$output" "needs Gallery" "plain Immich on the Member Network is refused, with the reason"
+if [[ "$status" -ne 0 && "$(cat "$overlay/kustomization.yaml")" == "$before" ]]; then
+    pass "and the overlay is left untouched"
+else
+    fail "and the overlay is left untouched"
+fi
+
+set_stored STORED_PHOTO_BACKEND gallery
+output="$(run_prepare)"
+status=$?
+if [[ "$status" -eq 0 ]]; then pass "turned the Member Network on"; else
+    fail "turned the Member Network on — exited $status: $output"
+fi
+check_contains "$output" "members' applications stop answering on the" \
+    "turning it on for a running community warns that members must enroll first"
+check_contains "$(cat "$overlay/kustomization.yaml")" "apps/member-network.yaml" \
+    "the root deploys the member Headscale"
+check_contains "$(cat "$overlay/member-network/kustomization.yaml")" "photos.example.org" \
+    "its DNS answers for the community's member hostnames"
+check_contains "$(cat "$overlay/nextcloud/kustomization.yaml")" \
+    "components/member-network/nextcloud?ref=v1.2.43" "Nextcloud includes its Component at the overlay's version"
+check_contains "$(cat "$overlay/immich/kustomization.yaml")" \
+    "components/member-network/gallery?ref=" "Gallery includes its Component"
+check_contains "$(cat "$overlay/dashboard/kustomization.yaml")" \
+    "components/member-network/members-only?ref=" "the dashboard is members-only"
+if grep -q "$mn" "$overlay/keycloak/kustomization.yaml" \
+   || grep -q "components/member-network" "$overlay/join/kustomization.yaml"; then
+    fail "sign-in and the join page stay public"
+else
+    pass "sign-in and the join page stay public"
+fi
+check_contains "$(cat "$overlay/join/kustomization.yaml")" "value: https://network.example.org" \
+    "the join page learns where members connect their devices"
+check_contains "$(cat "$stub_home/.config/smallworlds/community-setup.conf")" \
+    'STORED_MEMBER_NETWORK="on"' "the answer is recorded for the installer"
+
+output="$(run_prepare)"
+check_absent "$output" "members' applications stop answering on the" "a rerun with it on does not warn again"
+if [[ "$(grep -c '>>> smallworlds:member-network ' "$overlay/nextcloud/kustomization.yaml")" -eq 1 \
+   && "$(grep -c 'apps/member-network.yaml' "$overlay/kustomization.yaml")" -eq 1 ]]; then
+    pass "a rerun replaces its blocks instead of appending"
+else
+    fail "a rerun replaces its blocks instead of appending"
+fi
+
+set_stored STORED_MEMBER_NETWORK off
+run_prepare >/dev/null
+if grep -rq "$mn" "$overlay" || grep -q "member-network" "$overlay/kustomization.yaml"; then
+    fail "turning it off removes every block and the member Headscale's Application"
+else
+    pass "turning it off removes every block and the member Headscale's Application"
+fi
+if [[ -f "$overlay/member-network/kustomization.yaml" ]]; then
+    pass "its directory stays, so turning it on again is lossless"
+else
+    fail "its directory stays, so turning it on again is lossless"
+fi
+set_stored STORED_PHOTO_BACKEND immich
+set_stored STORED_APP_immich n
 
 # --------------------------------------------------------------------------
 echo "prepare-community-repo.sh — a push the remote refuses"

@@ -262,6 +262,27 @@ def test_plan_module():
           "day it is published" in plan.build_plan(
               {**complete, "follow_policy": "immediately"})["summary"]["follow_policy"])
 
+    # docs/adr/0066: the Member Network, only for a server on the internet, and
+    # only with Gallery as the photo application.
+    check("the Member Network is off unless chosen",
+          plan_module().initial_state()["member_network"] == "off"
+          and "Member Network" not in json.dumps(plan.build_plan(complete)["hostnames"]))
+    member = {**complete, "member_network": "on", "photo_backend": "gallery"}
+    check("a Hetzner server with Gallery may have it", fields(member) == set())
+    member_plan = plan.build_plan(member)
+    check("the plan names it and the member Headscale's address",
+          member_plan["summary"]["member_network"].startswith("on a Member Network")
+          and {"host": "network.example.org", "app": "Member Network"} in member_plan["hostnames"])
+    check("plain Immich is refused with it",
+          "member_network" in fields({"member_network": "on", "photo_backend": "immich"}))
+    check("without Photos, the photo answer does not matter",
+          fields({"member_network": "on", "apps": ["nextcloud"]}) == set())
+    lan_member = fields({**member, "target": "local", "ssh_target": "root@10.0.0.2",
+                         "local_tls": "self-signed", "local_public": "no", "hcloud_token": "",
+                         "data_dir": "/srv/data", "backup_dir": "/mnt/backup"})
+    check("a LAN-only cluster is refused it", "member_network" in lan_member)
+    check("an unknown answer is caught", "member_network" in fields({"member_network": "maybe"}))
+
     # docs/adr/0054: Gallery is a choice within Photos, not another application.
     check("an unknown photo application is caught",
           "photo_backend" in fields({"photo_backend": "picasa"}))
@@ -781,6 +802,15 @@ def test_runner():
     check("the chosen Follow Policy reaches the repository script",
           plan_module()._read_shell_assignments(repository_config)["STORED_FOLLOW_POLICY"]
           == "security-now")
+    check("the Member Network is recorded as off unless chosen",
+          plan_module()._read_shell_assignments(repository_config)["STORED_MEMBER_NETWORK"]
+          == "off")
+    runner.write_repository_config({**rented_answers, "member_network": "on"},
+                                   repository_config, answers["apps"])
+    check("the chosen Member Network reaches the repository script",
+          plan_module()._read_shell_assignments(repository_config)["STORED_MEMBER_NETWORK"]
+          == "on")
+    runner.write_repository_config(rented_answers, repository_config, answers["apps"])
     rented_cache = os.path.join(directory, "rented-cache.env")
     runner.write_installer_cache(rented_answers, rented_cache, external_tokens)
     cached_rented = plan_module()._read_shell_assignments(rented_cache)

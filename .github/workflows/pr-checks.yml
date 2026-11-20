@@ -83,6 +83,7 @@ jobs:
           - test-pod-gateway.py
           - test-pre-update-backup.sh
           - test-generate-domain-patches.py
+          - test-member-network-patches.py
           - test-release-notes.py
           - test-stalwart-dns-push.py
     steps:

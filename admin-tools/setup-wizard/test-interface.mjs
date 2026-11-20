@@ -103,6 +103,10 @@ check("choosing managed DNS asks for the Hetzner token again",
 await page.selectOption("#local_dns", "manual");
 check("a rented server may put the photo library on another disk",
       await page.locator("#library_dir").isVisible());
+// docs/adr/0066: the Member Network is only offered for a server on the internet.
+check("a rented server is offered the Member Network, off by default",
+      (await page.locator("#member-network-field").count()) === 1 &&
+      (await page.inputValue("#member_network")) === "off");
 await page.check('input[name="target"][value="local"]');
 await page.waitForTimeout(250);
 check("a LAN machine gets its questions back, and is not offered DNS by hand",
@@ -110,6 +114,14 @@ check("a LAN machine gets its questions back, and is not offered DNS by hand",
       !(await page.locator("#local-dns-field").isVisible()) &&
       (await page.locator("#hcloud-token-local-field").isVisible()) &&
       !(await page.locator("#vps-hint").isVisible()));
+check("a LAN machine is not offered the Member Network",
+      (await page.evaluate(() => document.getElementById("member-network-field").hidden)) === true);
+await page.selectOption("#local_public", "yes");
+await page.waitForTimeout(200);
+check("exposing it offers the Member Network",
+      (await page.evaluate(() => document.getElementById("member-network-field").hidden)) === false);
+await page.selectOption("#local_public", "no");
+await page.waitForTimeout(200);
 
 // docs/adr/0053: an external S3 provider replaces Garage and the second disk.
 check("storage on the machine itself is the default",
@@ -224,7 +236,7 @@ await page.click("#next");
 await page.waitForSelector(".plan-summary");
 check("the plan is rendered", (await openPanel()) === "review");
 check("the plan summarises every decision",
-      (await page.locator(".plan-summary dt").count()) === 13);
+      (await page.locator(".plan-summary dt").count()) === 14);
 check("the plan lists what will happen", (await page.locator(".plan-step").count()) === 4);
 const hostnames = await page.locator(".hostname").allTextContents();
 check("the plan lists the addresses members will use",
