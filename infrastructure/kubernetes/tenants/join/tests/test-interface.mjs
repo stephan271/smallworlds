@@ -210,6 +210,8 @@ console.log("done page with the Member Network");
   for (const [name, agent, platform, label] of [
     ["an Android phone", "Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 Chrome/131.0 Mobile Safari/537.36",
      "android", "Use an alternate server"],
+    // The option is only reachable once the VPN permission is given
+    // (Tailscale Android 1.104, found on Ring 0 2026-11-20).
     ["an iPhone", "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 Version/18.1 Mobile/15E148 Safari/604.1",
      "ios", "Use a custom coordination server"],
   ]) {
@@ -226,6 +228,13 @@ console.log("done page with the Member Network");
           (await phone.textContent(`[data-platform="${platform}"]`)).includes("https://network.example.test"));
     const overflow = await phone.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     check(`${name}: no horizontal scrolling at 320 px`, overflow <= 0, `${overflow}px too wide`);
+    if (platform === "android") {
+      const steps = await phone.locator('[data-platform="android"] li').allTextContents();
+      check("Android: Connect and the VPN permission come before the alternate server",
+            steps.findIndex((s) => s.includes("Connect")) >= 0 &&
+            steps.findIndex((s) => s.includes("Connect")) < steps.findIndex((s) => s.includes("alternate server")) &&
+            steps.some((s) => s.includes("Add account")), steps.join(" / "));
+    }
     await context.close();
   }
 }

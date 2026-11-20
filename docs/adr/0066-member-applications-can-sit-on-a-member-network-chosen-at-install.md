@@ -327,8 +327,15 @@ dashboard, with the community's server address filled in.
 
 Not yet proven:
 
-- A new member reaching Files on a phone from an invitation alone (issue 09's
-  proof), and a mail app through the gateway's 465 and 993.
+- A mail app through the gateway's 465 and 993, and an iPhone.
+
+Proven on Ring 0 with an Android phone (2026-11-20): from an invitation alone,
+a new member registered a passkey, connected the Tailscale app (1.104.6) to the
+member Headscale by following the done page, and opened Files. It also showed
+two faults, both fixed since: join kept its old settings until restarted, and
+Android offers "Use an alternate server" only after the VPN permission, which
+the steps did not say. Deleting that member in Keycloak then removed the phone
+from the Member Network at the reconciler's next run.
 
 - Upload speed when a member's device cannot connect to the node directly and
   falls back to a DERP relay.
