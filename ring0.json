@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-21T01:01:46Z",
+ "updated": "2026-11-21T01:03:52Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -19,8 +19,8 @@
     "kube-prometheus-stack"
    ]
   },
-  "step": "smoke",
-  "step_since": "2026-11-21T01:01:46Z",
+  "step": "checks",
+  "step_since": "2026-11-21T01:01:47Z",
   "started": "2026-11-21T00:57:19Z",
   "queued": [],
   "stuck": null,
