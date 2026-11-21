@@ -1,27 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-21T00:20:01Z",
+ "updated": "2026-11-21T00:24:11Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "0783c22b59f08a876c6ac775b99efc7e2202fb98",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-21T00:09:35Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+  "date": "2026-11-21T00:22:57Z"
  },
  "now": {
   "state": "updating",
   "commit": "0783c22b59f08a876c6ac775b99efc7e2202fb98",
-  "pull": {
-   "number": 155,
-   "title": "Update Docker image ghcr.io/bulwarkmail/webmail to v1.21.3 (#155)",
-   "cards": [
-    "bulwark"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-21T00:17:57Z",
-  "started": "2026-11-21T00:09:35Z",
+  "pull": null,
+  "step": "merge",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 156,
@@ -42,7 +36,7 @@
   ],
   "stuck": null,
   "action": "merged #155",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -613,9 +607,9 @@
     "bulwark"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-21T00:09:35Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-21T00:22:57Z"
    }
   },
   {
