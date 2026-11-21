@@ -1,34 +1,31 @@
 {
  "schema": 1,
- "updated": "2026-11-21T00:49:14Z",
+ "updated": "2026-11-21T00:53:24Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "1b9a3d2ff76716d9dec3af5c010016d315b0fffa",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-21T00:47:06Z"
+  "commit": "ab5eb77e331521bdd3f21beb744ebfadaacede24",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "1b9a3d2ff76716d9dec3af5c010016d315b0fffa",
-  "pull": null,
-  "step": "merge",
+  "commit": "ab5eb77e331521bdd3f21beb744ebfadaacede24",
+  "pull": {
+   "number": 157,
+   "title": "Update Helm chart kube-prometheus-stack to v93.4.0 (#157)",
+   "cards": [
+    "kube-prometheus-stack"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
-  "queued": [
-   {
-    "number": 157,
-    "title": "Update Helm chart kube-prometheus-stack to v93.4.0",
-    "cards": [
-     "kube-prometheus-stack"
-    ],
-    "since": "2026-11-21T00:01:30Z"
-   }
-  ],
+  "queued": [],
   "stuck": null,
-  "action": "merged #156",
-  "waiting": "no queued update is ready"
+  "action": "merged #157",
+  "waiting": null
  },
  "applications": [
   {
@@ -117,7 +114,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "1b9a3d2ff76716d9dec3af5c010016d315b0fffa",
+   "revision": "ab5eb77e331521bdd3f21beb744ebfadaacede24",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
@@ -174,7 +171,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "1b9a3d2ff76716d9dec3af5c010016d315b0fffa",
+   "revision": "ab5eb77e331521bdd3f21beb744ebfadaacede24",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
@@ -375,7 +372,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "1b9a3d2ff76716d9dec3af5c010016d315b0fffa",
+   "revision": "ab5eb77e331521bdd3f21beb744ebfadaacede24",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
@@ -589,6 +586,17 @@
   }
  ],
  "commits": [
+  {
+   "commit": "ab5eb77e331521bdd3f21beb744ebfadaacede24",
+   "title": "Update Helm chart kube-prometheus-stack to v93.4.0 (#157)",
+   "author": "renovate[bot]",
+   "date": "2026-11-21T00:52:15Z",
+   "pull": 157,
+   "cards": [
+    "kube-prometheus-stack"
+   ],
+   "verdict": null
+  },
   {
    "commit": "1b9a3d2ff76716d9dec3af5c010016d315b0fffa",
    "title": "Update Helm chart traefik to v42.4.1 (#156)",
@@ -928,21 +936,6 @@
     "smallworlds-root"
    ],
    "verdict": null
-  },
-  {
-   "commit": "b1d3e6e52c5eb7c5e1d418763d737aa2a6c70897",
-   "title": "Update Docker image forgejo to v17.3.3 (#141)",
-   "author": "renovate[bot]",
-   "date": "2026-11-19T09:02:39Z",
-   "pull": 141,
-   "cards": [
-    "forgejo"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: backup 1 databases, converged, load still 2.0/CPU after 15 min, smoke 16 hosts, e2e 38 passed, 13 skipped; data 4/4 apps intact, st\u2026",
-    "date": "2026-11-19T09:47:42Z"
-   }
   }
  ],
  "pulls": [
@@ -970,21 +963,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 157,
-   "title": "Update Helm chart kube-prometheus-stack to v93.4.0",
-   "author": "renovate[bot]",
-   "created": "2026-11-21T00:01:30Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "kube-prometheus-stack"
    ]
   }
  ]
