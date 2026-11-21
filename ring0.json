@@ -1,30 +1,28 @@
 {
  "schema": 1,
- "updated": "2026-11-21T00:03:16Z",
+ "updated": "2026-11-21T00:05:22Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "a20fe9db7010cbe2cfdf48826dbbf23a878a6fc4",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 1 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-20T14:32:40Z"
+  "commit": "0783c22b59f08a876c6ac775b99efc7e2202fb98",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "a20fe9db7010cbe2cfdf48826dbbf23a878a6fc4",
-  "pull": null,
-  "step": "merge",
+  "commit": "0783c22b59f08a876c6ac775b99efc7e2202fb98",
+  "pull": {
+   "number": 155,
+   "title": "Update Docker image ghcr.io/bulwarkmail/webmail to v1.21.3 (#155)",
+   "cards": [
+    "bulwark"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
-   {
-    "number": 155,
-    "title": "Update Docker image ghcr.io/bulwarkmail/webmail to v1.21.3",
-    "cards": [
-     "bulwark"
-    ],
-    "since": "2026-11-21T00:01:14Z"
-   },
    {
     "number": 156,
     "title": "Update Helm chart traefik to v42.4.1",
@@ -43,8 +41,8 @@
    }
   ],
   "stuck": null,
-  "action": "merged #154",
-  "waiting": "no queued update is ready"
+  "action": "merged #155",
+  "waiting": null
  },
  "applications": [
   {
@@ -606,6 +604,17 @@
  ],
  "commits": [
   {
+   "commit": "0783c22b59f08a876c6ac775b99efc7e2202fb98",
+   "title": "Update Docker image ghcr.io/bulwarkmail/webmail to v1.21.3 (#155)",
+   "author": "renovate[bot]",
+   "date": "2026-11-21T00:04:31Z",
+   "pull": 155,
+   "cards": [
+    "bulwark"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "a20fe9db7010cbe2cfdf48826dbbf23a878a6fc4",
    "title": "Update Helm chart cloudnative-pg to v0.29.2 (#154)",
    "author": "renovate[bot]",
@@ -944,23 +953,6 @@
     "description": "Ring 0: backup 1 databases, converged, load settled after 6 min, smoke 16 hosts, e2e 38 passed, 13 skipped; data 4/4 apps intact, storage: \u2026",
     "date": "2026-11-19T09:02:33Z"
    }
-  },
-  {
-   "commit": "1b007723b361c099e665261d973aad2e42325e2c",
-   "title": "Put Gallery on the Member Network, Guest Paths alone in public (ADR 0066)",
-   "author": "stephan271",
-   "date": "2026-11-19T07:46:34Z",
-   "pull": 139,
-   "cards": [
-    "canary-follower",
-    "repository",
-    "smallworlds-root"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load still 1.8/CPU after 15 min, smoke 16 hosts, e2e 38 passed, 13 skipped; data 4/4 apps intact, storage: Garage v2.5.0\u2026",
-    "date": "2026-11-19T08:25:33Z"
-   }
   }
  ],
  "pulls": [
@@ -988,21 +980,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 155,
-   "title": "Update Docker image ghcr.io/bulwarkmail/webmail to v1.21.3",
-   "author": "renovate[bot]",
-   "created": "2026-11-21T00:01:14Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "bulwark"
    ]
   },
   {
