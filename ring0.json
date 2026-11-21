@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-20T23:38:26Z",
+ "updated": "2026-11-21T00:03:16Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -10,13 +10,38 @@
   "date": "2026-11-20T14:32:40Z"
  },
  "now": {
-  "state": "up-to-date",
+  "state": "updating",
   "commit": "a20fe9db7010cbe2cfdf48826dbbf23a878a6fc4",
   "pull": null,
-  "step": null,
+  "step": "merge",
   "step_since": null,
   "started": null,
-  "queued": [],
+  "queued": [
+   {
+    "number": 155,
+    "title": "Update Docker image ghcr.io/bulwarkmail/webmail to v1.21.3",
+    "cards": [
+     "bulwark"
+    ],
+    "since": "2026-11-21T00:01:14Z"
+   },
+   {
+    "number": 156,
+    "title": "Update Helm chart traefik to v42.4.1",
+    "cards": [
+     "traefik"
+    ],
+    "since": "2026-11-21T00:01:22Z"
+   },
+   {
+    "number": 157,
+    "title": "Update Helm chart kube-prometheus-stack to v93.4.0",
+    "cards": [
+     "kube-prometheus-stack"
+    ],
+    "since": "2026-11-21T00:01:30Z"
+   }
+  ],
   "stuck": null,
   "action": "merged #154",
   "waiting": "no queued update is ready"
@@ -963,6 +988,51 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 155,
+   "title": "Update Docker image ghcr.io/bulwarkmail/webmail to v1.21.3",
+   "author": "renovate[bot]",
+   "created": "2026-11-21T00:01:14Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "bulwark"
+   ]
+  },
+  {
+   "number": 156,
+   "title": "Update Helm chart traefik to v42.4.1",
+   "author": "renovate[bot]",
+   "created": "2026-11-21T00:01:22Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "traefik"
+   ]
+  },
+  {
+   "number": 157,
+   "title": "Update Helm chart kube-prometheus-stack to v93.4.0",
+   "author": "renovate[bot]",
+   "created": "2026-11-21T00:01:30Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "kube-prometheus-stack"
    ]
   }
  ]
