@@ -5,7 +5,8 @@ status: accepted
 # A single-use setup wizard replaces the Bootstrap Launcher
 
 > Its "deactivated but not deleted" is superseded by `docs/adr/0062`: the console
-> was deleted on 2026-11-12.
+> was deleted on 2026-11-12. The observation surface it leaves open returns as
+> the Operator Board (`docs/adr/0068`, proposed 2026-11-22).
 
 Installing SmallWorlds is a browser wizard that runs on the future Operator's own machine,
 collects the settings, drives `admin-tools/prepare-community-repo.sh` and

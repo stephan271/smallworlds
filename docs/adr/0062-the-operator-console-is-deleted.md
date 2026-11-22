@@ -4,6 +4,11 @@ status: accepted
 
 # The Operator Console is deleted
 
+> *2026-11-22:* the question this record keeps open, whether the observation
+> half returns in a smaller form, is answered by `docs/adr/0068` (proposed). It
+> returns as the Operator Board, a read-only stdlib page on every cluster. It
+> starts from `main`, not from the tag `operator-console-final`.
+
 The Operator Console and its Bootstrap Launcher are removed from the repository:
 `operator-console/` (the Go server and Svelte client), its tenant and Application,
 its image workflow, the launcher's packaging and signing scripts, `docs/releases/`,
