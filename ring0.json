@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-21T23:54:50Z",
+ "updated": "2026-11-22T00:36:08Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -10,13 +10,22 @@
   "date": "2026-11-21T01:10:48Z"
  },
  "now": {
-  "state": "up-to-date",
+  "state": "updating",
   "commit": "ab5eb77e331521bdd3f21beb744ebfadaacede24",
   "pull": null,
-  "step": null,
+  "step": "merge",
   "step_since": null,
   "started": null,
-  "queued": [],
+  "queued": [
+   {
+    "number": 158,
+    "title": "Update Helm chart kube-prometheus-stack to v93.4.1",
+    "cards": [
+     "kube-prometheus-stack"
+    ],
+    "since": "2026-11-22T00:34:45Z"
+   }
+  ],
   "stuck": null,
   "action": "merged #157",
   "waiting": "no queued update is ready"
@@ -961,6 +970,21 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 158,
+   "title": "Update Helm chart kube-prometheus-stack to v93.4.1",
+   "author": "renovate[bot]",
+   "created": "2026-11-22T00:34:45Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "kube-prometheus-stack"
    ]
   }
  ]
