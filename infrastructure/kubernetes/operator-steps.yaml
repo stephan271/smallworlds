@@ -66,7 +66,9 @@ steps:
            /etc/hosts to that address:
            <gateway-address>  deploy.<domain> monitoring.<domain> identity.<domain> join.<domain>
         3. Open https://deploy.<domain> over the tailnet. From outside the
-           tailnet it answers 403.
+           tailnet it answers 403. If the browser still shows Forbidden,
+           close it completely and open it again: it is still using its
+           connection to the old address.
       After a Headscale restart the gateway can lose its connection for up to
       seven minutes; kubectl -n headscale rollout restart deploy/private-gateway
       brings it back at once.
