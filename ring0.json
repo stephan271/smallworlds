@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-22T08:13:43Z",
+ "updated": "2026-11-22T08:54:56Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -963,6 +963,20 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 159,
+   "title": "Local Update Desk: adopt Ring 0's verified path step by step (ADR 0067)",
+   "author": "stephan271",
+   "created": "2026-11-22T08:54:55Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "repository",
+    "smallworlds-root"
    ]
   }
  ]
