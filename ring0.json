@@ -1,19 +1,29 @@
 {
  "schema": 1,
- "updated": "2026-11-22T12:17:09Z",
+ "updated": "2026-11-22T12:23:24Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "29d6d8094aa52a7b62e185a104257a4e2ee2ea6d",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-22T12:16:55Z"
+  "commit": "3eadc13e9b37bc86195ae0b08ca106000ec393be",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
-  "state": "up-to-date",
-  "commit": "29d6d8094aa52a7b62e185a104257a4e2ee2ea6d",
-  "pull": null,
-  "step": null,
+  "state": "updating",
+  "commit": "3eadc13e9b37bc86195ae0b08ca106000ec393be",
+  "pull": {
+   "number": 160,
+   "title": "Dashboard: hide the Headscale, Office and Keycloak tiles",
+   "cards": [
+    "collabora",
+    "euro-office",
+    "headscale",
+    "keycloak",
+    "repository"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [],
@@ -581,6 +591,36 @@
  ],
  "commits": [
   {
+   "commit": "3eadc13e9b37bc86195ae0b08ca106000ec393be",
+   "title": "Dashboard: hide the Headscale, Office and Keycloak tiles",
+   "author": "stephan271",
+   "date": "2026-11-22T12:22:54Z",
+   "pull": 160,
+   "cards": [
+    "collabora",
+    "euro-office",
+    "headscale",
+    "keycloak",
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "0e865825471011024dcb06d539a41ec99ac5d168",
+   "title": "Dashboard: hide the Headscale, Office and Keycloak tiles",
+   "author": "stephan271",
+   "date": "2026-11-22T12:21:44Z",
+   "pull": null,
+   "cards": [
+    "collabora",
+    "euro-office",
+    "headscale",
+    "keycloak",
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "29d6d8094aa52a7b62e185a104257a4e2ee2ea6d",
    "title": "Local Update Desk: adopt Ring 0's verified path step by step (ADR 0067)",
    "author": "stephan271",
@@ -890,32 +930,6 @@
    "cards": [
     "member-network",
     "repository"
-   ],
-   "verdict": null
-  },
-  {
-   "commit": "d04416eeeb513f3a1a1256b7e4ea5e729023431d",
-   "title": "Run the members-only and mail checks on every Ring 0 commit",
-   "author": "stephan271",
-   "date": "2026-11-19T15:04:51Z",
-   "pull": 145,
-   "cards": [
-    "canary-follower"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-19T15:23:43Z"
-   }
-  },
-  {
-   "commit": "3e9c98c908f9996252a2d1fedf692afaba2406c1",
-   "title": "Run the members-only and mail checks on every Ring 0 commit",
-   "author": "stephan271",
-   "date": "2026-11-19T15:03:35Z",
-   "pull": null,
-   "cards": [
-    "canary-follower"
    ],
    "verdict": null
   }
