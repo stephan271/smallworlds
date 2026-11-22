@@ -124,7 +124,11 @@ _Avoid_: Audit log, console log
 
 **Member Dashboard**:
 The existing low-privilege Homepage interface that lets community members discover and open applications.
-_Avoid_: Operator Console, admin dashboard
+_Avoid_: Operator Console, Operator Board, admin dashboard
+
+**Operator Board**:
+The read-only Operator page on the Private Network (`ops.<domain>`) that says whether the cluster is well, shows why not, and links to every operator tool. It colours red only for a firing alert, never shows an unanswered source as green, and changes nothing (`docs/adr/0068`).
+_Avoid_: Operator Console (deleted), admin dashboard, cockpit, status page (that one would be for members), Member Dashboard
 
 **Member Invitation**:
 A short, single-use code the Operator issues so that one person can become a community member, or so that an existing member can register a new passkey after losing theirs. It is redeemed on the join page and is used up when a passkey exists, not when it is opened. It is not the Keycloak action token, which is minted only at that moment (`docs/adr/0058-members-are-invited-through-a-join-page.md`).
