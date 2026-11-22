@@ -159,12 +159,23 @@ so the numbers match the alerts.
 
 ### 4.4 Backups
 
-- **CNPG:** per `clusters.postgresql.cnpg.io`, `status.lastSuccessfulBackup` and
-  `status.firstRecoverabilityPoint`. Amber past 26 h (daily schedule plus slack).
+- **CNPG:** per `clusters.postgresql.cnpg.io`. Amber past 26 h (daily schedule
+  plus slack), or when `LastBackupSucceeded` or `ContinuousArchiving` is
+  `False`. *Learned in slice 03:* with the barman-cloud plugin the Cluster's
+  `status.lastSuccessfulBackup` stays empty. The time is in the plugin's
+  `ObjectStore` (`barmancloud.cnpg.io`), `status.serverRecoveryWindow[<server>]
+  .lastSuccessfulBackupTime`, the same source as the metric `CNPGBackupStale`
+  reads. The server is the Cluster's plugin parameter `serverName`, else the
+  Cluster's name. An ObjectStore keeps servers no Cluster writes to any more
+  (Ring 0's `immich-database` from before PostgreSQL 18), so the Board follows
+  each Cluster to its own.
 - **Velero:** the newest `backups.velero.io` per schedule, its phase and
   completion time.
-- **Off-site:** the replicator's CronJobs (`backup-replicator`,
-  `garage-backup`): `status.lastSuccessfulTime` against their schedule.
+- **File copies and off-site:** every CronJob whose name says `backup` or
+  `replicator`: amber when its last scheduled run has not succeeded within two
+  hours, or a daily one's last success is older than 26 h. A suspended one is
+  shown as a fact, not a failure: suspending is a choice made in git, and
+  Ring 0 suspends its replicator on purpose (its storage checks run it).
 - **Pod archive:** only its alerts. Device state lives in `pod-gateway`, which
   the Board does not read.
 

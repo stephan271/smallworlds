@@ -30,6 +30,7 @@ configMapGenerator:
       - src/kube.py
       - src/links.py
       - src/main.py
+      - src/prom.py
       - src/state.py
       - src/web.py
   - name: operator-board-static

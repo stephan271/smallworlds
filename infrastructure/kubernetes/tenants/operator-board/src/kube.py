@@ -6,6 +6,7 @@ There is deliberately no method that writes: the Board changes nothing
 """
 import json
 import ssl
+import urllib.error
 import urllib.request
 
 SA_DIR = "/var/run/secrets/kubernetes.io/serviceaccount"
@@ -23,6 +24,16 @@ class Kube:
         # Re-read every call: projected tokens are rotated on disk.
         with open(f"{self.sa_dir}/token") as handle:
             return handle.read().strip()
+
+    def get_or_empty(self, path: str) -> dict:
+        """A list whose resource may not exist on this cluster (its CRD is not
+        installed): 404 is "none of them", never a failure."""
+        try:
+            return self.get(path)
+        except urllib.error.HTTPError as error:
+            if error.code == 404:
+                return {"items": [], "absent": True}
+            raise
 
     def get(self, path: str) -> dict:
         request = urllib.request.Request(

@@ -14,6 +14,7 @@ from http.server import ThreadingHTTPServer
 
 import alerts
 import config
+import prom
 import state
 import web
 from kube import Kube
@@ -34,12 +35,12 @@ def describe(error: Exception) -> str:
 
 
 class Collector:
-    def __init__(self, kube, clock=time.time, fetch_alerts=alerts.fetch):
+    def __init__(self, kube, clock=time.time, fetch_alerts=alerts.fetch, fetch_metrics=prom.fetch):
         self.kube = kube
         self.fetch_alerts = fetch_alerts
+        self.fetch_metrics = fetch_metrics
         self.clock = clock
-        self.readings = {"alerts": state.Reading(), "applications": state.Reading(),
-                         "ingresses": state.Reading()}
+        self.readings = {key: state.Reading() for key in state.SOURCE_NAMES}
         self._document = None
         self._cycled_at = None
         self._lock = threading.Lock()
@@ -61,15 +62,28 @@ class Collector:
         self._read("applications", lambda: self.kube.get(
             f"/apis/argoproj.io/v1alpha1/namespaces/{config.ARGOCD_NAMESPACE}/applications"))
         self._read("ingresses", lambda: self.kube.get("/apis/networking.k8s.io/v1/ingresses"))
+        self._read("nodes", lambda: self.kube.get("/api/v1/nodes"))
+        self._read("prometheus", lambda: self.fetch_metrics(config.PROMETHEUS_URL, config.SOURCE_TIMEOUT))
+        self._read("backups", self._backups)
         now = self.clock()
         document = state.build(
-            self.readings["applications"], self.readings["ingresses"], self.readings["alerts"], now,
+            self.readings, now,
             base_repo_url=config.BASE_REPO_URL, root_app=config.ROOT_APP,
             ring0_board_url=config.RING0_BOARD_URL, refresh_seconds=config.REFRESH_SECONDS,
-            slow_minutes=config.SLOW_OPERATION_MINUTES)
+            slow_minutes=config.SLOW_OPERATION_MINUTES, stale_hours=config.BACKUP_STALE_HOURS)
         with self._lock:
             self._document = document
             self._cycled_at = now
+
+    def _backups(self) -> dict:
+        """Everything the Backups tile reads. A kind whose CRD is not installed
+        is an empty list (Kube.get_or_empty), never a failure."""
+        paths = {"clusters": "/apis/postgresql.cnpg.io/v1/clusters",
+                 "objectstores": "/apis/barmancloud.cnpg.io/v1/objectstores",
+                 "schedules": "/apis/velero.io/v1/schedules",
+                 "velero_backups": "/apis/velero.io/v1/backups",
+                 "cronjobs": "/apis/batch/v1/cronjobs"}
+        return {key: self.kube.get_or_empty(path).get("items", []) for key, path in paths.items()}
 
     def document(self) -> dict | None:
         with self._lock:
