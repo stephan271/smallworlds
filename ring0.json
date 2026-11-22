@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-22T18:00:30Z",
+ "updated": "2026-11-22T18:02:37Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -116,7 +116,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "d92fa56d41eb1bc9c3cc3d1854ad88ee7d63b1b6",
+   "revision": "6f7cba9b1609a0a40d1f38f6106cc81d418fbab9",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
