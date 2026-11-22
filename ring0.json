@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-22T14:59:00Z",
+ "updated": "2026-11-22T15:03:13Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -11,17 +11,11 @@
  },
  "now": {
   "state": "updating",
-  "commit": "2d16a8eeb74050f9139dbd2ddbd3fec79f1101d4",
-  "pull": {
-   "number": 161,
-   "title": "Propose a read-only Operator Board (ADR 0068)",
-   "cards": [
-    "repository"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-22T14:58:02Z",
-  "started": "2026-11-22T14:48:20Z",
+  "commit": "3c939d420e4e9aa3f8d2d4400e15595853d2b7cf",
+  "pull": null,
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #158",
@@ -618,9 +612,9 @@
     "repository"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-22T14:48:20Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-22T15:03:02Z"
    }
   },
   {
