@@ -191,7 +191,7 @@ h2 { font-size: 1rem; margin: 28px 0 10px; color: var(--muted); font-weight: 600
 .banner-sub { margin-top: 10px; font-size: 0.88rem; }
 .banner .reasons li.muted { color: var(--muted); font-size: 0.88rem; }
 
-.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; align-items: start; }
 .tile { background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--idle);
         border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); min-width: 0; }
 .tile.ok { border-top-color: var(--ok); }
@@ -201,6 +201,9 @@ h2 { font-size: 1rem; margin: 28px 0 10px; color: var(--muted); font-weight: 600
 .tile-title { color: var(--muted); font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
 .tile-head { font-size: 1.1rem; font-weight: 650; margin-top: 4px; display: flex; gap: 8px; align-items: center; }
 .tile-detail { color: var(--muted); font-size: 0.85rem; margin-top: 2px; overflow-wrap: anywhere; }
+.tile-items { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 3px; font-size: 0.8rem; }
+.tile-items li { display: flex; gap: 6px; align-items: baseline; overflow-wrap: anywhere; min-width: 0; }
+.tile-items .dot { width: 8px; height: 8px; position: relative; top: 1px; }
 
 .hub { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
 .hub-group { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;

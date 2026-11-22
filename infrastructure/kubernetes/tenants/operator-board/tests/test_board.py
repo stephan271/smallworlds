@@ -81,17 +81,73 @@ def am_alert(alertname, /, severity="warning", silenced=False, inhibited=False, 
 WATCHDOG = am_alert("Watchdog", severity="none")
 
 
+def ago(hours):
+    return state.iso(NOW - hours * 3600)
+
+
+NODE = {"metadata": {"name": "node-1"},
+        "status": {"nodeInfo": {"kubeletVersion": "v1.36.5+k3s1"},
+                   "conditions": [{"type": "Ready", "status": "True"},
+                                  {"type": "DiskPressure", "status": "False"}]}}
+
+
+def metrics(root_free=65.0, days_left=-1.0, pv_free=64.0, data_free=None):
+    free = [{"metric": {"mountpoint": "/"}, "value": root_free}]
+    if data_free is not None:
+        free.append({"metric": {"mountpoint": "/mnt/smallworlds-data"}, "value": data_free})
+    return {"free_percent": free, "days_left": [{"metric": {"mountpoint": "/"}, "value": days_left}],
+            "pv_free_percent": [{"metric": {}, "value": pv_free}],
+            "uptime_seconds": [{"metric": {}, "value": 12 * 86400}]}
+
+
+def cnpg(namespace, name="database", server=None, store="postgres-backups", conditions=()):
+    parameters = {"barmanObjectName": store}
+    if server:
+        parameters["serverName"] = server
+    return {"metadata": {"namespace": namespace, "name": name},
+            "spec": {"plugins": [{"name": "barman-cloud.cloudnative-pg.io", "enabled": True,
+                                  "parameters": parameters}]},
+            "status": {"conditions": list(conditions)}}
+
+
+def objectstore(namespace, windows, name="postgres-backups"):
+    return {"metadata": {"namespace": namespace, "name": name},
+            "status": {"serverRecoveryWindow": {s: {"lastSuccessfulBackupTime": t} for s, t in windows.items()}}}
+
+
+def cronjob(namespace, name, schedule="0 1 * * *", last_ok=None, last_scheduled=None, suspend=False):
+    return {"metadata": {"namespace": namespace, "name": name},
+            "spec": {"schedule": schedule, "suspend": suspend},
+            "status": {k: v for k, v in (("lastSuccessfulTime", last_ok), ("lastScheduleTime", last_scheduled)) if v}}
+
+
+def backups_data(clusters=None, stores=None, cronjobs=None, velero_age=15):
+    return {
+        "clusters": clusters if clusters is not None else [cnpg("nextcloud", server="nextcloud-database")],
+        "objectstores": stores if stores is not None else [objectstore("nextcloud", {"nextcloud-database": ago(15)})],
+        "schedules": [{"metadata": {"name": "velero-daily-cluster-state"}, "spec": {}}],
+        "velero_backups": [{"metadata": {"name": "v-1", "creationTimestamp": ago(velero_age),
+                                         "labels": {"velero.io/schedule-name": "velero-daily-cluster-state"}},
+                            "status": {"phase": "Completed", "completionTimestamp": ago(velero_age)}}],
+        "cronjobs": cronjobs if cronjobs is not None else [
+            cronjob("nextcloud", "pv-backup", last_ok=ago(16), last_scheduled=ago(16))],
+    }
+
+
 def reading(data=None, error=None, fetched=NOW, last_good=NOW):
     return state.Reading(data=data, error=error, fetched_at=fetched,
                          last_good_at=None if data is None else last_good)
 
 
 def build(apps=(), ingresses=(ARGOCD_INGRESS, GRAFANA_INGRESS), applications=None, ingress_reading=None,
-          alerts=(WATCHDOG,), alert_reading=None):
+          alerts=(WATCHDOG,), alert_reading=None, nodes=None, prometheus=None, backups=None):
     return state.build(
-        applications or reading({"items": list(apps)}),
-        ingress_reading or reading({"items": list(ingresses)}),
-        alert_reading or reading(list(alerts)), NOW,
+        {"applications": applications or reading({"items": list(apps)}),
+         "ingresses": ingress_reading or reading({"items": list(ingresses)}),
+         "alerts": alert_reading or reading(list(alerts)),
+         "nodes": nodes or reading({"items": [NODE]}),
+         "prometheus": prometheus or reading(metrics()),
+         "backups": backups or reading(backups_data())}, NOW,
         base_repo_url=BASE, root_app="smallworlds-root",
         ring0_board_url="https://stephan271.github.io/smallworlds/", refresh_seconds=30,
         slow_minutes=10)
@@ -108,8 +164,9 @@ class Verdict(unittest.TestCase):
         document = build([app("keycloak"), app("nextcloud")])
         self.assertEqual("green", document["verdict"]["colour"])
         self.assertEqual("Nothing needs attention", document["verdict"]["headline"])
-        self.assertEqual(["Alertmanager's alerts", "Argo CD Applications"], document["verdict"]["covers"])
-        self.assertNotIn("alerts", document["verdict"]["not_yet"])
+        self.assertEqual(["Alertmanager's alerts", "Argo CD Applications", "the node", "backups"],
+                         document["verdict"]["covers"])
+        self.assertEqual(["certificates", "updates", "alert delivery"], document["verdict"]["not_yet"])
         tiles = {t["id"]: t for t in document["tiles"]}
         self.assertEqual("2 of 2 settled", tiles["applications"]["headline"])
         self.assertEqual(("green", "none firing"), (tiles["alerts"]["colour"], tiles["alerts"]["headline"]))
@@ -117,7 +174,7 @@ class Verdict(unittest.TestCase):
     def test_progressing_is_amber_with_a_link_into_argo_cd(self):
         document = build([app("keycloak"), app("nextcloud", health="Progressing")])
         self.assertEqual("amber", document["verdict"]["colour"])
-        self.assertEqual("1 thing has not settled", document["verdict"]["headline"])
+        self.assertEqual("1 thing needs a look", document["verdict"]["headline"])
         reason = document["verdict"]["reasons"][0]
         self.assertTrue(reason["text"].startswith("nextcloud: Synced / Progressing"))
         self.assertEqual("https://deploy.example.org/applications/argocd/nextcloud", reason["link"])
@@ -148,7 +205,8 @@ class Verdict(unittest.TestCase):
 
     def test_unread_sources_are_never_green(self):
         document = build(applications=state.Reading(), ingress_reading=state.Reading(),
-                         alert_reading=state.Reading())
+                         alert_reading=state.Reading(), nodes=state.Reading(), prometheus=state.Reading(),
+                         backups=state.Reading())
         self.assertEqual("grey", document["verdict"]["colour"])
 
     def test_amber_outranks_grey(self):
@@ -184,7 +242,7 @@ class Alerts(unittest.TestCase):
         self.assertEqual(1, len(document["verdict"]["reasons"]))
         both = build([app("nextcloud", health="Degraded"), app("keycloak", health="Progressing")],
                      alerts=[WATCHDOG, am_alert("ApplicationNotHealthy", name="nextcloud")])
-        self.assertEqual("1 alert firing, and 1 thing has not settled", both["verdict"]["headline"])
+        self.assertEqual("1 alert firing, and 1 more needs a look", both["verdict"]["headline"])
 
     def test_an_alert_in_an_applications_namespace_is_that_applications(self):
         immich = app("immich")
@@ -249,6 +307,114 @@ class Alerts(unittest.TestCase):
                 self.assertEqual(expected[name], tile, name)
         self.assertEqual("node", state.tile_of("TargetDown", {"job": "node-exporter"}))
         self.assertEqual("alerts", state.tile_of("TargetDown", {"job": "kube-state-metrics"}))
+
+
+class Node(unittest.TestCase):
+    def tile(self, document):
+        return {t["id"]: t for t in document["tiles"]}["node"]
+
+    def test_a_ready_node_with_room_is_green(self):
+        tile = self.tile(build([app("a")]))
+        self.assertEqual(("green", "Ready"), (tile["colour"], tile["headline"]))
+        self.assertEqual("v1.36.5+k3s1 · up 12 days", tile["detail"])
+        self.assertEqual(["/ 65% free", "fullest volume 64% free"], [i["text"] for i in tile["items"]])
+
+    def test_low_space_and_a_fast_fill_are_amber_before_the_alerts(self):
+        document = build([app("a")], prometheus=reading(metrics(root_free=22, data_free=80)))
+        self.assertEqual("amber", self.tile(document)["colour"])
+        self.assertIn("Disk / 22% free", [r["text"] for r in document["verdict"]["reasons"]])
+        filling = self.tile(build([app("a")], prometheus=reading(metrics(days_left=5.2))))
+        self.assertEqual(("amber", "/ 65% free, full in 5 days at this rate"),
+                         (filling["colour"], filling["items"][0]["text"]))
+        self.assertEqual("amber", self.tile(build([app("a")], prometheus=reading(metrics(pv_free=12))))["colour"])
+
+    def test_not_ready_or_under_pressure_is_amber(self):
+        sick = json.loads(json.dumps(NODE))
+        sick["status"]["conditions"] = [{"type": "Ready", "status": "False", "message": "kubelet stopped posting"},
+                                        {"type": "DiskPressure", "status": "True"}]
+        document = build([app("a")], nodes=reading({"items": [sick]}))
+        self.assertEqual(("amber", "not Ready"), (self.tile(document)["colour"], self.tile(document)["headline"]))
+        texts = [r["text"] for r in document["verdict"]["reasons"]]
+        self.assertIn("Node node-1 is not Ready: kubelet stopped posting", texts)
+        self.assertIn("Node node-1 reports DiskPressure", texts)
+
+    def test_a_node_alert_is_red(self):
+        document = build([app("a")], alerts=[WATCHDOG, am_alert("NodeDiskSpaceCritical", "critical")])
+        self.assertEqual("red", self.tile(document)["colour"])
+
+    def test_prometheus_silent_means_grey_never_green(self):
+        document = build([app("a")], prometheus=reading(None, error="unreachable (timed out)"))
+        self.assertEqual("grey", self.tile(document)["colour"])
+        self.assertIn("Prometheus did not answer", " ".join(r["text"] for r in document["verdict"]["reasons"]))
+
+
+class Backups(unittest.TestCase):
+    def tile(self, document):
+        return {t["id"]: t for t in document["tiles"]}["backups"]
+
+    def test_recent_backups_are_green(self):
+        tile = self.tile(build([app("a")]))
+        self.assertEqual(("green", "3 recent"), (tile["colour"], tile["headline"]))
+        self.assertEqual(["database nextcloud/database: 15 h ago",
+                          "cluster state (velero-daily-cluster-state): 15 h ago",
+                          "nextcloud/pv-backup: 16 h ago"], [i["text"] for i in tile["items"]])
+
+    def test_the_server_a_cluster_writes_to_is_read_not_an_old_one(self):
+        """Ring 0's Immich ObjectStore still lists immich-database from before PostgreSQL 18."""
+        data = backups_data(clusters=[cnpg("immich", server="immich-database-pg18"), cnpg("keycloak", "keycloak-db",
+                                                                                           store="pgb-keycloak")],
+                            stores=[objectstore("immich", {"immich-database": ago(130), "immich-database-pg18": ago(15)}),
+                                    objectstore("keycloak", {"keycloak-db": ago(2)}, name="pgb-keycloak")])
+        items = [i["text"] for i in self.tile(build([app("a")], backups=reading(data)))["items"]]
+        self.assertIn("database immich/database: 15 h ago", items)
+        self.assertIn("database keycloak/keycloak-db: 2 h ago", items, "serverName defaults to the Cluster's name")
+
+    def test_stale_or_failing_backups_are_amber_with_a_link_to_the_docs(self):
+        data = backups_data(stores=[objectstore("nextcloud", {"nextcloud-database": ago(30)})], velero_age=40)
+        document = build([app("a")], backups=reading(data))
+        tile = self.tile(document)
+        self.assertEqual(("amber", "2 not recent"), (tile["colour"], tile["headline"]))
+        reason = next(r for r in document["verdict"]["reasons"] if r["tile"] == "backups")
+        self.assertTrue(reason["link"].endswith(f"/blob/{SHA}/doc/storage-and-backup.md"))
+        failing = backups_data(clusters=[cnpg("nextcloud", server="nextcloud-database", conditions=[
+            {"type": "ContinuousArchiving", "status": "False", "message": "WAL archive failed: 403"}])])
+        item = self.tile(build([app("a")], backups=reading(failing)))["items"][0]
+        self.assertEqual(("amber", "database nextcloud/database: 15 h ago — ContinuousArchiving: WAL archive failed: 403"),
+                         (item["colour"], item["text"]))
+
+    def test_no_backup_ever_is_amber(self):
+        data = backups_data(stores=[])
+        self.assertEqual("database nextcloud/database: no successful backup recorded",
+                         self.tile(build([app("a")], backups=reading(data)))["items"][0]["text"])
+
+    def test_a_missed_cronjob_run_is_amber_a_suspended_one_is_a_fact(self):
+        data = backups_data(cronjobs=[
+            cronjob("forgejo", "pv-backup", last_ok=ago(40), last_scheduled=ago(16)),
+            cronjob("backup-replicator", "backup-replicator", last_ok=ago(1), suspend=True),
+            cronjob("ddns", "ddns", schedule="*/5 * * * *", last_ok=ago(30))])
+        tile = self.tile(build([app("a")], backups=reading(data)))
+        items = {i["text"]: i for i in tile["items"]}
+        self.assertEqual("amber", items["forgejo/pv-backup: the last run did not succeed (last success 40 h ago)"]["colour"])
+        suspended = items["backup-replicator/backup-replicator: suspended, last run 1 h ago"]
+        self.assertTrue(suspended["neutral"])
+        self.assertNotIn("ddns", " ".join(items), "only backup CronJobs")
+        self.assertEqual("1 not recent", tile["headline"])
+
+    def test_a_running_job_is_not_a_missed_one(self):
+        data = backups_data(cronjobs=[cronjob("nextcloud", "pv-backup", last_ok=ago(24.5), last_scheduled=ago(0.5))])
+        self.assertEqual("green", self.tile(build([app("a")], backups=reading(data)))["colour"])
+
+    def test_a_backup_alert_is_red_and_unread_is_grey(self):
+        red = build([app("a")], alerts=[WATCHDOG, am_alert("VeleroBackupStale", schedule="daily")])
+        self.assertEqual("red", self.tile(red)["colour"])
+        grey = build([app("a")], backups=reading(None, error="HTTP 403 Forbidden"))
+        self.assertEqual(("grey", "not read"), (self.tile(grey)["colour"], self.tile(grey)["headline"]))
+
+    def test_cnpg_six_field_schedules_count_as_daily(self):
+        self.assertTrue(state._daily("0 0 2 * * *"))
+        self.assertTrue(state._daily("45 0 * * *"))
+        self.assertFalse(state._daily("*/5 * * * *"))
+        self.assertFalse(state._daily("0 4 * * 0"))
 
 
 class Applications(unittest.TestCase):
@@ -398,7 +564,7 @@ class ReadOnly(unittest.TestCase):
             source = handle.read()
         tree = ast.parse(source)
         kube = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "Kube")
-        self.assertEqual({"__init__", "_token", "get"},
+        self.assertEqual({"__init__", "_token", "get", "get_or_empty"},
                          {n.name for n in kube.body if isinstance(n, ast.FunctionDef)})
         self.assertEqual(['"GET"'], re.findall(r'method=("\w+")', source))
 
@@ -425,7 +591,9 @@ class Packaging(unittest.TestCase):
 
 class FakeKube:
     def __init__(self, answers):
-        self.answers = answers
+        self.answers = {"nodes": {"items": [NODE]}, "clusters": {"items": []}, "objectstores": {"items": []},
+                        "schedules": {"items": []}, "backups": {"items": []}, "cronjobs": {"items": []},
+                        **answers}
 
     def get(self, path):
         answer = self.answers[path.rsplit("/", 1)[-1]]
@@ -433,13 +601,20 @@ class FakeKube:
             raise answer
         return answer
 
+    get_or_empty = get
+
+
+def no_metrics(url, timeout):
+    return metrics()
+
 
 class Collector(unittest.TestCase):
     def test_a_failing_source_is_recorded_and_the_document_still_built(self):
         collector = main.Collector(FakeKube({
             "applications": urllib.error.URLError("timed out"),
             "ingresses": {"items": [ARGOCD_INGRESS]}}), clock=lambda: NOW,
-            fetch_alerts=lambda url, timeout: [WATCHDOG])
+            fetch_alerts=lambda url, timeout: [WATCHDOG],
+            fetch_metrics=no_metrics)
         self.assertFalse(collector.healthy())
         self.assertIsNone(collector.document())
         collector.cycle()
@@ -452,7 +627,8 @@ class Collector(unittest.TestCase):
     def test_unhealthy_once_the_refresh_stops(self):
         now = [NOW]
         collector = main.Collector(FakeKube({"applications": {"items": []}, "ingresses": {"items": []}}),
-                                   clock=lambda: now[0], fetch_alerts=lambda url, timeout: [WATCHDOG])
+                                   clock=lambda: now[0], fetch_alerts=lambda url, timeout: [WATCHDOG],
+            fetch_metrics=no_metrics)
         collector.cycle()
         now[0] += 3 * config.REFRESH_SECONDS + 31
         self.assertFalse(collector.healthy())
@@ -461,7 +637,7 @@ class Collector(unittest.TestCase):
         def broken(url, timeout):
             raise urllib.error.URLError("connection refused")
         collector = main.Collector(FakeKube({"applications": {"items": [app("a")]}, "ingresses": {"items": []}}),
-                                   clock=lambda: NOW, fetch_alerts=broken)
+                                   clock=lambda: NOW, fetch_alerts=broken, fetch_metrics=no_metrics)
         collector.cycle()
         sources = collector.document()["sources"]
         self.assertEqual((False, True), (sources["alerts"]["ok"], sources["applications"]["ok"]))

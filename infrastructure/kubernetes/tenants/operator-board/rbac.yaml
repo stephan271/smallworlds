@@ -33,8 +33,12 @@ subjects:
     name: operator-board
     namespace: operator-board
 ---
-# Ingresses cluster-wide: the link hub finds operator tools by their
-# smallworlds.network/board-* annotations, the way Homepage finds member apps.
+# Cluster-wide, read-only:
+#   ingresses      the link hub finds operator tools by their board-* annotations
+#   nodes          the Node tile (Ready, pressure, versions)
+#   clusters, objectstores, velero schedules and backups, cronjobs
+#                  the Backups tile (design §4.4); the plugin's ObjectStore
+#                  status holds the last backup time, not the Cluster's
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -42,6 +46,21 @@ metadata:
 rules:
   - apiGroups: ["networking.k8s.io"]
     resources: ["ingresses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["postgresql.cnpg.io"]
+    resources: ["clusters"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["barmancloud.cnpg.io"]
+    resources: ["objectstores"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["velero.io"]
+    resources: ["schedules", "backups"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["cronjobs"]
     verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1

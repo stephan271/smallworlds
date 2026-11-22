@@ -33,8 +33,16 @@ MACHINERY = frozenset({"canary-follower", "smallworlds-root"})
 
 # What the verdict covers so far, and what it does not read yet. The page says
 # both, so that green never claims more than was read (design §11).
-COVERED = ["Alertmanager's alerts", "Argo CD Applications"]
-NOT_YET = ["the node", "backups", "certificates", "updates", "alert delivery"]
+COVERED = ["Alertmanager's alerts", "Argo CD Applications", "the node", "backups"]
+NOT_YET = ["certificates", "updates", "alert delivery"]
+
+# Amber thresholds for what the Board reads itself, at or before the alerts'
+# (apps/node-disk-alerts.yaml): a tile warns first, the alert then turns it red.
+DISK_FREE_AMBER = 25        # % free on / or the data disk (NodeDiskSpaceEarlyWarning)
+PV_FREE_AMBER = 20          # % free on the fullest volume (PersistentVolumeSpaceHigh)
+DAYS_LEFT_AMBER = 7         # days until full at the 12 h rate (the alert says 3)
+# A backup CronJob's last scheduled run gets this long to succeed.
+RUN_GRACE_SECONDS = 2 * 3600
 
 # Severities that fire continuously by design (Watchdog, InfoInhibitor). The push
 # route discards them too (doc/alerting.md); they never count here.
@@ -169,6 +177,215 @@ def alerts_tile(firing: list[dict], suppressed: list[dict], watchdog: bool, read
             "headline": (f"{len(firing)} firing" if firing else "none firing") if reading.ok()
             else "not read",
             "detail": detail}
+
+
+# --------------------------------------------------------------------- node
+
+def _red_if_alerts(tile: str, firing: list[dict]) -> list[dict]:
+    return [a for a in firing if a["tile"] == tile]
+
+
+def _age(seconds: float) -> str:
+    hours = seconds / 3600
+    if hours < 1:
+        return f"{max(int(seconds // 60), 0)} min"
+    return f"{hours:.0f} h" if hours < 48 else f"{hours / 24:.0f} days"
+
+
+def node_tile(nodes: Reading, metrics: Reading, firing: list[dict]) -> tuple[dict, list[dict]]:
+    """The tile and its amber reasons."""
+    items, reasons = [], []
+    node_list = (nodes.data or {}).get("items", []) if isinstance(nodes.data, dict) else []
+    ready = 0
+    versions = set()
+    for node in node_list:
+        name = node.get("metadata", {}).get("name", "?")
+        status = node.get("status", {})
+        info = status.get("nodeInfo", {})
+        versions.add(info.get("kubeletVersion", "?"))
+        conditions = {c.get("type"): c for c in status.get("conditions", [])}
+        if conditions.get("Ready", {}).get("status") == "True":
+            ready += 1
+        else:
+            reasons.append({"colour": AMBER, "tile": "node", "link": None,
+                            "text": f"Node {name} is not Ready: "
+                                    f"{short(conditions.get('Ready', {}).get('message')) or 'no reason given'}"})
+        for pressure in ("DiskPressure", "MemoryPressure", "PIDPressure"):
+            if conditions.get(pressure, {}).get("status") == "True":
+                reasons.append({"colour": AMBER, "tile": "node", "link": None,
+                                "text": f"Node {name} reports {pressure}"})
+    values = metrics.data if isinstance(metrics.data, dict) else {}
+    for series in values.get("free_percent", []):
+        mount, free = series["metric"].get("mountpoint", "?"), series["value"]
+        days = next((d["value"] for d in values.get("days_left", [])
+                     if d["metric"].get("mountpoint") == mount and d["value"] > 0), None)
+        text = f"{mount} {free:.0f}% free" + (f", full in {days:.0f} days at this rate" if days and days < 60 else "")
+        colour = AMBER if free < DISK_FREE_AMBER or (days is not None and days < DAYS_LEFT_AMBER) else GREEN
+        items.append({"colour": colour, "text": text})
+        if colour == AMBER:
+            reasons.append({"colour": AMBER, "tile": "node", "link": None, "text": f"Disk {text}"})
+    for series in values.get("pv_free_percent", []):
+        colour = AMBER if series["value"] < PV_FREE_AMBER else GREEN
+        items.append({"colour": colour, "text": f"fullest volume {series['value']:.0f}% free"})
+        if colour == AMBER:
+            reasons.append({"colour": AMBER, "tile": "node", "link": None,
+                            "text": f"The fullest volume has {series['value']:.0f}% free"})
+    uptime = next((s["value"] for s in values.get("uptime_seconds", [])), None)
+    detail = " · ".join(x for x in (", ".join(sorted(versions)) if versions else "",
+                                    f"up {_age(uptime)}" if uptime else "") if x)
+    mine = _red_if_alerts("node", firing)
+    if mine:
+        colour = RED
+    elif reasons:
+        colour = AMBER
+    elif not nodes.ok() or not metrics.ok():
+        colour = GREY
+    else:
+        colour = GREEN if node_list else GREY
+    if not node_list:
+        headline = "not read"
+    elif len(node_list) == 1:
+        headline = "Ready" if ready else "not Ready"
+    else:
+        headline = f"{ready} of {len(node_list)} Ready"
+    if mine:
+        detail = f"{len(mine)} alert{'s' if len(mine) != 1 else ''} firing" + (f" · {detail}" if detail else "")
+    return ({"id": "node", "title": "Node", "colour": colour, "headline": headline, "detail": detail,
+             "items": items}, reasons)
+
+
+# ------------------------------------------------------------------ backups
+
+def _daily(schedule: str) -> bool:
+    """A cron schedule that runs once a day: fixed minute and hour, every day."""
+    fields = (schedule or "").split()
+    if len(fields) == 6:  # CNPG's six-field form starts with seconds
+        fields = fields[1:]
+    return (len(fields) == 5 and fields[0].isdigit() and fields[1].isdigit()
+            and fields[2:] == ["*", "*", "*"])
+
+
+def database_backups(clusters: list[dict], stores: list[dict], now: float, stale_hours: int) -> list[dict]:
+    """One line per CNPG cluster. With the barman-cloud plugin the time lives in
+    the ObjectStore's serverRecoveryWindow, under the server the Cluster writes
+    to (its serverName, else its own name); a server listed there that no
+    Cluster writes to any more (immich-database before PostgreSQL 18) is
+    ignored. Without the plugin, CNPG's own status."""
+    windows = {(s["metadata"].get("namespace"), s["metadata"].get("name")):
+               (s.get("status") or {}).get("serverRecoveryWindow") or {} for s in stores}
+    items = []
+    for cluster in clusters:
+        meta = cluster.get("metadata", {})
+        namespace, name = meta.get("namespace"), meta.get("name")
+        status = cluster.get("status", {})
+        plugin = next((p for p in cluster.get("spec", {}).get("plugins", [])
+                       if p.get("name") == "barman-cloud.cloudnative-pg.io" and p.get("enabled", True)), None)
+        if plugin:
+            parameters = plugin.get("parameters", {})
+            window = windows.get((namespace, parameters.get("barmanObjectName")), {}).get(
+                parameters.get("serverName") or name, {})
+            last = _seconds(window.get("lastSuccessfulBackupTime"))
+        else:
+            last = _seconds(status.get("lastSuccessfulBackup"))
+        conditions = {c.get("type"): c for c in status.get("conditions", [])}
+        problem = next((f"{t}: {short(conditions[t].get('message')) or conditions[t].get('reason')}"
+                        for t in ("LastBackupSucceeded", "ContinuousArchiving")
+                        if conditions.get(t, {}).get("status") == "False"), None)
+        label = f"database {namespace}/{name}"
+        if last is None:
+            items.append({"colour": AMBER, "text": f"{label}: no successful backup recorded"})
+        else:
+            age = now - last
+            colour = AMBER if age > stale_hours * 3600 or problem else GREEN
+            items.append({"colour": colour, "text": f"{label}: {_age(age)} ago" + (f" — {problem}" if problem else "")})
+    return items
+
+
+def velero_backups(schedules: list[dict], backups: list[dict], now: float, stale_hours: int) -> list[dict]:
+    items = []
+    for schedule in schedules:
+        name = schedule.get("metadata", {}).get("name")
+        mine = sorted((b for b in backups
+                       if (b.get("metadata", {}).get("labels") or {}).get("velero.io/schedule-name") == name),
+                      key=lambda b: b.get("metadata", {}).get("creationTimestamp", ""))
+        done = [b for b in mine if (b.get("status") or {}).get("phase") == "Completed"]
+        last = _seconds((done[-1].get("status") or {}).get("completionTimestamp")) if done else None
+        newest = (mine[-1].get("status") or {}).get("phase") if mine else None
+        label = f"cluster state ({name})"
+        if (schedule.get("spec") or {}).get("paused"):
+            items.append({"colour": GREEN, "text": f"{label}: paused", "neutral": True})
+        elif last is None:
+            items.append({"colour": AMBER, "text": f"{label}: no completed backup"})
+        else:
+            failed = newest in ("Failed", "PartiallyFailed", "FailedValidation")
+            colour = AMBER if now - last > stale_hours * 3600 or failed else GREEN
+            items.append({"colour": colour, "text": f"{label}: {_age(now - last)} ago"
+                          + (f" — the newest one is {newest}" if failed else "")})
+    return items
+
+
+def cronjob_backups(cronjobs: list[dict], now: float, stale_hours: int) -> list[dict]:
+    """File copies and the off-site replicator: CronJobs named for backups.
+    A suspended one is shown as a fact, not a failure: suspending is a choice
+    made in git (Ring 0 runs its replicator only from its storage checks)."""
+    items = []
+    for job in cronjobs:
+        meta = job.get("metadata", {})
+        name = meta.get("name", "")
+        if "backup" not in name and "replicator" not in name:
+            continue
+        spec, status = job.get("spec", {}), job.get("status") or {}
+        label = f"{meta.get('namespace')}/{name}"
+        last_ok = _seconds(status.get("lastSuccessfulTime"))
+        if spec.get("suspend"):
+            when = f", last run {_age(now - last_ok)} ago" if last_ok else ""
+            items.append({"colour": GREEN, "text": f"{label}: suspended{when}", "neutral": True})
+            continue
+        scheduled = _seconds(status.get("lastScheduleTime"))
+        missed = (scheduled is not None and now - scheduled > RUN_GRACE_SECONDS
+                  and (last_ok is None or last_ok < scheduled))
+        stale = _daily(spec.get("schedule", "")) and last_ok is not None and now - last_ok > stale_hours * 3600
+        if last_ok is None and scheduled is None:
+            items.append({"colour": GREY, "text": f"{label}: has not run yet", "neutral": True})
+        elif missed or stale:
+            items.append({"colour": AMBER, "text": f"{label}: the last run did not succeed"
+                          + (f" (last success {_age(now - last_ok)} ago)" if last_ok else "")})
+        else:
+            items.append({"colour": GREEN, "text": f"{label}: {_age(now - last_ok)} ago"})
+    return items
+
+
+def backups_tile(reading: Reading, now: float, stale_hours: int, firing: list[dict],
+                 doc_link: str | None) -> tuple[dict, list[dict]]:
+    data = reading.data if isinstance(reading.data, dict) else {}
+    items = (database_backups(data.get("clusters", []), data.get("objectstores", []), now, stale_hours)
+             + velero_backups(data.get("schedules", []), data.get("velero_backups", []), now, stale_hours)
+             + cronjob_backups(data.get("cronjobs", []), now, stale_hours))
+    reasons = [{"colour": AMBER, "tile": "backups", "link": doc_link, "text": f"Backup: {i['text']}"}
+               for i in items if i["colour"] == AMBER]
+    mine = _red_if_alerts("backups", firing)
+    counted = [i for i in items if not i.get("neutral")]
+    if mine:
+        colour = RED
+    elif reasons:
+        colour = AMBER
+    elif not reading.ok() or not counted:
+        colour = GREY
+    else:
+        colour = GREEN
+    stale = sum(1 for i in items if i["colour"] == AMBER)
+    if not reading.ok() and not items:
+        headline = "not read"
+    elif stale:
+        headline = f"{stale} not recent"
+    else:
+        headline = f"{len(counted)} recent" if counted else "none found"
+    databases = sum(1 for i in items if i["text"].startswith("database "))
+    detail = f"{databases} database{'s' if databases != 1 else ''}, cluster state, file copies"
+    if mine:
+        detail = f"{len(mine)} alert{'s' if len(mine) != 1 else ''} firing · {detail}"
+    return ({"id": "backups", "title": "Backups", "colour": colour, "headline": headline,
+             "detail": detail, "items": items}, reasons)
 
 
 # ------------------------------------------------------------- applications
@@ -314,9 +531,9 @@ def verdict(tiles: list[dict], reasons: list[dict], suppressed: list[dict]) -> d
     if colour == RED:
         headline = f"{firing} {'alert' if firing == 1 else 'alerts'} firing"
         if unsettled:
-            headline += f", and {unsettled} {'thing has' if unsettled == 1 else 'things have'} not settled"
+            headline += f", and {unsettled} more {'needs' if unsettled == 1 else 'need'} a look"
     elif colour == AMBER:
-        headline = f"{unsettled} {'thing has' if unsettled == 1 else 'things have'} not settled"
+        headline = f"{unsettled} {'thing needs' if unsettled == 1 else 'things need'} a look"
     elif colour == GREY:
         headline = "Part of the cluster could not be read"
     else:
@@ -327,9 +544,15 @@ def verdict(tiles: list[dict], reasons: list[dict], suppressed: list[dict]) -> d
             "covers": COVERED, "not_yet": NOT_YET}
 
 
-def build(applications: Reading, ingresses: Reading, alerts: Reading, now: float, *,
-          base_repo_url: str, root_app: str, ring0_board_url: str, refresh_seconds: int,
-          slow_minutes: int) -> dict:
+SOURCE_NAMES = {"alerts": "Alertmanager", "applications": "The Kubernetes API (Applications)",
+                "ingresses": "The Kubernetes API (Ingresses)", "nodes": "The Kubernetes API (nodes)",
+                "prometheus": "Prometheus", "backups": "The Kubernetes API (backups)"}
+
+
+def build(readings: dict, now: float, *, base_repo_url: str, root_app: str, ring0_board_url: str,
+          refresh_seconds: int, slow_minutes: int, stale_hours: int = 26) -> dict:
+    readings = {key: readings.get(key) or Reading() for key in SOURCE_NAMES}
+    applications, ingresses, alerts = readings["applications"], readings["ingresses"], readings["alerts"]
     apps = (applications.data or {}).get("items", []) if isinstance(applications.data, dict) else []
     found = links_mod.from_ingresses((ingresses.data or {}).get("items", [])
                                      if isinstance(ingresses.data, dict) else [])
@@ -366,9 +589,16 @@ def build(applications: Reading, ingresses: Reading, alerts: Reading, now: float
                 text += f" — {card['why']}"
             reasons.append({"colour": card["colour"], "text": text, "link": card["link"],
                             "tile": "applications"})
-    for name, reading in (("Alertmanager", alerts),
-                          ("The Kubernetes API (Applications)", applications),
-                          ("The Kubernetes API (Ingresses)", ingresses)):
+    web = links_mod.github_web(base_repo_url)
+    node, node_reasons = node_tile(readings["nodes"], readings["prometheus"], firing)
+    backups, backup_reasons = backups_tile(
+        readings["backups"], now, stale_hours, firing,
+        f"{web}/blob/{revision or 'main'}/doc/storage-and-backup.md" if web else None)
+    for reason in node_reasons:
+        reason["link"] = reason["link"] or tool("grafana")
+    reasons += node_reasons + backup_reasons
+    for key, reading in readings.items():
+        name = SOURCE_NAMES[key]
         if reading.fetched_at is not None and not reading.ok():
             reasons.append(_source_reason(name, reading, now))
         elif reading.fetched_at is None:
@@ -376,7 +606,7 @@ def build(applications: Reading, ingresses: Reading, alerts: Reading, now: float
                             "link": None, "tile": None})
 
     tiles = [alerts_tile(firing, suppressed, watchdog, alerts),
-             applications_tile(cards, applications, firing)]
+             applications_tile(cards, applications, firing), node, backups]
     return {
         "schema": SCHEMA,
         "generated": iso(now),
@@ -388,6 +618,5 @@ def build(applications: Reading, ingresses: Reading, alerts: Reading, now: float
         "base": {"revision": revision, "mixed": mixed},
         "links": links_mod.ordered(found + links_mod.fixed(
             base_repo_url, revision, _root_repo(apps, root_app), ring0_board_url)),
-        "sources": {"alerts": alerts.describe(), "applications": applications.describe(),
-                    "ingresses": ingresses.describe()},
+        "sources": {key: reading.describe() for key, reading in readings.items()},
     }

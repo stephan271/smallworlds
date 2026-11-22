@@ -89,7 +89,10 @@ function drawTiles() {
     h("div", { class: `tile ${KIND[t.colour]}` },
       h("div", { class: "tile-title" }, t.title),
       h("div", { class: "tile-head" }, dot(t.colour), t.headline),
-      t.detail ? h("div", { class: "tile-detail" }, t.detail) : null)));
+      t.detail ? h("div", { class: "tile-detail" }, t.detail) : null,
+      // A neutral line is a fact (a suspended job, a paused schedule), not a verdict.
+      t.items && t.items.length ? h("ul", { class: "tile-items" }, t.items.map((i) =>
+        h("li", {}, dot(i.neutral ? "grey" : i.colour), i.text))) : null)));
 }
 
 function drawHub() {
