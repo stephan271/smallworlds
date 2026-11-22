@@ -1,21 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-22T15:19:56Z",
+ "updated": "2026-11-22T15:24:08Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "3c939d420e4e9aa3f8d2d4400e15595853d2b7cf",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-22T15:08:06Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+  "date": "2026-11-22T15:23:11Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "3c939d420e4e9aa3f8d2d4400e15595853d2b7cf",
   "pull": null,
-  "step": "quiet",
-  "step_since": "2026-11-22T15:18:11Z",
-  "started": "2026-11-22T15:08:06Z",
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #158",
@@ -590,9 +590,9 @@
     "repository"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-22T15:08:06Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-22T15:23:11Z"
    }
   },
   {
