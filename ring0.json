@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-22T16:30:50Z",
+ "updated": "2026-11-22T16:32:56Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -10,22 +10,13 @@
   "date": "2026-11-22T16:28:56Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "e0fe84f4acd13ce266fc73a16c6457476a69aeb3",
   "pull": null,
-  "step": "merge",
+  "step": null,
   "step_since": null,
   "started": null,
-  "queued": [
-   {
-    "number": 164,
-    "title": "Operator Step for the Operator Board (04a8c19)",
-    "cards": [
-     "smallworlds-root"
-    ],
-    "since": "2026-11-22T16:08:45Z"
-   }
-  ],
+  "queued": [],
   "stuck": null,
   "action": "not reverted: restore from the pre-update backup",
   "waiting": "no queued update is ready"
@@ -986,22 +977,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 164,
-   "title": "Operator Step for the Operator Board (04a8c19)",
-   "author": "smallworlds-steward[bot]",
-   "created": "2026-11-22T16:08:45Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue",
-    "steward"
-   ],
-   "cards": [
-    "smallworlds-root"
    ]
   }
  ]
