@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-22T12:00:23Z",
+ "updated": "2026-11-22T12:02:29Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "29d6d8094aa52a7b62e185a104257a4e2ee2ea6d",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-22T12:02:04Z"
  },
  "now": {
   "state": "updating",
@@ -20,9 +20,9 @@
     "smallworlds-root"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-22T12:02:04Z",
+  "started": "2026-11-22T12:02:03Z",
   "queued": [],
   "stuck": null,
   "action": "merged #158",
@@ -115,7 +115,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "38d0b64a9c88d62a5b12bef2fbdba485f5aa8a94",
+   "revision": "29d6d8094aa52a7b62e185a104257a4e2ee2ea6d",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
@@ -320,9 +320,9 @@
    "revision": "90c873517a790f66141b4e90b051625457f356fc",
    "images": [],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-22T00:46:15Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of argoproj.io/Application/cert-manager-webhook-hetzner and 1 more resources"
    },
    "wave": 0
   },
@@ -334,7 +334,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "38d0b64a9c88d62a5b12bef2fbdba485f5aa8a94",
+   "revision": "29d6d8094aa52a7b62e185a104257a4e2ee2ea6d",
    "images": [
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
@@ -373,7 +373,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "38d0b64a9c88d62a5b12bef2fbdba485f5aa8a94",
+   "revision": "29d6d8094aa52a7b62e185a104257a4e2ee2ea6d",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
@@ -597,7 +597,11 @@
     "repository",
     "smallworlds-root"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-22T12:02:04Z"
+   }
   },
   {
    "commit": "f0cb27ff7d58797f41667024fdf67d7f5812aeb7",
