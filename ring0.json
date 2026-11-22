@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-22T18:19:20Z",
+ "updated": "2026-11-22T18:58:39Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -988,6 +988,19 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 168,
+   "title": "Operator step for the Board: change the DNS job's file, not the CronJob",
+   "author": "stephan271",
+   "created": "2026-11-22T18:58:34Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "smallworlds-root"
    ]
   }
  ]
