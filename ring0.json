@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-22T00:44:27Z",
+ "updated": "2026-11-22T00:46:32Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "38d0b64a9c88d62a5b12bef2fbdba485f5aa8a94",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-22T00:45:40Z"
  },
  "now": {
   "state": "updating",
@@ -19,9 +19,9 @@
     "kube-prometheus-stack"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-22T00:45:40Z",
+  "started": "2026-11-22T00:45:40Z",
   "queued": [],
   "stuck": null,
   "action": "merged #158",
@@ -269,10 +269,11 @@
    "sync": "Synced",
    "source": "chart",
    "chart": "kube-prometheus-stack",
-   "version": "93.4.0",
+   "version": "93.4.1",
    "revision": null,
    "images": [
     "docker.io/grafana/grafana:13.3.1-distroless",
+    "ghcr.io/jkroepke/kube-webhook-certgen:1.11.1",
     "quay.io/kiwigrid/k8s-sidecar:2.14.3",
     "quay.io/prometheus-operator/prometheus-config-reloader:v0.95.2",
     "quay.io/prometheus-operator/prometheus-operator:v0.95.2",
@@ -282,9 +283,9 @@
     "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.20.0"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-21T00:59:29Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/kube-prometheus-stack-admission-patch"
    },
    "wave": 0
   },
@@ -320,7 +321,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-21T00:57:52Z",
+    "finished": "2026-11-22T00:46:15Z",
     "message": null
    },
    "wave": 0
@@ -595,7 +596,11 @@
    "cards": [
     "kube-prometheus-stack"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-22T00:45:40Z"
+   }
   },
   {
    "commit": "ab5eb77e331521bdd3f21beb744ebfadaacede24",
