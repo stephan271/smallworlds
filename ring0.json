@@ -1,19 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-22T16:09:56Z",
+ "updated": "2026-11-22T16:12:03Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "04a8c192fe978bfb115f3ab577dc1f72429e6987",
-  "state": "failure",
-  "description": "Smoke failed: ops.smallworlds.network: URLError: <urlopen error [Errno -2] Name or service not known>; touches keycloak: restore, do not re\u2026",
-  "date": "2026-11-22T16:04:20Z"
+  "commit": "e0fe84f4acd13ce266fc73a16c6457476a69aeb3",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
-  "state": "stuck",
-  "commit": "04a8c192fe978bfb115f3ab577dc1f72429e6987",
-  "pull": null,
-  "step": null,
+  "state": "updating",
+  "commit": "e0fe84f4acd13ce266fc73a16c6457476a69aeb3",
+  "pull": {
+   "number": 163,
+   "title": "Operator steps for the Operator Board (04a8c19); fix-forward for Ring 0",
+   "cards": [
+    "smallworlds-root"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
@@ -26,11 +32,7 @@
     "since": "2026-11-22T16:08:45Z"
    }
   ],
-  "stuck": {
-   "condition": "S1",
-   "since": "2026-11-22T16:04:20Z",
-   "summary": "Smoke failed: ops.smallworlds.network: URLError: <urlopen error [Errno -2] Name or service not known>; touches keycloak: restore, do not re\u2026"
-  },
+  "stuck": null,
   "action": "not reverted: restore from the pre-update backup",
   "waiting": "no queued update is ready"
  },
@@ -613,6 +615,28 @@
  ],
  "commits": [
   {
+   "commit": "e0fe84f4acd13ce266fc73a16c6457476a69aeb3",
+   "title": "Operator steps for the Operator Board (04a8c19); fix-forward for Ring 0",
+   "author": "stephan271",
+   "date": "2026-11-22T16:10:48Z",
+   "pull": 163,
+   "cards": [
+    "smallworlds-root"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "42f426fed0eccd42522d7f88357b5d217a7a57b2",
+   "title": "Operator steps for the Operator Board (04a8c19)",
+   "author": "stephan271",
+   "date": "2026-11-22T16:07:12Z",
+   "pull": null,
+   "cards": [
+    "smallworlds-root"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "04a8c192fe978bfb115f3ab577dc1f72429e6987",
    "title": "Operator Board, slice 01: tenant, router pair, links and Applications",
    "author": "stephan271",
@@ -937,34 +961,6 @@
     "description": "Ring 0: backup 1 databases, converged, load settled after 1 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
     "date": "2026-11-20T12:31:48Z"
    }
-  },
-  {
-   "commit": "93fc6b94564af2c71fa9b9257a94f12bd0714a91",
-   "title": "Restart join when its settings change, and correct the Android steps",
-   "author": "stephan271",
-   "date": "2026-11-20T12:05:33Z",
-   "pull": null,
-   "cards": [
-    "join",
-    "repository"
-   ],
-   "verdict": null
-  },
-  {
-   "commit": "4a5471c87b3c9b60992dfbaa9a9aadb34a5ddb09",
-   "title": "Let the Operator choose the Member Network at install, and onboard members onto it",
-   "author": "stephan271",
-   "date": "2026-11-20T10:10:45Z",
-   "pull": 149,
-   "cards": [
-    "join",
-    "repository"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-20T10:29:36Z"
-   }
   }
  ],
  "pulls": [
@@ -992,19 +988,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 163,
-   "title": "Operator steps for the Operator Board (04a8c19); fix-forward for Ring 0",
-   "author": "stephan271",
-   "created": "2026-11-22T16:07:16Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "smallworlds-root"
    ]
   },
   {
