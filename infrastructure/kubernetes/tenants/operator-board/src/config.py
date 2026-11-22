@@ -12,6 +12,14 @@ PROMETHEUS_URL = os.getenv("PROMETHEUS_URL",
                            "http://kube-prometheus-stack-prometheus.monitoring.svc:9090").rstrip("/")
 # A daily backup older than this is amber; the alerts fire at 36 h (design §4.4).
 BACKUP_STALE_HOURS = int(os.getenv("BACKUP_STALE_HOURS", "26"))
+# Ring 0's Ring State and GitHub's compare API (design §4.6). An empty
+# RING_STATE_URL turns both off; the Updates tile then says "unknown".
+RING_STATE_URL = os.getenv(
+    "RING_STATE_URL", "https://raw.githubusercontent.com/stephan271/smallworlds/ring-state/ring0.json")
+GITHUB_API_URL = os.getenv("GITHUB_API_URL", "https://api.github.com").rstrip("/")
+# Unauthenticated, GitHub allows 60 calls an hour: one compare per pair of
+# commits per this many seconds.
+COMPARE_SECONDS = int(os.getenv("COMPARE_SECONDS", "3600"))
 RING0_BOARD_URL = os.getenv("RING0_BOARD_URL", "https://stephan271.github.io/smallworlds/")
 
 # Every source is read again this often. The page calls the Board stale when

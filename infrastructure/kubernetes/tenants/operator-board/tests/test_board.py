@@ -121,6 +121,20 @@ def cronjob(namespace, name, schedule="0 1 * * *", last_ok=None, last_scheduled=
             "status": {k: v for k, v in (("lastSuccessfulTime", last_ok), ("lastScheduleTime", last_scheduled)) if v}}
 
 
+def ring0_doc(commits=None, now_state="up-to-date", updated_hours=0.1, stuck=None):
+    """ring0.json, newest first, in the follower's shape. By default SHA is the
+    newest verified commit: what build() runs unless told otherwise."""
+    commits = commits if commits is not None else [
+        {"commit": SHA, "title": "Update Helm chart velero", "date": ago(2), "verdict": {"state": "success"}},
+        {"commit": "c" * 40, "title": "a branch commit", "date": ago(3), "verdict": None},
+        {"commit": OTHER, "title": "Update nextcloud", "date": ago(5), "verdict": {"state": "success"}}]
+    return {"schema": 1, "updated": ago(updated_hours), "repository": "stephan271/smallworlds",
+            "head": {"commit": commits[0]["commit"] if commits else SHA, "state": "success", "date": ago(2)},
+            "now": {"state": now_state, "commit": SHA, "step": "checks" if now_state == "updating" else None,
+                    "pull": {"title": "Update immich"} if now_state == "updating" else None, "stuck": stuck},
+            "commits": commits}
+
+
 def backups_data(clusters=None, stores=None, cronjobs=None, velero_age=15):
     return {
         "clusters": clusters if clusters is not None else [cnpg("nextcloud", server="nextcloud-database")],
@@ -140,14 +154,15 @@ def reading(data=None, error=None, fetched=NOW, last_good=NOW):
 
 
 def build(apps=(), ingresses=(ARGOCD_INGRESS, GRAFANA_INGRESS), applications=None, ingress_reading=None,
-          alerts=(WATCHDOG,), alert_reading=None, nodes=None, prometheus=None, backups=None):
+          alerts=(WATCHDOG,), alert_reading=None, nodes=None, prometheus=None, backups=None, rings=None):
     return state.build(
         {"applications": applications or reading({"items": list(apps)}),
          "ingresses": ingress_reading or reading({"items": list(ingresses)}),
          "alerts": alert_reading or reading(list(alerts)),
          "nodes": nodes or reading({"items": [NODE]}),
          "prometheus": prometheus or reading(metrics()),
-         "backups": backups or reading(backups_data())}, NOW,
+         "backups": backups or reading(backups_data()),
+         "rings": rings or reading({"ring0": ring0_doc(), "compare": None, "compare_error": None})}, NOW,
         base_repo_url=BASE, root_app="smallworlds-root",
         ring0_board_url="https://stephan271.github.io/smallworlds/", refresh_seconds=30,
         slow_minutes=10)
@@ -164,9 +179,9 @@ class Verdict(unittest.TestCase):
         document = build([app("keycloak"), app("nextcloud")])
         self.assertEqual("green", document["verdict"]["colour"])
         self.assertEqual("Nothing needs attention", document["verdict"]["headline"])
-        self.assertEqual(["Alertmanager's alerts", "Argo CD Applications", "the node", "backups"],
+        self.assertEqual(["Alertmanager's alerts", "Argo CD Applications", "the node", "backups", "updates"],
                          document["verdict"]["covers"])
-        self.assertEqual(["certificates", "updates", "alert delivery"], document["verdict"]["not_yet"])
+        self.assertEqual(["certificates", "alert delivery"], document["verdict"]["not_yet"])
         tiles = {t["id"]: t for t in document["tiles"]}
         self.assertEqual("2 of 2 settled", tiles["applications"]["headline"])
         self.assertEqual(("green", "none firing"), (tiles["alerts"]["colour"], tiles["alerts"]["headline"]))
@@ -206,7 +221,7 @@ class Verdict(unittest.TestCase):
     def test_unread_sources_are_never_green(self):
         document = build(applications=state.Reading(), ingress_reading=state.Reading(),
                          alert_reading=state.Reading(), nodes=state.Reading(), prometheus=state.Reading(),
-                         backups=state.Reading())
+                         backups=state.Reading(), rings=state.Reading())
         self.assertEqual("grey", document["verdict"]["colour"])
 
     def test_amber_outranks_grey(self):
@@ -417,6 +432,124 @@ class Backups(unittest.TestCase):
         self.assertFalse(state._daily("0 4 * * 0"))
 
 
+class Updates(unittest.TestCase):
+    def tile(self, document):
+        return {t["id"]: t for t in document["tiles"]}["updates"]
+
+    def rings(self, ring0=None, compare=None, error=None):
+        return reading({"ring0": ring0 if ring0 is not None else ring0_doc(), "compare": compare,
+                        "compare_error": error})
+
+    def test_running_the_newest_verified_commit_is_green(self):
+        tile = self.tile(build([app("a")]))
+        self.assertEqual(("green", "up to date with Ring 0"), (tile["colour"], tile["headline"]))
+        self.assertEqual([f"runs {SHA[:7]} — Update Helm chart velero",
+                          f"newest verified {SHA[:7]} — Update Helm chart velero, 2 h ago",
+                          "Ring 0 is up to date"], [i["text"] for i in tile["items"]])
+
+    def test_verified_steps_behind_count_only_verdicts_not_branch_commits(self):
+        d = "d" * 40
+        ring0 = ring0_doc([
+            {"commit": SHA, "title": "newest", "date": ago(1), "verdict": {"state": "success"}},
+            {"commit": "c" * 40, "title": "branch commit", "date": ago(2), "verdict": None},
+            {"commit": "e" * 40, "title": "rejected", "date": ago(3), "verdict": {"state": "failure"}},
+            {"commit": "f" * 40, "title": "also verified", "date": ago(4), "verdict": {"state": "success"}},
+            {"commit": d, "title": "what this cluster runs", "date": ago(9), "verdict": {"state": "success"}}])
+        document = build([app("a", revision=d)], rings=self.rings(ring0))
+        self.assertEqual(("amber", "2 verified commits behind"), (self.tile(document)["colour"], self.tile(document)["headline"]))
+        reason = next(r for r in document["verdict"]["reasons"] if r["tile"] == "updates")
+        self.assertTrue(reason["text"].startswith("Updates: 2 verified commits behind"))
+        self.assertEqual("https://stephan271.github.io/smallworlds/", reason["link"])
+
+    def test_older_than_the_list_uses_the_compare(self):
+        old = "0" * 40
+        document = build([app("a", revision=old)], rings=self.rings(compare={"status": "ahead", "ahead_by": 46}))
+        self.assertEqual(("amber", "46 commits behind"), (self.tile(document)["colour"], self.tile(document)["headline"]))
+        unknown = build([app("a", revision=old)], rings=self.rings(error="HTTP 403 rate limit exceeded"))
+        self.assertEqual("more than 25 commits behind", self.tile(unknown)["headline"])
+        same = build([app("a", revision=old)], rings=self.rings(compare={"status": "identical", "ahead_by": 0}))
+        self.assertEqual("green", self.tile(same)["colour"])
+
+    def test_an_unverified_or_rejected_commit_is_said_so(self):
+        newer = "9" * 40
+        ring0 = ring0_doc([{"commit": newer, "title": "being checked", "date": ago(0.2), "verdict": None}]
+                          + ring0_doc()["commits"])
+        tile = self.tile(build([app("a", revision=newer)], rings=self.rings(ring0)))
+        self.assertEqual("runs a commit Ring 0 has not verified", tile["headline"])
+        ring0["commits"][0]["verdict"] = {"state": "failure"}
+        self.assertEqual("runs a commit Ring 0 rejected",
+                         self.tile(build([app("a", revision=newer)], rings=self.rings(ring0)))["headline"])
+
+    def test_a_stale_ring_state_is_grey(self):
+        document = build([app("a")], rings=self.rings(ring0_doc(updated_hours=3)))
+        self.assertEqual("grey", self.tile(document)["colour"])
+        self.assertIn("Ring 0 has not reported since", " ".join(r["text"] for r in document["verdict"]["reasons"]))
+
+    def test_turned_off_or_unread_is_grey(self):
+        off = build([app("a")], rings=reading({"disabled": True}))
+        self.assertEqual(("grey", "unknown"), (self.tile(off)["colour"], self.tile(off)["headline"]))
+        unread = build([app("a")], rings=reading(None, error="unreachable (Name or service not known)"))
+        self.assertEqual("grey", self.tile(unread)["colour"])
+        self.assertEqual("grey", unread["verdict"]["colour"])
+
+    def test_mixed_base_commits_need_a_look(self):
+        document = build([app("a"), app("b", revision=OTHER)])
+        self.assertIn(f"Applications run different base commits: b@{OTHER[:12]}",
+                      [r["text"] for r in document["verdict"]["reasons"]])
+
+    def test_on_ring_0_the_tile_shows_ring_0(self):
+        tile = self.tile(build([app("a"), app("canary-follower")]))
+        self.assertEqual(("green", "this is Ring 0"), (tile["colour"], tile["headline"]))
+        busy = self.tile(build([app("canary-follower")], rings=self.rings(ring0_doc(now_state="updating"))))
+        self.assertEqual(("green", "Ring 0 is checking Update immich (checks)"), (busy["colour"], busy["items"][0]["text"]))
+        stuck = build([app("canary-follower")], rings=self.rings(ring0_doc(
+            now_state="stuck", stuck={"condition": "S1", "summary": "main's head was rejected"})))
+        self.assertEqual("amber", self.tile(stuck)["colour"])
+        self.assertIn("Ring 0 is stuck: main's head was rejected", [r["text"] for r in stuck["verdict"]["reasons"]])
+
+    def test_a_canary_alert_is_red(self):
+        document = build([app("canary-follower")], alerts=[WATCHDOG, am_alert("CanaryCommitFailed")])
+        self.assertEqual("red", self.tile(document)["colour"])
+
+
+class RingsCollector(unittest.TestCase):
+    def collector(self, apps, compare, clock):
+        return main.Collector(FakeKube({"applications": {"items": apps}, "ingresses": {"items": []}}),
+                              clock=clock, fetch_alerts=lambda url, timeout: [WATCHDOG], fetch_metrics=no_metrics,
+                              fetch_ring0=lambda url, timeout: ring0_doc(), compare=compare)
+
+    def test_compare_only_for_an_unlisted_commit_and_at_most_hourly(self):
+        calls = []
+
+        def compare(api, repository, base, head, timeout):
+            calls.append((repository, base, head))
+            return {"status": "ahead", "ahead_by": 46}
+        now = [NOW]
+        listed = self.collector([app("a")], compare, lambda: now[0])
+        listed.cycle()
+        self.assertEqual([], calls, "a listed commit needs no compare")
+        old = "0" * 40
+        unlisted = self.collector([app("a", revision=old)], compare, lambda: now[0])
+        unlisted.cycle()
+        unlisted.cycle()
+        self.assertEqual([("stephan271/smallworlds", old, SHA)], calls)
+        self.assertEqual("46 commits behind",
+                         {t["id"]: t for t in unlisted.document()["tiles"]}["updates"]["headline"])
+        now[0] += config.COMPARE_SECONDS
+        unlisted.cycle()
+        self.assertEqual(2, len(calls))
+
+    def test_a_failing_compare_does_not_fail_the_reading(self):
+        def compare(*args):
+            raise urllib.error.HTTPError("https://api.github.com/x", 403, "rate limit exceeded", {}, None)
+        collector = self.collector([app("a", revision="0" * 40)], compare, lambda: NOW)
+        collector.cycle()
+        document = collector.document()
+        self.assertTrue(document["sources"]["rings"]["ok"])
+        self.assertEqual("more than 25 commits behind",
+                         {t["id"]: t for t in document["tiles"]}["updates"]["headline"])
+
+
 class Applications(unittest.TestCase):
     def test_a_failed_sync_hook_on_a_healthy_app_is_amber_with_the_reason(self):
         failed = app("stalwart", operationState={
@@ -614,7 +747,7 @@ class Collector(unittest.TestCase):
             "applications": urllib.error.URLError("timed out"),
             "ingresses": {"items": [ARGOCD_INGRESS]}}), clock=lambda: NOW,
             fetch_alerts=lambda url, timeout: [WATCHDOG],
-            fetch_metrics=no_metrics)
+            fetch_metrics=no_metrics, fetch_ring0=lambda url, timeout: ring0_doc())
         self.assertFalse(collector.healthy())
         self.assertIsNone(collector.document())
         collector.cycle()
@@ -628,7 +761,7 @@ class Collector(unittest.TestCase):
         now = [NOW]
         collector = main.Collector(FakeKube({"applications": {"items": []}, "ingresses": {"items": []}}),
                                    clock=lambda: now[0], fetch_alerts=lambda url, timeout: [WATCHDOG],
-            fetch_metrics=no_metrics)
+            fetch_metrics=no_metrics, fetch_ring0=lambda url, timeout: ring0_doc())
         collector.cycle()
         now[0] += 3 * config.REFRESH_SECONDS + 31
         self.assertFalse(collector.healthy())
@@ -637,7 +770,7 @@ class Collector(unittest.TestCase):
         def broken(url, timeout):
             raise urllib.error.URLError("connection refused")
         collector = main.Collector(FakeKube({"applications": {"items": [app("a")]}, "ingresses": {"items": []}}),
-                                   clock=lambda: NOW, fetch_alerts=broken, fetch_metrics=no_metrics)
+                                   clock=lambda: NOW, fetch_alerts=broken, fetch_metrics=no_metrics, fetch_ring0=lambda url, timeout: ring0_doc())
         collector.cycle()
         sources = collector.document()["sources"]
         self.assertEqual((False, True), (sources["alerts"]["ok"], sources["applications"]["ok"]))

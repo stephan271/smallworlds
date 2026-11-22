@@ -33,8 +33,14 @@ MACHINERY = frozenset({"canary-follower", "smallworlds-root"})
 
 # What the verdict covers so far, and what it does not read yet. The page says
 # both, so that green never claims more than was read (design §11).
-COVERED = ["Alertmanager's alerts", "Argo CD Applications", "the node", "backups"]
-NOT_YET = ["certificates", "updates", "alert delivery"]
+COVERED = ["Alertmanager's alerts", "Argo CD Applications", "the node", "backups", "updates"]
+NOT_YET = ["certificates", "alert delivery"]
+
+# ring0.json is rewritten at least hourly (the follower's heartbeat); older than
+# this, what it says about Ring 0 is unknown (design §4.6).
+RING_STATE_STALE_SECONDS = 3600
+# The Application that only Ring 0 runs: its Board shows Ring 0's own state.
+RING0_MARKER = "canary-follower"
 
 # Amber thresholds for what the Board reads itself, at or before the alerts'
 # (apps/node-disk-alerts.yaml): a tile warns first, the alert then turns it red.
@@ -388,6 +394,132 @@ def backups_tile(reading: Reading, now: float, stale_hours: int, firing: list[di
              "detail": detail, "items": items}, reasons)
 
 
+# ------------------------------------------------------------------ updates
+
+def newest_verified(ring0: dict | None) -> dict | None:
+    """The newest commit Ring 0 verified, from its Ring State: the end of the
+    Update Desk's path (docs/adr/0067)."""
+    if not isinstance(ring0, dict):
+        return None
+    for commit in ring0.get("commits", []):
+        if (commit.get("verdict") or {}).get("state") == "success":
+            return commit
+    head = ring0.get("head") or {}
+    return {"commit": head["commit"], "title": None, "date": head.get("date")} \
+        if head.get("state") == "success" and head.get("commit") else None
+
+
+def _steps(n: int) -> str:
+    # Commits, not steps: the Update Desk groups commits into steps of its own.
+    return f"{n} verified commit{'s' if n != 1 else ''}"
+
+
+def _ring0_line(ring0: dict) -> dict:
+    now = ring0.get("now") or {}
+    state = now.get("state")
+    if state == "stuck":
+        stuck = now.get("stuck") or {}
+        text = f"Ring 0 is stuck{': ' + short(stuck.get('summary')) if stuck.get('summary') else ''}"
+    elif state == "updating":
+        what = (now.get("pull") or {}).get("title") or (now.get("commit") or "")[:7]
+        text = f"Ring 0 is checking {what}" + (f" ({now['step']})" if now.get("step") else "")
+    else:
+        text = "Ring 0 is up to date"
+    return {"colour": GREEN, "text": text, "neutral": True}
+
+
+def updates_tile(reading: Reading, running: str | None, mixed: list[str], ring0_here: bool, now: float,
+                 firing: list[dict], board_url: str) -> tuple[dict, list[dict]]:
+    data = reading.data if isinstance(reading.data, dict) else {}
+    ring0 = data.get("ring0")
+    reasons, items = [], []
+    mine = _red_if_alerts("updates", firing)
+
+    def tile(colour, headline, detail=""):
+        if mine:
+            colour = RED
+            detail = f"{len(mine)} alert{'s' if len(mine) != 1 else ''} firing" + (f" · {detail}" if detail else "")
+        return {"id": "updates", "title": "Updates", "colour": colour, "headline": headline,
+                "detail": detail, "items": items}
+
+    if data.get("disabled"):
+        return tile(GREY, "unknown", "Ring State is turned off (RING_STATE_URL)"), reasons
+    if not isinstance(ring0, dict):
+        return tile(GREY, "not read"), reasons
+    stale = now - (_seconds(ring0.get("updated")) or 0) > RING_STATE_STALE_SECONDS
+    if stale:
+        reasons.append({"colour": GREY, "tile": "updates", "link": board_url,
+                        "text": f"Ring 0 has not reported since {ring0.get('updated')}: "
+                                "where this cluster stands is unknown."})
+
+    if ring0_here:
+        line = _ring0_line(ring0)
+        items.append(line)
+        head = ring0.get("head") or {}
+        if (ring0.get("now") or {}).get("state") == "stuck":
+            reasons.append({"colour": AMBER, "tile": "updates", "link": board_url, "text": line["text"]})
+            colour = AMBER
+        else:
+            colour = GREY if stale or not reading.ok() else GREEN
+        verdict = head.get("state")
+        items.append({"colour": GREEN if verdict == "success" else AMBER if verdict == "failure" else GREY,
+                      "text": f"main's head {str(head.get('commit', ''))[:7]}: {verdict or 'no verdict'}",
+                      "neutral": verdict not in ("success", "failure")})
+        return tile(colour, "this is Ring 0", "follows main and verifies every commit"), reasons
+
+    newest = newest_verified(ring0)
+    commits = ring0.get("commits", [])
+    position = {c.get("commit"): i for i, c in enumerate(commits)}
+    if running:
+        title = next((c.get("title") for c in commits if c.get("commit") == running), None)
+        items.append({"colour": GREEN, "text": f"runs {running[:7]}" + (f" — {short(title)}" if title else ""),
+                      "neutral": True})
+    if newest:
+        age = _seconds(newest.get("date"))
+        items.append({"colour": GREEN, "neutral": True,
+                      "text": f"newest verified {newest['commit'][:7]}"
+                              + (f" — {short(newest.get('title'))}" if newest.get("title") else "")
+                              + (f", {_age(now - age)} ago" if age else "")})
+    items.append(_ring0_line(ring0))
+    if mixed:
+        reasons.append({"colour": AMBER, "tile": "updates", "link": None,
+                        "text": "Applications run different base commits: " + ", ".join(mixed[:6])})
+
+    if not running:
+        return tile(GREY, "unknown", "no Application runs the base repository"), reasons
+    if not newest:
+        return tile(GREY, "unknown", "Ring 0 has verified nothing it lists"), reasons
+    compare = data.get("compare") or {}
+    if running == newest["commit"]:
+        colour, headline = GREEN, "up to date with Ring 0"
+    elif running in position:
+        newer = sum(1 for c in commits[:position[running]]
+                    if (c.get("verdict") or {}).get("state") == "success")
+        verdict = (commits[position[running]].get("verdict") or {}).get("state")
+        if newer:
+            colour, headline = AMBER, f"{_steps(newer)} behind"
+        elif verdict == "failure":
+            colour, headline = AMBER, "runs a commit Ring 0 rejected"
+        else:
+            colour, headline = AMBER, "runs a commit Ring 0 has not verified"
+    elif compare.get("status") == "identical":
+        colour, headline = GREEN, "up to date with Ring 0"
+    elif compare.get("status") == "ahead":
+        colour, headline = AMBER, f"{compare.get('ahead_by')} commits behind"
+    elif compare.get("status") == "behind":
+        colour, headline = AMBER, "runs a commit Ring 0 has not verified"
+    elif compare.get("status") == "diverged":
+        colour, headline = AMBER, "runs a commit that is not on main"
+    else:
+        colour, headline = AMBER, "more than 25 commits behind"
+    if colour == AMBER:
+        reasons.append({"colour": AMBER, "tile": "updates", "link": board_url,
+                        "text": f"Updates: {headline} — the Update Desk takes this cluster along Ring 0's path"})
+    if stale or not reading.ok():
+        colour = GREY
+    return tile(colour, headline, "against Ring 0's verified commits"), reasons
+
+
 # ------------------------------------------------------------- applications
 
 def why(app: dict) -> str | None:
@@ -546,7 +678,8 @@ def verdict(tiles: list[dict], reasons: list[dict], suppressed: list[dict]) -> d
 
 SOURCE_NAMES = {"alerts": "Alertmanager", "applications": "The Kubernetes API (Applications)",
                 "ingresses": "The Kubernetes API (Ingresses)", "nodes": "The Kubernetes API (nodes)",
-                "prometheus": "Prometheus", "backups": "The Kubernetes API (backups)"}
+                "prometheus": "Prometheus", "backups": "The Kubernetes API (backups)",
+                "rings": "Ring 0's Ring State"}
 
 
 def build(readings: dict, now: float, *, base_repo_url: str, root_app: str, ring0_board_url: str,
@@ -596,7 +729,10 @@ def build(readings: dict, now: float, *, base_repo_url: str, root_app: str, ring
         f"{web}/blob/{revision or 'main'}/doc/storage-and-backup.md" if web else None)
     for reason in node_reasons:
         reason["link"] = reason["link"] or tool("grafana")
-    reasons += node_reasons + backup_reasons
+    updates, update_reasons = updates_tile(
+        readings["rings"], revision, mixed,
+        any(a.get("metadata", {}).get("name") == RING0_MARKER for a in apps), now, firing, ring0_board_url)
+    reasons += node_reasons + backup_reasons + update_reasons
     for key, reading in readings.items():
         name = SOURCE_NAMES[key]
         if reading.fetched_at is not None and not reading.ok():
@@ -606,7 +742,7 @@ def build(readings: dict, now: float, *, base_repo_url: str, root_app: str, ring
                             "link": None, "tile": None})
 
     tiles = [alerts_tile(firing, suppressed, watchdog, alerts),
-             applications_tile(cards, applications, firing), node, backups]
+             applications_tile(cards, applications, firing), node, backups, updates]
     return {
         "schema": SCHEMA,
         "generated": iso(now),
