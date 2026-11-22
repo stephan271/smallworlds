@@ -1,29 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-22T17:33:27Z",
+ "updated": "2026-11-22T17:39:41Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "d92fa56d41eb1bc9c3cc3d1854ad88ee7d63b1b6",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-22T17:23:14Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+  "date": "2026-11-22T17:37:55Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "d92fa56d41eb1bc9c3cc3d1854ad88ee7d63b1b6",
-  "pull": {
-   "number": 166,
-   "title": "Operator Board, slice 03: Node and Backups tiles",
-   "cards": [
-    "canary-follower",
-    "operator-board",
-    "repository"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-22T17:32:55Z",
-  "started": "2026-11-22T17:23:14Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "not reverted: restore from the pre-update backup",
@@ -619,9 +611,9 @@
     "repository"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-22T17:23:14Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-22T17:37:55Z"
    }
   },
   {
