@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-22T16:32:56Z",
+ "updated": "2026-11-22T16:41:14Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -976,6 +976,21 @@
    "rejected": false,
    "labels": [],
    "cards": [
+    "repository"
+   ]
+  },
+  {
+   "number": 165,
+   "title": "Operator Board, slice 02: verdict and Alerts tile from Alertmanager",
+   "author": "stephan271",
+   "created": "2026-11-22T16:39:53Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "canary-follower",
+    "operator-board",
     "repository"
    ]
   }
