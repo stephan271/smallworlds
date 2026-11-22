@@ -413,8 +413,9 @@ echo -e "${YELLOW}Creating application subdirectories...${NC}"
 # operator's domain.
 # ("operator-console" was here too until it was deleted, docs/adr/0062.)
 # Headscale is each community's own tailnet: without its directory here it kept
-# the base's vpn.smallworlds.network, so no device could enroll in it.
-APPS=("dashboard" "keycloak" "join" "headscale" "${SELECTED_APPS[@]}")
+# the base's vpn.smallworlds.network, so no device could enroll in it. The
+# Operator Board (docs/adr/0068) carries ops.<domain>.
+APPS=("dashboard" "keycloak" "join" "headscale" "operator-board" "${SELECTED_APPS[@]}")
 
 for app in "${APPS[@]}"; do
     if [ ! -d "$app" ]; then

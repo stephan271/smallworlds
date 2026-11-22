@@ -1,0 +1,27 @@
+# In: Traefik only. The kubelet's probes come from the node itself, which
+# kube-router always admits.
+#
+# Out is not restricted yet: the Board's only destination so far is the
+# Kubernetes API, whose address on k3s is each node's own, so a policy for it
+# would need the node's address per install. The ServiceAccount can read and
+# never write, and reads no Secrets (rbac.yaml). Egress follows with the
+# sources that need it (design §6).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: operator-board
+  namespace: operator-board
+spec:
+  podSelector:
+    matchLabels:
+      app: operator-board
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik-system
+      ports:
+        - port: 8080
+          protocol: TCP

@@ -41,6 +41,11 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
+  name: operator-board
+---
+apiVersion: v1
+kind: Namespace
+metadata:
   name: bulwark
 ---
 apiVersion: v1

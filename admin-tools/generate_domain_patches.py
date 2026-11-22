@@ -46,6 +46,7 @@ def generate_patches(app_name, domain, ext):
         'deploy': f"deploy{ext}.{domain}",
         'vpn': f"vpn{ext}.{domain}",
         'join': f"join{ext}.{domain}",
+        'ops': f"ops{ext}.{domain}",
         'pod': f"pod{ext}.{domain}"
     }
 
@@ -179,6 +180,33 @@ def generate_patches(app_name, domain, ext):
               - op: replace
                 path: /spec/headers/accessControlAllowOriginList/0
                 value: "https://{subdomains['webmail']}"
+        """), "  ")
+
+    elif app_name == "operator-board":
+        # The router pair shares one host and one certificate (docs/adr/0068).
+        # Patches target Ingresses by name: a missed one keeps
+        # smallworlds.network, so the test checks both.
+        patches += textwrap.indent(textwrap.dedent(f"""\
+          - target:
+              kind: Ingress
+              name: operator-board
+            patch: |-
+              - op: replace
+                path: /spec/rules/0/host
+                value: {subdomains['ops']}
+              - op: replace
+                path: /spec/tls/0/hosts/0
+                value: {subdomains['ops']}
+          - target:
+              kind: Ingress
+              name: operator-board-private
+            patch: |-
+              - op: replace
+                path: /spec/rules/0/host
+                value: {subdomains['ops']}
+              - op: replace
+                path: /spec/tls/0/hosts/0
+                value: {subdomains['ops']}
         """), "  ")
 
     elif app_name == "join":

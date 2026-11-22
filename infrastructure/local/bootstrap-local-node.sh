@@ -810,7 +810,7 @@ if [ "$MANAGE_DNS" = "true" ]; then
     # this cluster could ever serve, which is what such a file always meant.
     # The job creates and updates records and never deletes one, so a record
     # for an application that is later removed has to be deleted by hand.
-    for sub in ${DNS_SUBDOMAINS:-identity dashboard files photos git mail webmail monitoring whiteboard meet office deploy pod vpn join}; do
+    for sub in ${DNS_SUBDOMAINS:-identity dashboard files photos git mail webmail monitoring whiteboard meet office deploy pod vpn join ops}; do
         RECORD_NAMES="${RECORD_NAMES:+$RECORD_NAMES }${sub}${ENV_EXT}"
     done
 

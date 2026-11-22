@@ -70,6 +70,12 @@ metadata:
     # restriction, so no allow-list (the gateway's source is a pod address).
     traefik.ingress.kubernetes.io/router.entrypoints: operators
     gethomepage.dev/enabled: "false"
+    # The Operator Board's link hub (docs/adr/0068); "argocd" also gives the
+    # Board's Application cards their links.
+    smallworlds.network/board-id: argocd
+    smallworlds.network/board-name: "Argo CD"
+    smallworlds.network/board-group: Operate
+    smallworlds.network/board-order: "10"
 spec:
   rules:
     - host: deploy.smallworlds.network

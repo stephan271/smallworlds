@@ -25,6 +25,7 @@ const ROLES = {
   keycloak: "Single sign-on", headscale: "Operator VPN", "kube-prometheus-stack": "Metrics & alerts",
   "loki-stack": "Logs", velero: "Cluster backups", garage: "S3 storage", "garage-backup": "S3 backup",
   "backup-replicator": "Offsite copies", "canary-follower": "Follows main, verifies, merges updates",
+  "operator-board": "Operator Board (ops.<domain>)",
   "smallworlds-root": "App of apps, shared bases, alert rules", repository: "Docs, scripts, Terraform: nothing Ring 0 runs",
   hermes: "Removed agent", remediation: "Removed agent",
 };

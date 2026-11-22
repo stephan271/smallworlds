@@ -50,6 +50,11 @@ metadata:
     # restriction, so no allow-list (the gateway's source is a pod address).
     traefik.ingress.kubernetes.io/router.entrypoints: operators
     gethomepage.dev/enabled: "false"
+    # The Operator Board's link hub (docs/adr/0068); it adds "Logs" (Explore).
+    smallworlds.network/board-id: grafana
+    smallworlds.network/board-name: Grafana
+    smallworlds.network/board-group: Operate
+    smallworlds.network/board-order: "20"
 spec:
   ingressClassName: traefik
   rules:

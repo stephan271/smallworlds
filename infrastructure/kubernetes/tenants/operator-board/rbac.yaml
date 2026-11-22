@@ -1,0 +1,58 @@
+# The Board reads and never writes (docs/adr/0068, design §6): get/list/watch
+# only, no Secrets, no logs, no exec. tests/test_board.py fails on anything
+# more, so widening this has to change that test on purpose. Each later slice
+# adds the resources it reads (design §11).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: operator-board
+  namespace: operator-board
+---
+# Argo CD's Applications: the Applications tile and cards.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: operator-board-reader
+  namespace: argocd
+rules:
+  - apiGroups: ["argoproj.io"]
+    resources: ["applications"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: operator-board-reader
+  namespace: argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: operator-board-reader
+subjects:
+  - kind: ServiceAccount
+    name: operator-board
+    namespace: operator-board
+---
+# Ingresses cluster-wide: the link hub finds operator tools by their
+# smallworlds.network/board-* annotations, the way Homepage finds member apps.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: operator-board-reader
+rules:
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: operator-board-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: operator-board-reader
+subjects:
+  - kind: ServiceAccount
+    name: operator-board
+    namespace: operator-board

@@ -33,6 +33,8 @@ const PAGES: { host: string; path: string; private: number[] }[] = [
   { host: `identity.${DOMAIN}`, path: '/admin/', private: [200, 302] },
   // Without a session the Desk sends you to its sign-in, never the Desk itself.
   { host: `join.${DOMAIN}`, path: '/desk/', private: [302] },
+  // The Operator Board (docs/adr/0068) has no sign-in of its own.
+  { host: `ops.${DOMAIN}`, path: '/', private: [200] },
 ];
 
 /** GET with SNI and Host set to `host`, optionally connecting somewhere else. */
