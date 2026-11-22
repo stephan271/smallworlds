@@ -1,21 +1,29 @@
 {
  "schema": 1,
- "updated": "2026-11-22T16:41:14Z",
+ "updated": "2026-11-22T16:45:27Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "e0fe84f4acd13ce266fc73a16c6457476a69aeb3",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-22T16:28:56Z"
+  "commit": "89f420fb0652cf84100b9fdea77af17ed27ea06e",
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-22T16:44:10Z"
  },
  "now": {
-  "state": "up-to-date",
-  "commit": "e0fe84f4acd13ce266fc73a16c6457476a69aeb3",
-  "pull": null,
-  "step": null,
-  "step_since": null,
-  "started": null,
+  "state": "updating",
+  "commit": "89f420fb0652cf84100b9fdea77af17ed27ea06e",
+  "pull": {
+   "number": 165,
+   "title": "Operator Board, slice 02: verdict and Alerts tile from Alertmanager",
+   "cards": [
+    "canary-follower",
+    "operator-board",
+    "repository"
+   ]
+  },
+  "step": "converge",
+  "step_since": "2026-11-22T16:45:01Z",
+  "started": "2026-11-22T16:44:10Z",
   "queued": [],
   "stuck": null,
   "action": "not reverted: restore from the pre-update backup",
@@ -37,9 +45,9 @@
     "quay.io/jetstack/cert-manager-webhook:v1.21.3"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-22T16:16:02Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of /ServiceAccount/cert-manager and 43 more resources"
    },
    "wave": -10
   },
@@ -57,7 +65,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-22T16:15:37Z",
+    "finished": "2026-11-22T16:45:11Z",
     "message": null
    },
    "wave": -10
@@ -76,7 +84,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-22T16:15:49Z",
+    "finished": "2026-11-22T16:45:24Z",
     "message": null
    },
    "wave": -10
@@ -95,7 +103,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-22T16:15:36Z",
+    "finished": "2026-11-22T16:45:09Z",
     "message": null
    },
    "wave": -9
@@ -108,13 +116,13 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "e0fe84f4acd13ce266fc73a16c6457476a69aeb3",
+   "revision": "89f420fb0652cf84100b9fdea77af17ed27ea06e",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-22T16:15:37Z",
+    "finished": "2026-11-22T16:45:11Z",
     "message": null
    },
    "wave": -9
@@ -133,7 +141,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-22T16:15:39Z",
+    "finished": "2026-11-22T16:45:12Z",
     "message": null
    },
    "wave": -5
@@ -152,7 +160,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-22T16:15:40Z",
+    "finished": "2026-11-22T16:45:13Z",
     "message": null
    },
    "wave": -5
@@ -165,13 +173,13 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "e0fe84f4acd13ce266fc73a16c6457476a69aeb3",
+   "revision": "89f420fb0652cf84100b9fdea77af17ed27ea06e",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-22T16:15:30Z",
+    "finished": "2026-11-22T16:44:59Z",
     "message": null
    },
    "wave": 0
@@ -190,7 +198,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-22T16:15:36Z",
+    "finished": "2026-11-22T16:45:09Z",
     "message": null
    },
    "wave": 0
@@ -205,12 +213,13 @@
    "version": null,
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/euro-office/documentserver:v9.3.4-hotfix.1@sha256:889e681923d2dcc8bdfb92fe128d10e185fcff880d302b6a0c0c7bf339499290"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-22T16:16:00Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/euro-office-secret-init"
    },
    "wave": 0
   },
@@ -224,13 +233,14 @@
    "version": null,
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970",
     "docker.io/tailscale/tailscale:v1.104.7@sha256:72c1e19e0aedca96b8533bbb0b4368564410ff20b17e53b804eb6c1f04a31be4"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-22T16:15:58Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/private-gateway-enroll"
    },
    "wave": 0
   },
@@ -250,9 +260,9 @@
     "quay.io/keycloak/keycloak@sha256:7e66a96e4739239070aeaf72e4c5decf0f7f682cfc725b9f7ea2b336eaba38b3"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-22T16:17:39Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for deletion of hook /ServiceAccount/pre-update-backup and 2 more hooks"
    },
    "wave": 0
   },
@@ -276,8 +286,8 @@
     "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.20.0"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-22T16:16:57Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 0
@@ -297,7 +307,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-22T16:15:47Z",
+    "finished": "2026-11-22T16:45:22Z",
     "message": null
    },
    "wave": 0
@@ -316,7 +326,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-22T16:15:47Z",
+    "finished": "2026-11-22T16:45:23Z",
     "message": null
    },
    "wave": 0
@@ -333,7 +343,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-22T16:15:07Z",
+    "finished": "2026-11-22T16:44:40Z",
     "message": null
    },
    "wave": 0
@@ -346,14 +356,14 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "e0fe84f4acd13ce266fc73a16c6457476a69aeb3",
+   "revision": "89f420fb0652cf84100b9fdea77af17ed27ea06e",
    "images": [
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-22T16:16:30Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 0
@@ -368,12 +378,13 @@
    "version": null,
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/bulwarkmail/webmail:1.21.3@sha256:54e914a229529fe90fd8f0ae3e9e97d671806ac09fbfe3f421a1c4fb14495a74"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-22T16:16:24Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init and 1 more hooks"
    },
    "wave": 1
   },
@@ -385,13 +396,13 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "e0fe84f4acd13ce266fc73a16c6457476a69aeb3",
+   "revision": "89f420fb0652cf84100b9fdea77af17ed27ea06e",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-22T16:15:40Z",
+    "finished": "2026-11-22T16:45:15Z",
     "message": null
    },
    "wave": 1
@@ -410,7 +421,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-22T16:15:34Z",
+    "finished": "2026-11-22T16:45:06Z",
     "message": null
    },
    "wave": 1
@@ -433,9 +444,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-22T16:17:39Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for deletion of hook /ServiceAccount/pre-update-backup and 2 more hooks"
    },
    "wave": 1
   },
@@ -458,9 +469,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-22T16:17:46Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for deletion of hook /ServiceAccount/pre-update-backup and 2 more hooks"
    },
    "wave": 1
   },
@@ -474,6 +485,7 @@
    "version": null,
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/jitsi-contrib/jitsi-oidc-adapter:v20260328@sha256:c4a28b215f5ea4893e308cd3f15b1f1c6954231ab784cac6362f420e6648a745",
     "ghcr.io/jitsi/jicofo:stable-11509",
     "ghcr.io/jitsi/jvb:stable-11509",
@@ -481,9 +493,9 @@
     "ghcr.io/jitsi/web:stable-11509"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-22T16:16:32Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/jitsi-secret-init and 1 more hooks"
    },
    "wave": 1
   },
@@ -500,9 +512,9 @@
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-22T16:17:38Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of /ServiceAccount/setup-sa and 1 more resources"
    },
    "wave": 1
   },
@@ -521,9 +533,9 @@
     "docker.io/tailscale/tailscale:v1.104.7@sha256:72c1e19e0aedca96b8533bbb0b4368564410ff20b17e53b804eb6c1f04a31be4"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-22T16:17:38Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of /ServiceAccount/setup-sa and 1 more resources"
    },
    "wave": 1
   },
@@ -546,9 +558,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-22T16:17:50Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for deletion of hook /ServiceAccount/pre-update-backup and 2 more hooks"
    },
    "wave": 1
   },
@@ -565,9 +577,9 @@
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-22T16:16:15Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of /ServiceAccount/setup-sa and 1 more resources"
    },
    "wave": 1
   },
@@ -591,14 +603,44 @@
     "stalwartlabs/stalwart:v1.1.1@sha256:544760db45608ef39d969eca7cfc040af771a0825cdf5c673935825abe3fad0f"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-22T16:17:14Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 1
   }
  ],
  "commits": [
+  {
+   "commit": "89f420fb0652cf84100b9fdea77af17ed27ea06e",
+   "title": "Operator Board, slice 02: verdict and Alerts tile from Alertmanager",
+   "author": "stephan271",
+   "date": "2026-11-22T16:43:27Z",
+   "pull": 165,
+   "cards": [
+    "canary-follower",
+    "operator-board",
+    "repository"
+   ],
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-22T16:44:10Z"
+   }
+  },
+  {
+   "commit": "ef01ede168b78cf0d01eea4f507ad594719be48a",
+   "title": "Operator Board, slice 02: verdict and Alerts tile from Alertmanager",
+   "author": "stephan271",
+   "date": "2026-11-22T16:39:33Z",
+   "pull": null,
+   "cards": [
+    "canary-follower",
+    "operator-board",
+    "repository"
+   ],
+   "verdict": null
+  },
   {
    "commit": "e0fe84f4acd13ce266fc73a16c6457476a69aeb3",
    "title": "Operator steps for the Operator Board (04a8c19); fix-forward for Ring 0",
@@ -920,36 +962,6 @@
     "repository"
    ],
    "verdict": null
-  },
-  {
-   "commit": "5805eeb12d927a6ca6399f91365725b97e04f1b7",
-   "title": "Update Helm chart jitsi-meet to v3.13.0 (#152)",
-   "author": "renovate[bot]",
-   "date": "2026-11-20T12:36:58Z",
-   "pull": 152,
-   "cards": [
-    "jitsi"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-20T12:56:46Z"
-   }
-  },
-  {
-   "commit": "d145dd188f87bf5fdaca9c600d9fb53aa6e10289",
-   "title": "Update gallery to v5.11.1 (#151)",
-   "author": "renovate[bot]",
-   "date": "2026-11-20T12:10:56Z",
-   "pull": 151,
-   "cards": [
-    "immich"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: backup 1 databases, converged, load settled after 1 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
-    "date": "2026-11-20T12:31:48Z"
-   }
   }
  ],
  "pulls": [
@@ -976,21 +988,6 @@
    "rejected": false,
    "labels": [],
    "cards": [
-    "repository"
-   ]
-  },
-  {
-   "number": 165,
-   "title": "Operator Board, slice 02: verdict and Alerts tile from Alertmanager",
-   "author": "stephan271",
-   "created": "2026-11-22T16:39:53Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "canary-follower",
-    "operator-board",
     "repository"
    ]
   }
