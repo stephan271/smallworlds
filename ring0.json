@@ -1,19 +1,26 @@
 {
  "schema": 1,
- "updated": "2026-11-22T10:58:31Z",
+ "updated": "2026-11-22T12:00:23Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "38d0b64a9c88d62a5b12bef2fbdba485f5aa8a94",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-22T01:00:00Z"
+  "commit": "29d6d8094aa52a7b62e185a104257a4e2ee2ea6d",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
-  "state": "up-to-date",
-  "commit": "38d0b64a9c88d62a5b12bef2fbdba485f5aa8a94",
-  "pull": null,
-  "step": null,
+  "state": "updating",
+  "commit": "29d6d8094aa52a7b62e185a104257a4e2ee2ea6d",
+  "pull": {
+   "number": 159,
+   "title": "Local Update Desk: adopt Ring 0's verified path step by step (ADR 0067)",
+   "cards": [
+    "repository",
+    "smallworlds-root"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [],
@@ -581,6 +588,52 @@
  ],
  "commits": [
   {
+   "commit": "29d6d8094aa52a7b62e185a104257a4e2ee2ea6d",
+   "title": "Local Update Desk: adopt Ring 0's verified path step by step (ADR 0067)",
+   "author": "stephan271",
+   "date": "2026-11-22T11:59:35Z",
+   "pull": 159,
+   "cards": [
+    "repository",
+    "smallworlds-root"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "f0cb27ff7d58797f41667024fdf67d7f5812aeb7",
+   "title": "Operator step: a browser that still shows Forbidden keeps its old connection",
+   "author": "stephan271",
+   "date": "2026-11-22T10:46:43Z",
+   "pull": null,
+   "cards": [
+    "smallworlds-root"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "027dd6336fa8371ac10fe449be19ddee77e283b2",
+   "title": "Update Desk: say what moving the root pin brings",
+   "author": "stephan271",
+   "date": "2026-11-22T09:10:15Z",
+   "pull": null,
+   "cards": [
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "d19a383095863c906bd4c51ee2f36d0c2ef751fc",
+   "title": "Add a local Update Desk that follows Ring 0's verified path (ADR 0067)",
+   "author": "stephan271",
+   "date": "2026-11-22T08:54:36Z",
+   "pull": null,
+   "cards": [
+    "repository",
+    "smallworlds-root"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "38d0b64a9c88d62a5b12bef2fbdba485f5aa8a94",
    "title": "Update Helm chart kube-prometheus-stack to v93.4.1 (#158)",
    "author": "renovate[bot]",
@@ -868,74 +921,6 @@
     "canary-follower"
    ],
    "verdict": null
-  },
-  {
-   "commit": "4c6507c2ccf319f7929946970dba3dc646686470",
-   "title": "Update Docker image stalwartlabs/stalwart to v1.1.1 (#144)",
-   "author": "renovate[bot]",
-   "date": "2026-11-19T14:04:47Z",
-   "pull": 144,
-   "cards": [
-    "stalwart"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 16 hosts, e2e 42 passed, 16 skipped; data 4/4 apps intact, storage: \u2026",
-    "date": "2026-11-19T14:23:37Z"
-   }
-  },
-  {
-   "commit": "92e6694ca385511077215ee3df7762b37e8dca70",
-   "title": "Move the members-only applications and mail's private ports onto the Member Network",
-   "author": "stephan271",
-   "date": "2026-11-19T13:43:54Z",
-   "pull": 143,
-   "cards": [
-    "bulwark",
-    "canary-follower",
-    "member-network",
-    "repository",
-    "smallworlds-root",
-    "stalwart"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 16 hosts, e2e 42 passed, 16 skipped; data 4/4 apps intact, storage: \u2026",
-    "date": "2026-11-19T13:59:37Z"
-   }
-  },
-  {
-   "commit": "e5b586d5d4709404756f11a1e1ffc536fcf71a09",
-   "title": "Move the members-only applications and mail's private ports onto the Member Network",
-   "author": "stephan271",
-   "date": "2026-11-19T13:40:23Z",
-   "pull": null,
-   "cards": [
-    "bulwark",
-    "canary-follower",
-    "member-network",
-    "repository",
-    "smallworlds-root",
-    "stalwart"
-   ],
-   "verdict": null
-  },
-  {
-   "commit": "9f9eaacdb63d35a7a63eb837f4073a02c9f78f8c",
-   "title": "Open /api/public/config to Gallery guests and run Gallery's guest suite on Ring 0",
-   "author": "stephan271",
-   "date": "2026-11-19T11:23:08Z",
-   "pull": 142,
-   "cards": [
-    "canary-follower",
-    "repository",
-    "smallworlds-root"
-   ],
-   "verdict": {
-    "state": "error",
-    "description": "Follower error: RemoteDisconnected: Remote end closed connection without response",
-    "date": "2026-11-19T11:25:49Z"
-   }
   }
  ],
  "pulls": [
@@ -963,20 +948,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 159,
-   "title": "Local Update Desk: adopt Ring 0's verified path step by step (ADR 0067)",
-   "author": "stephan271",
-   "created": "2026-11-22T08:54:55Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "repository",
-    "smallworlds-root"
    ]
   }
  ]
