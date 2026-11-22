@@ -180,6 +180,10 @@ class Desk:
         origin = status["origin"]
         if root_pinned and root["targetRevision"] != origin:
             result["stage"] = "pushed"
+            # What the pin move brings, so "Move the root pin" is never a leap:
+            # an overlay commit pushed earlier and never rolled out may change
+            # nothing at all, or much more than this Desk's own step.
+            result["pending"] = self.overlay.between(root["targetRevision"], origin)
             return result
 
         ref = result["origin_ref"] or working.ref

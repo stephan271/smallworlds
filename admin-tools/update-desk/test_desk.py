@@ -554,6 +554,29 @@ class Flow(unittest.TestCase):
         with self.assertRaises(engine.DeskError):
             self.desk.write(undo["to_ref"])
 
+    def test_says_what_moving_the_root_pin_brings(self):
+        # An overlay commit pushed earlier and never rolled out: renovate.json only.
+        with open(os.path.join(self.overlay, "renovate.json"), "w") as handle:
+            handle.write("{}\n")
+        git(self.overlay, "add", "renovate.json")
+        git(self.overlay, "commit", "-q", "-m", "Follow Policy")
+        git(self.overlay, "push", "-q", "origin", "HEAD:main")
+        self.desk.refresh(fetch=False)
+        progress = self.desk.state()["progress"]
+        self.assertEqual(progress["stage"], "pushed")
+        self.assertEqual(progress["pending"]["files"], ["renovate.json"])
+        self.assertEqual(progress["pending"]["applied"], [], "renovate.json changes nothing Argo CD renders")
+        self.assertEqual(progress["running_ref"], progress["origin_ref"], "the base stays where it is")
+        # A Desk step on top: now the pin move brings the base along.
+        steps = self.desk.state()["path"]["steps"]
+        self.desk.plan(steps[0]["sha"])
+        self.desk.write(steps[0]["sha"])
+        self.desk.commit()
+        self.desk.push()
+        progress = self.desk.state()["progress"]
+        self.assertIn("kustomization.yaml", progress["pending"]["applied"])
+        self.assertEqual((progress["running_ref"], progress["origin_ref"]), (self.fx.start, self.fx.jitsi))
+
     def test_refuses_to_write_over_other_changes(self):
         self.desk.refresh(fetch=False)
         steps = self.desk.state()["path"]["steps"]

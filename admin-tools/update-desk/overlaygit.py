@@ -66,6 +66,17 @@ class OverlayRepo:
     def diff(self, paths: list[str]) -> str:
         return self.git("diff", "--", *paths)
 
+    def between(self, old: str, new: str) -> dict | None:
+        """What moving from overlay commit `old` to `new` brings: the commits,
+        the files, and which of those files can change what Argo CD renders.
+        None when `old` is not in this checkout."""
+        if not self.sha(old) or not self.sha(new):
+            return None
+        files = [f for f in self.git("diff", "--name-only", old, new).splitlines() if f]
+        commits = [line for line in self.git("log", "--format=%h %s", f"{old}..{new}").splitlines() if line]
+        return {"files": files, "applied": [f for f in files if renders(f)], "commits": commits}
+
+
     def discard(self, paths: list[str]) -> None:
         self.git("checkout", "--", *paths)
 
@@ -89,3 +100,12 @@ class OverlayRepo:
 
 def _without_credentials(url: str) -> str:
     return re.sub(r"//[^/@]+@", "//", url)
+
+
+# Files in an overlay that no kustomization reads.
+NOT_RENDERED = ("renovate.json", ".gitignore", "LICENSE")
+
+
+def renders(path: str) -> bool:
+    name = path.rsplit("/", 1)[-1]
+    return not (path.startswith(".github/") or name.endswith(".md") or name in NOT_RENDERED)

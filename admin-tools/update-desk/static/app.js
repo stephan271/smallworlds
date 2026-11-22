@@ -237,6 +237,28 @@ function drawPath() {
     : "";
 }
 
+// What moving the root pin brings: the overlay commits between the pin and
+// origin/main, and whether any of them changes what Argo CD renders.
+function pendingHtml(p) {
+  const pending = p.pending;
+  if (!pending) {
+    return `<div class="box warn">The overlay commit the root points at is not in this checkout, so the Desk cannot show what the move brings. <code>git fetch</code> in the overlay and refresh.</div>`;
+  }
+  const baseMoves = p.running_ref && p.origin_ref && p.running_ref !== p.origin_ref;
+  const base = baseMoves
+    ? `The base moves from <strong>${esc(short(p.running_ref))}</strong> to <strong>${esc(short(p.origin_ref))}</strong>.`
+    : `The base stays <strong>${esc(short(p.origin_ref || p.running_ref))}</strong>.`;
+  const commits = `<details><summary>${pending.commits.length} overlay commit${pending.commits.length === 1 ? "" : "s"}, ${pending.files.length} file${pending.files.length === 1 ? "" : "s"}</summary>
+    <ul>${pending.commits.map((c) => `<li><code>${esc(c)}</code></li>`).join("")}</ul>
+    <pre>${esc(pending.files.join("\n"))}</pre></details>`;
+  if (!pending.applied.length) {
+    return `<div class="box ok"><strong>This changes nothing in the cluster.</strong> Only ${esc(pending.files.join(", ") || "no files")}
+      changed, which no kustomization reads. ${base} Moving the pin only brings the root up to date with the overlay; nothing is rolled out again.${commits}</div>`;
+  }
+  return `<div class="box ${baseMoves ? "warn" : ""}"><strong>Moving the pin applies ${pending.applied.length} changed file${pending.applied.length === 1 ? "" : "s"}:</strong>
+    ${esc(pending.applied.join(", "))}. ${base}${commits}</div>`;
+}
+
 const STAGES = [["written", "Overlay written"], ["committed", "Committed"], ["pushed", "Pushed"],
                 ["rolling", "Root pin moved"], ["done", "Rolled out"]];
 
@@ -282,8 +304,9 @@ function drawProgress() {
   if (p.stage === "pushed") {
     const root = p.root || {};
     parts.push(`<p>Pushed. The root Application still points at overlay commit <code>${esc(short(root.targetRevision))}</code>;
-      moving it to <code>${esc(short(p.overlay.origin))}</code> brings the Platform and every Application definition along.</p>
-      <pre>kubectl -n argocd patch applications.argoproj.io smallworlds-root --type merge -p '{"spec":{"source":{"targetRevision":"${esc(p.overlay.origin)}"}}}'</pre>
+      moving it to <code>${esc(short(p.overlay.origin))}</code> brings the Platform and every Application definition along.</p>`);
+    parts.push(pendingHtml(p));
+    parts.push(`<pre>kubectl -n argocd patch applications.argoproj.io smallworlds-root --type merge -p '{"spec":{"source":{"targetRevision":"${esc(p.overlay.origin)}"}}}'</pre>
       <div class="action-row"><button data-act="pin">Move the root pin</button></div>`);
   }
   if (p.stage === "rolling" || p.stage === "done") {
