@@ -72,3 +72,25 @@ steps:
       After a Headscale restart the gateway can lose its connection for up to
       seven minutes; kubectl -n headscale rollout restart deploy/private-gateway
       brings it back at once.
+
+  - commit: 04a8c192fe978bfb115f3ab577dc1f72429e6987
+    when: before
+    applies:
+      domain_not: smallworlds.network
+    title: Route the new Operator Board to your domain before you update
+    detail: |
+      This step adds the Operator Board (docs/adr/0068), on ops.<domain>.
+      Its Ingresses come from the base with ops.smallworlds.network, so an
+      overlay that does not route the board yet serves it on a name your
+      community does not have. Before this step:
+        1. Run admin-tools/prepare-community-repo.sh again for your overlay.
+           It routes operator-board to a directory of its own with your
+           domain's host patches. Commit what it writes as its own overlay
+           commit.
+        2. Create the DNS record ops.<domain>, pointing where deploy.<domain>
+           points. smallworlds-init.sh creates it on a re-run (target hetzner,
+           or local with Hetzner DNS); with manual DNS your wildcard covers it.
+      Once the step is Healthy, add ops.<domain> to the operator line in
+      /etc/hosts on every device you administer from (admin-tools/setup-vpn.sh
+      prints the whole line):
+        <gateway-address>  ops.<domain> deploy.<domain> monitoring.<domain> identity.<domain> join.<domain>
