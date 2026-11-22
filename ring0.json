@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-22T16:07:50Z",
+ "updated": "2026-11-22T16:09:56Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -16,7 +16,16 @@
   "step": null,
   "step_since": null,
   "started": null,
-  "queued": [],
+  "queued": [
+   {
+    "number": 164,
+    "title": "Operator Step for the Operator Board (04a8c19)",
+    "cards": [
+     "smallworlds-root"
+    ],
+    "since": "2026-11-22T16:08:45Z"
+   }
+  ],
   "stuck": {
    "condition": "S1",
    "since": "2026-11-22T16:04:20Z",
@@ -207,7 +216,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "90c873517a790f66141b4e90b051625457f356fc",
+   "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
     "ghcr.io/euro-office/documentserver:v9.3.4-hotfix.1@sha256:889e681923d2dcc8bdfb92fe128d10e185fcff880d302b6a0c0c7bf339499290"
    ],
@@ -518,7 +527,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "90c873517a790f66141b4e90b051625457f356fc",
+   "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
     "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/headscale/headscale:v0.29.7@sha256:11f81665e842809db9fe3006a38c56a66e968baa5abd4bac498e86445572b970",
@@ -583,7 +592,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "90c873517a790f66141b4e90b051625457f356fc",
+   "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
     "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.2",
@@ -994,6 +1003,22 @@
    "queued": false,
    "rejected": false,
    "labels": [],
+   "cards": [
+    "smallworlds-root"
+   ]
+  },
+  {
+   "number": 164,
+   "title": "Operator Step for the Operator Board (04a8c19)",
+   "author": "smallworlds-steward[bot]",
+   "created": "2026-11-22T16:08:45Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue",
+    "steward"
+   ],
    "cards": [
     "smallworlds-root"
    ]
