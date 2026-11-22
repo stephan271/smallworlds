@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-22T15:24:08Z",
+ "updated": "2026-11-22T15:55:14Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -947,6 +947,24 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 162,
+   "title": "Operator Board, slice 01: tenant, router pair, links and Applications",
+   "author": "stephan271",
+   "created": "2026-11-22T15:54:52Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "canary-follower",
+    "join",
+    "keycloak",
+    "operator-board",
+    "repository",
+    "smallworlds-root"
    ]
   }
  ]
