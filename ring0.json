@@ -1,28 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-22T12:12:57Z",
+ "updated": "2026-11-22T12:17:09Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "29d6d8094aa52a7b62e185a104257a4e2ee2ea6d",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-22T12:02:04Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+  "date": "2026-11-22T12:16:55Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "29d6d8094aa52a7b62e185a104257a4e2ee2ea6d",
-  "pull": {
-   "number": 159,
-   "title": "Local Update Desk: adopt Ring 0's verified path step by step (ADR 0067)",
-   "cards": [
-    "repository",
-    "smallworlds-root"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-22T12:11:55Z",
-  "started": "2026-11-22T12:02:03Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #158",
@@ -598,9 +591,9 @@
     "smallworlds-root"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-22T12:02:04Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-22T12:16:55Z"
    }
   },
   {
