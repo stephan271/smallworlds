@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-22T19:15:29Z",
+ "updated": "2026-11-22T19:17:36Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -171,7 +171,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "ef93c2d3f8f78b7142d85e95d4e291f7d970fad7",
+   "revision": "a318b08c79fc9c6d60d8a866aa398e9cfe52095a",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
