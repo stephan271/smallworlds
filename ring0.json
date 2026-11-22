@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-22T13:44:15Z",
+ "updated": "2026-11-22T14:44:17Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -947,6 +947,19 @@
    "title": "Update github actions (major)",
    "author": "renovate[bot]",
    "created": "2026-11-15T16:30:01Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "repository"
+   ]
+  },
+  {
+   "number": 161,
+   "title": "Propose a read-only Operator Board (ADR 0068)",
+   "author": "stephan271",
+   "created": "2026-11-22T14:43:35Z",
    "draft": false,
    "queued": false,
    "rejected": false,
