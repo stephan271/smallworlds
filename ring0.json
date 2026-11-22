@@ -1,27 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-22T16:24:36Z",
+ "updated": "2026-11-22T16:30:50Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "e0fe84f4acd13ce266fc73a16c6457476a69aeb3",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-22T16:14:40Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+  "date": "2026-11-22T16:28:56Z"
  },
  "now": {
   "state": "updating",
   "commit": "e0fe84f4acd13ce266fc73a16c6457476a69aeb3",
-  "pull": {
-   "number": 163,
-   "title": "Operator steps for the Operator Board (04a8c19); fix-forward for Ring 0",
-   "cards": [
-    "smallworlds-root"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-22T16:23:56Z",
-  "started": "2026-11-22T16:14:40Z",
+  "pull": null,
+  "step": "merge",
+  "step_since": null,
+  "started": null,
   "queued": [
    {
     "number": 164,
@@ -624,9 +618,9 @@
     "smallworlds-root"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-22T16:14:40Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-22T16:28:56Z"
    }
   },
   {
