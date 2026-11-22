@@ -82,9 +82,14 @@ steps:
       links to every operator tool. Once this step is Healthy:
         1. Create the DNS record ops.<domain> like your other names. Hetzner
            target: run smallworlds-init.sh again. Local target with the DNS
-           job: add ops<ext> to RECORD_NAMES of the ddns CronJob,
-           kubectl -n ddns edit cronjob ddns (the next bootstrap adds it by
-           itself). Manual DNS: a wildcard record already covers it.
+           job: the job is a k3s manifest on the node, and k3s re-applies it
+           when it restarts, so change the file, not the CronJob. On the node:
+             sudo sed -i '/- name: RECORD_NAMES/{n;s/value: "\(.*\)"/value: "\1 ops<ext>"/}' \
+               /var/lib/rancher/k3s/server/manifests/ddns.yaml
+           (<ext> is your extension, e.g. .canary, or nothing.) k3s applies
+           the file by itself and the job runs every five minutes; the next
+           bootstrap adds the name by itself. Manual DNS: a wildcard record
+           already covers it.
         2. Add ops.<domain> to the operator line in /etc/hosts on every device
            you administer from, next to deploy.<domain>, with the Private
            Gateway's address.
