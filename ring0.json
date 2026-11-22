@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-22T19:13:21Z",
+ "updated": "2026-11-22T19:15:29Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "ef93c2d3f8f78b7142d85e95d4e291f7d970fad7",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-22T19:03:04Z"
+  "commit": "a318b08c79fc9c6d60d8a866aa398e9cfe52095a",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
@@ -114,7 +114,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "ef93c2d3f8f78b7142d85e95d4e291f7d970fad7",
+   "revision": "a318b08c79fc9c6d60d8a866aa398e9cfe52095a",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
@@ -352,7 +352,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "ef93c2d3f8f78b7142d85e95d4e291f7d970fad7",
+   "revision": "a318b08c79fc9c6d60d8a866aa398e9cfe52095a",
    "images": [
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
@@ -391,7 +391,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "ef93c2d3f8f78b7142d85e95d4e291f7d970fad7",
+   "revision": "a318b08c79fc9c6d60d8a866aa398e9cfe52095a",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
@@ -605,6 +605,32 @@
   }
  ],
  "commits": [
+  {
+   "commit": "a318b08c79fc9c6d60d8a866aa398e9cfe52095a",
+   "title": "Operator Board, slice 05: Alert delivery tile",
+   "author": "stephan271",
+   "date": "2026-11-22T19:13:21Z",
+   "pull": 169,
+   "cards": [
+    "canary-follower",
+    "operator-board",
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "9e6c8c5aa92d04c1c6c42f56bf575f806b2dc87b",
+   "title": "Operator Board, slice 05: Alert delivery tile",
+   "author": "stephan271",
+   "date": "2026-11-22T19:05:04Z",
+   "pull": null,
+   "cards": [
+    "canary-follower",
+    "operator-board",
+    "repository"
+   ],
+   "verdict": null
+  },
   {
    "commit": "ef93c2d3f8f78b7142d85e95d4e291f7d970fad7",
    "title": "Operator step for the Board: change the DNS job's file, not the CronJob",
@@ -933,36 +959,6 @@
     "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
     "date": "2026-11-22T01:00:00Z"
    }
-  },
-  {
-   "commit": "ab5eb77e331521bdd3f21beb744ebfadaacede24",
-   "title": "Update Helm chart kube-prometheus-stack to v93.4.0 (#157)",
-   "author": "renovate[bot]",
-   "date": "2026-11-21T00:52:15Z",
-   "pull": 157,
-   "cards": [
-    "kube-prometheus-stack"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-21T01:10:48Z"
-   }
-  },
-  {
-   "commit": "1b9a3d2ff76716d9dec3af5c010016d315b0fffa",
-   "title": "Update Helm chart traefik to v42.4.1 (#156)",
-   "author": "renovate[bot]",
-   "date": "2026-11-21T00:28:07Z",
-   "pull": 156,
-   "cards": [
-    "traefik"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-21T00:47:06Z"
-   }
   }
  ],
  "pulls": [
@@ -989,21 +985,6 @@
    "rejected": false,
    "labels": [],
    "cards": [
-    "repository"
-   ]
-  },
-  {
-   "number": 169,
-   "title": "Operator Board, slice 05: Alert delivery tile",
-   "author": "stephan271",
-   "created": "2026-11-22T19:05:21Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "canary-follower",
-    "operator-board",
     "repository"
    ]
   }
