@@ -33,8 +33,15 @@ MACHINERY = frozenset({"canary-follower", "smallworlds-root"})
 
 # What the verdict covers so far, and what it does not read yet. The page says
 # both, so that green never claims more than was read (design §11).
-COVERED = ["Alertmanager's alerts", "Argo CD Applications", "the node", "backups", "updates"]
-NOT_YET = ["certificates", "alert delivery"]
+COVERED = ["Alertmanager's alerts", "Argo CD Applications", "the node", "backups", "updates",
+           "alert delivery"]
+NOT_YET = ["certificates"]
+
+# The two receivers doc/alerting.md sets up, as Alertmanager names them. A
+# missing one means its AlertmanagerConfig was rejected, usually because the
+# Secret monitoring/smallworlds-notify or its key is missing.
+PUSH_RECEIVER = "monitoring/smallworlds-alerts/push"
+HEARTBEAT_RECEIVER = "monitoring/smallworlds-heartbeat/heartbeat"
 
 # ring0.json is rewritten at least hourly (the follower's heartbeat); older than
 # this, what it says about Ring 0 is unknown (design §4.6).
@@ -67,11 +74,13 @@ ALERT_TILES = (
       "KubeJob", "KubeContainer"), "applications"),
     (("Certificate",), "certificates"),
     (("Canary", "Ring0"), "updates"),
+    (("Alertmanager",), "delivery"),
 )
 # Rules of ours that belong on no tile but Alerts itself. Empty so far.
 ON_ALERTS_TILE = frozenset()
 TILE_TITLES = {"applications": "Applications", "alerts": "Alerts", "backups": "Backups",
-               "node": "Node", "certificates": "Certificates", "updates": "Updates"}
+               "node": "Node", "certificates": "Certificates", "updates": "Updates",
+               "delivery": "Alert delivery"}
 
 
 @dataclass
@@ -394,6 +403,71 @@ def backups_tile(reading: Reading, now: float, stale_hours: int, firing: list[di
              "detail": detail, "items": items}, reasons)
 
 
+# ----------------------------------------------------------- alert delivery
+
+def _metric(metrics: Reading, name: str) -> float | None:
+    values = metrics.data if isinstance(metrics.data, dict) else {}
+    return next((s["value"] for s in values.get(name, [])), None)
+
+
+def delivery_tile(receivers: Reading, metrics: Reading, firing: list[dict],
+                  alerting_doc: str | None) -> tuple[dict, list[dict]]:
+    """Whether alerts can reach the Operator (design §4.7), from what
+    Alertmanager loaded and its own counters. Whether the pings arrive at
+    healthchecks.io is not visible without that service's API key."""
+    names = receivers.data if isinstance(receivers.data, list) else []
+    items, reasons = [], []
+
+    def problem(text):
+        reasons.append({"colour": AMBER, "tile": "delivery", "link": alerting_doc, "text": text})
+
+    push, heartbeat = PUSH_RECEIVER in names, HEARTBEAT_RECEIVER in names
+    if receivers.ok():
+        items.append({"colour": GREEN if push else AMBER,
+                      "text": "push to your phone: configured" if push else "push to your phone: not configured"})
+        items.append({"colour": GREEN if heartbeat else AMBER,
+                      "text": "heartbeat: configured" if heartbeat else "heartbeat: not configured"})
+        if not push or not heartbeat:
+            missing = " and ".join(x for x, ok in (("the push", push), ("the heartbeat", heartbeat)) if not ok)
+            verb = "are" if not push and not heartbeat else "is"
+            problem(f"Alert delivery: {missing} {verb} not configured. Alertmanager rejects its "
+                    "AlertmanagerConfig when the Secret monitoring/smallworlds-notify or its key is missing.")
+    sent = _metric(metrics, "webhook_sent_15m")
+    failed = _metric(metrics, "webhook_failed_1h")
+    reload_ok = _metric(metrics, "alertmanager_reload_ok")
+    if sent is not None:
+        silent = heartbeat and sent < 0.5
+        items.append({"colour": AMBER if silent else GREEN,
+                      "text": f"sent in the last 15 min: {sent:.0f}" if sent >= 0.5 else "sent in the last 15 min: none"})
+        if silent:
+            problem("Alert delivery: the heartbeat has not been sent for 15 minutes; "
+                    "healthchecks.io will call this server down.")
+    if failed is not None:
+        items.append({"colour": AMBER if failed >= 0.5 else GREEN,
+                      "text": f"failed in the last hour: {failed:.0f}" if failed >= 0.5 else "failed in the last hour: none"})
+        if failed >= 0.5:
+            problem(f"Alert delivery: {failed:.0f} notifications failed in the last hour "
+                    "(a wrong or expired push or heartbeat URL).")
+    if reload_ok is not None and reload_ok < 1:
+        items.append({"colour": AMBER, "text": "the last configuration reload failed"})
+        problem("Alert delivery: Alertmanager's last configuration reload failed; it runs the one before.")
+    mine = _red_if_alerts("delivery", firing)
+    unknown = not receivers.ok() or not metrics.ok() or sent is None
+    if mine:
+        colour, headline = RED, f"{len(mine)} alert{'s' if len(mine) != 1 else ''} firing"
+    elif reasons:
+        colour = AMBER
+        headline = ("not configured" if not (push and heartbeat) and receivers.ok()
+                    else "heartbeat silent" if heartbeat and sent is not None and sent < 0.5
+                    else "failing")
+    elif unknown:
+        colour, headline = GREY, "not read"
+    else:
+        colour, headline = GREEN, "working"
+    return ({"id": "delivery", "title": "Alert delivery", "colour": colour, "headline": headline,
+             "detail": "push to your phone, heartbeat to healthchecks.io", "items": items}, reasons)
+
+
 # ------------------------------------------------------------------ updates
 
 def newest_verified(ring0: dict | None) -> dict | None:
@@ -679,7 +753,7 @@ def verdict(tiles: list[dict], reasons: list[dict], suppressed: list[dict]) -> d
 SOURCE_NAMES = {"alerts": "Alertmanager", "applications": "The Kubernetes API (Applications)",
                 "ingresses": "The Kubernetes API (Ingresses)", "nodes": "The Kubernetes API (nodes)",
                 "prometheus": "Prometheus", "backups": "The Kubernetes API (backups)",
-                "rings": "Ring 0's Ring State"}
+                "rings": "Ring 0's Ring State", "receivers": "Alertmanager (receivers)"}
 
 
 def build(readings: dict, now: float, *, base_repo_url: str, root_app: str, ring0_board_url: str,
@@ -732,7 +806,10 @@ def build(readings: dict, now: float, *, base_repo_url: str, root_app: str, ring
     updates, update_reasons = updates_tile(
         readings["rings"], revision, mixed,
         any(a.get("metadata", {}).get("name") == RING0_MARKER for a in apps), now, firing, ring0_board_url)
-    reasons += node_reasons + backup_reasons + update_reasons
+    delivery, delivery_reasons = delivery_tile(
+        readings["receivers"], readings["prometheus"], firing,
+        f"{web}/blob/{revision or 'main'}/doc/alerting.md" if web else None)
+    reasons += node_reasons + backup_reasons + update_reasons + delivery_reasons
     for key, reading in readings.items():
         name = SOURCE_NAMES[key]
         if reading.fetched_at is not None and not reading.ok():
@@ -742,7 +819,7 @@ def build(readings: dict, now: float, *, base_repo_url: str, root_app: str, ring
                             "link": None, "tile": None})
 
     tiles = [alerts_tile(firing, suppressed, watchdog, alerts),
-             applications_tile(cards, applications, firing), node, backups, updates]
+             applications_tile(cards, applications, firing), node, backups, updates, delivery]
     return {
         "schema": SCHEMA,
         "generated": iso(now),

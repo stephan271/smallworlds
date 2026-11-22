@@ -14,6 +14,13 @@ QUERIES = {
     "days_left": f"node_filesystem_avail_bytes{{{DISKS},{FS}}} / -deriv(node_filesystem_avail_bytes{{{DISKS},{FS}}}[12h]) / 86400",
     "pv_free_percent": "min(100 * kubelet_volume_stats_available_bytes / kubelet_volume_stats_capacity_bytes)",
     "uptime_seconds": "max(time() - node_boot_time_seconds)",
+    # Alert delivery (design §4.7). The heartbeat and the ntfy push are both
+    # integration "webhook" and the counter has no receiver label; the heartbeat
+    # is the only steady sender (every 5 minutes), so 15 minutes without one
+    # webhook means it is not going out.
+    "webhook_sent_15m": 'sum(increase(alertmanager_notifications_total{integration="webhook"}[15m]))',
+    "webhook_failed_1h": 'sum(increase(alertmanager_notifications_failed_total{integration="webhook"}[1h]))',
+    "alertmanager_reload_ok": "min(alertmanager_config_last_reload_successful)",
 }
 
 

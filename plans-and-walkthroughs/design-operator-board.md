@@ -255,9 +255,20 @@ service's API key. The tile links to healthchecks.io instead. The ntfy topic is
 a credential (`doc/alerting.md`), so the Board never shows or links it. It names
 the ntfy app.
 
-*To verify during issue 05:* the exact metric labels of the Alertmanager in
-`kube-prometheus-stack`, and whether prometheus-operator reports a rejected
-`AlertmanagerConfig` anywhere readable.
+*Settled in slice 05 (checked on Ring 1, 2026-11-22):*
+
+- `alertmanager_notifications_total` and `…_failed_total` carry only
+  `integration` (and `reason`), no receiver. The heartbeat and the ntfy push
+  are both `webhook`. The heartbeat is the only steady sender, so "no webhook
+  in 15 minutes" means the heartbeat is not going out; a failure in the last
+  hour means a wrong or expired URL.
+- prometheus-operator writes no `status` on an `AlertmanagerConfig`, so a
+  rejected one is invisible there. Alertmanager's `/api/v2/receivers` lists
+  the receivers it loaded, by name and labels only (no URL), so a missing
+  `monitoring/smallworlds-alerts/push` or `monitoring/smallworlds-heartbeat/heartbeat`
+  shows the rejection without the Board ever seeing a credential.
+- The stock `Alertmanager…` rules (failed reload, failed to send, …) are the
+  tile's red. It is a tile, like the others, not a strip.
 
 ### 4.8 Links
 

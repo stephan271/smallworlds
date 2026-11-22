@@ -85,7 +85,7 @@ test.describe('operator board', () => {
     const alertsTile = state.tiles.find((t: any) => t.id === 'alerts');
     if (alertsTile.colour === 'red') expect(firing.length).toBeGreaterThan(0);
     // Every source answered: the Board's RBAC and network reach all of them.
-    for (const key of ['alerts', 'applications', 'ingresses', 'nodes', 'prometheus', 'backups', 'rings']) {
+    for (const key of ['alerts', 'applications', 'ingresses', 'nodes', 'prometheus', 'backups', 'rings', 'receivers']) {
       expect(state.sources[key]?.ok, `${key}: ${state.sources[key]?.error}`).toBe(true);
     }
     const tiles = new Map<string, any>(state.tiles.map((t: any) => [t.id, t]));
@@ -96,6 +96,9 @@ test.describe('operator board', () => {
     // Ring 0 knows itself: its Updates tile shows Ring 0's own state, read from
     // the Ring State the follower publishes.
     expect(tiles.get('updates').headline).toBe('this is Ring 0');
+    // Alert delivery reads receiver names only: never a push or heartbeat URL.
+    expect(tiles.get('delivery').items.length).toBeGreaterThanOrEqual(2);
+    for (const credential of ['ntfy.sh', 'hc-ping.com']) expect(JSON.stringify(state)).not.toContain(credential);
     // The Board reaches Alertmanager, and the pipeline behind it works.
     expect(state.sources.alerts.ok, `Alertmanager: ${state.sources.alerts.error}`).toBe(true);
     expect(state.alerts.watchdog, 'Watchdog is firing').toBe(true);

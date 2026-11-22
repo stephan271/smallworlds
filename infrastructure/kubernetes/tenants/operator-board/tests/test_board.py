@@ -91,13 +91,21 @@ NODE = {"metadata": {"name": "node-1"},
                                   {"type": "DiskPressure", "status": "False"}]}}
 
 
-def metrics(root_free=65.0, days_left=-1.0, pv_free=64.0, data_free=None):
+def metrics(root_free=65.0, days_left=-1.0, pv_free=64.0, data_free=None, sent=2.07, failed=0.0, reload_ok=1.0):
     free = [{"metric": {"mountpoint": "/"}, "value": root_free}]
     if data_free is not None:
         free.append({"metric": {"mountpoint": "/mnt/smallworlds-data"}, "value": data_free})
     return {"free_percent": free, "days_left": [{"metric": {"mountpoint": "/"}, "value": days_left}],
             "pv_free_percent": [{"metric": {}, "value": pv_free}],
-            "uptime_seconds": [{"metric": {}, "value": 12 * 86400}]}
+            "uptime_seconds": [{"metric": {}, "value": 12 * 86400}],
+            **{name: [{"metric": {}, "value": value}] for name, value in
+               (("webhook_sent_15m", sent), ("webhook_failed_1h", failed), ("alertmanager_reload_ok", reload_ok))
+               if value is not None}}
+
+
+# As Ring 1's Alertmanager lists them (2026-11-22).
+RECEIVERS = ["monitoring/smallworlds-alerts/discard", "monitoring/smallworlds-alerts/push",
+             "monitoring/smallworlds-heartbeat/heartbeat", "null"]
 
 
 def cnpg(namespace, name="database", server=None, store="postgres-backups", conditions=()):
@@ -154,7 +162,8 @@ def reading(data=None, error=None, fetched=NOW, last_good=NOW):
 
 
 def build(apps=(), ingresses=(ARGOCD_INGRESS, GRAFANA_INGRESS), applications=None, ingress_reading=None,
-          alerts=(WATCHDOG,), alert_reading=None, nodes=None, prometheus=None, backups=None, rings=None):
+          alerts=(WATCHDOG,), alert_reading=None, nodes=None, prometheus=None, backups=None, rings=None,
+          receivers=None):
     return state.build(
         {"applications": applications or reading({"items": list(apps)}),
          "ingresses": ingress_reading or reading({"items": list(ingresses)}),
@@ -162,7 +171,8 @@ def build(apps=(), ingresses=(ARGOCD_INGRESS, GRAFANA_INGRESS), applications=Non
          "nodes": nodes or reading({"items": [NODE]}),
          "prometheus": prometheus or reading(metrics()),
          "backups": backups or reading(backups_data()),
-         "rings": rings or reading({"ring0": ring0_doc(), "compare": None, "compare_error": None})}, NOW,
+         "rings": rings or reading({"ring0": ring0_doc(), "compare": None, "compare_error": None}),
+         "receivers": receivers or reading(list(RECEIVERS))}, NOW,
         base_repo_url=BASE, root_app="smallworlds-root",
         ring0_board_url="https://stephan271.github.io/smallworlds/", refresh_seconds=30,
         slow_minutes=10)
@@ -179,9 +189,9 @@ class Verdict(unittest.TestCase):
         document = build([app("keycloak"), app("nextcloud")])
         self.assertEqual("green", document["verdict"]["colour"])
         self.assertEqual("Nothing needs attention", document["verdict"]["headline"])
-        self.assertEqual(["Alertmanager's alerts", "Argo CD Applications", "the node", "backups", "updates"],
-                         document["verdict"]["covers"])
-        self.assertEqual(["certificates", "alert delivery"], document["verdict"]["not_yet"])
+        self.assertEqual(["Alertmanager's alerts", "Argo CD Applications", "the node", "backups", "updates",
+                          "alert delivery"], document["verdict"]["covers"])
+        self.assertEqual(["certificates"], document["verdict"]["not_yet"])
         tiles = {t["id"]: t for t in document["tiles"]}
         self.assertEqual("2 of 2 settled", tiles["applications"]["headline"])
         self.assertEqual(("green", "none firing"), (tiles["alerts"]["colour"], tiles["alerts"]["headline"]))
@@ -221,7 +231,7 @@ class Verdict(unittest.TestCase):
     def test_unread_sources_are_never_green(self):
         document = build(applications=state.Reading(), ingress_reading=state.Reading(),
                          alert_reading=state.Reading(), nodes=state.Reading(), prometheus=state.Reading(),
-                         backups=state.Reading(), rings=state.Reading())
+                         backups=state.Reading(), rings=state.Reading(), receivers=state.Reading())
         self.assertEqual("grey", document["verdict"]["colour"])
 
     def test_amber_outranks_grey(self):
@@ -516,7 +526,8 @@ class RingsCollector(unittest.TestCase):
     def collector(self, apps, compare, clock):
         return main.Collector(FakeKube({"applications": {"items": apps}, "ingresses": {"items": []}}),
                               clock=clock, fetch_alerts=lambda url, timeout: [WATCHDOG], fetch_metrics=no_metrics,
-                              fetch_ring0=lambda url, timeout: ring0_doc(), compare=compare)
+                              fetch_ring0=lambda url, timeout: ring0_doc(), compare=compare,
+                              fetch_receivers=lambda url, timeout: list(RECEIVERS))
 
     def test_compare_only_for_an_unlisted_commit_and_at_most_hourly(self):
         calls = []
@@ -548,6 +559,55 @@ class RingsCollector(unittest.TestCase):
         self.assertTrue(document["sources"]["rings"]["ok"])
         self.assertEqual("more than 25 commits behind",
                          {t["id"]: t for t in document["tiles"]}["updates"]["headline"])
+
+
+class Delivery(unittest.TestCase):
+    def tile(self, document):
+        return {t["id"]: t for t in document["tiles"]}["delivery"]
+
+    def test_both_receivers_and_a_recent_send_are_working(self):
+        tile = self.tile(build([app("a")]))
+        self.assertEqual(("green", "working"), (tile["colour"], tile["headline"]))
+        self.assertEqual(["push to your phone: configured", "heartbeat: configured",
+                          "sent in the last 15 min: 2", "failed in the last hour: none"],
+                         [i["text"] for i in tile["items"]])
+
+    def test_a_missing_receiver_is_amber_and_says_which_secret(self):
+        document = build([app("a")], receivers=reading(["monitoring/smallworlds-alerts/discard", "null"]),
+                         prometheus=reading(metrics(sent=0)))
+        tile = self.tile(document)
+        self.assertEqual(("amber", "not configured"), (tile["colour"], tile["headline"]))
+        reason = next(r for r in document["verdict"]["reasons"] if r["tile"] == "delivery")
+        self.assertIn("the push and the heartbeat are not configured", reason["text"])
+        self.assertIn("monitoring/smallworlds-notify", reason["text"])
+        self.assertTrue(reason["link"].endswith(f"/blob/{SHA}/doc/alerting.md"))
+        # Nothing sent is expected without a heartbeat: only one reason.
+        self.assertEqual(1, sum(1 for r in document["verdict"]["reasons"] if r["tile"] == "delivery"))
+
+    def test_a_silent_heartbeat_is_amber(self):
+        tile = self.tile(build([app("a")], prometheus=reading(metrics(sent=0))))
+        self.assertEqual(("amber", "heartbeat silent"), (tile["colour"], tile["headline"]))
+
+    def test_failures_and_a_failed_reload_are_amber(self):
+        failing = build([app("a")], prometheus=reading(metrics(failed=3)))
+        self.assertEqual(("amber", "failing"), (self.tile(failing)["colour"], self.tile(failing)["headline"]))
+        self.assertIn("Alert delivery: 3 notifications failed in the last hour (a wrong or expired push or heartbeat URL).",
+                      [r["text"] for r in failing["verdict"]["reasons"]])
+        reload = self.tile(build([app("a")], prometheus=reading(metrics(reload_ok=0))))
+        self.assertEqual("amber", reload["colour"])
+
+    def test_an_alertmanager_alert_is_red(self):
+        document = build([app("a")], alerts=[WATCHDOG, am_alert("AlertmanagerFailedToSendAlerts")])
+        self.assertEqual("red", self.tile(document)["colour"])
+        self.assertEqual("delivery", document["alerts"]["firing"][0]["tile"])
+
+    def test_unread_is_grey_and_no_url_ever_appears(self):
+        grey = build([app("a")], receivers=reading(None, error="HTTP 503 Service Unavailable"))
+        self.assertEqual("grey", self.tile(grey)["colour"])
+        self.assertEqual("grey", self.tile(build([app("a")], prometheus=reading(metrics(sent=None))))["colour"])
+        text = json.dumps(build([app("a")]))
+        for credential in ("ntfy.sh", "hc-ping.com", "alerts-url", "heartbeat-url"):
+            self.assertNotIn(credential, text)
 
 
 class Applications(unittest.TestCase):
@@ -747,7 +807,8 @@ class Collector(unittest.TestCase):
             "applications": urllib.error.URLError("timed out"),
             "ingresses": {"items": [ARGOCD_INGRESS]}}), clock=lambda: NOW,
             fetch_alerts=lambda url, timeout: [WATCHDOG],
-            fetch_metrics=no_metrics, fetch_ring0=lambda url, timeout: ring0_doc())
+            fetch_metrics=no_metrics, fetch_ring0=lambda url, timeout: ring0_doc(),
+            fetch_receivers=lambda url, timeout: list(RECEIVERS))
         self.assertFalse(collector.healthy())
         self.assertIsNone(collector.document())
         collector.cycle()
@@ -761,7 +822,8 @@ class Collector(unittest.TestCase):
         now = [NOW]
         collector = main.Collector(FakeKube({"applications": {"items": []}, "ingresses": {"items": []}}),
                                    clock=lambda: now[0], fetch_alerts=lambda url, timeout: [WATCHDOG],
-            fetch_metrics=no_metrics, fetch_ring0=lambda url, timeout: ring0_doc())
+            fetch_metrics=no_metrics, fetch_ring0=lambda url, timeout: ring0_doc(),
+            fetch_receivers=lambda url, timeout: list(RECEIVERS))
         collector.cycle()
         now[0] += 3 * config.REFRESH_SECONDS + 31
         self.assertFalse(collector.healthy())
@@ -770,7 +832,8 @@ class Collector(unittest.TestCase):
         def broken(url, timeout):
             raise urllib.error.URLError("connection refused")
         collector = main.Collector(FakeKube({"applications": {"items": [app("a")]}, "ingresses": {"items": []}}),
-                                   clock=lambda: NOW, fetch_alerts=broken, fetch_metrics=no_metrics, fetch_ring0=lambda url, timeout: ring0_doc())
+                                   clock=lambda: NOW, fetch_alerts=broken, fetch_metrics=no_metrics, fetch_ring0=lambda url, timeout: ring0_doc(),
+            fetch_receivers=lambda url, timeout: list(RECEIVERS))
         collector.cycle()
         sources = collector.document()["sources"]
         self.assertEqual((False, True), (sources["alerts"]["ok"], sources["applications"]["ok"]))

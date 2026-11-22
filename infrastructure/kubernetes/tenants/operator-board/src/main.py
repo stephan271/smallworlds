@@ -39,12 +39,14 @@ def describe(error: Exception) -> str:
 
 class Collector:
     def __init__(self, kube, clock=time.time, fetch_alerts=alerts.fetch, fetch_metrics=prom.fetch,
-                 fetch_ring0=rings.fetch_ring0, compare=rings.compare):
+                 fetch_ring0=rings.fetch_ring0, compare=rings.compare,
+                 fetch_receivers=alerts.fetch_receivers):
         self.kube = kube
         self.fetch_alerts = fetch_alerts
         self.fetch_metrics = fetch_metrics
         self.fetch_ring0 = fetch_ring0
         self.compare = compare
+        self.fetch_receivers = fetch_receivers
         # (running, verified) -> (when, result or None, error or None): one call
         # per pair per COMPARE_SECONDS, within GitHub's 60 an hour.
         self._compares: dict[tuple[str, str], tuple[float, dict | None, str | None]] = {}
@@ -68,6 +70,7 @@ class Collector:
 
     def cycle(self) -> None:
         self._read("alerts", lambda: self.fetch_alerts(config.ALERTMANAGER_URL, config.SOURCE_TIMEOUT))
+        self._read("receivers", lambda: self.fetch_receivers(config.ALERTMANAGER_URL, config.SOURCE_TIMEOUT))
         self._read("applications", lambda: self.kube.get(
             f"/apis/argoproj.io/v1alpha1/namespaces/{config.ARGOCD_NAMESPACE}/applications"))
         self._read("ingresses", lambda: self.kube.get("/apis/networking.k8s.io/v1/ingresses"))
