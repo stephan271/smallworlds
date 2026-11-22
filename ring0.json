@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-22T16:05:43Z",
+ "updated": "2026-11-22T16:07:50Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -188,7 +188,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "90c873517a790f66141b4e90b051625457f356fc",
+   "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
     "ghcr.io/gethomepage/homepage:v2.8.0@sha256:019d8f063a7299e7c1c51ee4a70b692291809af3244894fbec2c2ac7d1f71b18"
    ],
@@ -370,7 +370,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "90c873517a790f66141b4e90b051625457f356fc",
+   "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
     "ghcr.io/bulwarkmail/webmail:1.21.3@sha256:54e914a229529fe90fd8f0ae3e9e97d671806ac09fbfe3f421a1c4fb14495a74"
    ],
@@ -408,7 +408,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "90c873517a790f66141b4e90b051625457f356fc",
+   "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
     "excalidraw/excalidraw:latest@sha256:f7ee194addd607bf831d2af0f0a34463dd4225e426cf35199ef0b12a803398e9"
    ],
@@ -451,7 +451,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "90c873517a790f66141b4e90b051625457f356fc",
+   "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.2",
@@ -499,7 +499,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "90c873517a790f66141b4e90b051625457f356fc",
+   "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
@@ -564,7 +564,7 @@
    "source": "overlay",
    "chart": null,
    "version": null,
-   "revision": "90c873517a790f66141b4e90b051625457f356fc",
+   "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
@@ -983,6 +983,19 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 163,
+   "title": "Operator steps for the Operator Board (04a8c19); fix-forward for Ring 0",
+   "author": "stephan271",
+   "created": "2026-11-22T16:07:16Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "smallworlds-root"
    ]
   }
  ]
