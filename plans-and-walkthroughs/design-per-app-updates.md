@@ -989,6 +989,13 @@ does today. Each phase is useful on its own.
 
 **Desk track**
 
+*2026-11-22:* a local Desk that follows Ring 0's path came first
+(`docs/adr/0067`, `admin-tools/update-desk/`). It covers D1's `update-units.yaml`,
+D2's view without the in-cluster tenant, D3's never-`HEAD` pins (with the whole
+overlay on one commit instead of per-unit pins) and D4's actions and undo.
+Still open: the follower-published `verified` history, per-unit pins with
+Verified Pairs, the in-cluster page, and D5.
+
 | # | Phase | Done when |
 |---|---|---|
 | D1 | **Units and Ring State** (§6, §7.2): `update-units.yaml` and its test; the follower writes `ring0.json` with `now`, `verified`, `contents` and the back-fill. | `ring0.json` shows Ring 0 checking a queued update while it happens, and its history reaches `v1.3.0`'s commit |

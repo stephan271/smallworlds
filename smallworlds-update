@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# The SmallWorlds Update Desk: opens a page that shows what Ring 0 has verified
+# since the base commit your community runs, and takes your community there
+# step by step. Run it from a checkout of the base repository, on a machine that
+# can reach your cluster (kubectl) and push to your GitOps Overlay (git).
+#
+#   ./smallworlds-update --overlay ~/development/my-community --kubeconfig ~/.smallworlds/kubeconfigs/local.yaml
+#
+# Both paths are remembered for the next run. See admin-tools/update-desk/README.md.
+set -euo pipefail
+
+repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if ! python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' 2>/dev/null; then
+    echo "python3 3.11 or newer is required." >&2
+    exit 1
+fi
+for tool in git kubectl; do
+    command -v "$tool" >/dev/null 2>&1 || { echo "$tool is required." >&2; exit 1; }
+done
+
+exec python3 "$repository_root/admin-tools/update-desk/desk.py" "$@"
