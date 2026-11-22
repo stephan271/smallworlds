@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-22T14:52:41Z",
+ "updated": "2026-11-22T14:54:47Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -19,8 +19,8 @@
     "repository"
    ]
   },
-  "step": "settle",
-  "step_since": "2026-11-22T14:52:00Z",
+  "step": "checks",
+  "step_since": "2026-11-22T14:53:31Z",
   "started": "2026-11-22T14:48:20Z",
   "queued": [],
   "stuck": null,
@@ -114,7 +114,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "2d16a8eeb74050f9139dbd2ddbd3fec79f1101d4",
+   "revision": "3c939d420e4e9aa3f8d2d4400e15595853d2b7cf",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
