@@ -24,6 +24,7 @@ configMapGenerator:
   - name: operator-board-src
     namespace: operator-board
     files:
+      - src/alerts.py
       - src/argo.py
       - src/config.py
       - src/kube.py

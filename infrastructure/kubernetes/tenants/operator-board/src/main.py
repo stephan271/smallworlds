@@ -12,6 +12,7 @@ import time
 import urllib.error
 from http.server import ThreadingHTTPServer
 
+import alerts
 import config
 import state
 import web
@@ -33,19 +34,21 @@ def describe(error: Exception) -> str:
 
 
 class Collector:
-    def __init__(self, kube, clock=time.time):
+    def __init__(self, kube, clock=time.time, fetch_alerts=alerts.fetch):
         self.kube = kube
+        self.fetch_alerts = fetch_alerts
         self.clock = clock
-        self.readings = {"applications": state.Reading(), "ingresses": state.Reading()}
+        self.readings = {"alerts": state.Reading(), "applications": state.Reading(),
+                         "ingresses": state.Reading()}
         self._document = None
         self._cycled_at = None
         self._lock = threading.Lock()
 
-    def _read(self, key: str, path: str) -> None:
+    def _read(self, key: str, fetch) -> None:
         reading = self.readings[key]
         now = self.clock()
         try:
-            reading.data = self.kube.get(path)
+            reading.data = fetch()
             reading.error = None
             reading.last_good_at = now
         except Exception as error:  # noqa: BLE001 — every failure is "did not answer"
@@ -54,12 +57,13 @@ class Collector:
         reading.fetched_at = now
 
     def cycle(self) -> None:
-        self._read("applications",
-                   f"/apis/argoproj.io/v1alpha1/namespaces/{config.ARGOCD_NAMESPACE}/applications")
-        self._read("ingresses", "/apis/networking.k8s.io/v1/ingresses")
+        self._read("alerts", lambda: self.fetch_alerts(config.ALERTMANAGER_URL, config.SOURCE_TIMEOUT))
+        self._read("applications", lambda: self.kube.get(
+            f"/apis/argoproj.io/v1alpha1/namespaces/{config.ARGOCD_NAMESPACE}/applications"))
+        self._read("ingresses", lambda: self.kube.get("/apis/networking.k8s.io/v1/ingresses"))
         now = self.clock()
         document = state.build(
-            self.readings["applications"], self.readings["ingresses"], now,
+            self.readings["applications"], self.readings["ingresses"], self.readings["alerts"], now,
             base_repo_url=config.BASE_REPO_URL, root_app=config.ROOT_APP,
             ring0_board_url=config.RING0_BOARD_URL, refresh_seconds=config.REFRESH_SECONDS,
             slow_minutes=config.SLOW_OPERATION_MINUTES)

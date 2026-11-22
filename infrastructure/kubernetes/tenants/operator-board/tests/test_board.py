@@ -64,6 +64,21 @@ def ingress(ingress_name, host, /, **annotations):
 
 ARGOCD_INGRESS = ingress("argocd-server-private", "deploy.example.org", id="argocd", name="Argo CD",
                          group="Operate", order="10")
+GRAFANA_INGRESS = ingress("grafana-private", "monitoring.example.org", id="grafana", name="Grafana",
+                          order="20")
+
+
+def am_alert(alertname, /, severity="warning", silenced=False, inhibited=False, **labels):
+    """One alert as Alertmanager's /api/v2/alerts returns it."""
+    return {"labels": {"alertname": alertname, "severity": severity, **labels},
+            "annotations": {"summary": f"{alertname} summary"},
+            "startsAt": "2027-01-15T07:00:00Z",
+            "status": {"state": "suppressed" if silenced or inhibited else "active",
+                       "silencedBy": ["s1"] if silenced else [], "inhibitedBy": ["i1"] if inhibited else [],
+                       "mutedBy": []}}
+
+
+WATCHDOG = am_alert("Watchdog", severity="none")
 
 
 def reading(data=None, error=None, fetched=NOW, last_good=NOW):
@@ -71,10 +86,12 @@ def reading(data=None, error=None, fetched=NOW, last_good=NOW):
                          last_good_at=None if data is None else last_good)
 
 
-def build(apps=(), ingresses=(ARGOCD_INGRESS,), applications=None, ingress_reading=None):
+def build(apps=(), ingresses=(ARGOCD_INGRESS, GRAFANA_INGRESS), applications=None, ingress_reading=None,
+          alerts=(WATCHDOG,), alert_reading=None):
     return state.build(
         applications or reading({"items": list(apps)}),
-        ingress_reading or reading({"items": list(ingresses)}), NOW,
+        ingress_reading or reading({"items": list(ingresses)}),
+        alert_reading or reading(list(alerts)), NOW,
         base_repo_url=BASE, root_app="smallworlds-root",
         ring0_board_url="https://stephan271.github.io/smallworlds/", refresh_seconds=30,
         slow_minutes=10)
@@ -91,9 +108,11 @@ class Verdict(unittest.TestCase):
         document = build([app("keycloak"), app("nextcloud")])
         self.assertEqual("green", document["verdict"]["colour"])
         self.assertEqual("Nothing needs attention", document["verdict"]["headline"])
-        self.assertEqual(["Argo CD Applications"], document["verdict"]["covers"])
-        self.assertIn("alerts", document["verdict"]["not_yet"])
-        self.assertEqual("2 of 2 settled", document["tiles"][0]["headline"])
+        self.assertEqual(["Alertmanager's alerts", "Argo CD Applications"], document["verdict"]["covers"])
+        self.assertNotIn("alerts", document["verdict"]["not_yet"])
+        tiles = {t["id"]: t for t in document["tiles"]}
+        self.assertEqual("2 of 2 settled", tiles["applications"]["headline"])
+        self.assertEqual(("green", "none firing"), (tiles["alerts"]["colour"], tiles["alerts"]["headline"]))
 
     def test_progressing_is_amber_with_a_link_into_argo_cd(self):
         document = build([app("keycloak"), app("nextcloud", health="Progressing")])
@@ -105,7 +124,7 @@ class Verdict(unittest.TestCase):
         self.assertEqual("nextcloud", document["applications"][0]["name"], "problems come first")
 
     def test_nothing_the_board_reads_by_itself_is_red(self):
-        """Red comes only from Alertmanager (ADR 0068), which this slice does not read."""
+        """Red comes only from Alertmanager (ADR 0068)."""
         document = build([app("a", health="Degraded"), app("b", sync="OutOfSync", health="Missing"),
                           app("c", sync="Unknown", health="Unknown")])
         self.assertNotIn("red", colours(document))
@@ -113,7 +132,7 @@ class Verdict(unittest.TestCase):
     def test_a_source_that_never_answered_is_grey_never_green(self):
         document = build(applications=reading(None, error="HTTP 403 Forbidden"))
         self.assertEqual("grey", document["verdict"]["colour"])
-        self.assertEqual("grey", document["tiles"][0]["colour"])
+        self.assertEqual("grey", {t["id"]: t for t in document["tiles"]}["applications"]["colour"])
         self.assertEqual("Part of the cluster could not be read", document["verdict"]["headline"])
         self.assertIn("HTTP 403 Forbidden", document["verdict"]["reasons"][0]["text"])
         self.assertIn("Nothing has been read from it yet", document["verdict"]["reasons"][0]["text"])
@@ -122,13 +141,14 @@ class Verdict(unittest.TestCase):
         stale = state.Reading(data={"items": [app("keycloak")]}, error="unreachable (timed out)",
                               fetched_at=NOW, last_good_at=NOW - 600)
         document = build(applications=stale)
-        self.assertEqual("grey", document["tiles"][0]["colour"])
+        self.assertEqual("grey", {t["id"]: t for t in document["tiles"]}["applications"]["colour"])
         self.assertEqual(["keycloak"], [a["name"] for a in document["applications"]])
         self.assertIn("10 min old", document["verdict"]["reasons"][0]["text"])
         self.assertEqual("grey", document["verdict"]["colour"])
 
     def test_unread_sources_are_never_green(self):
-        document = build(applications=state.Reading(), ingress_reading=state.Reading())
+        document = build(applications=state.Reading(), ingress_reading=state.Reading(),
+                         alert_reading=state.Reading())
         self.assertEqual("grey", document["verdict"]["colour"])
 
     def test_amber_outranks_grey(self):
@@ -136,6 +156,99 @@ class Verdict(unittest.TestCase):
                          ingress_reading=reading(None, error="HTTP 500"))
         self.assertEqual("amber", document["verdict"]["colour"])
         self.assertEqual(["amber", "grey"], [r["colour"] for r in document["verdict"]["reasons"]])
+
+
+class Alerts(unittest.TestCase):
+    def test_a_firing_alert_is_red_with_a_link_into_grafana(self):
+        document = build([app("keycloak")], alerts=[WATCHDOG, am_alert("CNPGBackupStale", "critical",
+                                                                       cluster="gallery-db", namespace="immich")])
+        v = document["verdict"]
+        self.assertEqual(("red", "1 alert firing"), (v["colour"], v["headline"]))
+        self.assertEqual("CNPGBackupStale (gallery-db, critical): CNPGBackupStale summary", v["reasons"][0]["text"])
+        self.assertEqual("https://monitoring.example.org/alerting/list?search=CNPGBackupStale", v["reasons"][0]["link"])
+        tiles = {t["id"]: t for t in document["tiles"]}
+        self.assertEqual(("red", "1 firing", "1 critical"),
+                         (tiles["alerts"]["colour"], tiles["alerts"]["headline"], tiles["alerts"]["detail"]))
+        self.assertEqual("backups", document["alerts"]["firing"][0]["tile"])
+        self.assertEqual("green", tiles["applications"]["colour"], "a backup alert is not an application's")
+
+    def test_an_application_alert_makes_its_card_and_tile_red(self):
+        document = build([app("nextcloud", health="Degraded"), app("keycloak")],
+                         alerts=[WATCHDOG, am_alert("ApplicationNotHealthy", name="nextcloud")])
+        cards = {c["name"]: c for c in document["applications"]}
+        self.assertEqual(("red", ["ApplicationNotHealthy"]), (cards["nextcloud"]["colour"], cards["nextcloud"]["alerts"]))
+        self.assertEqual("green", cards["keycloak"]["colour"])
+        self.assertEqual("red", {t["id"]: t for t in document["tiles"]}["applications"]["colour"])
+        self.assertEqual("nextcloud", document["applications"][0]["name"], "red comes first")
+        self.assertEqual("1 alert firing", document["verdict"]["headline"], "one problem, named once")
+        self.assertEqual(1, len(document["verdict"]["reasons"]))
+        both = build([app("nextcloud", health="Degraded"), app("keycloak", health="Progressing")],
+                     alerts=[WATCHDOG, am_alert("ApplicationNotHealthy", name="nextcloud")])
+        self.assertEqual("1 alert firing, and 1 thing has not settled", both["verdict"]["headline"])
+
+    def test_an_alert_in_an_applications_namespace_is_that_applications(self):
+        immich = app("immich")
+        immich["spec"]["destination"] = {"namespace": "immich"}
+        card = build([immich], alerts=[WATCHDOG, am_alert("KubePodCrashLooping", namespace="immich",
+                                                          pod="immich-server-0")])["applications"][0]
+        self.assertEqual(("red", ["KubePodCrashLooping"]), (card["colour"], card["alerts"]))
+
+    def test_silenced_and_inhibited_alerts_are_shown_but_never_counted(self):
+        document = build([app("a")], alerts=[WATCHDOG, am_alert("NodeDiskSpaceEarlyWarning", silenced=True),
+                                             am_alert("KubeJobFailed", inhibited=True)])
+        self.assertEqual("green", document["verdict"]["colour"])
+        self.assertEqual(2, len(document["verdict"]["suppressed"]))
+        self.assertEqual("2 silenced or inhibited", {t["id"]: t for t in document["tiles"]}["alerts"]["detail"])
+
+    def test_watchdog_and_info_alerts_never_count(self):
+        document = build([app("a")], alerts=[WATCHDOG, am_alert("InfoInhibitor", severity="info")])
+        self.assertEqual("green", document["verdict"]["colour"])
+        self.assertEqual([], document["alerts"]["firing"])
+
+    def test_a_missing_watchdog_is_amber(self):
+        document = build([app("a")], alerts=[])
+        tiles = {t["id"]: t for t in document["tiles"]}
+        self.assertEqual("amber", tiles["alerts"]["colour"])
+        self.assertEqual("amber", document["verdict"]["colour"])
+        self.assertIn("Watchdog is not firing", document["verdict"]["reasons"][0]["text"])
+
+    def test_alertmanager_down_is_grey_never_green(self):
+        document = build([app("a")], alert_reading=reading(None, error="unreachable (timed out)"))
+        self.assertEqual("grey", {t["id"]: t for t in document["tiles"]}["alerts"]["colour"])
+        self.assertEqual("grey", document["verdict"]["colour"])
+        self.assertIn("Alertmanager did not answer", document["verdict"]["reasons"][0]["text"])
+
+    def test_alerts_known_before_alertmanager_stopped_stay_red(self):
+        """Hiding a known alert because Alertmanager blinked would be worse than a stale red."""
+        stale = state.Reading(data=[WATCHDOG, am_alert("NodeDiskSpaceCritical", "critical")],
+                              error="HTTP 503 Service Unavailable", fetched_at=NOW, last_good_at=NOW - 120)
+        document = build([app("a")], alert_reading=stale)
+        self.assertEqual("red", document["verdict"]["colour"])
+        self.assertEqual("grey", {t["id"]: t for t in document["tiles"]}["alerts"]["colour"])
+
+    def test_every_rule_of_ours_lands_on_a_tile_on_purpose(self):
+        """A new rule must be placed: on a tile by its name, or in ON_ALERTS_TILE."""
+        names = set()
+        for directory, _, files in os.walk(K8S):
+            if "/charts/" in directory + "/":
+                continue
+            for name in files:
+                if name.endswith(".yaml"):
+                    with open(os.path.join(directory, name)) as handle:
+                        names |= set(re.findall(r"^\s*- alert:\s*(\S+)", handle.read(), re.M))
+        self.assertGreaterEqual(len(names), 14)
+        expected = {"ApplicationNotHealthy": "applications", "CNPGBackupStale": "backups",
+                    "NodeDiskSpaceCritical": "node", "PersistentVolumeSpaceHigh": "node",
+                    "PodArchiveDeviceStale": "backups", "CanaryCommitFailed": "updates",
+                    "Ring0NeedsPerson": "updates", "VeleroBackupStale": "backups"}
+        for name in sorted(names):
+            tile = state.tile_of(name)
+            self.assertTrue(tile != "alerts" or name in state.ON_ALERTS_TILE,
+                            f"{name} lands on no tile: add its prefix to ALERT_TILES or it to ON_ALERTS_TILE")
+            if name in expected:
+                self.assertEqual(expected[name], tile, name)
+        self.assertEqual("node", state.tile_of("TargetDown", {"job": "node-exporter"}))
+        self.assertEqual("alerts", state.tile_of("TargetDown", {"job": "kube-state-metrics"}))
 
 
 class Applications(unittest.TestCase):
@@ -325,7 +438,8 @@ class Collector(unittest.TestCase):
     def test_a_failing_source_is_recorded_and_the_document_still_built(self):
         collector = main.Collector(FakeKube({
             "applications": urllib.error.URLError("timed out"),
-            "ingresses": {"items": [ARGOCD_INGRESS]}}), clock=lambda: NOW)
+            "ingresses": {"items": [ARGOCD_INGRESS]}}), clock=lambda: NOW,
+            fetch_alerts=lambda url, timeout: [WATCHDOG])
         self.assertFalse(collector.healthy())
         self.assertIsNone(collector.document())
         collector.cycle()
@@ -338,10 +452,19 @@ class Collector(unittest.TestCase):
     def test_unhealthy_once_the_refresh_stops(self):
         now = [NOW]
         collector = main.Collector(FakeKube({"applications": {"items": []}, "ingresses": {"items": []}}),
-                                   clock=lambda: now[0])
+                                   clock=lambda: now[0], fetch_alerts=lambda url, timeout: [WATCHDOG])
         collector.cycle()
         now[0] += 3 * config.REFRESH_SECONDS + 31
         self.assertFalse(collector.healthy())
+
+    def test_alertmanager_failing_does_not_stop_the_others(self):
+        def broken(url, timeout):
+            raise urllib.error.URLError("connection refused")
+        collector = main.Collector(FakeKube({"applications": {"items": [app("a")]}, "ingresses": {"items": []}}),
+                                   clock=lambda: NOW, fetch_alerts=broken)
+        collector.cycle()
+        sources = collector.document()["sources"]
+        self.assertEqual((False, True), (sources["alerts"]["ok"], sources["applications"]["ok"]))
 
     def test_describe_never_returns_a_traceback(self):
         error = urllib.error.HTTPError("https://kubernetes.default.svc/x", 403, "Forbidden", {}, None)
