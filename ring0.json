@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-22T14:50:34Z",
+ "updated": "2026-11-22T14:52:41Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "2d16a8eeb74050f9139dbd2ddbd3fec79f1101d4",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-22T14:48:20Z"
+  "commit": "3c939d420e4e9aa3f8d2d4400e15595853d2b7cf",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
@@ -19,8 +19,8 @@
     "repository"
    ]
   },
-  "step": "converge",
-  "step_since": "2026-11-22T14:49:17Z",
+  "step": "settle",
+  "step_since": "2026-11-22T14:52:00Z",
   "started": "2026-11-22T14:48:20Z",
   "queued": [],
   "stuck": null,
@@ -250,17 +250,15 @@
    "version": null,
    "revision": "90c873517a790f66141b4e90b051625457f356fc",
    "images": [
-    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.2",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
     "ghcr.io/tensorchord/cloudnative-pgvecto.rs:16.4-v0.3.0",
-    "quay.io/keycloak/keycloak:26.8.2@sha256:7e66a96e4739239070aeaf72e4c5decf0f7f682cfc725b9f7ea2b336eaba38b3",
     "quay.io/keycloak/keycloak@sha256:7e66a96e4739239070aeaf72e4c5decf0f7f682cfc725b9f7ea2b336eaba38b3"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/keycloak-realm-config"
+    "phase": "Succeeded",
+    "finished": "2026-11-22T14:51:34Z",
+    "message": null
    },
    "wave": 0
   },
@@ -275,7 +273,6 @@
    "revision": null,
    "images": [
     "docker.io/grafana/grafana:13.3.1-distroless",
-    "ghcr.io/jkroepke/kube-webhook-certgen:1.11.1",
     "quay.io/kiwigrid/k8s-sidecar:2.14.3",
     "quay.io/prometheus-operator/prometheus-config-reloader:v0.95.2",
     "quay.io/prometheus-operator/prometheus-operator:v0.95.2",
@@ -285,9 +282,9 @@
     "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.20.0"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/kube-prometheus-stack-admission-create"
+    "phase": "Succeeded",
+    "finished": "2026-11-22T14:50:53Z",
+    "message": null
    },
    "wave": 0
   },
@@ -416,7 +413,6 @@
    "revision": "90c873517a790f66141b4e90b051625457f356fc",
    "images": [
     "code.forgejo.org/forgejo/forgejo:15.0.12-rootless",
-    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.2",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -424,9 +420,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/garage-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-22T14:51:30Z",
+    "message": null
    },
    "wave": 1
   },
@@ -440,7 +436,6 @@
    "version": null,
    "revision": "90c873517a790f66141b4e90b051625457f356fc",
    "images": [
-    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.2",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -450,9 +445,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/garage-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-22T14:51:38Z",
+    "message": null
    },
    "wave": 1
   },
@@ -489,13 +484,12 @@
    "version": null,
    "revision": "90c873517a790f66141b4e90b051625457f356fc",
    "images": [
-    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/join-keycloak-setup"
+    "phase": "Succeeded",
+    "finished": "2026-11-22T14:51:27Z",
+    "message": null
    },
    "wave": 1
   },
@@ -514,9 +508,9 @@
     "docker.io/tailscale/tailscale:v1.104.7@sha256:72c1e19e0aedca96b8533bbb0b4368564410ff20b17e53b804eb6c1f04a31be4"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/member-reconciler-keycloak"
+    "phase": "Succeeded",
+    "finished": "2026-11-22T14:51:31Z",
+    "message": null
    },
    "wave": 1
   },
@@ -539,9 +533,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/garage-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-22T14:51:40Z",
+    "message": null
    },
    "wave": 1
   },
@@ -584,14 +578,36 @@
     "stalwartlabs/stalwart:v1.1.1@sha256:544760db45608ef39d969eca7cfc040af771a0825cdf5c673935825abe3fad0f"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/garage-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-22T14:51:10Z",
+    "message": null
    },
    "wave": 1
   }
  ],
  "commits": [
+  {
+   "commit": "3c939d420e4e9aa3f8d2d4400e15595853d2b7cf",
+   "title": "Merge branch 'main' of github.com:stephan271/smallworlds",
+   "author": "stephan271",
+   "date": "2026-11-22T14:52:11Z",
+   "pull": null,
+   "cards": [
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "d24af40a3cabbcba97b46fe075ffa23106c4ffcc",
+   "title": "Add some screenshots",
+   "author": "stephan271",
+   "date": "2026-11-22T14:51:25Z",
+   "pull": null,
+   "cards": [
+    "repository"
+   ],
+   "verdict": null
+  },
   {
    "commit": "2d16a8eeb74050f9139dbd2ddbd3fec79f1101d4",
    "title": "Propose a read-only Operator Board (ADR 0068)",
@@ -906,36 +922,6 @@
     "repository"
    ],
    "verdict": null
-  },
-  {
-   "commit": "f80ed97863a7a8d6f6f569839592459ce480a0f6",
-   "title": "Update Helm chart nextcloud to v9.4.5 (#148)",
-   "author": "renovate[bot]",
-   "date": "2026-11-20T07:08:20Z",
-   "pull": 148,
-   "cards": [
-    "nextcloud"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: backup 1 databases, converged, load settled after 1 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
-    "date": "2026-11-20T07:28:15Z"
-   }
-  },
-  {
-   "commit": "c848c99465019bf0f5e02cd8131598f92a0b7a64",
-   "title": "Update Helm chart kube-prometheus-stack to v93.3.1 (#147)",
-   "author": "renovate[bot]",
-   "date": "2026-11-20T06:43:46Z",
-   "pull": 147,
-   "cards": [
-    "kube-prometheus-stack"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-20T07:03:10Z"
-   }
   }
  ],
  "pulls": [
