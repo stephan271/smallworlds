@@ -78,6 +78,23 @@ No AI agent runs inside any cluster. The in-cluster Hermes (Tier 2) and Remediat
 
 The Keycloak half lives in `infrastructure/keycloak-spi/action-token-generator` (`docs/adr/0059`): join's own action token handler (no confirmation page, signs the member in) and the `smallworlds` login theme, which is the realm's login theme for every sign-in. Rebuild only with its `build.sh` — it installs `tenants/keycloak/action-token-generator.jar` and bumps the pod annotation without which Keycloak keeps the old jar — then prove it with `tenants/join/tests/live-keycloak.sh` (real Keycloak in Docker, virtual passkey). The theme copies two Keycloak files (`webauthn-register.ftl`, `resources/js/webauthnRegister.js`); diff them on every Keycloak upgrade.
 
+## The local Update Desk (`admin-tools/update-desk/`)
+
+`./smallworlds-update --overlay <checkout> --kubeconfig <file>` is how Ring 1 and
+Ring 2 adopt what Ring 0 verified (`docs/adr/0067`, narrowing 0065): a local
+stdlib page, same loopback/token pattern as the wizard. It follows **Ring 0's
+path**: every step ends on a `main` commit with `ring0/verified` success, and the
+whole overlay moves there. It rewrites every base ref and adds the generated
+`smallworlds:base-pin` block, which pins `targetRevision` of base Applications
+that say `HEAD` (never-`HEAD`, checked by rendering). It commits, pushes, moves
+the root pin and follows the rollout, one button each. It stores no state:
+where an update stands is read from the overlay checkout and the cluster.
+Three data files beside the manifests feed it, and no cluster applies them:
+`update-units.yaml` (which tenant/Application is which application; the rest
+is Platform), `operator-steps.yaml` (manual steps keyed by first-parent commit;
+**a change that needs the Operator adds its entry in the same PR**) and
+`upgrade-stops.yaml`. Tests: `admin-tools/test-update-desk.sh`.
+
 ## The setup wizard (`admin-tools/setup-wizard/`)
 
 `./smallworlds-setup` starts a single-use local web wizard that collects the install

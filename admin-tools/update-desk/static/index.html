@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Update Desk</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script>window.DESK_TOKEN = "__SESSION_TOKEN__";</script>
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">◐</span>
+      <div>
+        <h1>Update Desk</h1>
+        <p class="sub" id="where">reading …</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span id="ring0" class="pill">Ring 0 …</span>
+      <button id="refresh" class="ghost" title="Fetch the base and the overlay again, and read Ring 0's state">Refresh</button>
+    </div>
+  </header>
+
+  <main>
+    <div id="alerts"></div>
+
+    <section id="summary" class="card summary"></section>
+
+    <section id="progress-section" class="card progress" hidden>
+      <h2>Update in progress</h2>
+      <ol class="stages" id="stages"></ol>
+      <div id="progress"></div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>Your applications</h2>
+        <p class="hint">What Ring 0 runs now that your community does not, per application.</p>
+      </div>
+      <div id="units" class="units"></div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>Your path to Ring 0</h2>
+        <div class="grouping" role="radiogroup" aria-label="Grouping">
+          <label><input type="radio" name="grouping" value="careful" checked> One migration at a time</label>
+          <label><input type="radio" name="grouping" value="fewer"> Fewer, larger steps</label>
+        </div>
+      </div>
+      <p class="hint">Each step ends on a commit Ring 0 verified, so every state you pass through ran
+        exactly like that on Ring 0. Take the next group, or choose any step to go up to it.</p>
+      <div id="path"></div>
+      <div id="beyond"></div>
+    </section>
+
+    <section>
+      <details class="card log">
+        <summary>What the Desk did</summary>
+        <div id="log"></div>
+      </details>
+    </section>
+  </main>
+
+  <dialog id="plan-dialog">
+    <form method="dialog" class="dialog-head">
+      <h2 id="plan-title">Plan</h2>
+      <button class="ghost" value="close" aria-label="Close">✕</button>
+    </form>
+    <div id="plan"></div>
+  </dialog>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

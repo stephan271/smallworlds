@@ -1,0 +1,69 @@
+# Update Units (plans-and-walkthroughs/design-per-app-updates.md §7.2): what an
+# Operator sees as one application when they update. The Update Desk
+# (admin-tools/update-desk/) uses it to say which of a community's applications a
+# change on main touches, and which of them migrate their database.
+#
+# Every tenant under tenants/ and every file under apps/ belongs to at most one
+# unit here. Whatever no unit claims is the Platform: everyone runs it. Tenants
+# and Applications under `ring0_only` are Ring 0's own machinery and reach no
+# community. admin-tools/update-desk/test_desk.py checks that nothing is
+# claimed twice and that every name exists.
+#
+# `migrates` lists the tenants whose database a new application or PostgreSQL
+# version rewrites (the follower's MIGRATING_TENANTS). Going back across such a
+# change needs the pre-update backup; reverting the overlay is not enough.
+#
+# Nothing applies this file to a cluster (it is in no kustomization).
+units:
+  - name: photos
+    title: Photos
+    applications: [immich]
+    tenants: [immich, gallery]
+    migrates: [immich, gallery]
+  - name: nextcloud
+    title: Files and Office
+    applications: [nextcloud, collabora, euro-office]
+    tenants: [nextcloud, collabora, euro-office]
+    migrates: [nextcloud]
+  - name: mail
+    title: Mail
+    applications: [stalwart, bulwark]
+    tenants: [stalwart, bulwark]
+    migrates: [stalwart]
+  - name: forgejo
+    title: Git
+    applications: [forgejo]
+    tenants: [forgejo]
+    migrates: [forgejo]
+  - name: jitsi
+    title: Meet
+    applications: [jitsi]
+    tenants: [jitsi]
+  - name: excalidraw
+    title: Whiteboard
+    applications: [excalidraw]
+    tenants: [excalidraw]
+  - name: pod-archive
+    title: Personal data pods
+    applications: [pod-gateway]
+    tenants: [pod-gateway]
+  - name: member-network
+    title: Member Network
+    applications: [member-network]
+    tenants: [member-network]
+    paths: [infrastructure/kubernetes/components/member-network/]
+
+platform:
+  title: Platform
+  migrates: [keycloak]
+
+ring0_only:
+  applications: [canary-follower]
+  tenants: [canary-follower]
+
+# Files under infrastructure/kubernetes/ that no cluster applies.
+not_applied:
+  - infrastructure/kubernetes/update-units.yaml
+  - infrastructure/kubernetes/upgrade-stops.yaml
+  - infrastructure/kubernetes/operator-steps.yaml
+  - infrastructure/kubernetes/apps/README.md

@@ -79,6 +79,7 @@ jobs:
           - test-local-bootstrap-preflight.sh
           - test-noninteractive-install.sh
           - test-setup-wizard.sh
+          - test-update-desk.sh
           - test-object-storage.py
           - test-pod-gateway.py
           - test-pre-update-backup.sh

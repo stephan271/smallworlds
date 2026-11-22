@@ -1,0 +1,74 @@
+# Operator Steps: what an Operator has to do by hand when their community moves
+# past a commit of main. The Update Desk (admin-tools/update-desk/) shows each
+# one on the step that contains its commit, before or after the update, and only
+# to the communities it applies to.
+#
+# Write an entry in the same PR as the change that needs it, naming the commit
+# as it lands on main's first-parent line (the squash commit, or the merge
+# commit of a merged branch). A release's notes say the same in prose; this is
+# what a community that adopts commit by commit sees.
+#
+#   commit   full 40-character hash on main's first-parent line
+#   when     before (do it first), after (do it once the step is Healthy),
+#            or info (nothing to do unless the condition in the text holds)
+#   applies  every key must hold; none means everyone
+#              domain_not: <domain>    the community's domain is another one
+#              runs: [<unit>, ...]     the community runs one of these units
+#              overlay_patches: <app>  the overlay patches that Application
+#   title    one line
+#   detail   what to do, with the commands
+#
+# Nothing applies this file to a cluster (it is in no kustomization).
+steps:
+  - commit: e475c8f6fd83b9e3b708a531ac4e419f171e114a
+    when: after
+    applies:
+      domain_not: smallworlds.network
+    title: Re-run prepare-community-repo.sh so Headscale and Grafana use your domain
+    detail: |
+      Until this change, a community on another domain had Headscale answering
+      on vpn.smallworlds.network, so no device could enroll, and Grafana's
+      allow-list was missing from the overlay. Run
+      admin-tools/prepare-community-repo.sh again for your overlay. It routes
+      Headscale to the overlay with your address and adds the corrected Grafana
+      entry. Commit what it writes as its own overlay commit.
+
+  - commit: e5db00d2bee18ee36e30dfaabbbf018a010a84c3
+    when: info
+    title: Keycloak 26.8 admits only tokens with the kc-admin-api scope
+    detail: |
+      From Keycloak 26.8.2 on, the Admin REST API accepts only tokens that carry
+      the kc-admin-api client scope. The join page, the Invitation Desk and the
+      realm jobs give it to their own clients. If you call the Admin API with a
+      service account of your own, give that client the scope too.
+
+  - commit: f430b6f2b1be931135d3a34902c69599492326a2
+    when: before
+    applies:
+      overlay_patches: traefik
+    title: Move your Traefik value patches to chart 42's layout
+    detail: |
+      Traefik's chart 42 moved its values. Your overlay patches the traefik
+      Application: move entry point HTTP options under ports.<name>.http and
+      Service fields under service.spec, in the same commit as this step.
+
+  - commit: c381abb8ec73211b260e819e4824e748e882aa06
+    when: after
+    title: Point your operator hosts line at the Private Gateway
+    detail: |
+      Argo CD, Grafana, the Keycloak admin console and the Invitation Desk now
+      answer only through the Private Gateway. The node's own tailnet address
+      gets 403 for them (kubectl and SSH keep working). Once this step is
+      Healthy:
+        1. Read the gateway's tailnet address:
+           kubectl -n headscale get secret private-gateway-state -o jsonpath='{.data.device_ips}' | base64 -d
+        2. On every device you administer from, change the operator line in
+           /etc/hosts to that address:
+           <gateway-address>  deploy.<domain> monitoring.<domain> identity.<domain> join.<domain>
+        3. Open https://deploy.<domain> over the tailnet. From outside the
+           tailnet it answers 403. If the browser still shows Forbidden,
+           close it completely and open it again: it is still using its
+           connection to the old address.
+      After a Headscale restart the gateway can lose its connection for up to
+      seven minutes; kubectl -n headscale rollout restart deploy/private-gateway
+      brings it back at once.
