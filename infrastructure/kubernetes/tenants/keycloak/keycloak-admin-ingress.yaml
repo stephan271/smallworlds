@@ -105,6 +105,12 @@ metadata:
     traefik.ingress.kubernetes.io/router.priority: "1000"
     # Deliberately absent from the Member Dashboard.
     gethomepage.dev/enabled: "false"
+    # The Operator Board's link hub (docs/adr/0068).
+    smallworlds.network/board-id: keycloak
+    smallworlds.network/board-name: Keycloak admin
+    smallworlds.network/board-group: Operate
+    smallworlds.network/board-path: /admin/master/console/
+    smallworlds.network/board-order: "30"
 spec:
   ingressClassName: traefik
   tls:

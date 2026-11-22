@@ -293,7 +293,9 @@ outside.
 
 ## 6. Permissions
 
-A `ClusterRole` `operator-board-reader`, `get`/`list`/`watch` only:
+A `ClusterRole` `operator-board-reader` (and a `Role` in `argocd` for the
+Applications), `get`/`list`/`watch` only. Each slice adds the rows it reads.
+Slice 01 has Applications and Ingresses:
 
 | API group | Resources |
 |---|---|
@@ -311,9 +313,12 @@ that writes. `tests/test_rbac.py` fails on any of those, so a later "just add
 Secrets" has to change the test on purpose.
 
 **NetworkPolicy** `operator-board`: ingress on 8080 from Traefik's pods only.
-Egress to the API server, DNS, Alertmanager `9093` and Prometheus `9090` in
-`monitoring`, and `443` outside the cluster ranges (for `ring0.json` and the
-compare API). The last one is dropped when `RING_STATE_URL` is empty.
+Egress is not restricted in slice 01 (*learned while building it*): its only
+destination is the Kubernetes API, whose address on k3s is each node's own, so
+a policy would need the node's address per install. Egress to DNS, Alertmanager
+`9093` and Prometheus `9090` in `monitoring`, and `443` outside the cluster
+ranges come with issues 02–04, and the API server then needs an answer of its
+own (an `ipBlock` filled in by the installer, or none).
 
 **What never appears on the page:** Secret contents, log lines, member names or
 e-mail addresses, the ntfy topic, the healthchecks.io ping URL. Alert
@@ -343,16 +348,25 @@ PR:
 
 - `infrastructure/terraform/main.tf` `local.core_subdomains`
 - `smallworlds-init.sh` `dns_subdomains()` and the "DNS records:" line
-- `admin-tools/setup-wizard/plan.py` `_hostnames`
 - `admin-tools/generate_domain_patches.py`: a host patch for **both** Ingresses
   (patches target by name; a missed one keeps `smallworlds.network`)
-- both CoreDNS host lists (cloud-init template, `bootstrap-local-node.sh`) and
-  `bootstrap-local-node.sh`'s default `DNS_SUBDOMAINS`
+- `bootstrap-local-node.sh`'s default `DNS_SUBDOMAINS` and the installer's LAN
+  hosts snippet
 - `admin-tools/setup-vpn.sh` `OPERATOR_HOSTS`, so the printed hosts line names it
 - a manual-DNS install covers it by its wildcard. Nothing to print.
+- `admin-tools/prepare-community-repo.sh`: `operator-board` among the
+  always-installed applications, so the overlay routes it to a directory of its
+  own that carries the domain patches.
 - `infrastructure/kubernetes/operator-steps.yaml`: one `after` step for every
-  existing community: add `ops.<domain>` to the Operator Device's hosts line,
-  with the line `setup-vpn.sh` would print now.
+  existing community (create the `ops` record, re-run
+  `prepare-community-repo.sh` on a domain other than `smallworlds.network`, add
+  `ops.<domain>` to the hosts line). It names the merge commit, which exists
+  only after the merge, so it lands in a follow-up commit straight after.
+
+*Not in the list, on purpose (learned while building it):* the wizard's
+`_hostnames` lists the names members use, and Argo CD and Grafana are not in it
+either. The CoreDNS host lists are for names pods resolve to Traefik, and no pod
+needs the Board: Ring 0's specs reach it through `traefik-internal` directly.
 
 ## 9. Testing
 

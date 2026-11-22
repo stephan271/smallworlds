@@ -76,6 +76,12 @@ metadata:
     # Must outrank the public `/` route for this host.
     traefik.ingress.kubernetes.io/router.priority: "1000"
     gethomepage.dev/enabled: "false"
+    # The Operator Board's link hub (docs/adr/0068).
+    smallworlds.network/board-id: desk
+    smallworlds.network/board-name: Invitation Desk
+    smallworlds.network/board-group: Members
+    smallworlds.network/board-path: /desk/
+    smallworlds.network/board-order: "10"
 spec:
   ingressClassName: traefik
   tls:

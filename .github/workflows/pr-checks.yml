@@ -78,6 +78,7 @@ jobs:
           - test-join.sh
           - test-local-bootstrap-preflight.sh
           - test-noninteractive-install.sh
+          - test-operator-board.sh
           - test-setup-wizard.sh
           - test-update-desk.sh
           - test-object-storage.py

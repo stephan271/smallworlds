@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Operator Board</title>
+  <meta name="description" content="Whether this SmallWorlds cluster is well, why not, and where each operator tool is. Read-only.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='2' y='2' width='5' height='5' rx='1' fill='%232f7d5b'/%3E%3Crect x='9' y='2' width='5' height='5' rx='1' fill='%237a807c'/%3E%3Crect x='2' y='9' width='5' height='5' rx='1' fill='%237a807c'/%3E%3Crect x='9' y='9' width='5' height='5' rx='1' fill='%237a807c'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/board.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <div class="title-row">
+        <h1>Operator Board <span class="host" id="host"></span></h1>
+        <p class="as-of" id="as-of" aria-live="polite">Loading…</p>
+      </div>
+      <p class="lede">Whether this cluster is well, and where to go when it is not. Read-only: every
+        change happens in the tool a link opens.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <p class="problem" id="problem" hidden></p>
+
+    <section class="banner" id="banner" aria-live="polite">
+      <span class="banner-state" id="banner-state">…</span>
+      <p class="banner-head" id="banner-head">Reading the cluster…</p>
+      <ul class="reasons" id="reasons"></ul>
+      <p class="banner-sub" id="coverage"></p>
+    </section>
+
+    <section aria-labelledby="tiles-title">
+      <h2 id="tiles-title">State</h2>
+      <div class="tiles" id="tiles"></div>
+    </section>
+
+    <section aria-labelledby="links-title">
+      <h2 id="links-title">Tools</h2>
+      <div class="hub" id="hub"></div>
+    </section>
+
+    <section aria-labelledby="apps-title">
+      <h2 id="apps-title">Applications</h2>
+      <div class="cards" id="cards"></div>
+    </section>
+  </main>
+
+  <footer class="wrap foot">
+    <p>Red appears only while an alert fires, so the Board and your phone agree. Amber: not settled yet.
+      Grey: a source did not answer. Refreshes by itself.</p>
+  </footer>
+  <script src="/static/board.js"></script>
+</body>
+</html>

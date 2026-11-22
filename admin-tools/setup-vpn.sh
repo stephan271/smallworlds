@@ -236,7 +236,7 @@ except Exception:
     [ -n "$GATEWAY_IP" ] && break
     sleep 5
 done
-OPERATOR_HOSTS="deploy${CUR_ENV_EXT}.${DOMAIN} monitoring${CUR_ENV_EXT}.${DOMAIN} identity${CUR_ENV_EXT}.${DOMAIN} join${CUR_ENV_EXT}.${DOMAIN}"
+OPERATOR_HOSTS="ops${CUR_ENV_EXT}.${DOMAIN} deploy${CUR_ENV_EXT}.${DOMAIN} monitoring${CUR_ENV_EXT}.${DOMAIN} identity${CUR_ENV_EXT}.${DOMAIN} join${CUR_ENV_EXT}.${DOMAIN}"
 
 echo ""
 echo "✅ Server-side setup complete."

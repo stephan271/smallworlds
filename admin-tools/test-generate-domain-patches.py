@@ -16,7 +16,12 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 GENERATOR = ROOT / "admin-tools" / "generate_domain_patches.py"
 APPS = ["dashboard", "keycloak", "join", "headscale", "forgejo", "immich", "nextcloud",
         "stalwart", "bulwark", "excalidraw", "jitsi", "pod-gateway",
-        "euro-office", "argocd", "monitoring"]
+        "euro-office", "argocd", "monitoring", "operator-board"]
+# Applications whose router pair must both follow the domain: a pair that loses
+# one keeps smallworlds.network on that router (CLAUDE.md, doc/hardening.md).
+ROUTER_PAIRS = {"operator-board": ["operator-board", "operator-board-private"],
+                "argocd": ["argocd-server", "argocd-server-private"],
+                "join": ["join-desk", "join-desk-private"]}
 
 
 def run(app: str, path: pathlib.Path) -> None:
@@ -41,6 +46,13 @@ def main() -> int:
                 failures += 1
             elif "target:" not in first and app != "euro-office":
                 print(f"FAIL {app}: the first run wrote no patch")
+                failures += 1
+            for ingress in ROUTER_PAIRS.get(app, []):
+                if f"      name: {ingress}\n" not in first:
+                    print(f"FAIL {app}: no host patch for Ingress {ingress}")
+                    failures += 1
+            if app == "operator-board" and "ops.canary.example.org" not in first:
+                print("FAIL operator-board: the host is not ops.<ext>.<domain>")
                 failures += 1
     if not failures:
         print(f"PASS a second run leaves all {len(APPS)} kustomizations unchanged")

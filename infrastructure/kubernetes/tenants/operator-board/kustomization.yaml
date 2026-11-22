@@ -1,0 +1,39 @@
+# Operator Board — docs/adr/0068, plans-and-walkthroughs/design-operator-board.md.
+#
+# Deployed by apps/operator-board.yaml on every cluster, Ring 0 included. Hosts
+# follow the operator's domain through admin-tools/generate_domain_patches.py
+# (the `operator-board` block). Every object names its namespace itself: the
+# Role lives in argocd, so a `namespace:` here would move it.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - rbac.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - networkpolicy.yaml
+
+configMapGenerator:
+  # Settings: generated, so that a change restarts the Board.
+  - name: operator-board-config
+    namespace: operator-board
+    envs:
+      - config.properties
+  # Flat on purpose: ConfigMap keys cannot contain "/". tests/ is not shipped.
+  - name: operator-board-src
+    namespace: operator-board
+    files:
+      - src/argo.py
+      - src/config.py
+      - src/kube.py
+      - src/links.py
+      - src/main.py
+      - src/state.py
+      - src/web.py
+  - name: operator-board-static
+    namespace: operator-board
+    files:
+      - static/board.css
+      - static/board.html
+      - static/board.js

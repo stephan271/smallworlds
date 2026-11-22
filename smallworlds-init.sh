@@ -689,7 +689,7 @@ PYEOF
 dns_subdomains() {
     local app sub
     {
-        printf '%s\n' identity dashboard monitoring deploy vpn join
+        printf '%s\n' identity dashboard monitoring deploy vpn join ops
         # The member Headscale (docs/adr/0066), only with the Member Network on.
         [[ "${MEMBER_NETWORK:-off}" == "on" ]] && printf '%s\n' network
         while IFS= read -r app; do
@@ -1380,7 +1380,7 @@ EOF
     _SELECTED_LIST="$(selected_apps | paste -sd, - | sed 's/,/, /g')"
     _MEMBER_RECORD=""
     [[ "$MEMBER_NETWORK" == "on" ]] && _MEMBER_RECORD=", network"
-    echo -e "${CYAN}DNS records: identity, dashboard, monitoring, deploy, vpn, join${_MEMBER_RECORD}${_SELECTED_LIST:+, and one for each of: }${_SELECTED_LIST}${NC}"
+    echo -e "${CYAN}DNS records: identity, dashboard, monitoring, deploy, vpn, join, ops${_MEMBER_RECORD}${_SELECTED_LIST:+, and one for each of: }${_SELECTED_LIST}${NC}"
 
     # 3. Execute Terraform
     sw_step terraform-apply "Provisioning the Hetzner VM and DNS records"
@@ -1807,7 +1807,7 @@ EOF
     HOSTS_SNIPPET="$HOME/.smallworlds/hosts-${KUBECONFIG_LABEL}.txt"
     {
         printf '%s' "$SERVER_IP"
-        for sub in identity dashboard files photos git mail webmail monitoring whiteboard meet office pod join; do
+        for sub in identity dashboard files photos git mail webmail monitoring whiteboard meet office pod join ops; do
             printf ' %s%s.%s' "$sub" "$ENV_EXT" "$DOMAIN"
         done
         printf '\n'

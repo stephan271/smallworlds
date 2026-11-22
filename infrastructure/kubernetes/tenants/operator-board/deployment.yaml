@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: operator-board
+  namespace: operator-board
+  labels:
+    app: operator-board
+spec:
+  # Stateless: every replica reads the cluster itself. One is enough.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: operator-board
+  template:
+    metadata:
+      labels:
+        app: operator-board
+    spec:
+      serviceAccountName: operator-board
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: operator-board
+          # Pure Python stdlib, run straight from a ConfigMap-mounted volume —
+          # no image build, no pip, starts offline (same as join).
+          image: python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928
+          command: ["python", "-u", "/app/main.py"]
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            # ConfigMap volumes symlink through a timestamped ..data dir; put
+            # /app on the path explicitly so imports resolve.
+            - name: PYTHONPATH
+              value: /app
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+          envFrom:
+            - configMapRef:
+                name: operator-board-config
+          # Ready once the first refresh produced a document; restarted when
+          # the refresh has stopped (main.py, Collector.healthy).
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 96Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: src
+              mountPath: /app
+            - name: static
+              mountPath: /static
+      volumes:
+        - name: src
+          configMap:
+            name: operator-board-src
+        - name: static
+          configMap:
+            name: operator-board-static
