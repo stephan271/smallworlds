@@ -5,12 +5,10 @@ metadata:
   namespace: headscale
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    gethomepage.dev/enabled: "true"
-    gethomepage.dev/name: "Headscale"
-    gethomepage.dev/description: "Private overlay network (Tailscale control server)"
-    gethomepage.dev/group: "Infrastructure"
-    gethomepage.dev/icon: "tailscale.png"
-    gethomepage.dev/pod-selector: "app.kubernetes.io/name=headscale"
+    # No dashboard tile: the dashboard is open to everyone, and this is the
+    # Operator tailnet's control server: Tailscale clients use it, a browser
+    # gets nothing.
+    gethomepage.dev/enabled: "false"
 spec:
   ingressClassName: traefik
   tls:
