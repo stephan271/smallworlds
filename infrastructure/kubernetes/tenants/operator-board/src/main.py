@@ -15,6 +15,8 @@ from http.server import ThreadingHTTPServer
 import alerts
 import config
 import prom
+import rings
+from links import github_web
 import state
 import web
 from kube import Kube
@@ -26,6 +28,7 @@ log = logging.getLogger("main")
 def describe(error: Exception) -> str:
     """A short, safe description of why a source did not answer."""
     if isinstance(error, urllib.error.HTTPError):
+        error.close()  # it holds the response open until closed
         return f"HTTP {error.code} {error.reason}"
     if isinstance(error, urllib.error.URLError):
         return f"unreachable ({error.reason})"
@@ -35,10 +38,16 @@ def describe(error: Exception) -> str:
 
 
 class Collector:
-    def __init__(self, kube, clock=time.time, fetch_alerts=alerts.fetch, fetch_metrics=prom.fetch):
+    def __init__(self, kube, clock=time.time, fetch_alerts=alerts.fetch, fetch_metrics=prom.fetch,
+                 fetch_ring0=rings.fetch_ring0, compare=rings.compare):
         self.kube = kube
         self.fetch_alerts = fetch_alerts
         self.fetch_metrics = fetch_metrics
+        self.fetch_ring0 = fetch_ring0
+        self.compare = compare
+        # (running, verified) -> (when, result or None, error or None): one call
+        # per pair per COMPARE_SECONDS, within GitHub's 60 an hour.
+        self._compares: dict[tuple[str, str], tuple[float, dict | None, str | None]] = {}
         self.clock = clock
         self.readings = {key: state.Reading() for key in state.SOURCE_NAMES}
         self._document = None
@@ -65,6 +74,7 @@ class Collector:
         self._read("nodes", lambda: self.kube.get("/api/v1/nodes"))
         self._read("prometheus", lambda: self.fetch_metrics(config.PROMETHEUS_URL, config.SOURCE_TIMEOUT))
         self._read("backups", self._backups)
+        self._read("rings", self._rings)
         now = self.clock()
         document = state.build(
             self.readings, now,
@@ -84,6 +94,35 @@ class Collector:
                  "velero_backups": "/apis/velero.io/v1/backups",
                  "cronjobs": "/apis/batch/v1/cronjobs"}
         return {key: self.kube.get_or_empty(path).get("items", []) for key, path in paths.items()}
+
+    def _rings(self) -> dict:
+        """ring0.json, and a compare when this cluster's commit is older than
+        the 25 it lists. A failing compare is noted, not a failed reading:
+        the tile still knows the commit is not among the recent ones."""
+        if not config.RING_STATE_URL:
+            return {"disabled": True}
+        ring0 = self.fetch_ring0(config.RING_STATE_URL, config.SOURCE_TIMEOUT)
+        result = {"ring0": ring0, "compare": None, "compare_error": None}
+        apps = self.readings["applications"].data
+        running, _ = state.base_revision((apps or {}).get("items", []) if isinstance(apps, dict) else [],
+                                         config.BASE_REPO_URL)
+        newest = state.newest_verified(ring0)
+        listed = {c.get("commit") for c in ring0.get("commits", [])}
+        if not running or not newest or running in listed or running == newest["commit"]:
+            return result
+        repository = ring0.get("repository") or (github_web(config.BASE_REPO_URL) or "").removeprefix(
+            "https://github.com/")
+        key = (running, newest["commit"])
+        cached = self._compares.get(key)
+        if cached is None or self.clock() - cached[0] >= config.COMPARE_SECONDS:
+            try:
+                cached = (self.clock(), self.compare(config.GITHUB_API_URL, repository, running,
+                                                     newest["commit"], config.SOURCE_TIMEOUT), None)
+            except Exception as error:  # noqa: BLE001 — rate limit, network: noted, retried later
+                cached = (self.clock(), None, describe(error))
+            self._compares = {key: cached}  # only the current pair is worth keeping
+        result["compare"], result["compare_error"] = cached[1], cached[2]
+        return result
 
     def document(self) -> dict | None:
         with self._lock:

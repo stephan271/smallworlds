@@ -31,6 +31,7 @@ configMapGenerator:
       - src/links.py
       - src/main.py
       - src/prom.py
+      - src/rings.py
       - src/state.py
       - src/web.py
   - name: operator-board-static

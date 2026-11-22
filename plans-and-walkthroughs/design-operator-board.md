@@ -222,6 +222,21 @@ Amber when one or more verified commits are newer than what runs. Red never:
 being behind is not an outage. Ring 0 being `stuck` is shown as a fact about
 Ring 0.
 
+*Settled while building slice 04:*
+
+- "Behind" counts commits on `main` with a `success` verdict, newer than the
+  one this cluster runs. Branch commits carry no verdict and a rejected one is
+  not a place to go, so neither counts. The tile says "verified commits", not
+  "steps": the Update Desk groups commits into steps of its own.
+- The Board knows it runs on Ring 0 when an Application `canary-follower`
+  exists. There the tile shows Ring 0's own state from `now` (up to date,
+  checking what, stuck), and amber only when Ring 0 is stuck.
+- A cluster running a commit Ring 0 has not verified yet, or one it rejected,
+  is told so rather than counted as behind.
+- One compare call per pair of commits per hour, kept only for the current
+  pair; a failing compare (GitHub's 60 calls an hour) is noted and the tile
+  says "more than 25 commits behind", which is still true.
+
 ### 4.7 Alert delivery
 
 Whether alerts can reach the Operator, read from Alertmanager's own metrics in

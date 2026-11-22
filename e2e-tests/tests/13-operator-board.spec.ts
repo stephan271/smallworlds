@@ -85,7 +85,7 @@ test.describe('operator board', () => {
     const alertsTile = state.tiles.find((t: any) => t.id === 'alerts');
     if (alertsTile.colour === 'red') expect(firing.length).toBeGreaterThan(0);
     // Every source answered: the Board's RBAC and network reach all of them.
-    for (const key of ['alerts', 'applications', 'ingresses', 'nodes', 'prometheus', 'backups']) {
+    for (const key of ['alerts', 'applications', 'ingresses', 'nodes', 'prometheus', 'backups', 'rings']) {
       expect(state.sources[key]?.ok, `${key}: ${state.sources[key]?.error}`).toBe(true);
     }
     const tiles = new Map<string, any>(state.tiles.map((t: any) => [t.id, t]));
@@ -93,6 +93,9 @@ test.describe('operator board', () => {
     // Ring 0 runs every application with a database: each has a backup line.
     const databases = tiles.get('backups').items.filter((i: any) => i.text.startsWith('database '));
     expect(databases.length).toBeGreaterThanOrEqual(4);
+    // Ring 0 knows itself: its Updates tile shows Ring 0's own state, read from
+    // the Ring State the follower publishes.
+    expect(tiles.get('updates').headline).toBe('this is Ring 0');
     // The Board reaches Alertmanager, and the pipeline behind it works.
     expect(state.sources.alerts.ok, `Alertmanager: ${state.sources.alerts.error}`).toBe(true);
     expect(state.alerts.watchdog, 'Watchdog is firing').toBe(true);
