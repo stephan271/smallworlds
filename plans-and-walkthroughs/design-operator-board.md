@@ -114,6 +114,19 @@ A test checks that every rule in `apps/*-alerts.yaml` and
 `tenants/canary-follower/alerting.yaml` lands on the tile its name suggests, so a
 new rule has to be placed on purpose.
 
+*Settled while building slice 02:*
+
+- An alert belongs to an Application when it names it (`ApplicationNotHealthy`
+  carries `name`) or fires in the namespace the Application deploys to. That
+  card turns red with the alert's name on it. A red card is one problem and is
+  named once, by its alert. The card still shows Argo CD's reason.
+- Severities `none` and `info` never count. The push route drops them too.
+- `Watchdog` missing is amber, not red: no alert can say that the alert
+  pipeline is broken, so the Board says it.
+- When Alertmanager stops answering, the alerts it last reported stay red,
+  with the Alerts tile grey. Hiding a known alert because Alertmanager
+  blinked would be worse than a stale red.
+
 ### 4.2 Applications
 
 From `applications.argoproj.io` in `argocd`: sync status, health, the running

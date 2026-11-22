@@ -5,6 +5,9 @@ ARGOCD_NAMESPACE = os.getenv("ARGOCD_NAMESPACE", "argocd")
 ROOT_APP = os.getenv("ROOT_APP", "smallworlds-root")
 # Applications sourced from here run the base; the docs links follow their commit.
 BASE_REPO_URL = os.getenv("BASE_REPO_URL", "https://github.com/stephan271/smallworlds.git").rstrip("/")
+# The only source that can make the Board red (docs/adr/0068).
+ALERTMANAGER_URL = os.getenv("ALERTMANAGER_URL",
+                             "http://kube-prometheus-stack-alertmanager.monitoring.svc:9093").rstrip("/")
 RING0_BOARD_URL = os.getenv("RING0_BOARD_URL", "https://stephan271.github.io/smallworlds/")
 
 # Every source is read again this often. The page calls the Board stale when

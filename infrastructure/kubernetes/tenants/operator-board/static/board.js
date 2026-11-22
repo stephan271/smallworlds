@@ -74,8 +74,12 @@ function drawBanner() {
   state.className = `banner-state chip ${KIND[v.colour]}`;
   state.textContent = STATE_TEXT[v.colour] || v.colour;
   document.getElementById("banner-head").textContent = v.headline;
-  document.getElementById("reasons").replaceChildren(...v.reasons.map((r) =>
-    h("li", {}, dot(r.colour), h("span", {}, r.text, r.link ? " " : null, r.link ? link(r.link, "→ open") : null))));
+  const item = (colour, r, cls) => h("li", { class: cls || null }, dot(colour),
+    h("span", {}, r.text, r.link ? " " : null, r.link ? link(r.link, "→ open") : null));
+  document.getElementById("reasons").replaceChildren(
+    ...v.reasons.map((r) => item(r.colour, r)),
+    // Silenced or inhibited: shown so nothing is hidden, never counted.
+    ...(v.suppressed || []).map((r) => item("grey", { ...r, text: `silenced or inhibited: ${r.text}` }, "muted")));
   const notYet = v.not_yet && v.not_yet.length ? ` Not read yet: ${v.not_yet.join(", ")}.` : "";
   document.getElementById("coverage").textContent = `This verdict covers ${v.covers.join(", ")}.${notYet}`;
 }
@@ -106,7 +110,8 @@ function drawHub() {
 function card(app) {
   const kind = KIND[app.colour];
   const status = [dot(app.colour), app.health, app.sync !== "Synced" ? chip("wait", app.sync) : null,
-    app.running_minutes !== null ? chip("busy", `operation ${app.running_minutes} min`) : null];
+    app.running_minutes !== null ? chip("busy", `operation ${app.running_minutes} min`) : null,
+    ...(app.alerts || []).map((name) => chip("bad", `alert: ${name}`))];
   const body = [
     h("div", { class: "card-name" }, app.name),
     ROLES[app.name] ? h("div", { class: "card-role" }, ROLES[app.name]) : null,

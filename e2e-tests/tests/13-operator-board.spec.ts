@@ -9,7 +9,8 @@ import https from 'node:https';
  *   - the page and its state document load;
  *   - every tile and the verdict have a colour, and nothing the Board read
  *     from a source that did not answer is shown green;
- *   - nothing is red: this slice reads no alerts, and only an alert may be red;
+ *   - red appears only where an alert fires (ADR 0068), and the Board reached
+ *     Alertmanager and sees its Watchdog;
  *   - the link hub found Argo CD, Grafana, the Keycloak admin console and the
  *     Invitation Desk on their Ingresses, on this cluster's domain, and each
  *     answers on the same entrypoint;
@@ -56,7 +57,7 @@ test.describe('operator board', () => {
     expect((await request(BOARD, '/static/board.js')).status).toBe(200);
   });
 
-  test('the state document is coloured, honest and never red on its own', async () => {
+  test('the state document is coloured, honest, and red only where an alert fires', async () => {
     const answer = await request(BOARD, '/api/state');
     expect(answer.status).toBe(200);
     const state = JSON.parse(answer.body);
@@ -72,8 +73,20 @@ test.describe('operator board', () => {
         for (const tile of state.tiles) expect(tile.colour, `${tile.id} while ${name} failed`).not.toBe('green');
       }
     }
-    // Red comes from Alertmanager only, which this Board does not read yet.
-    expect(JSON.stringify(state)).not.toContain('"colour":"red"');
+    // Red comes from Alertmanager only: every red thing names a firing alert.
+    const firing = state.alerts.firing as any[];
+    if (state.verdict.colour === 'red') expect(firing.length, 'red verdict without an alert').toBeGreaterThan(0);
+    for (const reason of state.verdict.reasons) {
+      if (reason.colour === 'red') expect(firing.map((a) => a.name), reason.text).toContain(reason.text.split(' ')[0]);
+    }
+    for (const app of state.applications) {
+      if (app.colour === 'red') expect(app.alerts.length, `${app.name} is red without an alert`).toBeGreaterThan(0);
+    }
+    const alertsTile = state.tiles.find((t: any) => t.id === 'alerts');
+    if (alertsTile.colour === 'red') expect(firing.length).toBeGreaterThan(0);
+    // The Board reaches Alertmanager, and the pipeline behind it works.
+    expect(state.sources.alerts.ok, `Alertmanager: ${state.sources.alerts.error}`).toBe(true);
+    expect(state.alerts.watchdog, 'Watchdog is firing').toBe(true);
     expect(state.applications.map((a: any) => a.name)).toContain('operator-board');
   });
 
