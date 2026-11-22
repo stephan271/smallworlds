@@ -9,6 +9,7 @@ Unlike a static dashboard, this setup is completely dynamic.
 - **Cluster Role**: The `homepage-role` grants read and watch access to `namespaces`, `pods`, `services`, and `ingresses` across the entire cluster.
 - **Why?**: This allows the Homepage pod to scan the cluster for Ingress objects containing specific annotations (e.g., `gethomepage.dev/enabled: "true"`, `gethomepage.dev/group: "Applications"`). 
 - When a new tenant (like Immich or Nextcloud) is deployed, its Ingress contains these annotations, causing it to automatically appear on the dashboard without modifying the dashboard's configuration.
+- **Only things members open get a tile.** The dashboard has no sign-in, so every tile is shown to anyone who opens it. Services that are needed but are no place to start from — Headscale (`vpn.<domain>`), the Office editor (Euro-Office or Collabora on `office.<domain>`, reached through Nextcloud) and Keycloak (`identity.<domain>`) — carry `gethomepage.dev/enabled: "false"` on their Ingress instead.
 
 ### 2. No status data
 A `status-data` ConfigMap used to live here (`d314855`), meant for Hermes to patch with incidents for a status panel. Hermes never had the rights to write it and Homepage never read it; it was removed with Hermes (`docs/adr/0063`).

@@ -68,11 +68,10 @@ metadata:
     # Applications. Collabora is useless without Nextcloud anyway; if it syncs
     # first the route 404s until Nextcloud creates them.
     traefik.ingress.kubernetes.io/router.middlewares: nextcloud-edge-ratelimit@kubernetescrd,nextcloud-edge-headers@kubernetescrd
-    gethomepage.dev/enabled: "true"
-    gethomepage.dev/name: "Nextcloud Office"
-    gethomepage.dev/description: "Collabora Online Document Server"
-    gethomepage.dev/group: "Applications"
-    gethomepage.dev/icon: "collabora-online.png"
+    # No dashboard tile: the dashboard is open to everyone, and this is the
+    # editor behind Nextcloud's Office integration: members open documents from
+    # Files, and this address alone shows only the server's landing page.
+    gethomepage.dev/enabled: "false"
 spec:
   rules:
     - host: office.smallworlds.network

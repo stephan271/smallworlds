@@ -82,12 +82,10 @@ ingress:
     # login endpoints are the most attacked surface in the cluster and must stay
     # public: members authenticate from arbitrary networks.
     traefik.ingress.kubernetes.io/router.middlewares: keycloak-edge-ratelimit@kubernetescrd,keycloak-edge-headers@kubernetescrd,keycloak-keycloak-redirect@kubernetescrd
-    gethomepage.dev/enabled: "true"
-    gethomepage.dev/name: "Auth"
-    gethomepage.dev/description: "Keycloak"
-    gethomepage.dev/group: "Infrastructure"
-    gethomepage.dev/icon: "keycloak.png"
-    gethomepage.dev/pod-selector: "app.kubernetes.io/name=keycloakx"
+    # No dashboard tile: the dashboard is open to everyone, and this is the
+    # sign-in service: every application sends members here itself, and the
+    # realm root is no place to start from.
+    gethomepage.dev/enabled: "false"
   rules:
     - host: identity.smallworlds.network
       paths:

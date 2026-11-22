@@ -462,7 +462,7 @@ When adding a new application (tenant) to the SmallWorlds cluster, please ensure
 
 - **Pin Specific Versions**: Always use a specific, stable container image tag (e.g., `v2.4.1` or `24.04`) rather than `latest` in your Kubernetes manifests to ensure reproducible deployments.
 - **Add E2E Tests**: Write end-to-end smoke tests (using Playwright) in the `e2e-tests/tests` directory to verify the application's core functionality and SSO integration.
-- **Integrate with Dashboard**: Add Homepage annotations (e.g., `gethomepage.dev/enabled: "true"`) to the application's Ingress resource so it automatically appears in the user dashboard.
+- **Integrate with Dashboard**: Add Homepage annotations (e.g., `gethomepage.dev/enabled: "true"`) to the application's Ingress resource so it automatically appears in the user dashboard. Only for something members open in a browser: a backend reached through another app (like the Office editor) or by a client (like Headscale) gets `gethomepage.dev/enabled: "false"` instead.
 - **Make it Selectable**: Add the application's identifier to the `OPTIONAL_APPS` array in the `admin-tools/prepare-community-repo.sh` script so users can easily toggle its installation.
 - **Update the README Table**: Add the application to the "End User Applications" table in this README file, including a description and its source URL.
 - **Document the Implementation**: Add a descriptive markdown file (or update an existing one) in the `doc/` directory detailing the application's YAML manifests, configurations, and architecture.

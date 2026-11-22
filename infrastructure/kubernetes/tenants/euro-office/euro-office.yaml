@@ -102,11 +102,10 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     traefik.ingress.kubernetes.io/router.middlewares: nextcloud-edge-ratelimit@kubernetescrd,nextcloud-edge-headers@kubernetescrd
-    gethomepage.dev/enabled: "true"
-    gethomepage.dev/name: "Nextcloud Office"
-    gethomepage.dev/description: "Euro-Office Document Server"
-    gethomepage.dev/group: "Applications"
-    gethomepage.dev/icon: "mdi-file-document-edit-#2b6cb0"
+    # No dashboard tile: the dashboard is open to everyone, and this is the
+    # editor behind Nextcloud's Office integration: members open documents from
+    # Files, and this address alone shows only the server's landing page.
+    gethomepage.dev/enabled: "false"
 spec:
   rules:
     - host: office.smallworlds.network
