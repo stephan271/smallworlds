@@ -72,3 +72,34 @@ steps:
       After a Headscale restart the gateway can lose its connection for up to
       seven minutes; kubectl -n headscale rollout restart deploy/private-gateway
       brings it back at once.
+
+  - commit: 04a8c192fe978bfb115f3ab577dc1f72429e6987
+    when: after
+    title: Open the Operator Board at ops.<domain>
+    detail: |
+      Every cluster now runs the Operator Board (docs/adr/0068): one read-only
+      page on the Private Network that says whether the cluster is well and
+      links to every operator tool. Once this step is Healthy:
+        1. Create the DNS record ops.<domain> like your other names. Hetzner
+           target: run smallworlds-init.sh again. Local target with the DNS
+           job: add ops<ext> to RECORD_NAMES of the ddns CronJob,
+           kubectl -n ddns edit cronjob ddns (the next bootstrap adds it by
+           itself). Manual DNS: a wildcard record already covers it.
+        2. Add ops.<domain> to the operator line in /etc/hosts on every device
+           you administer from, next to deploy.<domain>, with the Private
+           Gateway's address.
+        3. Open https://ops.<domain>. From outside the tailnet it answers 403.
+
+  - commit: 04a8c192fe978bfb115f3ab577dc1f72429e6987
+    when: before
+    applies:
+      domain_not: smallworlds.network
+    title: Route the Operator Board to your overlay, or it answers on smallworlds.network
+    detail: |
+      The Operator Board's Ingresses name ops.smallworlds.network until your
+      overlay patches them. Before taking this step, run
+      admin-tools/prepare-community-repo.sh again for your overlay: it writes
+      an operator-board/ directory with your domain and the patch that routes
+      the operator-board Application there. Commit it as its own overlay
+      commit. The patch matches nothing until this step adds the Application,
+      so it is safe to commit first.
