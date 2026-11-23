@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-23T16:55:00Z",
+ "updated": "2026-11-23T16:57:07Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "45b48e5b91419b29bf3484427fb1b503530bc4ba",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-23T16:56:02Z"
  },
  "now": {
   "state": "updating",
@@ -19,9 +19,9 @@
     "repository"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "converge",
+  "step_since": "2026-11-23T16:56:59Z",
+  "started": "2026-11-23T16:56:01Z",
   "queued": [],
   "stuck": null,
   "action": "merged #176",
@@ -43,8 +43,8 @@
     "quay.io/jetstack/cert-manager-webhook:v1.21.3"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T16:36:54Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": -10
@@ -63,7 +63,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T16:36:19Z",
+    "finished": "2026-11-23T16:57:06Z",
     "message": null
    },
    "wave": -10
@@ -101,7 +101,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T16:36:17Z",
+    "finished": "2026-11-23T16:57:05Z",
     "message": null
    },
    "wave": -9
@@ -120,7 +120,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T16:36:19Z",
+    "finished": "2026-11-23T16:57:06Z",
     "message": null
    },
    "wave": -9
@@ -138,8 +138,8 @@
     "dxflrs/garage:v2.5.0"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T16:36:20Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": -5
@@ -157,8 +157,8 @@
     "dxflrs/garage:v2.5.0"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T16:36:22Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": -5
@@ -171,13 +171,13 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "47cd7585a4c75d9dd50a7f0ac6b32479338f22a3",
+   "revision": "45b48e5b91419b29bf3484427fb1b503530bc4ba",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T16:36:10Z",
+    "finished": "2026-11-23T16:56:58Z",
     "message": null
    },
    "wave": 0
@@ -196,7 +196,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T16:36:18Z",
+    "finished": "2026-11-23T16:57:04Z",
     "message": null
    },
    "wave": 0
@@ -214,9 +214,9 @@
     "ghcr.io/euro-office/documentserver:v9.3.4-hotfix.1@sha256:889e681923d2dcc8bdfb92fe128d10e185fcff880d302b6a0c0c7bf339499290"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T16:36:51Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of /ServiceAccount/euro-office-secret-init and 2 more resources"
    },
    "wave": 0
   },
@@ -234,8 +234,8 @@
     "docker.io/tailscale/tailscale:v1.104.7@sha256:72c1e19e0aedca96b8533bbb0b4368564410ff20b17e53b804eb6c1f04a31be4"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T16:36:48Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 0
@@ -256,8 +256,8 @@
     "quay.io/keycloak/keycloak@sha256:7e66a96e4739239070aeaf72e4c5decf0f7f682cfc725b9f7ea2b336eaba38b3"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T16:38:38Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 0
@@ -339,7 +339,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T16:35:48Z",
+    "finished": "2026-11-23T16:56:33Z",
     "message": null
    },
    "wave": 0
@@ -377,9 +377,9 @@
     "ghcr.io/bulwarkmail/webmail:1.21.3@sha256:54e914a229529fe90fd8f0ae3e9e97d671806ac09fbfe3f421a1c4fb14495a74"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T16:37:30Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of /ServiceAccount/setup-sa and 1 more resources"
    },
    "wave": 1
   },
@@ -391,13 +391,13 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "47cd7585a4c75d9dd50a7f0ac6b32479338f22a3",
+   "revision": "45b48e5b91419b29bf3484427fb1b503530bc4ba",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T16:36:22Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 1
@@ -416,7 +416,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T16:36:14Z",
+    "finished": "2026-11-23T16:57:01Z",
     "message": null
    },
    "wave": 1
@@ -439,8 +439,8 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T16:38:39Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 1
@@ -464,8 +464,8 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T16:38:43Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 1
@@ -487,8 +487,8 @@
     "ghcr.io/jitsi/web:stable-11509-1"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T16:37:31Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 1
@@ -506,8 +506,8 @@
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T16:38:34Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 1
@@ -614,7 +614,11 @@
    "cards": [
     "repository"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-23T16:56:02Z"
+   }
   },
   {
    "commit": "49fc6b449e0b570eb82a8f8a7d2c65b538a1de04",
