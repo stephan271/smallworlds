@@ -150,7 +150,12 @@ function cardFacts(name) {
   const other = data.pulls.filter((p) => !p.queued && !p.rejected && p.cards.includes(name));
   const changes = data.commits.filter((c) => c.cards.includes(name));
   const last = changes.find((c) => c.verdict && c.verdict.state !== "pending") || null;
-  return { name, app, checking, queued, rejected, other, changes, last };
+  // A rejected change that main kept and fixed forward was verified by the first
+  // green commit above it, in the tree it ended up in. Ring 0, 2026-11-22: 04a8c19
+  // was rejected, e0fe84f went green on top, and join and keycloak stayed red a day.
+  const above = last && last.verdict.state === "failure" ? data.commits.slice(0, data.commits.indexOf(last)) : [];
+  const fixedBy = above.reverse().find((c) => c.verdict && c.verdict.state === "success") || null;
+  return { name, app, checking, queued, rejected, other, changes, last, fixedBy };
 }
 
 function healthKind(app) {
@@ -162,7 +167,7 @@ function healthKind(app) {
 }
 
 function cardKind(f) {
-  if (healthKind(f.app) === "bad" || (f.last && f.last.verdict.state === "failure" && f.changes[0] === f.last)) return "bad";
+  if (healthKind(f.app) === "bad" || (f.last && f.last.verdict.state === "failure" && !f.fixedBy && f.changes[0] === f.last)) return "bad";
   if (f.checking) return "busy";
   if (f.queued.length || healthKind(f.app) === "wait") return "wait";
   return f.app ? healthKind(f.app) : "";
@@ -174,7 +179,12 @@ function cardFlags(f) {
   for (const p of f.queued) flags.push(chip("wait", `⏳ queued #${p.number}`, p.title));
   for (const p of f.rejected) flags.push(chip("bad", `✕ rejected #${p.number}`, p.title));
   for (const p of f.other) flags.push(chip("", `○ open #${p.number}`, `${p.title} (not in the merge queue)`));
-  if (f.last && !f.checking) {
+  if (f.last && !f.checking && f.fixedBy) {
+    const by = f.fixedBy.commit.slice(0, 7);
+    flags.push(chip("ok", `last change verified ${ago(f.fixedBy.verdict.date)} with ${by}`,
+      `${f.last.commit.slice(0, 7)} (${f.last.title}) was rejected alone; main fixed it forward, `
+      + `and ${by} (${f.fixedBy.title}) was verified with it`));
+  } else if (f.last && !f.checking) {
     const [kind, text] = VERDICT[f.last.verdict.state] || ["", f.last.verdict.state];
     flags.push(chip(kind, `last change ${text.slice(2)} ${ago(f.last.verdict.date)}`, f.last.title));
   }
