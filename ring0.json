@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-23T11:15:32Z",
+ "updated": "2026-11-23T11:32:13Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -985,6 +985,19 @@
    "title": "Update github actions (major)",
    "author": "renovate[bot]",
    "created": "2026-11-15T16:30:01Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "repository"
+   ]
+  },
+  {
+   "number": 173,
+   "title": "Ring 0 board: a rejected change fixed forward counts as verified",
+   "author": "stephan271",
+   "created": "2026-11-23T11:30:20Z",
    "draft": false,
    "queued": false,
    "rejected": false,
