@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-23T16:42:19Z",
+ "updated": "2026-11-23T16:46:31Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -19,8 +19,8 @@
     "jitsi"
    ]
   },
-  "step": "checks",
-  "step_since": "2026-11-23T16:41:25Z",
+  "step": "quiet",
+  "step_since": "2026-11-23T16:45:56Z",
   "started": "2026-11-23T16:35:13Z",
   "queued": [],
   "stuck": null,
@@ -986,6 +986,19 @@
    "title": "Update github actions (major)",
    "author": "renovate[bot]",
    "created": "2026-11-15T16:30:01Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "repository"
+   ]
+  },
+  {
+   "number": 177,
+   "title": "Operator docs for the Update Desk; the talk shows the Member Network",
+   "author": "stephan271",
+   "created": "2026-11-23T16:45:21Z",
    "draft": false,
    "queued": false,
    "rejected": false,
