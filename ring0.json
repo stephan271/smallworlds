@@ -1,40 +1,31 @@
 {
  "schema": 1,
- "updated": "2026-11-23T12:57:52Z",
+ "updated": "2026-11-23T13:02:04Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "439bf7a54653bc6a97efe7230079aaae1c129254",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-23T12:46:09Z"
+  "commit": "abdac20510340757b57079a25c1802542c2bb9a6",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "439bf7a54653bc6a97efe7230079aaae1c129254",
+  "commit": "abdac20510340757b57079a25c1802542c2bb9a6",
   "pull": {
-   "number": 173,
-   "title": "Ring 0 board: a rejected change fixed forward counts as verified",
+   "number": 174,
+   "title": "Update Helm chart kube-prometheus-stack to v93.6.0 (#174)",
    "cards": [
-    "repository"
+    "kube-prometheus-stack"
    ]
   },
-  "step": "quiet",
-  "step_since": "2026-11-23T12:56:00Z",
-  "started": "2026-11-23T12:46:09Z",
-  "queued": [
-   {
-    "number": 174,
-    "title": "Update Helm chart kube-prometheus-stack to v93.6.0",
-    "cards": [
-     "kube-prometheus-stack"
-    ],
-    "since": "2026-11-23T12:44:54Z"
-   }
-  ],
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
+  "queued": [],
   "stuck": null,
-  "action": "merged #172",
-  "waiting": "no queued update is ready"
+  "action": "merged #174",
+  "waiting": null
  },
  "applications": [
   {
@@ -615,6 +606,17 @@
  ],
  "commits": [
   {
+   "commit": "abdac20510340757b57079a25c1802542c2bb9a6",
+   "title": "Update Helm chart kube-prometheus-stack to v93.6.0 (#174)",
+   "author": "renovate[bot]",
+   "date": "2026-11-23T13:01:05Z",
+   "pull": 174,
+   "cards": [
+    "kube-prometheus-stack"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "439bf7a54653bc6a97efe7230079aaae1c129254",
    "title": "Ring 0 board: a rejected change fixed forward counts as verified",
    "author": "stephan271",
@@ -624,9 +626,9 @@
     "repository"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-23T12:46:09Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-23T13:01:00Z"
    }
   },
   {
@@ -955,25 +957,6 @@
     "repository"
    ],
    "verdict": null
-  },
-  {
-   "commit": "3eadc13e9b37bc86195ae0b08ca106000ec393be",
-   "title": "Dashboard: hide the Headscale, Office and Keycloak tiles",
-   "author": "stephan271",
-   "date": "2026-11-22T12:22:54Z",
-   "pull": 160,
-   "cards": [
-    "collabora",
-    "euro-office",
-    "headscale",
-    "keycloak",
-    "repository"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
-    "date": "2026-11-22T12:41:59Z"
-   }
   }
  ],
  "pulls": [
@@ -1001,21 +984,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 174,
-   "title": "Update Helm chart kube-prometheus-stack to v93.6.0",
-   "author": "renovate[bot]",
-   "created": "2026-11-23T12:44:54Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "kube-prometheus-stack"
    ]
   }
  ]
