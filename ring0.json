@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-23T05:49:44Z",
+ "updated": "2026-11-23T05:51:50Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -10,13 +10,22 @@
   "date": "2026-11-22T19:37:40Z"
  },
  "now": {
-  "state": "up-to-date",
+  "state": "updating",
   "commit": "a318b08c79fc9c6d60d8a866aa398e9cfe52095a",
   "pull": null,
-  "step": null,
+  "step": "merge",
   "step_since": null,
   "started": null,
-  "queued": [],
+  "queued": [
+   {
+    "number": 170,
+    "title": "Update docker.io/postgres to v19 (Immich pod-export psql client)",
+    "cards": [
+     "immich"
+    ],
+    "since": "2026-11-23T05:51:29Z"
+   }
+  ],
   "stuck": null,
   "action": "not reverted: restore from the pre-update backup",
   "waiting": "no queued update is ready"
@@ -998,6 +1007,22 @@
     "ring0-major",
     "steward-prepare-4bc0c3c375",
     "steward-prepare-406643b22f"
+   ],
+   "cards": [
+    "immich"
+   ]
+  },
+  {
+   "number": 170,
+   "title": "Update docker.io/postgres to v19 (Immich pod-export psql client)",
+   "author": "smallworlds-steward[bot]",
+   "created": "2026-11-23T05:51:29Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue",
+    "steward"
    ],
    "cards": [
     "immich"
