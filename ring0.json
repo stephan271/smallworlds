@@ -1,42 +1,31 @@
 {
  "schema": 1,
- "updated": "2026-11-23T16:25:22Z",
+ "updated": "2026-11-23T16:31:41Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "11562b29553f7b7e59d5ebf9261bc182b840013e",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-23T16:13:16Z"
+  "commit": "47cd7585a4c75d9dd50a7f0ac6b32479338f22a3",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "11562b29553f7b7e59d5ebf9261bc182b840013e",
+  "commit": "47cd7585a4c75d9dd50a7f0ac6b32479338f22a3",
   "pull": {
-   "number": 175,
-   "title": "Close three gaps found turning the Member Network on for Ring 1",
+   "number": 176,
+   "title": "Update Helm chart jitsi-meet to v3.14.0 (#176)",
    "cards": [
-    "join",
-    "member-network",
-    "repository"
+    "jitsi"
    ]
   },
-  "step": "quiet",
-  "step_since": "2026-11-23T16:25:01Z",
-  "started": "2026-11-23T16:13:16Z",
-  "queued": [
-   {
-    "number": 176,
-    "title": "Update Helm chart jitsi-meet to v3.14.0",
-    "cards": [
-     "jitsi"
-    ],
-    "since": "2026-11-23T16:13:40Z"
-   }
-  ],
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
+  "queued": [],
   "stuck": null,
-  "action": "merged #174",
-  "waiting": "no queued update is ready"
+  "action": "merged #176",
+  "waiting": null
  },
  "applications": [
   {
@@ -617,6 +606,17 @@
  ],
  "commits": [
   {
+   "commit": "47cd7585a4c75d9dd50a7f0ac6b32479338f22a3",
+   "title": "Update Helm chart jitsi-meet to v3.14.0 (#176)",
+   "author": "renovate[bot]",
+   "date": "2026-11-23T16:30:08Z",
+   "pull": 176,
+   "cards": [
+    "jitsi"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "11562b29553f7b7e59d5ebf9261bc182b840013e",
    "title": "Close three gaps found turning the Member Network on for Ring 1",
    "author": "stephan271",
@@ -628,9 +628,9 @@
     "repository"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-23T16:13:16Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 3 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-23T16:30:01Z"
    }
   },
   {
@@ -961,21 +961,6 @@
     "smallworlds-root"
    ],
    "verdict": null
-  },
-  {
-   "commit": "3c939d420e4e9aa3f8d2d4400e15595853d2b7cf",
-   "title": "Merge branch 'main' of github.com:stephan271/smallworlds",
-   "author": "stephan271",
-   "date": "2026-11-22T14:52:11Z",
-   "pull": null,
-   "cards": [
-    "repository"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-22T15:23:11Z"
-   }
   }
  ],
  "pulls": [
@@ -1003,21 +988,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 176,
-   "title": "Update Helm chart jitsi-meet to v3.14.0",
-   "author": "renovate[bot]",
-   "created": "2026-11-23T16:13:40Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "jitsi"
    ]
   }
  ]
