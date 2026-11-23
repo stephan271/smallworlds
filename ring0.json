@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-23T05:41:23Z",
+ "updated": "2026-11-23T05:49:44Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -984,6 +984,23 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 129,
+   "title": "Update Docker image docker.io/postgres to v19",
+   "author": "renovate[bot]",
+   "created": "2026-11-18T06:00:09Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [
+    "ring0-major",
+    "steward-prepare-4bc0c3c375",
+    "steward-prepare-406643b22f"
+   ],
+   "cards": [
+    "immich"
    ]
   }
  ]
