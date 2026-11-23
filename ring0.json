@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-23T08:55:39Z",
+ "updated": "2026-11-23T08:57:45Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "920c515e1b5c8e2715f0846a6b3e90d056999d0d",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-23T08:57:09Z"
  },
  "now": {
   "state": "updating",
@@ -19,9 +19,9 @@
     "kube-prometheus-stack"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-23T08:57:10Z",
+  "started": "2026-11-23T08:57:09Z",
   "queued": [],
   "stuck": null,
   "action": "merged #172",
@@ -266,13 +266,14 @@
    "name": "kube-prometheus-stack",
    "group": "platform",
    "health": "Healthy",
-   "sync": "Synced",
+   "sync": "OutOfSync",
    "source": "chart",
    "chart": "kube-prometheus-stack",
-   "version": "93.4.1",
+   "version": "93.5.0",
    "revision": null,
    "images": [
     "docker.io/grafana/grafana:13.3.1-distroless",
+    "ghcr.io/jkroepke/kube-webhook-certgen:1.11.1",
     "quay.io/kiwigrid/k8s-sidecar:2.14.3",
     "quay.io/prometheus-operator/prometheus-config-reloader:v0.95.2",
     "quay.io/prometheus-operator/prometheus-operator:v0.95.2",
@@ -282,9 +283,9 @@
     "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.20.0"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T08:39:44Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/kube-prometheus-stack-admission-create"
    },
    "wave": 0
   },
@@ -338,9 +339,9 @@
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T08:37:35Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of /Namespace/bulwark and 27 more resources"
    },
    "wave": 0
   },
@@ -352,7 +353,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "eaba7ae848f07fa944f489b7275da8bb9e7a235a",
+   "revision": "920c515e1b5c8e2715f0846a6b3e90d056999d0d",
    "images": [
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
@@ -391,7 +392,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "eaba7ae848f07fa944f489b7275da8bb9e7a235a",
+   "revision": "920c515e1b5c8e2715f0846a6b3e90d056999d0d",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
@@ -614,7 +615,11 @@
    "cards": [
     "kube-prometheus-stack"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-23T08:57:09Z"
+   }
   },
   {
    "commit": "eaba7ae848f07fa944f489b7275da8bb9e7a235a",
