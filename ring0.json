@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-23T16:33:49Z",
+ "updated": "2026-11-23T16:35:57Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "47cd7585a4c75d9dd50a7f0ac6b32479338f22a3",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-23T16:35:13Z"
  },
  "now": {
   "state": "updating",
@@ -19,9 +19,9 @@
     "jitsi"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-23T16:35:14Z",
+  "started": "2026-11-23T16:35:13Z",
   "queued": [],
   "stuck": null,
   "action": "merged #176",
@@ -114,7 +114,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "11562b29553f7b7e59d5ebf9261bc182b840013e",
+   "revision": "47cd7585a4c75d9dd50a7f0ac6b32479338f22a3",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
@@ -339,7 +339,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T16:13:48Z",
+    "finished": "2026-11-23T16:35:48Z",
     "message": null
    },
    "wave": 0
@@ -614,7 +614,11 @@
    "cards": [
     "jitsi"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-23T16:35:13Z"
+   }
   },
   {
    "commit": "11562b29553f7b7e59d5ebf9261bc182b840013e",
