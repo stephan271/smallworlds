@@ -1,31 +1,31 @@
 {
  "schema": 1,
- "updated": "2026-11-23T16:46:31Z",
+ "updated": "2026-11-23T16:52:52Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "47cd7585a4c75d9dd50a7f0ac6b32479338f22a3",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-23T16:35:13Z"
+  "commit": "45b48e5b91419b29bf3484427fb1b503530bc4ba",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "47cd7585a4c75d9dd50a7f0ac6b32479338f22a3",
+  "commit": "45b48e5b91419b29bf3484427fb1b503530bc4ba",
   "pull": {
-   "number": 176,
-   "title": "Update Helm chart jitsi-meet to v3.14.0 (#176)",
+   "number": 177,
+   "title": "Operator docs for the Update Desk; the talk shows the Member Network",
    "cards": [
-    "jitsi"
+    "repository"
    ]
   },
-  "step": "quiet",
-  "step_since": "2026-11-23T16:45:56Z",
-  "started": "2026-11-23T16:35:13Z",
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #176",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -606,6 +606,50 @@
  ],
  "commits": [
   {
+   "commit": "45b48e5b91419b29bf3484427fb1b503530bc4ba",
+   "title": "Operator docs for the Update Desk; the talk shows the Member Network",
+   "author": "stephan271",
+   "date": "2026-11-23T16:52:25Z",
+   "pull": 177,
+   "cards": [
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "49fc6b449e0b570eb82a8f8a7d2c65b538a1de04",
+   "title": "Point the README at the updated talk (d3ba9b4)",
+   "author": "stephan271",
+   "date": "2026-11-23T16:45:04Z",
+   "pull": null,
+   "cards": [
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "d3ba9b426c5bc8325007c78c276b3a7552f89a9e",
+   "title": "Talk: show the Member Network beside the operators' private network",
+   "author": "stephan271",
+   "date": "2026-11-23T16:45:04Z",
+   "pull": null,
+   "cards": [
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "7448c4a156d04f9fb0f2f0fa3ebb5a5488e63d89",
+   "title": "Tell Operators how to take updates with the Update Desk",
+   "author": "stephan271",
+   "date": "2026-11-23T16:45:04Z",
+   "pull": null,
+   "cards": [
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "47cd7585a4c75d9dd50a7f0ac6b32479338f22a3",
    "title": "Update Helm chart jitsi-meet to v3.14.0 (#176)",
    "author": "renovate[bot]",
@@ -615,9 +659,9 @@
     "jitsi"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-23T16:35:13Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 3 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-23T16:50:56Z"
    }
   },
   {
@@ -903,68 +947,6 @@
     "repository"
    ],
    "verdict": null
-  },
-  {
-   "commit": "e0fe84f4acd13ce266fc73a16c6457476a69aeb3",
-   "title": "Operator steps for the Operator Board (04a8c19); fix-forward for Ring 0",
-   "author": "stephan271",
-   "date": "2026-11-22T16:10:48Z",
-   "pull": 163,
-   "cards": [
-    "smallworlds-root"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-22T16:28:56Z"
-   }
-  },
-  {
-   "commit": "42f426fed0eccd42522d7f88357b5d217a7a57b2",
-   "title": "Operator steps for the Operator Board (04a8c19)",
-   "author": "stephan271",
-   "date": "2026-11-22T16:07:12Z",
-   "pull": null,
-   "cards": [
-    "smallworlds-root"
-   ],
-   "verdict": null
-  },
-  {
-   "commit": "04a8c192fe978bfb115f3ab577dc1f72429e6987",
-   "title": "Operator Board, slice 01: tenant, router pair, links and Applications",
-   "author": "stephan271",
-   "date": "2026-11-22T15:57:55Z",
-   "pull": 162,
-   "cards": [
-    "canary-follower",
-    "join",
-    "keycloak",
-    "operator-board",
-    "repository",
-    "smallworlds-root"
-   ],
-   "verdict": {
-    "state": "failure",
-    "description": "Smoke failed: ops.smallworlds.network: URLError: <urlopen error [Errno -2] Name or service not known>; touches keycloak: restore, do not re\u2026",
-    "date": "2026-11-22T16:04:20Z"
-   }
-  },
-  {
-   "commit": "3a7f6633dfbf5f9d49f80ac5b907dff1eedea2c9",
-   "title": "Operator Board, slice 01: tenant, router pair, links and Applications",
-   "author": "stephan271",
-   "date": "2026-11-22T15:54:24Z",
-   "pull": null,
-   "cards": [
-    "canary-follower",
-    "join",
-    "keycloak",
-    "operator-board",
-    "repository",
-    "smallworlds-root"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -986,19 +968,6 @@
    "title": "Update github actions (major)",
    "author": "renovate[bot]",
    "created": "2026-11-15T16:30:01Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "repository"
-   ]
-  },
-  {
-   "number": 177,
-   "title": "Operator docs for the Update Desk; the talk shows the Member Network",
-   "author": "stephan271",
-   "created": "2026-11-23T16:45:21Z",
    "draft": false,
    "queued": false,
    "rejected": false,
