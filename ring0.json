@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-23T06:14:54Z",
+ "updated": "2026-11-23T06:19:05Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -23,7 +23,7 @@
    "summary": "Checks failed: e2e 51 passed, 1 failed, 1 flaky, 12 skipped; data: nextcloud: anna's Projekte/\u00dcbersicht 2026.md is gone or changed (HTTP 50\u2026"
   },
   "action": "not reverted: restore from the pre-update backup",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
