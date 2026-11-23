@@ -650,6 +650,15 @@ class FollowerTest(unittest.TestCase):
         self.assertEqual("success", outcome.state)
         self.assertEqual([outcome], follower.incidents.reviewed)
 
+    def test_a_green_reverification_replaces_the_rejections_action(self):
+        # Ring 0, 2026-11-23: green again at 06:37, and the board still said
+        # "not reverted: restore from the pre-update backup".
+        follower, gh, kube, _ = make(statuses={SHA: "failure"})
+        follower.last_action = "not reverted: restore from the pre-update backup"
+        follower.incidents = FakeIncidents(reverify=SHA)
+        follower.tick()
+        self.assertEqual("verified again after the Ring 0 Steward acted: green", follower.last_action)
+
     def test_a_stuck_red_head_merges_only_the_stewards_fix(self):
         follower, gh, kube, _ = make(statuses={SHA: "failure"})
         calls = []
