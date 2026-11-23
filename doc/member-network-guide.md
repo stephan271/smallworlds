@@ -130,4 +130,29 @@ from the Tailscale app.
   the Keycloak admin console, and `member-reconciler` takes the devices off the
   Member Network within five minutes (`docs/adr/0066`). Disabling the account
   keeps the devices.
+- **Joining the Member Network yourself.** On your own computer, your
+  `/etc/hosts` line from `setup-vpn.sh` points `identity.<domain>` (and the
+  other operator hostnames) at the Private Gateway. The Private Gateway is on the
+  Private Network, and a device on the Member Network cannot reach it. While the
+  Member Network is active, that line sends every sign-in nowhere: the
+  `tailscale login` above never gets past the sign-in page, and the applications
+  cannot sign you in either. Staying on the Private Network does not help:
+  with the Member Network on, the member applications answer only on the
+  Member Network, so you get `404` from the Private Gateway too. Switch both
+  together:
+
+  ```bash
+  # to the Member Network: put a # in front of the hosts line first, then
+  sudo tailscale login --login-server=https://network.<domain>   # first time
+  sudo tailscale switch network.<domain>                          # afterwards
+
+  # back to the Private Network: switch first, then remove the # again
+  sudo tailscale switch vpn.<domain>
+  ```
+
+  `tailscale switch --list` shows the names. Restart the browser fully after
+  each switch, or it keeps its connection to the old address and answers
+  `404` or `403`. Your passkey can stay on your phone: on the sign-in page,
+  choose to use another device and scan the QR code with the phone. The
+  computer needs Bluetooth for that.
 - **How it is built:** `docs/adr/0066` and `doc/hardening.md` §1.
