@@ -1,31 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-23T09:10:22Z",
+ "updated": "2026-11-23T09:14:33Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "920c515e1b5c8e2715f0846a6b3e90d056999d0d",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-23T08:57:09Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 3 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+  "date": "2026-11-23T09:13:31Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "920c515e1b5c8e2715f0846a6b3e90d056999d0d",
-  "pull": {
-   "number": 172,
-   "title": "Update Helm chart kube-prometheus-stack to v93.5.0 (#172)",
-   "cards": [
-    "kube-prometheus-stack"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-23T09:08:31Z",
-  "started": "2026-11-23T08:57:09Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #172",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -615,9 +609,9 @@
     "kube-prometheus-stack"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-23T08:57:09Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 3 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-23T09:13:31Z"
    }
   },
   {
