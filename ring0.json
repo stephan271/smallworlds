@@ -1,39 +1,30 @@
 {
  "schema": 1,
- "updated": "2026-11-23T08:47:13Z",
+ "updated": "2026-11-23T08:53:32Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "eaba7ae848f07fa944f489b7275da8bb9e7a235a",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-23T08:36:22Z"
+  "commit": "920c515e1b5c8e2715f0846a6b3e90d056999d0d",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "eaba7ae848f07fa944f489b7275da8bb9e7a235a",
+  "commit": "920c515e1b5c8e2715f0846a6b3e90d056999d0d",
   "pull": {
-   "number": 171,
-   "title": "Ring 0 board: read the head's verdict fresh after the Steward re-verifies",
+   "number": 172,
+   "title": "Update Helm chart kube-prometheus-stack to v93.5.0 (#172)",
    "cards": [
-    "canary-follower"
+    "kube-prometheus-stack"
    ]
   },
-  "step": "quiet",
-  "step_since": "2026-11-23T08:46:59Z",
-  "started": "2026-11-23T08:36:22Z",
-  "queued": [
-   {
-    "number": 172,
-    "title": "Update Helm chart kube-prometheus-stack to v93.5.0",
-    "cards": [
-     "kube-prometheus-stack"
-    ],
-    "since": "2026-11-23T08:33:37Z"
-   }
-  ],
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
+  "queued": [],
   "stuck": null,
-  "action": null,
+  "action": "merged #172",
   "waiting": null
  },
  "applications": [
@@ -615,6 +606,17 @@
  ],
  "commits": [
   {
+   "commit": "920c515e1b5c8e2715f0846a6b3e90d056999d0d",
+   "title": "Update Helm chart kube-prometheus-stack to v93.5.0 (#172)",
+   "author": "renovate[bot]",
+   "date": "2026-11-23T08:52:04Z",
+   "pull": 172,
+   "cards": [
+    "kube-prometheus-stack"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "eaba7ae848f07fa944f489b7275da8bb9e7a235a",
    "title": "Ring 0 board: read the head's verdict fresh after the Steward re-verifies",
    "author": "stephan271",
@@ -624,9 +626,9 @@
     "canary-follower"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-23T08:36:22Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-23T08:52:00Z"
    }
   },
   {
@@ -964,17 +966,6 @@
     "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
     "date": "2026-11-22T12:16:55Z"
    }
-  },
-  {
-   "commit": "f0cb27ff7d58797f41667024fdf67d7f5812aeb7",
-   "title": "Operator step: a browser that still shows Forbidden keeps its old connection",
-   "author": "stephan271",
-   "date": "2026-11-22T10:46:43Z",
-   "pull": null,
-   "cards": [
-    "smallworlds-root"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -1002,21 +993,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 172,
-   "title": "Update Helm chart kube-prometheus-stack to v93.5.0",
-   "author": "renovate[bot]",
-   "created": "2026-11-23T08:33:37Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "kube-prometheus-stack"
    ]
   }
  ]
