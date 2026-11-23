@@ -1,22 +1,39 @@
 {
  "schema": 1,
- "updated": "2026-11-23T15:39:04Z",
+ "updated": "2026-11-23T16:14:44Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "abdac20510340757b57079a25c1802542c2bb9a6",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-23T13:21:03Z"
+  "commit": "11562b29553f7b7e59d5ebf9261bc182b840013e",
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-23T16:13:16Z"
  },
  "now": {
-  "state": "up-to-date",
-  "commit": "abdac20510340757b57079a25c1802542c2bb9a6",
-  "pull": null,
-  "step": null,
-  "step_since": null,
-  "started": null,
-  "queued": [],
+  "state": "updating",
+  "commit": "11562b29553f7b7e59d5ebf9261bc182b840013e",
+  "pull": {
+   "number": 175,
+   "title": "Close three gaps found turning the Member Network on for Ring 1",
+   "cards": [
+    "join",
+    "member-network",
+    "repository"
+   ]
+  },
+  "step": "converge",
+  "step_since": "2026-11-23T16:14:14Z",
+  "started": "2026-11-23T16:13:16Z",
+  "queued": [
+   {
+    "number": 176,
+    "title": "Update Helm chart jitsi-meet to v3.14.0",
+    "cards": [
+     "jitsi"
+    ],
+    "since": "2026-11-23T16:13:40Z"
+   }
+  ],
   "stuck": null,
   "action": "merged #174",
   "waiting": "no queued update is ready"
@@ -37,9 +54,9 @@
     "quay.io/jetstack/cert-manager-webhook:v1.21.3"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T13:07:49Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/cert-manager-startupapicheck"
    },
    "wave": -10
   },
@@ -57,7 +74,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T13:07:22Z",
+    "finished": "2026-11-23T16:14:20Z",
     "message": null
    },
    "wave": -10
@@ -76,7 +93,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T13:07:27Z",
+    "finished": "2026-11-23T16:14:32Z",
     "message": null
    },
    "wave": -10
@@ -95,7 +112,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T13:07:22Z",
+    "finished": "2026-11-23T16:14:19Z",
     "message": null
    },
    "wave": -9
@@ -108,13 +125,13 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "abdac20510340757b57079a25c1802542c2bb9a6",
+   "revision": "11562b29553f7b7e59d5ebf9261bc182b840013e",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T13:07:22Z",
+    "finished": "2026-11-23T16:14:19Z",
     "message": null
    },
    "wave": -9
@@ -133,7 +150,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T13:07:25Z",
+    "finished": "2026-11-23T16:14:21Z",
     "message": null
    },
    "wave": -5
@@ -152,7 +169,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T13:07:27Z",
+    "finished": "2026-11-23T16:14:23Z",
     "message": null
    },
    "wave": -5
@@ -165,13 +182,13 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "abdac20510340757b57079a25c1802542c2bb9a6",
+   "revision": "11562b29553f7b7e59d5ebf9261bc182b840013e",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T13:07:16Z",
+    "finished": "2026-11-23T16:14:14Z",
     "message": null
    },
    "wave": 0
@@ -190,7 +207,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T13:07:22Z",
+    "finished": "2026-11-23T16:14:19Z",
     "message": null
    },
    "wave": 0
@@ -205,12 +222,13 @@
    "version": null,
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/euro-office/documentserver:v9.3.4-hotfix.1@sha256:889e681923d2dcc8bdfb92fe128d10e185fcff880d302b6a0c0c7bf339499290"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T13:07:44Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/euro-office-secret-init"
    },
    "wave": 0
   },
@@ -229,7 +247,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T13:07:44Z",
+    "finished": "2026-11-23T16:14:44Z",
     "message": null
    },
    "wave": 0
@@ -250,9 +268,9 @@
     "quay.io/keycloak/keycloak@sha256:7e66a96e4739239070aeaf72e4c5decf0f7f682cfc725b9f7ea2b336eaba38b3"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T13:09:34Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for deletion of hook /ServiceAccount/pre-update-backup and 2 more hooks"
    },
    "wave": 0
   },
@@ -276,8 +294,8 @@
     "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.20.0"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T13:08:47Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 0
@@ -297,7 +315,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T13:07:33Z",
+    "finished": "2026-11-23T16:14:30Z",
     "message": null
    },
    "wave": 0
@@ -316,7 +334,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T13:07:34Z",
+    "finished": "2026-11-23T16:14:31Z",
     "message": null
    },
    "wave": 0
@@ -324,7 +342,7 @@
   {
    "name": "smallworlds-root",
    "group": "machinery",
-   "health": "Healthy",
+   "health": "Progressing",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -333,7 +351,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T13:06:47Z",
+    "finished": "2026-11-23T16:13:48Z",
     "message": null
    },
    "wave": 0
@@ -346,15 +364,15 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "abdac20510340757b57079a25c1802542c2bb9a6",
+   "revision": "11562b29553f7b7e59d5ebf9261bc182b840013e",
    "images": [
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T13:08:23Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook rbac.authorization.k8s.io/ClusterRole/velero-upgrade-crds"
    },
    "wave": 0
   },
@@ -368,12 +386,13 @@
    "version": null,
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/bulwarkmail/webmail:1.21.3@sha256:54e914a229529fe90fd8f0ae3e9e97d671806ac09fbfe3f421a1c4fb14495a74"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T13:08:13Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -385,13 +404,13 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "abdac20510340757b57079a25c1802542c2bb9a6",
+   "revision": "11562b29553f7b7e59d5ebf9261bc182b840013e",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T13:07:27Z",
+    "finished": "2026-11-23T16:14:23Z",
     "message": null
    },
    "wave": 1
@@ -410,7 +429,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T13:07:19Z",
+    "finished": "2026-11-23T16:14:17Z",
     "message": null
    },
    "wave": 1
@@ -433,9 +452,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T13:09:32Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for deletion of hook /ServiceAccount/pre-update-backup and 2 more hooks"
    },
    "wave": 1
   },
@@ -458,9 +477,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T13:09:39Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for deletion of hook /ServiceAccount/pre-update-backup and 2 more hooks"
    },
    "wave": 1
   },
@@ -474,6 +493,7 @@
    "version": null,
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/jitsi-contrib/jitsi-oidc-adapter:v20260328@sha256:c4a28b215f5ea4893e308cd3f15b1f1c6954231ab784cac6362f420e6648a745",
     "ghcr.io/jitsi/jicofo:stable-11509",
     "ghcr.io/jitsi/jvb:stable-11509",
@@ -481,9 +501,9 @@
     "ghcr.io/jitsi/web:stable-11509"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T13:08:17Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -497,12 +517,13 @@
    "version": null,
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T13:09:28Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -521,9 +542,9 @@
     "docker.io/tailscale/tailscale:v1.104.7@sha256:72c1e19e0aedca96b8533bbb0b4368564410ff20b17e53b804eb6c1f04a31be4"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T13:09:31Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -546,9 +567,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T13:09:44Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for deletion of hook /ServiceAccount/pre-update-backup and 2 more hooks"
    },
    "wave": 1
   },
@@ -562,12 +583,13 @@
    "version": null,
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T13:08:03Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/garage-init"
    },
    "wave": 1
   },
@@ -591,14 +613,55 @@
     "stalwartlabs/stalwart:v1.1.1@sha256:544760db45608ef39d969eca7cfc040af771a0825cdf5c673935825abe3fad0f"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T13:09:08Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for deletion of hook /ServiceAccount/pre-update-backup and 2 more hooks"
    },
    "wave": 1
   }
  ],
  "commits": [
+  {
+   "commit": "11562b29553f7b7e59d5ebf9261bc182b840013e",
+   "title": "Close three gaps found turning the Member Network on for Ring 1",
+   "author": "stephan271",
+   "date": "2026-11-23T16:12:39Z",
+   "pull": 175,
+   "cards": [
+    "join",
+    "member-network",
+    "repository"
+   ],
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-23T16:13:16Z"
+   }
+  },
+  {
+   "commit": "2c1a274e1dec834ce079a505db4d37500a8ae6da",
+   "title": "Document the Desk's Member Network message in doc/tenant-join.md",
+   "author": "stephan271",
+   "date": "2026-11-23T15:37:12Z",
+   "pull": null,
+   "cards": [
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "4ebc114fd1c7d983105017c33cb2c597dc43480e",
+   "title": "Close three gaps found turning the Member Network on for Ring 1",
+   "author": "stephan271",
+   "date": "2026-11-23T15:36:51Z",
+   "pull": null,
+   "cards": [
+    "join",
+    "member-network",
+    "repository"
+   ],
+   "verdict": null
+  },
   {
    "commit": "abdac20510340757b57079a25c1802542c2bb9a6",
    "title": "Update Helm chart kube-prometheus-stack to v93.6.0 (#174)",
@@ -918,43 +981,6 @@
     "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
     "date": "2026-11-22T15:23:11Z"
    }
-  },
-  {
-   "commit": "d24af40a3cabbcba97b46fe075ffa23106c4ffcc",
-   "title": "Add some screenshots",
-   "author": "stephan271",
-   "date": "2026-11-22T14:51:25Z",
-   "pull": null,
-   "cards": [
-    "repository"
-   ],
-   "verdict": null
-  },
-  {
-   "commit": "2d16a8eeb74050f9139dbd2ddbd3fec79f1101d4",
-   "title": "Propose a read-only Operator Board (ADR 0068)",
-   "author": "stephan271",
-   "date": "2026-11-22T14:44:22Z",
-   "pull": 161,
-   "cards": [
-    "repository"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-22T15:03:02Z"
-   }
-  },
-  {
-   "commit": "ed5b24b0a35d0e5ab0d6dc730e5114a9b9e49881",
-   "title": "Propose a read-only Operator Board (ADR 0068)",
-   "author": "stephan271",
-   "date": "2026-11-22T14:43:13Z",
-   "pull": null,
-   "cards": [
-    "repository"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -985,18 +1011,18 @@
    ]
   },
   {
-   "number": 175,
-   "title": "Close three gaps found turning the Member Network on for Ring 1",
-   "author": "stephan271",
-   "created": "2026-11-23T15:37:16Z",
+   "number": 176,
+   "title": "Update Helm chart jitsi-meet to v3.14.0",
+   "author": "renovate[bot]",
+   "created": "2026-11-23T16:13:40Z",
    "draft": false,
-   "queued": false,
+   "queued": true,
    "rejected": false,
-   "labels": [],
+   "labels": [
+    "ring0-queue"
+   ],
    "cards": [
-    "join",
-    "member-network",
-    "repository"
+    "jitsi"
    ]
   }
  ]
