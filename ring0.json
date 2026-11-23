@@ -1,28 +1,24 @@
 {
  "schema": 1,
- "updated": "2026-11-23T07:38:16Z",
+ "updated": "2026-11-23T08:30:08Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "70bbafc092def79c66788e90a151c9e04e02bada",
-  "state": "failure",
-  "description": "Checks failed: e2e 51 passed, 1 failed, 1 flaky, 12 skipped; data: nextcloud: anna's Projekte/\u00dcbersicht 2026.md is gone or changed (HTTP 50\u2026",
-  "date": "2026-11-23T06:13:10Z"
+  "state": "success",
+  "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
+  "date": "2026-11-23T06:37:44Z"
  },
  "now": {
-  "state": "stuck",
+  "state": "up-to-date",
   "commit": "70bbafc092def79c66788e90a151c9e04e02bada",
   "pull": null,
   "step": null,
   "step_since": null,
   "started": null,
   "queued": [],
-  "stuck": {
-   "condition": "S1",
-   "since": "2026-11-23T06:13:10Z",
-   "summary": "Checks failed: e2e 51 passed, 1 failed, 1 flaky, 12 skipped; data: nextcloud: anna's Projekte/\u00dcbersicht 2026.md is gone or changed (HTTP 50\u2026"
-  },
-  "action": "not reverted: restore from the pre-update backup",
+  "stuck": null,
+  "action": null,
   "waiting": "no queued update is ready"
  },
  "applications": [
@@ -328,7 +324,7 @@
   {
    "name": "smallworlds-root",
    "group": "machinery",
-   "health": "Healthy",
+   "health": "Progressing",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -384,7 +380,7 @@
   {
    "name": "canary-follower",
    "group": "machinery",
-   "health": "Healthy",
+   "health": "Progressing",
    "sync": "Synced",
    "source": "base",
    "chart": null,
@@ -613,9 +609,9 @@
     "immich"
    ],
    "verdict": {
-    "state": "failure",
-    "description": "Checks failed: e2e 51 passed, 1 failed, 1 flaky, 12 skipped; data: nextcloud: anna's Projekte/\u00dcbersicht 2026.md is gone or changed (HTTP 50\u2026",
-    "date": "2026-11-23T06:13:10Z"
+    "state": "success",
+    "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
+    "date": "2026-11-23T06:37:44Z"
    }
   },
   {
