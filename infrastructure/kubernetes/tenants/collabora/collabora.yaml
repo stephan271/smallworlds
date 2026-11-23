@@ -22,7 +22,7 @@ spec:
           type: Unconfined
       containers:
         - name: collabora
-          image: collabora/code:24.04.13.3.1@sha256:c918662331cbd13b28ef2f7d2d7d91055948adfcadaff21c687cbbbe08258729
+          image: collabora/code:26.04.6.2.1@sha256:a2f5d4e88addd46033d8440f7a13b82f7e6fe444bf8c6b5a3eadc789f0b5342b
           ports:
             - containerPort: 9980
           env:
