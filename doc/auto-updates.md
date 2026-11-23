@@ -5,7 +5,9 @@ Ring 0, the canary cluster, merges them one at a time, verifies each, and takes 
 fails. When Ring 0 cannot move on by itself, the Ring 0 Steward, an AI agent on
 Ring 0's own server, fixes forward through a PR of its own. A person hears of it
 only when that fails. No real community is touched by any of this: Ring 1 and Ring 2 move only
-when someone merges a release tag into their overlay.
+when their Operator takes what Ring 0 verified, step by step with the
+[Update Desk](#taking-it-to-your-community-the-update-desk) on their own machine, or by
+merging a release tag into their overlay.
 
 This page is the overview. The details live with each part:
 [canary-follower README](../infrastructure/kubernetes/tenants/canary-follower/README.md),
@@ -29,6 +31,7 @@ This page is the overview. The details live with each part:
 | **Steward workflow** | `.github/workflows/steward.yml` in the overlay (copy of `admin-tools/canary/steward/steward.yml`) | starts when the follower labels an incident `steward-requested` | — |
 | **Ring 0 board** | GitHub Pages, <https://stephan271.github.io/smallworlds/> | draws `ring0.json` from the branch `ring-state` as cards; public, read-only | — |
 | **Alerts** | Ring 0's Alertmanager → ntfy | `CanaryCommitFailed` (warning) and `Ring0NeedsPerson` reach the Operator's phone | `monitoring/smallworlds-notify` |
+| **Update Desk** | each Operator's own computer, only while they use it (`./smallworlds-update`) | takes a community along Ring 0's verified path, one step at a time | the Operator's own git, kubeconfig and a read-only GitHub token |
 
 Nothing else runs continuously. During the drills, Claude Code watched Ring 0 by
 polling the GitHub API from the Operator's laptop (`gh api …/status`, the
@@ -96,10 +99,59 @@ upstream upgrade notes), and the queue merges that PR.
   (`PROTECTED_PATHS`), so the Steward cannot loosen what judges it.
 - **Releases.** `admin-tools/bump-version.sh` tags only a commit that has been
   `ring0/verified` for at least 72 hours. Communities adopt a tag through their own overlay's Renovate PR, by a
-  merge (the Follow Policy decides when it is offered).
+  merge (the Follow Policy decides when it is offered), or skip tags and follow
+  Ring 0 commit by commit with the Update Desk (below).
 - **Restores** with data missing, and anything the Steward hands over.
 - **Merging into `main` by hand.** The ruleset "main: admins only" requires admin
   rights; the follower's merges pass it with its token.
+
+## Taking it to your community: the Update Desk
+
+Everything above happens on Ring 0. Your community moves when you move it. The
+Update Desk is a page on your own computer that shows every commit of `main`
+Ring 0 has verified since the one your community runs, and takes your
+community there step by step. Every step ends on a verified commit, so your
+community only ever passes through states Ring 0 ran. The decision is
+`docs/adr/0067`; the details are in `admin-tools/update-desk/README.md`.
+
+**What you need**, all of it on the computer you installed from:
+
+- the checkout of this repository you installed from (the Desk runs from it
+  and reads Ring 0's history after a `git fetch`);
+- your overlay checkout (the wizard created it), with push access;
+- `kubectl` access to your cluster: the kubeconfig in `~/.smallworlds/kubeconfigs/`.
+  Once SSH and the Kubernetes API are closed to the internet, your computer has
+  to be on the cluster's private network while you use the Desk;
+- a GitHub token, only to read Ring 0's older verdicts from this public
+  repository: `gh auth login`, or `GH_TOKEN`. Any token works.
+
+**Running it:**
+
+```bash
+cd ~/development/smallworlds && git pull
+./smallworlds-update --overlay ~/development/my-community-config \
+                     --kubeconfig ~/.smallworlds/kubeconfigs/local.yaml
+```
+
+The Desk remembers both paths. Choose how far to go, then press its buttons in
+order: **Plan**, **Write the overlay change**, **Commit**, **Push**, **Move the
+root pin**, and it follows the rollout until every application is healthy again.
+A step that migrates a database offers *Back up now* first and is undone only by
+a restore. A step that needs you to do something by hand
+(`infrastructure/kubernetes/operator-steps.yaml`) says so before or after.
+
+**Things to know:**
+
+- An overlay that follows `HEAD` cannot be moved step by step, and the Desk
+  says so. Pin it to the commit it runs first
+  (`doc/install-contabo-datalix.md`, step 15).
+- An overlay on a release tag starts its path at that tag. After the first step
+  it names commits, and its Renovate Follow Policy goes quiet: the Desk takes
+  over.
+- Nothing tells you yet that steps are waiting. Your Operator Board
+  (`ops.<domain>`) lists the Desk under *Updates* with this command, and the
+  [Ring 0 board](https://stephan271.github.io/smallworlds/) shows what Ring 0
+  verified last.
 
 ## Switches
 

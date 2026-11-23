@@ -5,7 +5,7 @@
 
 ## Talks
 
-Watch the [SmallWorlds Lightning Talk](https://rawcdn.githack.com/stephan271/smallworlds/164cdda/lightning_talk.html).
+Watch the [SmallWorlds Lightning Talk](https://rawcdn.githack.com/stephan271/smallworlds/d3ba9b4/lightning_talk.html).
 > Refer to the [SmallWorlds Architecture Diagram](smallworlds_architecture.md) for system topology and data flows.
 
 # SmallWorlds Setup Guide
@@ -310,6 +310,10 @@ Rollback is just as simple: revert that commit. Because the ref is immutable, wh
 
 > [!TIP]
 > `prepare-community-repo.sh` pins to a release tag by default (it prompts for the version). You *can* answer `HEAD` to always track the latest `main`, but avoid it in production: ArgoCD only re-pulls a floating `HEAD` non-deterministically (on cache expiry), so you lose reproducibility and can't tell what's actually running.
+
+#### Following Ring 0 step by step (the Update Desk)
+
+Instead of waiting for a release, you can take what Ring 0 verified one commit at a time: `./smallworlds-update --overlay <your overlay> --kubeconfig <file>` starts a local page that moves your overlay along Ring 0's own path and rolls it out, one button per action. An overlay on a tag leaves tags with its first step, and its Renovate rule goes quiet. What you need and how it works: [doc/auto-updates.md](doc/auto-updates.md#taking-it-to-your-community-the-update-desk).
 
 #### Automated update proposals (Renovate)
 
