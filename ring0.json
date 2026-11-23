@@ -1,34 +1,31 @@
 {
  "schema": 1,
- "updated": "2026-11-23T05:51:50Z",
+ "updated": "2026-11-23T05:56:02Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "a318b08c79fc9c6d60d8a866aa398e9cfe52095a",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-22T19:37:40Z"
+  "commit": "70bbafc092def79c66788e90a151c9e04e02bada",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "a318b08c79fc9c6d60d8a866aa398e9cfe52095a",
-  "pull": null,
-  "step": "merge",
+  "commit": "70bbafc092def79c66788e90a151c9e04e02bada",
+  "pull": {
+   "number": 170,
+   "title": "Update docker.io/postgres to v19 (Immich pod-export psql client) (#170)",
+   "cards": [
+    "immich"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
-  "queued": [
-   {
-    "number": 170,
-    "title": "Update docker.io/postgres to v19 (Immich pod-export psql client)",
-    "cards": [
-     "immich"
-    ],
-    "since": "2026-11-23T05:51:29Z"
-   }
-  ],
+  "queued": [],
   "stuck": null,
-  "action": "not reverted: restore from the pre-update backup",
-  "waiting": "no queued update is ready"
+  "action": "merged #170",
+  "waiting": null
  },
  "applications": [
   {
@@ -609,6 +606,17 @@
  ],
  "commits": [
   {
+   "commit": "70bbafc092def79c66788e90a151c9e04e02bada",
+   "title": "Update docker.io/postgres to v19 (Immich pod-export psql client) (#170)",
+   "author": "smallworlds-steward[bot]",
+   "date": "2026-11-23T05:54:23Z",
+   "pull": 170,
+   "cards": [
+    "immich"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "a318b08c79fc9c6d60d8a866aa398e9cfe52095a",
    "title": "Operator Board, slice 05: Alert delivery tile",
    "author": "stephan271",
@@ -951,21 +959,6 @@
     "smallworlds-root"
    ],
    "verdict": null
-  },
-  {
-   "commit": "38d0b64a9c88d62a5b12bef2fbdba485f5aa8a94",
-   "title": "Update Helm chart kube-prometheus-stack to v93.4.1 (#158)",
-   "author": "renovate[bot]",
-   "date": "2026-11-22T00:40:36Z",
-   "pull": 158,
-   "cards": [
-    "kube-prometheus-stack"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 16 hosts, e2e 49 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-22T01:00:00Z"
-   }
   }
  ],
  "pulls": [
@@ -993,39 +986,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 129,
-   "title": "Update Docker image docker.io/postgres to v19",
-   "author": "renovate[bot]",
-   "created": "2026-11-18T06:00:09Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [
-    "ring0-major",
-    "steward-prepare-4bc0c3c375",
-    "steward-prepare-406643b22f"
-   ],
-   "cards": [
-    "immich"
-   ]
-  },
-  {
-   "number": 170,
-   "title": "Update docker.io/postgres to v19 (Immich pod-export psql client)",
-   "author": "smallworlds-steward[bot]",
-   "created": "2026-11-23T05:51:29Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue",
-    "steward"
-   ],
-   "cards": [
-    "immich"
    ]
   }
  ]
