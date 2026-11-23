@@ -15,6 +15,7 @@ import urllib.parse
 from harness import DESK_BASE, FAKE, Fresh, api, call  # noqa: E402  (sets up the environment first)
 
 import codes  # noqa: E402
+import config  # noqa: E402
 import desk  # noqa: E402
 import store  # noqa: E402
 
@@ -164,6 +165,17 @@ class Gate(Desk):
     def test_me(self):
         status, answer = self.get("/desk/api/me")
         self.assertEqual((status, answer["username"]), (200, "operator"))
+        self.assertIs(answer["memberNetwork"], False)
+
+    def test_me_says_whether_the_member_network_is_on(self):
+        # The message and the card then tell the member about the Tailscale
+        # step (Ring 1, 2026-11-23: they mentioned only "about three minutes").
+        before = config.MEMBER_NETWORK_URL
+        config.MEMBER_NETWORK_URL = "https://network.example.test"
+        try:
+            self.assertIs(self.get("/desk/api/me")[1]["memberNetwork"], True)
+        finally:
+            config.MEMBER_NETWORK_URL = before
 
 
 class Issuing(Desk):

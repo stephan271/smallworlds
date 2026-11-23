@@ -24,6 +24,9 @@
   let issued = [];
   let invitations = [];
   let selectedMember = null;
+  // With the Member Network on (docs/adr/0066), the done page ends with the
+  // Tailscale step; the message and the card say so up front.
+  let memberNetwork = false;
   let searchTimer = null;
   let searchSeq = 0;
   let toastTimer = null;
@@ -73,7 +76,8 @@
 
   const message = (result) => {
     const invitation = result.invitation;
-    const template = window.DESK_MESSAGES[invitation.kind][invitation.locale];
+    const kind = memberNetwork ? `${invitation.kind}_network` : invitation.kind;
+    const template = window.DESK_MESSAGES[kind][invitation.locale];
     const values = {
       name: invitation.label ? ` ${invitation.label}` : "",
       host: i18n.vars.host,
@@ -164,8 +168,9 @@
     qr.innerHTML = qrSvg(result.link);
     node.append(qr);
     node.append(el("p", "card-code", result.code));
-    node.append(el("p", "card-step", i18n.t("card.step_de", { join: joinHost })));
-    node.append(el("p", "card-step", i18n.t("card.step_en", { join: joinHost })));
+    const step = memberNetwork ? "card.step_network" : "card.step";
+    node.append(el("p", "card-step", i18n.t(`${step}_de`, { join: joinHost })));
+    node.append(el("p", "card-step", i18n.t(`${step}_en`, { join: joinHost })));
     node.append(el("p", "card-until", i18n.t("card.until", { date: cardDate(invitation.expiresAt) })));
     return node;
   };
@@ -385,6 +390,7 @@
     i18n.apply();
     const answer = await call("GET", "/desk/api/me");
     if (answer.status !== 200) return;
+    memberNetwork = Boolean(answer.data.memberNetwork);
     $("#me").textContent = answer.data.username;
     $("#days").value = String(answer.data.defaultDays);
     $("#days").max = String(answer.data.maxDays);

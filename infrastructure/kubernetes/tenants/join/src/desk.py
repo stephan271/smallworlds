@@ -411,7 +411,10 @@ class DeskHandler(web.BaseHandler):
                 self.send_json(401, {"error": "signed_out"})
             elif path == "/desk/api/me":
                 self.send_json(200, {"username": current["username"], "joinUrl": config.JOIN_URL,
-                                     "defaultDays": config.DEFAULT_DAYS, "maxDays": config.MAX_DAYS})
+                                     "defaultDays": config.DEFAULT_DAYS, "maxDays": config.MAX_DAYS,
+                                     # The message and the card then announce
+                                     # the Tailscale step on the done page.
+                                     "memberNetwork": bool(config.MEMBER_NETWORK_URL)})
             elif path == "/desk/api/invitations":
                 self._answer(list_invitations)
             elif path == "/desk/api/members":

@@ -507,8 +507,20 @@ EOF
     # An always-installed application that a later release added (join, in
     # docs/adr/0058) comes from the base's own Application, so only the routing
     # to this overlay's directory — and with it the domain patches — is missing.
+    # Only a patch that replaces repoURL routes it: the Update Desk's base-pin
+    # block names join too, to set its revision, and counting that as routing
+    # left join on the base (Ring 1, 2026-11-23: no Member Network address).
+    routes_to_overlay() {
+        python3 - "$1" kustomization.yaml <<'PY'
+import re, sys
+app, text = sys.argv[1], open(sys.argv[2]).read()
+sys.exit(0 if any(re.search(rf"^      name: {re.escape(app)}$", entry, re.M)
+                  and "path: /spec/source/repoURL" in entry
+                  for entry in re.split(r"\n  - target:\n", text)) else 1)
+PY
+    }
     for app in "${APPS[@]}"; do
-        if ! grep -qE "^      name: ${app}\$" kustomization.yaml; then
+        if ! routes_to_overlay "$app"; then
             echo -e "Routing $app to this overlay..."
             if ! grep -q "^patches:" kustomization.yaml; then
                 printf '\npatches:\n' >> kustomization.yaml
