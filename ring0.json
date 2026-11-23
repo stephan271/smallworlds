@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-23T05:58:08Z",
+ "updated": "2026-11-23T06:00:15Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "70bbafc092def79c66788e90a151c9e04e02bada",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-23T05:59:29Z"
  },
  "now": {
   "state": "updating",
@@ -19,9 +19,9 @@
     "immich"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-23T05:59:45Z",
+  "started": "2026-11-23T05:59:29Z",
   "queued": [],
   "stuck": null,
   "action": "merged #170",
@@ -171,7 +171,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "a318b08c79fc9c6d60d8a866aa398e9cfe52095a",
+   "revision": "70bbafc092def79c66788e90a151c9e04e02bada",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
@@ -338,9 +338,9 @@
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-22T19:23:30Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of /Namespace/bulwark and 27 more resources"
    },
    "wave": 0
   },
@@ -352,7 +352,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "a318b08c79fc9c6d60d8a866aa398e9cfe52095a",
+   "revision": "70bbafc092def79c66788e90a151c9e04e02bada",
    "images": [
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
@@ -614,7 +614,11 @@
    "cards": [
     "immich"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-23T05:59:29Z"
+   }
   },
   {
    "commit": "a318b08c79fc9c6d60d8a866aa398e9cfe52095a",
