@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-23T13:04:10Z",
+ "updated": "2026-11-23T13:06:16Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "abdac20510340757b57079a25c1802542c2bb9a6",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-23T13:06:10Z"
  },
  "now": {
   "state": "updating",
@@ -19,9 +19,9 @@
     "kube-prometheus-stack"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-23T13:06:10Z",
+  "started": "2026-11-23T13:06:09Z",
   "queued": [],
   "stuck": null,
   "action": "merged #174",
@@ -331,15 +331,15 @@
    "name": "smallworlds-root",
    "group": "machinery",
    "health": "Healthy",
-   "sync": "Synced",
+   "sync": "OutOfSync",
    "source": "overlay",
    "chart": null,
    "version": null,
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T12:46:42Z",
+    "phase": "Running",
+    "finished": null,
     "message": null
    },
    "wave": 0
@@ -614,7 +614,11 @@
    "cards": [
     "kube-prometheus-stack"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-23T13:06:10Z"
+   }
   },
   {
    "commit": "439bf7a54653bc6a97efe7230079aaae1c129254",
