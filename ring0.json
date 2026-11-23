@@ -1,22 +1,37 @@
 {
  "schema": 1,
- "updated": "2026-11-23T08:32:15Z",
+ "updated": "2026-11-23T08:34:23Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "70bbafc092def79c66788e90a151c9e04e02bada",
-  "state": "success",
-  "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
-  "date": "2026-11-23T06:37:44Z"
+  "commit": "eaba7ae848f07fa944f489b7275da8bb9e7a235a",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
-  "state": "up-to-date",
-  "commit": "70bbafc092def79c66788e90a151c9e04e02bada",
-  "pull": null,
-  "step": null,
+  "state": "updating",
+  "commit": "eaba7ae848f07fa944f489b7275da8bb9e7a235a",
+  "pull": {
+   "number": 171,
+   "title": "Ring 0 board: read the head's verdict fresh after the Steward re-verifies",
+   "cards": [
+    "canary-follower"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
-  "queued": [],
+  "queued": [
+   {
+    "number": 172,
+    "title": "Update Helm chart kube-prometheus-stack to v93.5.0",
+    "cards": [
+     "kube-prometheus-stack"
+    ],
+    "since": "2026-11-23T08:33:37Z"
+   }
+  ],
   "stuck": null,
   "action": null,
   "waiting": "no queued update is ready"
@@ -600,6 +615,28 @@
  ],
  "commits": [
   {
+   "commit": "eaba7ae848f07fa944f489b7275da8bb9e7a235a",
+   "title": "Ring 0 board: read the head's verdict fresh after the Steward re-verifies",
+   "author": "stephan271",
+   "date": "2026-11-23T08:32:36Z",
+   "pull": 171,
+   "cards": [
+    "canary-follower"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "1b1cc2b0385ccc53c2d8a4765eb930253d4b2b33",
+   "title": "Ring 0 board: read the head's verdict fresh after the Steward re-verifies",
+   "author": "stephan271",
+   "date": "2026-11-23T08:30:54Z",
+   "pull": null,
+   "cards": [
+    "canary-follower"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "70bbafc092def79c66788e90a151c9e04e02bada",
    "title": "Update docker.io/postgres to v19 (Immich pod-export psql client) (#170)",
    "author": "smallworlds-steward[bot]",
@@ -934,29 +971,6 @@
     "smallworlds-root"
    ],
    "verdict": null
-  },
-  {
-   "commit": "027dd6336fa8371ac10fe449be19ddee77e283b2",
-   "title": "Update Desk: say what moving the root pin brings",
-   "author": "stephan271",
-   "date": "2026-11-22T09:10:15Z",
-   "pull": null,
-   "cards": [
-    "repository"
-   ],
-   "verdict": null
-  },
-  {
-   "commit": "d19a383095863c906bd4c51ee2f36d0c2ef751fc",
-   "title": "Add a local Update Desk that follows Ring 0's verified path (ADR 0067)",
-   "author": "stephan271",
-   "date": "2026-11-22T08:54:36Z",
-   "pull": null,
-   "cards": [
-    "repository",
-    "smallworlds-root"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -987,16 +1001,18 @@
    ]
   },
   {
-   "number": 171,
-   "title": "Ring 0 board: read the head's verdict fresh after the Steward re-verifies",
-   "author": "stephan271",
-   "created": "2026-11-23T08:31:06Z",
+   "number": 172,
+   "title": "Update Helm chart kube-prometheus-stack to v93.5.0",
+   "author": "renovate[bot]",
+   "created": "2026-11-23T08:33:37Z",
    "draft": false,
-   "queued": false,
+   "queued": true,
    "rejected": false,
-   "labels": [],
+   "labels": [
+    "ring0-queue"
+   ],
    "cards": [
-    "canary-follower"
+    "kube-prometheus-stack"
    ]
   }
  ]
