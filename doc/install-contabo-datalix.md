@@ -489,6 +489,42 @@ and read `doc/hardening.md` §1 before inviting anyone.
 
 Your community's cloud is now ready to use.
 
+## 15. Keep it up to date
+
+Updates reach your community only when you take them. Ring 0, the project's own
+test cluster, tries every change first. The **Update Desk** is a page on your
+computer that takes your community along the commits Ring 0 verified, one step
+at a time (`doc/auto-updates.md` explains how it works).
+
+1. Be on the cluster's network (step 10): the Desk uses `kubectl`.
+2. Sign in to GitHub once, for reading Ring 0's results: `gh auth login`.
+3. If you typed `HEAD` in panel 3, pin the overlay to the commit it runs first.
+   The Desk cannot move a community whose version moves by itself:
+
+   ```bash
+   cd ~/development/my-community-config      # your settings repository
+   rev=$(kubectl -n argocd get application cnpg-barman-plugin -o jsonpath='{.status.sync.revision}')
+   grep -rlE '\?ref=HEAD|/smallworlds/HEAD/' . --include=kustomization.yaml \
+     | xargs sed -i -E "s#\?ref=HEAD#?ref=$rev#g; s#/smallworlds/HEAD/#/smallworlds/$rev/#g"
+   git commit -am "Pin the base to $rev, the commit this cluster runs" && git push
+   ```
+
+   This only writes down the version the cluster already runs. Lines that say
+   `value: HEAD` stay as they are: they point at your own repository.
+4. Start the Desk from the SmallWorlds checkout:
+
+   ```bash
+   cd ~/development/smallworlds && git pull
+   ./smallworlds-update --overlay ~/development/my-community-config \
+                        --kubeconfig ~/.smallworlds/kubeconfigs/local.yaml
+   ```
+
+5. Choose how far to go and press the buttons in order. Each one says what it
+   did. Where a step needs you to do something by hand, it says so.
+
+Your Operator Board (`https://ops.<your-domain>`) shows the same command under
+**Updates**.
+
 ## If something goes wrong
 
 | What you see | Likely cause | What to do |
@@ -537,5 +573,6 @@ be picked up.
 - Why a rented server uses this path, and how the firewall works: `docs/adr/0055`
 - Why no DNS provider account is needed: `docs/adr/0056`
 - Why the operator pages are private and the applications are not: `doc/hardening.md`
+- How updates are tried on Ring 0 first, and how the Update Desk takes them: `doc/auto-updates.md`, `docs/adr/0067`
 - How members sign in, and why without passwords: `doc/tenant-keycloak.md`
 - Every other installation option: `README.md` and `doc/local-deployment.md`

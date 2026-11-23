@@ -311,6 +311,10 @@ Rollback is just as simple: revert that commit. Because the ref is immutable, wh
 > [!TIP]
 > `prepare-community-repo.sh` pins to a release tag by default (it prompts for the version). You *can* answer `HEAD` to always track the latest `main`, but avoid it in production: ArgoCD only re-pulls a floating `HEAD` non-deterministically (on cache expiry), so you lose reproducibility and can't tell what's actually running.
 
+#### Following Ring 0 step by step (the Update Desk)
+
+Instead of waiting for a release, you can take what Ring 0 verified one commit at a time: `./smallworlds-update --overlay <your overlay> --kubeconfig <file>` starts a local page that moves your overlay along Ring 0's own path and rolls it out, one button per action. An overlay on a tag leaves tags with its first step, and its Renovate rule goes quiet. What you need and how it works: [doc/auto-updates.md](doc/auto-updates.md#taking-it-to-your-community-the-update-desk).
+
 #### Automated update proposals (Renovate)
 
 **Renovate** reduces the toil without giving up control. It opens **one pull request** in your private overlay that bumps the pinned base tag to a newer `smallworlds` release when your **Follow Policy** says it is due: on the day it is published, once it is two weeks old (the default), fix-only releases at once and the rest after two weeks, or never (config in `my-community-config/renovate.json`, written by the setup; the policy is the rule marked `smallworlds:follow-policy`, chosen in the wizard or `prepare-community-repo.sh` and changed by running either again). A major release, one that needs you to do something, always comes as its own pull request. It does **not** auto-merge — you review the release notes and merge when ready; the merge is the commit that triggers ArgoCD. This gives you a low-effort cadence *and* a human gate *and* a full audit trail.
