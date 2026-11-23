@@ -1,27 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-23T18:21:05Z",
+ "updated": "2026-11-23T18:25:18Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "e500a09db9a94ab5ef889f01f7ae95900df93be8",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-23T18:10:44Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+  "date": "2026-11-23T18:24:35Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "e500a09db9a94ab5ef889f01f7ae95900df93be8",
-  "pull": {
-   "number": 178,
-   "title": "Tell Operators how to join their own Member Network",
-   "cards": [
-    "repository"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-23T18:19:35Z",
-  "started": "2026-11-23T18:10:43Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #176",
@@ -615,9 +609,9 @@
     "repository"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-23T18:10:44Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-23T18:24:35Z"
    }
   },
   {
