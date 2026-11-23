@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-23T15:24:22Z",
+ "updated": "2026-11-23T15:39:04Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -981,6 +981,21 @@
    "rejected": false,
    "labels": [],
    "cards": [
+    "repository"
+   ]
+  },
+  {
+   "number": 175,
+   "title": "Close three gaps found turning the Member Network on for Ring 1",
+   "author": "stephan271",
+   "created": "2026-11-23T15:37:16Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "join",
+    "member-network",
     "repository"
    ]
   }
