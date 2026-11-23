@@ -1,30 +1,28 @@
 {
  "schema": 1,
- "updated": "2026-11-23T06:06:34Z",
+ "updated": "2026-11-23T06:14:54Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "70bbafc092def79c66788e90a151c9e04e02bada",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-23T05:59:29Z"
+  "state": "failure",
+  "description": "Checks failed: e2e 51 passed, 1 failed, 1 flaky, 12 skipped; data: nextcloud: anna's Projekte/\u00dcbersicht 2026.md is gone or changed (HTTP 50\u2026",
+  "date": "2026-11-23T06:13:10Z"
  },
  "now": {
-  "state": "updating",
+  "state": "stuck",
   "commit": "70bbafc092def79c66788e90a151c9e04e02bada",
-  "pull": {
-   "number": 170,
-   "title": "Update docker.io/postgres to v19 (Immich pod-export psql client) (#170)",
-   "cards": [
-    "immich"
-   ]
-  },
-  "step": "checks",
-  "step_since": "2026-11-23T06:04:39Z",
-  "started": "2026-11-23T05:59:29Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
-  "stuck": null,
-  "action": "merged #170",
+  "stuck": {
+   "condition": "S1",
+   "since": "2026-11-23T06:13:10Z",
+   "summary": "Checks failed: e2e 51 passed, 1 failed, 1 flaky, 12 skipped; data: nextcloud: anna's Projekte/\u00dcbersicht 2026.md is gone or changed (HTTP 50\u2026"
+  },
+  "action": "not reverted: restore from the pre-update backup",
   "waiting": null
  },
  "applications": [
@@ -615,9 +613,9 @@
     "immich"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-23T05:59:29Z"
+    "state": "failure",
+    "description": "Checks failed: e2e 51 passed, 1 failed, 1 flaky, 12 skipped; data: nextcloud: anna's Projekte/\u00dcbersicht 2026.md is gone or changed (HTTP 50\u2026",
+    "date": "2026-11-23T06:13:10Z"
    }
   },
   {
