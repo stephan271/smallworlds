@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-23T17:11:53Z",
+ "updated": "2026-11-23T18:06:17Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -966,6 +966,19 @@
    "title": "Update github actions (major)",
    "author": "renovate[bot]",
    "created": "2026-11-15T16:30:01Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "repository"
+   ]
+  },
+  {
+   "number": 178,
+   "title": "Tell Operators how to join their own Member Network",
+   "author": "stephan271",
+   "created": "2026-11-23T18:04:58Z",
    "draft": false,
    "queued": false,
    "rejected": false,
