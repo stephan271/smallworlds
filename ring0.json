@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-23T08:30:08Z",
+ "updated": "2026-11-23T08:32:15Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -324,7 +324,7 @@
   {
    "name": "smallworlds-root",
    "group": "machinery",
-   "health": "Progressing",
+   "health": "Healthy",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -380,7 +380,7 @@
   {
    "name": "canary-follower",
    "group": "machinery",
-   "health": "Progressing",
+   "health": "Healthy",
    "sync": "Synced",
    "source": "base",
    "chart": null,
@@ -984,6 +984,19 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 171,
+   "title": "Ring 0 board: read the head's verdict fresh after the Steward re-verifies",
+   "author": "stephan271",
+   "created": "2026-11-23T08:31:06Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "canary-follower"
    ]
   }
  ]
