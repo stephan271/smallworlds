@@ -1,19 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-23T18:06:17Z",
+ "updated": "2026-11-23T18:08:25Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "45b48e5b91419b29bf3484427fb1b503530bc4ba",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-23T17:09:53Z"
+  "commit": "e500a09db9a94ab5ef889f01f7ae95900df93be8",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
-  "state": "up-to-date",
-  "commit": "45b48e5b91419b29bf3484427fb1b503530bc4ba",
-  "pull": null,
-  "step": null,
+  "state": "updating",
+  "commit": "e500a09db9a94ab5ef889f01f7ae95900df93be8",
+  "pull": {
+   "number": 178,
+   "title": "Tell Operators how to join their own Member Network",
+   "cards": [
+    "repository"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [],
@@ -108,7 +114,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "45b48e5b91419b29bf3484427fb1b503530bc4ba",
+   "revision": "e500a09db9a94ab5ef889f01f7ae95900df93be8",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
@@ -385,7 +391,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "45b48e5b91419b29bf3484427fb1b503530bc4ba",
+   "revision": "e500a09db9a94ab5ef889f01f7ae95900df93be8",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
@@ -599,6 +605,28 @@
   }
  ],
  "commits": [
+  {
+   "commit": "e500a09db9a94ab5ef889f01f7ae95900df93be8",
+   "title": "Tell Operators how to join their own Member Network",
+   "author": "stephan271",
+   "date": "2026-11-23T18:06:59Z",
+   "pull": 178,
+   "cards": [
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "cf925909c6e5201f9d068a2562fef351639deb9a",
+   "title": "Tell Operators how to join their own Member Network",
+   "author": "stephan271",
+   "date": "2026-11-23T18:04:54Z",
+   "pull": null,
+   "cards": [
+    "repository"
+   ],
+   "verdict": null
+  },
   {
    "commit": "45b48e5b91419b29bf3484427fb1b503530bc4ba",
    "title": "Operator docs for the Update Desk; the talk shows the Member Network",
@@ -915,36 +943,6 @@
     "repository"
    ],
    "verdict": null
-  },
-  {
-   "commit": "89f420fb0652cf84100b9fdea77af17ed27ea06e",
-   "title": "Operator Board, slice 02: verdict and Alerts tile from Alertmanager",
-   "author": "stephan271",
-   "date": "2026-11-22T16:43:27Z",
-   "pull": 165,
-   "cards": [
-    "canary-follower",
-    "operator-board",
-    "repository"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-22T16:57:55Z"
-   }
-  },
-  {
-   "commit": "ef01ede168b78cf0d01eea4f507ad594719be48a",
-   "title": "Operator Board, slice 02: verdict and Alerts tile from Alertmanager",
-   "author": "stephan271",
-   "date": "2026-11-22T16:39:33Z",
-   "pull": null,
-   "cards": [
-    "canary-follower",
-    "operator-board",
-    "repository"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -966,19 +964,6 @@
    "title": "Update github actions (major)",
    "author": "renovate[bot]",
    "created": "2026-11-15T16:30:01Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "repository"
-   ]
-  },
-  {
-   "number": 178,
-   "title": "Tell Operators how to join their own Member Network",
-   "author": "stephan271",
-   "created": "2026-11-23T18:04:58Z",
    "draft": false,
    "queued": false,
    "rejected": false,
