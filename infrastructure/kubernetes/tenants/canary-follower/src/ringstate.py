@@ -140,7 +140,7 @@ class RingState:
         self.wallclock = wallclock
         self._paths: dict[str, list[str]] = {}       # commit sha -> files
         self._pull_paths: dict[str, list[str]] = {}  # PR head sha -> files
-        self._verdicts: dict[str, dict] = {}         # final verdicts only
+        self._verdicts: dict[str, dict] = {}         # final verdicts only; never the head's
         self._published: str | None = None           # last body, without `updated`
         self._published_at = 0.0
         self._file_sha: str | None = None
@@ -152,8 +152,11 @@ class RingState:
             self._paths[sha] = self.github.changed_paths(sha)
         return self._paths[sha]
 
-    def _verdict(self, sha: str) -> dict | None:
-        if sha in self._verdicts:
+    def _verdict(self, sha: str, fresh: bool = False) -> dict | None:
+        """A commit's verdict. A final one is cached, except for the head
+        (`fresh`): the Steward can have the head verified again, and a red
+        head turning green must reach the board (Ring 0, 2026-11-23)."""
+        if sha in self._verdicts and not fresh:
             return self._verdicts[sha]
         verdict = self.github.verdict(sha)
         if verdict and verdict["state"] in FINAL_STATES:
@@ -162,7 +165,7 @@ class RingState:
 
     def _commits(self) -> list[dict]:
         commits = []
-        for entry in self.github.commits(self.s.branch, COMMITS):
+        for index, entry in enumerate(self.github.commits(self.s.branch, COMMITS)):
             sha = entry["sha"]
             lines = [l for l in entry["commit"]["message"].splitlines() if l.strip()]
             title = lines[0] if lines else ""
@@ -177,7 +180,7 @@ class RingState:
                 "date": entry["commit"]["committer"]["date"],
                 "pull": int(m.group(1) or m.group(2)) if m else None,
                 "cards": cards_for(self._commit_paths(sha)),
-                "verdict": self._verdict(sha),
+                "verdict": self._verdict(sha, fresh=index == 0),
             })
         return commits
 
@@ -250,7 +253,7 @@ class RingState:
         commits = self._commits()
         head = commits[0] if commits else {"commit": self.github.head_sha(self.s.branch)}
         if "verdict" not in head:
-            head["verdict"] = self._verdict(head["commit"])
+            head["verdict"] = self._verdict(head["commit"], fresh=True)
         pulls = self._pulls()
         verdict = head.get("verdict") or {}
         return {

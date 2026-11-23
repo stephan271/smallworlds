@@ -167,6 +167,10 @@ class Follower:
             # must not be verified again an hour later.
             self.errors.pop(sha, None)
         if outcome.state == "success":
+            if sha == reverify:
+                # Or the board keeps the rejection's action ("not reverted: …")
+                # beside a green head until something else happens.
+                self.last_action = "verified again after the Ring 0 Steward acted: green"
             self._advance(sha)
         # Only a rejection is acted on: an error says nothing about the commit.
         elif outcome.state == "failure" and self.queue is not None:

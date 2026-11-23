@@ -186,7 +186,19 @@ class SnapshotTest(unittest.TestCase):
         state.snapshot()
         gh.calls.clear()
         state.snapshot()
-        self.assertEqual([], gh.calls)
+        self.assertEqual([("verdict", HEAD)], gh.calls, "only the head's, which can be verified again")
+
+    def test_the_heads_verdict_is_read_again_even_when_final(self):
+        # Ring 0, 2026-11-23: the Steward had 70bbafc verified again, it went
+        # green at 06:37, and the board kept the 06:13 failure until a restart.
+        state, gh, _, _ = make()
+        gh.verdicts[HEAD] = {"state": "failure", "description": "Checks failed", "date": "d1"}
+        self.assertEqual("stuck", state.snapshot()["now"]["state"])
+        gh.verdicts[HEAD] = {"state": "success", "description": "Ring 0: quiet", "date": "d2"}
+        gh.calls.clear()
+        doc = state.snapshot()
+        self.assertEqual(("success", "up-to-date"), (doc["head"]["state"], doc["now"]["state"]))
+        self.assertEqual([("verdict", HEAD)], gh.calls, "older commits stay cached")
 
     def test_a_pending_verdict_is_read_again(self):
         state, gh, _, _ = make()
