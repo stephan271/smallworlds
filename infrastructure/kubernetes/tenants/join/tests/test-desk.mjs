@@ -103,6 +103,7 @@ check("draws a QR code", (await page.locator("#issued-qr svg path").count()) ===
 const text = await page.inputValue("#issued-message");
 check("writes the message in the invitation's language",
       text.startsWith("Hallo Elena! Du bist zu example.test eingeladen.") && text.includes(`${JOIN}/#${code}`), text);
+check("with the Member Network off, it says nothing of Tailscale", !text.includes("Tailscale"), text);
 await page.click("#copy-message");
 await page.waitForSelector("#toast:not([hidden])");
 check("copies the message", (await page.evaluate(() => navigator.clipboard.readText())) === text);
@@ -172,6 +173,32 @@ check("issues a recovery invitation", (await page.textContent("#issued-title")) 
 check("its message is a recovery message, in the chosen language",
       (await page.inputValue("#issued-message")).startsWith("Hallo dorian! Mit diesem Link"));
 check("and says the old passkeys are gone", await page.isVisible("#issued-removed"));
+
+// ---------------------------------------------------------------------------
+console.log("desk — with the Member Network on");
+// The Desk learns it from /desk/api/me. Ring 1, 2026-11-23: the message said
+// "about three minutes" and the member met the Tailscale step unannounced.
+const me = await page.evaluate(() => fetch("/desk/api/me").then((r) => r.json()));
+const networked = await context.newPage();
+await networked.route("**/desk/api/me", (route) => route.fulfill({ json: { ...me, memberNetwork: true } }));
+await networked.goto(`${JOIN}/desk/`);
+await networked.waitForFunction(() => document.getElementById("me").textContent.length > 0);
+await networked.fill("#label", "Fiona");
+await networked.check('input[name="locale"][value="de"]');
+await networked.click("#new-submit");
+await networked.waitForSelector("#issued:not([hidden])");
+const networkText = await networked.inputValue("#issued-message");
+check("the message announces the Tailscale step",
+      networkText.startsWith("Hallo Fiona!") && networkText.includes("Tailscale") && networkText.includes("zehn Minuten"),
+      networkText);
+await networked.evaluate(() => {
+  window.print = () => { window.__card = document.querySelector("#print-area .print-card")?.innerText || ""; };
+});
+await networked.click("#print-one");
+const card = await networked.evaluate(() => window.__card);
+check("so does the printed card, in both languages",
+      card.includes("Tailscale-App") && card.includes("Tailscale app"), card);
+await networked.close();
 
 // ---------------------------------------------------------------------------
 console.log("desk — narrow screen and sign-out");

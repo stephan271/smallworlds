@@ -39,11 +39,14 @@ if [[ -z "$token" ]]; then
   exit 1
 fi
 
-if ! users=$(hs users list -o json) || ! jq -e 'type == "array"' >/dev/null 2>&1 <<<"$users"; then
+# An empty list comes out as `null` (Ring 1, 2026-11-23: every run failed until
+# the first member enrolled). Anything else that is not a list still fails.
+as_list() { jq -ce 'if . == null then [] elif type == "array" then . else error end' 2>/dev/null; }
+if ! users=$(hs users list -o json) || ! users=$(as_list <<<"$users"); then
   log "Cannot list the member Headscale's users; nothing removed."
   exit 1
 fi
-if ! nodes=$(hs nodes list -o json) || ! jq -e 'type == "array"' >/dev/null 2>&1 <<<"$nodes"; then
+if ! nodes=$(hs nodes list -o json) || ! nodes=$(as_list <<<"$nodes"); then
   log "Cannot list the member Headscale's devices; nothing removed."
   exit 1
 fi

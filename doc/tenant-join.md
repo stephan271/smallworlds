@@ -69,6 +69,10 @@ against a local Keycloak; the recovery codes are from that throwaway instance.
    `admin-tools/generate_member_network_patches.py` sets; empty means off.
    `join-config` is generated from `join-config.properties`, so a changed value
    restarts join: it reads its settings only at start.
+   The Invitation Desk learns the same setting from `/desk/api/me`
+   (`memberNetwork`), and its message and printed card then announce the
+   Tailscale step and about ten minutes instead of three, so the member is not
+   surprised by it on the done page.
    On Android (Tailscale 1.104) "Use an alternate server" is reachable only
    after "Connect" and the VPN permission, through Settings, the account row
    and the menu; found with a real phone on Ring 0 (2026-11-20). The iPhone

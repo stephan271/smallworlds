@@ -642,6 +642,49 @@ fi
 set_stored STORED_PHOTO_BACKEND immich
 set_stored STORED_APP_immich n
 
+# An overlay written before join existed, then moved by the Update Desk, whose
+# base-pin block names join only to set its targetRevision (Ring 1,
+# 2026-11-23). A patch that names an Application is not one that routes it:
+# join stayed on the base and never learned the Member Network's address.
+python3 - "$overlay/kustomization.yaml" <<'PY'
+import re, sys
+path = sys.argv[1]
+text = open(path).read()
+entries = re.split(r"(?=\n  - target:\n)", text)
+kept = [e for e in entries
+        if not (re.search(r"^      name: join$", e, re.M) and "/spec/source/repoURL" in e)]
+text = "".join(kept).rstrip("\n") + """
+  # >>> smallworlds:base-pin — written by the Update Desk, do not edit
+  - target:
+      group: argoproj.io
+      kind: Application
+      name: join
+    patch: |-
+      - op: replace
+        path: /spec/source/targetRevision
+        value: 0123456789abcdef0123456789abcdef01234567
+  # <<< smallworlds:base-pin
+"""
+open(path, "w").write(text)
+PY
+routes_join() {
+    python3 - "$overlay/kustomization.yaml" <<'PY'
+import re, sys
+text = open(sys.argv[1]).read()
+sys.exit(0 if any(re.search(r"^      name: join$", e, re.M) and "/spec/source/repoURL" in e
+                  for e in re.split(r"\n  - target:\n", text)) else 1)
+PY
+}
+if routes_join; then fail "setup: join starts unrouted"; else pass "setup: join starts unrouted"; fi
+output="$(run_prepare)"
+check_contains "$output" "Routing join to this overlay" \
+    "a pin that only sets join's revision does not count as routing it"
+if routes_join; then pass "join is routed to the overlay again"; else
+    fail "join is routed to the overlay again"
+fi
+output="$(run_prepare)"
+check_absent "$output" "Routing join to this overlay" "a rerun does not route it twice"
+
 # --------------------------------------------------------------------------
 echo "prepare-community-repo.sh — a push the remote refuses"
 # --------------------------------------------------------------------------

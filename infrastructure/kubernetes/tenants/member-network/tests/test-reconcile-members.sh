@@ -131,5 +131,16 @@ check "users of another realm, or not from OIDC, are left alone" 0 ""
 setup; touch "$WORK/users-fail"; run
 check "Headscale not answering: nothing removed, run fails" 1 ""
 
+# Ring 1, 2026-11-23: before the first member enrolls, the Member Headscale has
+# no users and its CLI prints `null`, not `[]`. Every run failed until then.
+setup; echo null > "$WORK/users.json"; run
+check "no members yet: headscale prints null, nothing to do, run succeeds" 0 ""
+
+setup; echo null > "$WORK/nodes.json"; run
+check "no devices: headscale prints null, a deleted member's user still goes" 0 "destroy user 2"
+
+setup; echo '{"error": "x"}' > "$WORK/users.json"; run
+check "a reply that is neither a list nor null still fails the run" 1 ""
+
 echo "$pass passed, $fail failed"
 [[ $fail -eq 0 ]]

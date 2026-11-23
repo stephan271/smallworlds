@@ -81,6 +81,8 @@ Object.assign(window.JOIN_TEXT.de, {
   "card.title": "Deine Einladung · Your invitation",
   "card.step_de": "Scanne den QR-Code oder öffne {join} und gib den Code ein. Du brauchst etwa drei Minuten und Papier für deine Wiederherstellungs-Codes.",
   "card.step_en": "Scan the QR code, or open {join} and enter the code. It takes about three minutes; have paper ready for your recovery codes.",
+  "card.step_network_de": "Scanne den QR-Code oder öffne {join} und gib den Code ein. Du brauchst etwa zehn Minuten, Papier für deine Wiederherstellungs-Codes und am Ende die Tailscale-App für unser Netz.",
+  "card.step_network_en": "Scan the QR code, or open {join} and enter the code. It takes about ten minutes; have paper ready for your recovery codes, and the Tailscale app for our network at the end.",
   "card.until": "Gültig bis · Valid until {date}",
 });
 
@@ -165,6 +167,8 @@ Object.assign(window.JOIN_TEXT.en, {
   "card.title": "Deine Einladung · Your invitation",
   "card.step_de": "Scanne den QR-Code oder öffne {join} und gib den Code ein. Du brauchst etwa drei Minuten und Papier für deine Wiederherstellungs-Codes.",
   "card.step_en": "Scan the QR code, or open {join} and enter the code. It takes about three minutes; have paper ready for your recovery codes.",
+  "card.step_network_de": "Scanne den QR-Code oder öffne {join} und gib den Code ein. Du brauchst etwa zehn Minuten, Papier für deine Wiederherstellungs-Codes und am Ende die Tailscale-App für unser Netz.",
+  "card.step_network_en": "Scan the QR code, or open {join} and enter the code. It takes about ten minutes; have paper ready for your recovery codes, and the Tailscale app for our network at the end.",
   "card.until": "Gültig bis · Valid until {date}",
 });
 
@@ -175,8 +179,16 @@ window.DESK_MESSAGES = {
     de: "Hallo{name}! Du bist zu {host} eingeladen. Öffne diesen Link, um dein Konto einzurichten – er ist gültig bis {date}:\n\n{link}\n\nDu brauchst etwa drei Minuten und Papier für deine Wiederherstellungs-Codes. Der Link ist nur für dich – bitte nicht weitergeben.",
     en: "Hello{name}! You are invited to {host}. Open this link to set up your account – it is valid until {date}:\n\n{link}\n\nIt takes about three minutes; have paper ready for your recovery codes. The link is just for you – please do not pass it on.",
   },
+  new_network: {
+    de: "Hallo{name}! Du bist zu {host} eingeladen. Öffne diesen Link, um dein Konto einzurichten – er ist gültig bis {date}:\n\n{link}\n\nDu brauchst etwa zehn Minuten und Papier für deine Wiederherstellungs-Codes. Am Ende verbindest du dein Handy oder deinen Computer mit unserem Netz; die Seite zeigt dir, wie (mit der Tailscale-App). Der Link ist nur für dich – bitte nicht weitergeben.",
+    en: "Hello{name}! You are invited to {host}. Open this link to set up your account – it is valid until {date}:\n\n{link}\n\nIt takes about ten minutes; have paper ready for your recovery codes. At the end you connect your phone or computer to our network; the page shows you how (with the Tailscale app). The link is just for you – please do not pass it on.",
+  },
   recovery: {
     de: "Hallo{name}! Mit diesem Link richtest du einen neuen Passkey für {host} ein – er ist gültig bis {date}:\n\n{link}\n\nHalte Papier für deine neuen Wiederherstellungs-Codes bereit. Der Link ist nur für dich – bitte nicht weitergeben.",
     en: "Hello{name}! Use this link to set up a new passkey for {host} – it is valid until {date}:\n\n{link}\n\nHave paper ready for your new recovery codes. The link is just for you – please do not pass it on.",
+  },
+  recovery_network: {
+    de: "Hallo{name}! Mit diesem Link richtest du einen neuen Passkey für {host} ein – er ist gültig bis {date}:\n\n{link}\n\nHalte Papier für deine neuen Wiederherstellungs-Codes bereit. Ist es ein neues Gerät, verbindest du es danach wieder mit unserem Netz; die Seite zeigt dir, wie (mit der Tailscale-App). Der Link ist nur für dich – bitte nicht weitergeben.",
+    en: "Hello{name}! Use this link to set up a new passkey for {host} – it is valid until {date}:\n\n{link}\n\nHave paper ready for your new recovery codes. If it is a new device, connect it to our network again afterwards; the page shows you how (with the Tailscale app). The link is just for you – please do not pass it on.",
   },
 };
