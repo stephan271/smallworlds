@@ -35,6 +35,9 @@ spec:
             # Photos or Nextcloud failed at exactly 1m0s while small ones went
             # through. The price is that a slow client may hold a connection
             # for this long; the per-source rate limit still applies.
+            # `operators` and `members` below carry the same timeout: every
+            # entrypoint an upload arrives on needs it, and with the Member
+            # Network on, members' uploads arrive on `members` alone.
             transport:
               respondingTimeouts:
                 readTimeout: 30m
@@ -56,6 +59,9 @@ spec:
             http:
               tls:
                 enabled: true
+            transport:
+              respondingTimeouts:
+                readTimeout: 30m
           # The Member Gateway's entrypoint (docs/adr/0066), built like
           # `operators`: on `traefik-internal` only, reached from outside the
           # cluster only through the Member Gateway in the member-network
@@ -63,6 +69,11 @@ spec:
           # Routers that name no entrypoint attach here, which is what members
           # get: the full applications. Operator-only routers name `operators`
           # alone and never attach here.
+          #
+          # Members' devices often reach the gateway only through a DERP
+          # relay (2–3 Mbit/s seen on Ring 1), so a photo of 20 MB already
+          # takes longer than Traefik's default 60s. Same timeout as
+          # `websecure`, for the same reason.
           members:
             port: 9444
             exposedPort: 9444
@@ -73,6 +84,9 @@ spec:
             http:
               tls:
                 enabled: true
+            transport:
+              respondingTimeouts:
+                readTimeout: 30m
         ingressRoute:
           dashboard:
             enabled: false
