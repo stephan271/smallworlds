@@ -1,19 +1,26 @@
 {
  "schema": 1,
- "updated": "2026-11-24T12:02:00Z",
+ "updated": "2026-11-24T12:39:39Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "21917d4fc7b1e5f74608b12e0433e99368be3341",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-24T08:58:58Z"
+  "commit": "478c6385ef4903653b073320c3e7781d86b7eb0d",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
-  "state": "up-to-date",
-  "commit": "21917d4fc7b1e5f74608b12e0433e99368be3341",
-  "pull": null,
-  "step": null,
+  "state": "updating",
+  "commit": "478c6385ef4903653b073320c3e7781d86b7eb0d",
+  "pull": {
+   "number": 181,
+   "title": "Let members' devices reach the Member Gateway directly on UDP 41642",
+   "cards": [
+    "member-network",
+    "repository"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [],
@@ -600,6 +607,30 @@
  ],
  "commits": [
   {
+   "commit": "478c6385ef4903653b073320c3e7781d86b7eb0d",
+   "title": "Let members' devices reach the Member Gateway directly on UDP 41642",
+   "author": "stephan271",
+   "date": "2026-11-24T12:38:03Z",
+   "pull": 181,
+   "cards": [
+    "member-network",
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "1962046aa7bbf8bc79330b1b8326631cfe582282",
+   "title": "Let members' devices reach the Member Gateway directly on UDP 41642",
+   "author": "stephan271",
+   "date": "2026-11-24T08:59:47Z",
+   "pull": null,
+   "cards": [
+    "member-network",
+    "repository"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "21917d4fc7b1e5f74608b12e0433e99368be3341",
    "title": "Let members' uploads take longer than a minute, and stop sharing one rate limit",
    "author": "stephan271",
@@ -915,34 +946,6 @@
     "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
     "date": "2026-11-22T19:17:54Z"
    }
-  },
-  {
-   "commit": "02a1bc81578e675721ed9b3037e800ab8b94d3f1",
-   "title": "Operator step for the Board: change the DNS job's file, not the CronJob",
-   "author": "stephan271",
-   "date": "2026-11-22T18:58:30Z",
-   "pull": null,
-   "cards": [
-    "smallworlds-root"
-   ],
-   "verdict": null
-  },
-  {
-   "commit": "6f7cba9b1609a0a40d1f38f6106cc81d418fbab9",
-   "title": "Operator Board, slice 04: Updates tile",
-   "author": "stephan271",
-   "date": "2026-11-22T17:58:59Z",
-   "pull": 167,
-   "cards": [
-    "canary-follower",
-    "operator-board",
-    "repository"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-22T18:17:33Z"
-   }
   }
  ],
  "pulls": [
@@ -969,20 +972,6 @@
    "rejected": false,
    "labels": [],
    "cards": [
-    "repository"
-   ]
-  },
-  {
-   "number": 181,
-   "title": "Let members' devices reach the Member Gateway directly on UDP 41642",
-   "author": "stephan271",
-   "created": "2026-11-24T08:59:51Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "member-network",
     "repository"
    ]
   }
