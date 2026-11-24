@@ -108,3 +108,26 @@ steps:
       the operator-board Application there. Commit it as its own overlay
       commit. The patch matches nothing until this step adds the Application,
       so it is safe to commit first.
+
+  - commit: 478c6385ef4903653b073320c3e7781d86b7eb0d
+    when: before
+    applies:
+      runs: [member-network]
+    title: Open UDP 41642 so members' devices reach the Member Gateway directly
+    detail: |
+      The Member Gateway now listens on UDP 41642 at the node's address
+      (docs/adr/0066). Without that port open, members' devices keep going
+      through Tailscale's public relays, at a few Mbit/s. Opening it before
+      this step is harmless: nothing answers there until the gateway restarts.
+        Hetzner target: run smallworlds-init.sh again. It adds the port to the
+        Hetzner firewall.
+        Local target with the host firewall (a VPS): on the node,
+          sudo sed -i 's/^UDP_PORTS="\(.*\)"/UDP_PORTS="\1 41642"/' /etc/smallworlds/firewall.conf
+          sudo smallworlds-firewall apply && sudo smallworlds-firewall status
+        The status lists 41642 under udp. The next bootstrap writes it by
+        itself.
+        Local target behind a router: nothing to do. The node's address is a
+        LAN address, and devices outside stay on the relay as before.
+      To check once this step is Healthy: on a member's phone on mobile data,
+      tailscale status (or the app's peer list) shows the gateway as direct
+      <public address>:41642, not relay.
