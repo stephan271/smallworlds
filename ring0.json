@@ -1,27 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-24T14:16:07Z",
+ "updated": "2026-11-24T14:20:21Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "61b07ce3622955b286eb238b4b5e071308055b04",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-24T14:06:09Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+  "date": "2026-11-24T14:19:08Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "61b07ce3622955b286eb238b4b5e071308055b04",
-  "pull": {
-   "number": 182,
-   "title": "Operator step for the Member Gateway's UDP port (478c638)",
-   "cards": [
-    "smallworlds-root"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-24T14:14:08Z",
-  "started": "2026-11-24T14:06:08Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #179",
@@ -615,9 +609,9 @@
     "smallworlds-root"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-24T14:06:09Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-24T14:19:08Z"
    }
   },
   {
