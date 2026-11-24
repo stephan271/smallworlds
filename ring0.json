@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-24T08:43:31Z",
+ "updated": "2026-11-24T08:45:37Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "21917d4fc7b1e5f74608b12e0433e99368be3341",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-24T08:45:01Z"
  },
  "now": {
   "state": "updating",
@@ -21,9 +21,9 @@
     "traefik"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-24T08:45:02Z",
+  "started": "2026-11-24T08:45:01Z",
   "queued": [],
   "stuck": null,
   "action": "merged #179",
@@ -84,7 +84,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-24T04:08:04Z",
+    "finished": "2026-11-24T08:45:16Z",
     "message": null
    },
    "wave": -10
@@ -116,7 +116,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "3fb5dab9d8c1f05cb0d6304929f9078205814747",
+   "revision": "21917d4fc7b1e5f74608b12e0433e99368be3341",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
@@ -173,7 +173,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "3fb5dab9d8c1f05cb0d6304929f9078205814747",
+   "revision": "21917d4fc7b1e5f74608b12e0433e99368be3341",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
@@ -340,9 +340,9 @@
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-24T04:07:10Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for healthy state of argoproj.io/Application/garage and 1 more resources"
    },
    "wave": 0
   },
@@ -393,7 +393,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "3fb5dab9d8c1f05cb0d6304929f9078205814747",
+   "revision": "21917d4fc7b1e5f74608b12e0433e99368be3341",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
@@ -618,7 +618,11 @@
     "smallworlds-root",
     "traefik"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-24T08:45:01Z"
+   }
   },
   {
    "commit": "aa54fe33efc5f3d9048fa38534d9d5c01e00c4e5",
