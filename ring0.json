@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-24T08:24:40Z",
+ "updated": "2026-11-24T08:39:17Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -970,6 +970,21 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 180,
+   "title": "Let members' uploads take longer than a minute, and stop sharing one rate limit",
+   "author": "stephan271",
+   "created": "2026-11-24T08:38:19Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "repository",
+    "smallworlds-root",
+    "traefik"
    ]
   }
  ]
