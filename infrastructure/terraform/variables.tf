@@ -110,7 +110,8 @@ variable "member_network" {
   description = <<-DESC
     Whether the community runs the Member Network (docs/adr/0066), as recorded
     by admin-tools/prepare-community-repo.sh. On adds the A record for the
-    member Headscale (network.<domain>) and keeps submission (465) and IMAP
+    member Headscale (network.<domain>), opens UDP 41642 for members' devices
+    to reach the Member Gateway directly, and keeps submission (465) and IMAP
     (993) closed: members reach those through the Member Gateway.
   DESC
   type        = bool

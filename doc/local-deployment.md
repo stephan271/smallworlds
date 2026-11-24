@@ -132,8 +132,9 @@ LAN-only machine, which cannot answer the HTTP proof.
 `/etc/smallworlds/firewall.nft` and a `smallworlds-firewall.service` that loads
 it at boot. Inbound traffic on the public interface is dropped except SSH (on
 whatever port your `sshd` uses, plus 22), 80, 443, 6443, and 25/465/993 with
-Stalwart (only 25 with the Member Network on, docs/adr/0066) or 10000/udp with
-Jitsi. It filters before NAT, so NodePorts are
+Stalwart (only 25 with the Member Network on, docs/adr/0066), 10000/udp with
+Jitsi, and 41642/udp with the Member Network (members' devices reach the
+Member Gateway there directly). It filters before NAT, so NodePorts are
 closed too. Before closing your first SSH session after the install, open a
 second one to confirm you can still get in. `--uninstall` removes it.
 
@@ -303,6 +304,10 @@ turns the LAN deployment into a publicly reachable one. Prerequisites:
   is created; the DNS zone is free).
 - **Router port forwards** to the server: `80/tcp`, `443/tcp` (HTTP/HTTPS) and
   `10000/udp` (Jitsi media). Nothing else — keep 6443 and SSH LAN-only.
+  With the Member Network on, members' devices reach the Member Gateway
+  through a Tailscale relay here, more slowly: the gateway announces the
+  node's own address, which behind a router is a LAN address, so forwarding
+  `41642/udp` does not help.
 
 What the installer then does differently:
 

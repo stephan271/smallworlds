@@ -340,4 +340,10 @@ the steps did not say. Deleting that member in Keycloak then removed the phone
 from the Member Network at the reconciler's next run.
 
 - Upload speed when a member's device cannot connect to the node directly and
-  falls back to a DERP relay.
+  falls back to a DERP relay. Measured on Ring 1 on 2026-11-23, with the first
+  member: 1512 of 1517 contacts went through Tailscale's relay in Frankfurt,
+  at 2–3 Mbit/s, because the gateway's pod network gives every packet a random
+  source port. The gateway now listens on a fixed UDP port (41642, a
+  `hostPort` opened by both firewalls) and announces the node's address with
+  it. Direct connections from a phone on a mobile network are still to be
+  shown on Ring 0.

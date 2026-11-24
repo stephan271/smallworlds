@@ -11,6 +11,14 @@
 #
 # Userspace networking, no NET_ADMIN, non-root. TLS passes through untouched
 # and Traefik answers with the hostname's own certificate.
+#
+# Members' devices connect to it directly on UDP 41642 at the node's address
+# (hostPort below; both firewalls open it in member mode). Without a fixed
+# port, the pod network gives every outgoing packet a random source port
+# (flannel masquerades with --random-fully), the gateway looks like a hard
+# NAT, and devices fall back to Tailscale's public DERP relays: 1512 of 1517
+# contacts on Ring 1, at 2-3 Mbit/s (2026-11-23). 41641 is not used because
+# the node's own tailscaled, on the Operator's tailnet, listens there.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -96,6 +104,15 @@ spec:
       containers:
         - name: tailscale
           image: docker.io/tailscale/tailscale:v1.104.7@sha256:72c1e19e0aedca96b8533bbb0b4368564410ff20b17e53b804eb6c1f04a31be4
+          # A hostPort, not hostNetwork: the pod keeps its own network
+          # namespace, so what it forwards still comes from a pod address
+          # (the LAN-only routers refuse those) and it cannot reach the
+          # node's loopback services.
+          ports:
+            - name: wireguard
+              containerPort: 41642
+              hostPort: 41642
+              protocol: UDP
           env:
             - name: TS_KUBE_SECRET
               value: member-gateway-state
@@ -109,6 +126,20 @@ spec:
             # public address.
             - name: TS_EXTRA_ARGS
               value: --login-server=http://headscale.member-network.svc.cluster.local
+            # The fixed port, and the address devices should send to. The
+            # gateway cannot learn that address itself: STUN sees a random
+            # port on every request. The node's address is the public one on
+            # a rented server (Hetzner, a VPS), which is what member mode
+            # requires. Behind a router it is a LAN address, the devices do
+            # not reach it, and they fall back to DERP as before.
+            - name: TS_TAILSCALED_EXTRA_ARGS
+              value: --port=41642
+            - name: HOST_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: TS_DEBUG_PRETENDPOINT
+              value: $(HOST_IP):41642
             - name: TS_SERVE_CONFIG
               value: /config/serve.json
             - name: TS_SOCKET

@@ -83,6 +83,17 @@ own `:465` and `:993` to the cluster-only `stalwart-mail-members`. The installer
 also leaves 465 and 993 out of both firewalls in member mode (Terraform
 `member_network`, the host allow-list), so they are closed twice.
 
+Member mode opens one port instead: UDP 41642, a `hostPort` of the Member
+Gateway, where members' devices reach it directly rather than through
+Tailscale's public DERP relays. Before, 1512 of 1517 contacts on Ring 1 went
+through a relay at 2–3 Mbit/s, and every member's traffic, with its timing and
+volume, passed through Tailscale's infrastructure (2026-11-23). The port
+speaks only WireGuard and Tailscale's disco protocol, and answers nothing to a
+packet without a key the member Headscale has handed out. A `hostPort`, not
+`hostNetwork`: the gateway keeps its own network namespace, so what it
+forwards still comes from a pod address, and it cannot reach the node's
+loopback services.
+
 **The allow-list only means something because Traefik sees the visitor's real
 address.** Its Service sets `externalTrafficPolicy: Local` for that reason
 (`apps/traefik.yaml`). With the default, kube-proxy rewrites the source of
