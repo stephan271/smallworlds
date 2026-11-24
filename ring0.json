@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-24T12:39:39Z",
+ "updated": "2026-11-24T12:41:45Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -392,7 +392,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "21917d4fc7b1e5f74608b12e0433e99368be3341",
+   "revision": "478c6385ef4903653b073320c3e7781d86b7eb0d",
    "images": [
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
@@ -973,6 +973,19 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 182,
+   "title": "Operator step for the Member Gateway's UDP port (478c638)",
+   "author": "stephan271",
+   "created": "2026-11-24T12:39:42Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "smallworlds-root"
    ]
   }
  ]
