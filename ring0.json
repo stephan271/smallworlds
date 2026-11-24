@@ -1,19 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-24T13:57:04Z",
+ "updated": "2026-11-24T14:05:32Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "478c6385ef4903653b073320c3e7781d86b7eb0d",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-24T12:55:12Z"
+  "commit": "61b07ce3622955b286eb238b4b5e071308055b04",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
-  "state": "up-to-date",
-  "commit": "478c6385ef4903653b073320c3e7781d86b7eb0d",
-  "pull": null,
-  "step": null,
+  "state": "updating",
+  "commit": "61b07ce3622955b286eb238b4b5e071308055b04",
+  "pull": {
+   "number": 182,
+   "title": "Operator step for the Member Gateway's UDP port (478c638)",
+   "cards": [
+    "smallworlds-root"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [],
@@ -600,6 +606,28 @@
  ],
  "commits": [
   {
+   "commit": "61b07ce3622955b286eb238b4b5e071308055b04",
+   "title": "Operator step for the Member Gateway's UDP port (478c638)",
+   "author": "stephan271",
+   "date": "2026-11-24T14:05:20Z",
+   "pull": 182,
+   "cards": [
+    "smallworlds-root"
+   ],
+   "verdict": null
+  },
+  {
+   "commit": "9ec5eff90d512b03d566004d4e79466e429a1fb2",
+   "title": "Operator step for the Member Gateway's UDP port (478c638)",
+   "author": "stephan271",
+   "date": "2026-11-24T12:39:38Z",
+   "pull": null,
+   "cards": [
+    "smallworlds-root"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "478c6385ef4903653b073320c3e7781d86b7eb0d",
    "title": "Let members' devices reach the Member Gateway directly on UDP 41642",
    "author": "stephan271",
@@ -915,34 +943,6 @@
     "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
     "date": "2026-11-22T19:37:40Z"
    }
-  },
-  {
-   "commit": "9e6c8c5aa92d04c1c6c42f56bf575f806b2dc87b",
-   "title": "Operator Board, slice 05: Alert delivery tile",
-   "author": "stephan271",
-   "date": "2026-11-22T19:05:04Z",
-   "pull": null,
-   "cards": [
-    "canary-follower",
-    "operator-board",
-    "repository"
-   ],
-   "verdict": null
-  },
-  {
-   "commit": "ef93c2d3f8f78b7142d85e95d4e291f7d970fad7",
-   "title": "Operator step for the Board: change the DNS job's file, not the CronJob",
-   "author": "stephan271",
-   "date": "2026-11-22T18:59:52Z",
-   "pull": 168,
-   "cards": [
-    "smallworlds-root"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-22T19:17:54Z"
-   }
   }
  ],
  "pulls": [
@@ -970,19 +970,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 182,
-   "title": "Operator step for the Member Gateway's UDP port (478c638)",
-   "author": "stephan271",
-   "created": "2026-11-24T12:39:42Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [],
-   "cards": [
-    "smallworlds-root"
    ]
   }
  ]
