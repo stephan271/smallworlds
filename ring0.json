@@ -1,25 +1,31 @@
 {
  "schema": 1,
- "updated": "2026-11-24T03:30:53Z",
+ "updated": "2026-11-24T04:02:15Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "e500a09db9a94ab5ef889f01f7ae95900df93be8",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-23T18:24:35Z"
+  "commit": "3fb5dab9d8c1f05cb0d6304929f9078205814747",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
-  "state": "up-to-date",
-  "commit": "e500a09db9a94ab5ef889f01f7ae95900df93be8",
-  "pull": null,
-  "step": null,
+  "state": "updating",
+  "commit": "3fb5dab9d8c1f05cb0d6304929f9078205814747",
+  "pull": {
+   "number": 179,
+   "title": "Update Helm chart kube-prometheus-stack to v93.6.1 (#179)",
+   "cards": [
+    "kube-prometheus-stack"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [],
   "stuck": null,
-  "action": "merged #176",
-  "waiting": "no queued update is ready"
+  "action": "merged #179",
+  "waiting": null
  },
  "applications": [
   {
@@ -600,6 +606,17 @@
  ],
  "commits": [
   {
+   "commit": "3fb5dab9d8c1f05cb0d6304929f9078205814747",
+   "title": "Update Helm chart kube-prometheus-stack to v93.6.1 (#179)",
+   "author": "renovate[bot]",
+   "date": "2026-11-24T04:01:28Z",
+   "pull": 179,
+   "cards": [
+    "kube-prometheus-stack"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "e500a09db9a94ab5ef889f01f7ae95900df93be8",
    "title": "Tell Operators how to join their own Member Network",
    "author": "stephan271",
@@ -928,19 +945,6 @@
     "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
     "date": "2026-11-22T17:37:55Z"
    }
-  },
-  {
-   "commit": "9b126a48d7a8254d224d6032a55269302f253b1a",
-   "title": "Operator Board, slice 03: Node and Backups tiles",
-   "author": "stephan271",
-   "date": "2026-11-22T17:20:07Z",
-   "pull": null,
-   "cards": [
-    "canary-follower",
-    "operator-board",
-    "repository"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
