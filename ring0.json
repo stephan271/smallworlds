@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-24T04:06:29Z",
+ "updated": "2026-11-24T04:08:36Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "3fb5dab9d8c1f05cb0d6304929f9078205814747",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-24T04:06:32Z"
  },
  "now": {
   "state": "updating",
@@ -19,9 +19,9 @@
     "kube-prometheus-stack"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "converge",
+  "step_since": "2026-11-24T04:07:39Z",
+  "started": "2026-11-24T04:06:32Z",
   "queued": [],
   "stuck": null,
   "action": "merged #179",
@@ -44,7 +44,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T18:12:11Z",
+    "finished": "2026-11-24T04:08:18Z",
     "message": null
    },
    "wave": -10
@@ -63,7 +63,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T18:11:45Z",
+    "finished": "2026-11-24T04:07:46Z",
     "message": null
    },
    "wave": -10
@@ -82,7 +82,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T18:12:00Z",
+    "finished": "2026-11-24T04:08:04Z",
     "message": null
    },
    "wave": -10
@@ -101,7 +101,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T18:11:44Z",
+    "finished": "2026-11-24T04:07:44Z",
     "message": null
    },
    "wave": -9
@@ -120,7 +120,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T18:11:45Z",
+    "finished": "2026-11-24T04:07:45Z",
     "message": null
    },
    "wave": -9
@@ -139,7 +139,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T18:11:47Z",
+    "finished": "2026-11-24T04:07:47Z",
     "message": null
    },
    "wave": -5
@@ -158,7 +158,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T18:11:49Z",
+    "finished": "2026-11-24T04:07:50Z",
     "message": null
    },
    "wave": -5
@@ -177,7 +177,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T18:11:39Z",
+    "finished": "2026-11-24T04:07:38Z",
     "message": null
    },
    "wave": 0
@@ -196,7 +196,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T18:11:45Z",
+    "finished": "2026-11-24T04:07:44Z",
     "message": null
    },
    "wave": 0
@@ -215,7 +215,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T18:12:08Z",
+    "finished": "2026-11-24T04:08:15Z",
     "message": null
    },
    "wave": 0
@@ -235,7 +235,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T18:12:07Z",
+    "finished": "2026-11-24T04:08:12Z",
     "message": null
    },
    "wave": 0
@@ -250,15 +250,16 @@
    "version": null,
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.2",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
     "ghcr.io/tensorchord/cloudnative-pgvecto.rs:16.4-v0.3.0",
     "quay.io/keycloak/keycloak@sha256:7e66a96e4739239070aeaf72e4c5decf0f7f682cfc725b9f7ea2b336eaba38b3"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T18:13:42Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/pre-update-backup"
    },
    "wave": 0
   },
@@ -269,10 +270,11 @@
    "sync": "Synced",
    "source": "chart",
    "chart": "kube-prometheus-stack",
-   "version": "93.6.0",
+   "version": "93.6.1",
    "revision": null,
    "images": [
     "docker.io/grafana/grafana:13.3.1-distroless",
+    "ghcr.io/jkroepke/kube-webhook-certgen:1.11.1",
     "quay.io/kiwigrid/k8s-sidecar:2.14.3",
     "quay.io/prometheus-operator/prometheus-config-reloader:v0.95.2",
     "quay.io/prometheus-operator/prometheus-operator:v0.95.2",
@@ -282,9 +284,9 @@
     "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.20.0"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T18:13:05Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/kube-prometheus-stack-admission-create"
    },
    "wave": 0
   },
@@ -303,7 +305,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T18:11:55Z",
+    "finished": "2026-11-24T04:07:58Z",
     "message": null
    },
    "wave": 0
@@ -322,7 +324,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T18:11:55Z",
+    "finished": "2026-11-24T04:07:58Z",
     "message": null
    },
    "wave": 0
@@ -339,7 +341,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T18:11:15Z",
+    "finished": "2026-11-24T04:07:10Z",
     "message": null
    },
    "wave": 0
@@ -354,13 +356,14 @@
    "version": null,
    "revision": "3fb5dab9d8c1f05cb0d6304929f9078205814747",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T18:12:44Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/velero-garage-init"
    },
    "wave": 0
   },
@@ -374,12 +377,13 @@
    "version": null,
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/bulwarkmail/webmail:1.21.3@sha256:54e914a229529fe90fd8f0ae3e9e97d671806ac09fbfe3f421a1c4fb14495a74"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T18:12:37Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -397,7 +401,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T18:11:48Z",
+    "finished": "2026-11-24T04:07:49Z",
     "message": null
    },
    "wave": 1
@@ -416,7 +420,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T18:11:42Z",
+    "finished": "2026-11-24T04:07:42Z",
     "message": null
    },
    "wave": 1
@@ -432,6 +436,7 @@
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
     "code.forgejo.org/forgejo/forgejo:15.0.12-rootless",
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.2",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -439,9 +444,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T18:13:48Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/pre-update-backup"
    },
    "wave": 1
   },
@@ -455,6 +460,7 @@
    "version": null,
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.2",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -464,9 +470,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T18:13:49Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/pre-update-backup"
    },
    "wave": 1
   },
@@ -480,6 +486,7 @@
    "version": null,
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/jitsi-contrib/jitsi-oidc-adapter:v20260328@sha256:c4a28b215f5ea4893e308cd3f15b1f1c6954231ab784cac6362f420e6648a745",
     "ghcr.io/jitsi/jicofo:stable-11509-1",
     "ghcr.io/jitsi/jvb:stable-11509-1",
@@ -487,9 +494,9 @@
     "ghcr.io/jitsi/web:stable-11509-1"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T18:12:40Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -503,12 +510,13 @@
    "version": null,
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T18:13:38Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -527,9 +535,9 @@
     "docker.io/tailscale/tailscale:v1.104.7@sha256:72c1e19e0aedca96b8533bbb0b4368564410ff20b17e53b804eb6c1f04a31be4"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T18:13:41Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
    },
    "wave": 1
   },
@@ -552,9 +560,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T18:13:51Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/pre-update-backup"
    },
    "wave": 1
   },
@@ -572,7 +580,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-23T18:12:24Z",
+    "finished": "2026-11-24T04:08:28Z",
     "message": null
    },
    "wave": 1
@@ -597,9 +605,9 @@
     "stalwartlabs/stalwart:v1.1.1@sha256:544760db45608ef39d969eca7cfc040af771a0825cdf5c673935825abe3fad0f"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-23T18:13:19Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/pre-update-backup"
    },
    "wave": 1
   }
@@ -614,7 +622,11 @@
    "cards": [
     "kube-prometheus-stack"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-24T04:06:32Z"
+   }
   },
   {
    "commit": "e500a09db9a94ab5ef889f01f7ae95900df93be8",
