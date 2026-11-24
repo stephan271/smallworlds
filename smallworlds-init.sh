@@ -1708,6 +1708,12 @@ EOF
         if selected_apps | grep -qx jitsi; then
             FIREWALL_UDP_PORTS="10000"
         fi
+        # Members' devices connect to the Member Gateway directly here instead
+        # of through a DERP relay (tenants/member-network/member-gateway.yaml).
+        # Mirrors main.tf.
+        if [[ "$MEMBER_NETWORK" == "on" ]]; then
+            FIREWALL_UDP_PORTS="${FIREWALL_UDP_PORTS:+$FIREWALL_UDP_PORTS }41642"
+        fi
     fi
 
     # Config consumed by the bootstrap script on the target machine.

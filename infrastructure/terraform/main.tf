@@ -116,6 +116,22 @@ resource "hcloud_firewall" "k8s_firewall" {
     ]
   }
 
+  # Members' devices connect to the Member Gateway directly on this port
+  # instead of through a DERP relay (tenants/member-network/member-gateway.yaml).
+  # Mirrors FIREWALL_UDP_PORTS in smallworlds-init.sh.
+  dynamic "rule" {
+    for_each = var.member_network ? ["41642"] : []
+    content {
+      direction = "in"
+      protocol  = "udp"
+      port      = rule.value
+      source_ips = [
+        "0.0.0.0/0",
+        "::/0"
+      ]
+    }
+  }
+
 }
 
 

@@ -230,6 +230,8 @@ rm -rf "$init_root/infrastructure/local" "$init_root/infrastructure/bootstrap-pi
 local_env="$(cat "$temporary_directory/sent-local.env" 2>/dev/null)"
 check_contains "$local_env" 'FIREWALL_TCP_PORTS="80 443 6443 25"' \
     "an exposed server's firewall opens 25 for Stalwart, not 465 or 993"
+udp_line="$(printf '%s\n' "$local_env" | grep '^FIREWALL_UDP_PORTS=')"
+check_contains "$udp_line" "41642" "and UDP 41642, where members' devices reach the Member Gateway"
 check_contains "$local_env" "network" "and its DNS records include the member Headscale"
 
 # --------------------------------------------------------------------------
