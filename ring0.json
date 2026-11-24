@@ -1,28 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-24T12:52:18Z",
+ "updated": "2026-11-24T12:56:29Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "478c6385ef4903653b073320c3e7781d86b7eb0d",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-24T12:41:48Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+  "date": "2026-11-24T12:55:12Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "478c6385ef4903653b073320c3e7781d86b7eb0d",
-  "pull": {
-   "number": 181,
-   "title": "Let members' devices reach the Member Gateway directly on UDP 41642",
-   "cards": [
-    "member-network",
-    "repository"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-24T12:50:11Z",
-  "started": "2026-11-24T12:41:48Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #179",
@@ -617,9 +610,9 @@
     "repository"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-24T12:41:48Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-24T12:55:12Z"
    }
   },
   {
