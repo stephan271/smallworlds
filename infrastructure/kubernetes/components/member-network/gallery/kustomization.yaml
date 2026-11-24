@@ -11,6 +11,12 @@
 # devices reach through the Member Gateway and pods through traefik-members.
 # The public entrypoint keeps only the Guest Paths (guest-ingressroute.yaml).
 # Recorded for Gallery; plain Immich has not been recorded.
+#
+# The members' router drops edge-ratelimit and keeps edge-headers. The Member
+# Gateway forwards plain TCP, so Traefik sees every member as the gateway's one
+# pod address, and a per-source limit became one limit shared by all members:
+# one timeline being scrolled could answer 429 to everybody's backup. Only
+# enrolled devices reach `members`; the guest routes keep the limit.
 apiVersion: kustomize.config.k8s.io/v1alpha1
 kind: Component
 
@@ -25,3 +31,6 @@ patches:
       - op: add
         path: /metadata/annotations/traefik.ingress.kubernetes.io~1router.entrypoints
         value: members
+      - op: add
+        path: /metadata/annotations/traefik.ingress.kubernetes.io~1router.middlewares
+        value: immich-edge-headers@kubernetescrd

@@ -8,6 +8,7 @@ on them as prepare-community-repo.sh does, and checks the files. Where
 `kubectl` is installed it also renders the result, with the Component URLs
 pointed at this checkout, so a block that kustomize would reject fails here.
 """
+import os
 import shutil
 import subprocess
 import sys
@@ -253,6 +254,44 @@ patches:
             check("bulwark: rendered on `members`",
                   ing["metadata"]["annotations"].get(
                       "traefik.ingress.kubernetes.io/router.entrypoints") == "members")
+
+    # --- the members' routers of Nextcloud and Gallery ----------------------
+    # Every member arrives as the Member Gateway's one address, so a per-source
+    # rate limit on these routers is one limit shared by all members. Each
+    # Component is applied to the tenant's Ingress as the base annotates it
+    # (the tenants themselves need helm, which render() does not run).
+    for component, namespace, ingress in (("nextcloud", "nextcloud", "nextcloud"),
+                                          ("gallery", "immich", "immich-server")):
+        if not shutil.which("kubectl") or yaml is None:
+            print(f"SKIP {component}: members' router (no kubectl or PyYAML)")
+            continue
+        work = Path(outer) / f"router-{component}"
+        work.mkdir()
+        (work / "ingress.yaml").write_text(
+            "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n"
+            f"  name: {ingress}\n  namespace: {namespace}\n  annotations:\n"
+            "    traefik.ingress.kubernetes.io/router.middlewares: "
+            f"{namespace}-edge-ratelimit@kubernetescrd,{namespace}-edge-headers@kubernetescrd\n"
+            "spec:\n  rules: []\n", encoding="utf-8")
+        (work / "kustomization.yaml").write_text(
+            f"namespace: {namespace}\nresources:\n  - ingress.yaml\ncomponents:\n"
+            f"  - {os.path.relpath(REPO, work)}/infrastructure/kubernetes/components/member-network/{component}\n",
+            encoding="utf-8")
+        result = subprocess.run(["kubectl", "kustomize", "--load-restrictor", "LoadRestrictionsNone",
+                                 str(work)], capture_output=True, text=True)
+        if result.returncode != 0:
+            check(f"{component}: the Component renders", False, result.stderr)
+            continue
+        docs = {(d["kind"], d["metadata"]["name"]): d for d in yaml.safe_load_all(result.stdout) if d}
+        notes = docs[("Ingress", ingress)]["metadata"]["annotations"]
+        check(f"{component}: the members' router is on `members`",
+              notes.get("traefik.ingress.kubernetes.io/router.entrypoints") == "members", notes)
+        check(f"{component}: the members' router keeps the headers and drops the rate limit",
+              notes.get("traefik.ingress.kubernetes.io/router.middlewares")
+              == f"{namespace}-edge-headers@kubernetescrd", notes)
+        guest = [d for k, d in docs.items() if k[1] != ingress]
+        check(f"{component}: the guest route keeps the rate limit",
+              bool(guest) and all("edge-ratelimit" in yaml.safe_dump(d) for d in guest), guest)
 
 print(f"{passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)
