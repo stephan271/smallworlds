@@ -1,29 +1,21 @@
 {
  "schema": 1,
- "updated": "2026-11-24T08:54:06Z",
+ "updated": "2026-11-24T09:00:25Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "21917d4fc7b1e5f74608b12e0433e99368be3341",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-24T08:45:01Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+  "date": "2026-11-24T08:58:58Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "21917d4fc7b1e5f74608b12e0433e99368be3341",
-  "pull": {
-   "number": 180,
-   "title": "Let members' uploads take longer than a minute, and stop sharing one rate limit",
-   "cards": [
-    "repository",
-    "smallworlds-root",
-    "traefik"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-24T08:53:57Z",
-  "started": "2026-11-24T08:45:01Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #179",
@@ -619,9 +611,9 @@
     "traefik"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-24T08:45:01Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-24T08:58:58Z"
    }
   },
   {
@@ -977,6 +969,20 @@
    "rejected": false,
    "labels": [],
    "cards": [
+    "repository"
+   ]
+  },
+  {
+   "number": 181,
+   "title": "Let members' devices reach the Member Gateway directly on UDP 41642",
+   "author": "stephan271",
+   "created": "2026-11-24T08:59:51Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [],
+   "cards": [
+    "member-network",
     "repository"
    ]
   }
