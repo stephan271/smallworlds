@@ -1,30 +1,28 @@
 {
  "schema": 1,
- "updated": "2026-11-25T23:47:30Z",
+ "updated": "2026-11-25T23:49:37Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "61b07ce3622955b286eb238b4b5e071308055b04",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-24T14:19:08Z"
+  "commit": "7e7aed5f080a19acb6b508dca475d6b4db943829",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "61b07ce3622955b286eb238b4b5e071308055b04",
-  "pull": null,
-  "step": "merge",
+  "commit": "7e7aed5f080a19acb6b508dca475d6b4db943829",
+  "pull": {
+   "number": 183,
+   "title": "Update Helm chart kube-prometheus-stack to v93.9.0 (#183)",
+   "cards": [
+    "kube-prometheus-stack"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
-   {
-    "number": 183,
-    "title": "Update Helm chart kube-prometheus-stack to v93.9.0",
-    "cards": [
-     "kube-prometheus-stack"
-    ],
-    "since": "2026-11-25T12:40:20Z"
-   },
    {
     "number": 184,
     "title": "Update Docker image ghcr.io/bulwarkmail/webmail to v1.22.0",
@@ -35,8 +33,8 @@
    }
   ],
   "stuck": null,
-  "action": "merged #179",
-  "waiting": "no queued update is ready"
+  "action": "merged #183",
+  "waiting": null
  },
  "applications": [
   {
@@ -182,7 +180,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "61b07ce3622955b286eb238b4b5e071308055b04",
+   "revision": "7e7aed5f080a19acb6b508dca475d6b4db943829",
    "images": [],
    "operation": {
     "phase": "Succeeded",
@@ -361,7 +359,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "61b07ce3622955b286eb238b4b5e071308055b04",
+   "revision": "7e7aed5f080a19acb6b508dca475d6b4db943829",
    "images": [
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.14.4@sha256:c85a7fa803569e3128c33e4f5766f84ab156c8d171c9f1dd2715581d45ce98fa"
@@ -614,6 +612,17 @@
   }
  ],
  "commits": [
+  {
+   "commit": "7e7aed5f080a19acb6b508dca475d6b4db943829",
+   "title": "Update Helm chart kube-prometheus-stack to v93.9.0 (#183)",
+   "author": "renovate[bot]",
+   "date": "2026-11-25T23:49:00Z",
+   "pull": 183,
+   "cards": [
+    "kube-prometheus-stack"
+   ],
+   "verdict": null
+  },
   {
    "commit": "61b07ce3622955b286eb238b4b5e071308055b04",
    "title": "Operator step for the Member Gateway's UDP port (478c638)",
@@ -939,23 +948,6 @@
     "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
     "date": "2026-11-23T06:37:44Z"
    }
-  },
-  {
-   "commit": "a318b08c79fc9c6d60d8a866aa398e9cfe52095a",
-   "title": "Operator Board, slice 05: Alert delivery tile",
-   "author": "stephan271",
-   "date": "2026-11-22T19:13:21Z",
-   "pull": 169,
-   "cards": [
-    "canary-follower",
-    "operator-board",
-    "repository"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-22T19:37:40Z"
-   }
   }
  ],
  "pulls": [
@@ -983,21 +975,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 183,
-   "title": "Update Helm chart kube-prometheus-stack to v93.9.0",
-   "author": "renovate[bot]",
-   "created": "2026-11-25T12:40:20Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "kube-prometheus-stack"
    ]
   },
   {
