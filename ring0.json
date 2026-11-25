@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-25T23:26:37Z",
+ "updated": "2026-11-25T23:47:30Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -19,11 +19,19 @@
   "queued": [
    {
     "number": 183,
-    "title": "Update Helm chart kube-prometheus-stack to v93.7.0",
+    "title": "Update Helm chart kube-prometheus-stack to v93.9.0",
     "cards": [
      "kube-prometheus-stack"
     ],
     "since": "2026-11-25T12:40:20Z"
+   },
+   {
+    "number": 184,
+    "title": "Update Docker image ghcr.io/bulwarkmail/webmail to v1.22.0",
+    "cards": [
+     "bulwark"
+    ],
+    "since": "2026-11-25T23:46:06Z"
    }
   ],
   "stuck": null,
@@ -979,7 +987,7 @@
   },
   {
    "number": 183,
-   "title": "Update Helm chart kube-prometheus-stack to v93.7.0",
+   "title": "Update Helm chart kube-prometheus-stack to v93.9.0",
    "author": "renovate[bot]",
    "created": "2026-11-25T12:40:20Z",
    "draft": false,
@@ -990,6 +998,21 @@
    ],
    "cards": [
     "kube-prometheus-stack"
+   ]
+  },
+  {
+   "number": 184,
+   "title": "Update Docker image ghcr.io/bulwarkmail/webmail to v1.22.0",
+   "author": "renovate[bot]",
+   "created": "2026-11-25T23:46:06Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "bulwark"
    ]
   }
  ]
