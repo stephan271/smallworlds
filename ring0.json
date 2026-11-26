@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-26T00:18:55Z",
+ "updated": "2026-11-26T00:21:01Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "340170be7cd12feeaf704f9c6ae7eddc522e2091",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-26T00:20:10Z"
  },
  "now": {
   "state": "updating",
@@ -19,9 +19,9 @@
     "bulwark"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-26T00:20:11Z",
+  "started": "2026-11-26T00:20:10Z",
   "queued": [],
   "stuck": null,
   "action": "merged #184",
@@ -339,7 +339,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-25T23:54:38Z",
+    "finished": "2026-11-26T00:20:45Z",
     "message": null
    },
    "wave": 0
@@ -368,7 +368,7 @@
    "name": "bulwark",
    "group": "apps",
    "health": "Healthy",
-   "sync": "Synced",
+   "sync": "OutOfSync",
    "source": "overlay",
    "chart": null,
    "version": null,
@@ -378,7 +378,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-25T23:56:10Z",
+    "finished": "2026-11-26T00:21:01Z",
     "message": null
    },
    "wave": 1
@@ -614,7 +614,11 @@
    "cards": [
     "bulwark"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-26T00:20:10Z"
+   }
   },
   {
    "commit": "7e7aed5f080a19acb6b508dca475d6b4db943829",
