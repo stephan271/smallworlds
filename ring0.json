@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-26T07:38:33Z",
+ "updated": "2026-11-26T08:34:51Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -10,13 +10,22 @@
   "date": "2026-11-26T00:34:57Z"
  },
  "now": {
-  "state": "up-to-date",
+  "state": "updating",
   "commit": "340170be7cd12feeaf704f9c6ae7eddc522e2091",
   "pull": null,
-  "step": null,
+  "step": "merge",
   "step_since": null,
   "started": null,
-  "queued": [],
+  "queued": [
+   {
+    "number": 185,
+    "title": "Update Docker image velero/velero-plugin-for-aws to v1.15.0",
+    "cards": [
+     "velero"
+    ],
+    "since": "2026-11-26T08:33:37Z"
+   }
+  ],
   "stuck": null,
   "action": "merged #184",
   "waiting": "no queued update is ready"
@@ -966,6 +975,21 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 185,
+   "title": "Update Docker image velero/velero-plugin-for-aws to v1.15.0",
+   "author": "renovate[bot]",
+   "created": "2026-11-26T08:33:37Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "velero"
    ]
   }
  ]
