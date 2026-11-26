@@ -1,34 +1,31 @@
 {
  "schema": 1,
- "updated": "2026-11-26T08:34:51Z",
+ "updated": "2026-11-26T08:37:00Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "340170be7cd12feeaf704f9c6ae7eddc522e2091",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-26T00:34:57Z"
+  "commit": "749ba7b3394b4f6efe53c2017973ef6cadc999ce",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "340170be7cd12feeaf704f9c6ae7eddc522e2091",
-  "pull": null,
-  "step": "merge",
+  "commit": "749ba7b3394b4f6efe53c2017973ef6cadc999ce",
+  "pull": {
+   "number": 185,
+   "title": "Update Docker image velero/velero-plugin-for-aws to v1.15.0 (#185)",
+   "cards": [
+    "velero"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
-  "queued": [
-   {
-    "number": 185,
-    "title": "Update Docker image velero/velero-plugin-for-aws to v1.15.0",
-    "cards": [
-     "velero"
-    ],
-    "since": "2026-11-26T08:33:37Z"
-   }
-  ],
+  "queued": [],
   "stuck": null,
-  "action": "merged #184",
-  "waiting": "no queued update is ready"
+  "action": "merged #185",
+  "waiting": null
  },
  "applications": [
   {
@@ -609,6 +606,17 @@
  ],
  "commits": [
   {
+   "commit": "749ba7b3394b4f6efe53c2017973ef6cadc999ce",
+   "title": "Update Docker image velero/velero-plugin-for-aws to v1.15.0 (#185)",
+   "author": "renovate[bot]",
+   "date": "2026-11-26T08:35:37Z",
+   "pull": 185,
+   "cards": [
+    "velero"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "340170be7cd12feeaf704f9c6ae7eddc522e2091",
    "title": "Update Docker image ghcr.io/bulwarkmail/webmail to v1.22.0 (#184)",
    "author": "renovate[bot]",
@@ -937,17 +945,6 @@
     "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
     "date": "2026-11-23T08:52:00Z"
    }
-  },
-  {
-   "commit": "1b1cc2b0385ccc53c2d8a4765eb930253d4b2b33",
-   "title": "Ring 0 board: read the head's verdict fresh after the Steward re-verifies",
-   "author": "stephan271",
-   "date": "2026-11-23T08:30:54Z",
-   "pull": null,
-   "cards": [
-    "canary-follower"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -975,21 +972,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 185,
-   "title": "Update Docker image velero/velero-plugin-for-aws to v1.15.0",
-   "author": "renovate[bot]",
-   "created": "2026-11-26T08:33:37Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "velero"
    ]
   }
  ]
