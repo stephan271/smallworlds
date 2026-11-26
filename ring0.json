@@ -1,31 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-26T08:53:49Z",
+ "updated": "2026-11-26T09:00:08Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "749ba7b3394b4f6efe53c2017973ef6cadc999ce",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-26T08:40:42Z"
+  "state": "success",
+  "description": "Ring 0: converged, load settled after 3 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+  "date": "2026-11-26T08:58:08Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "749ba7b3394b4f6efe53c2017973ef6cadc999ce",
-  "pull": {
-   "number": 185,
-   "title": "Update Docker image velero/velero-plugin-for-aws to v1.15.0 (#185)",
-   "cards": [
-    "velero"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-26T08:53:07Z",
-  "started": "2026-11-26T08:40:42Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #185",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -615,9 +609,9 @@
     "velero"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-26T08:40:42Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 3 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-26T08:58:08Z"
    }
   },
   {
