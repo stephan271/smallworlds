@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-26T00:02:12Z",
+ "updated": "2026-11-26T00:06:23Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -19,8 +19,8 @@
     "kube-prometheus-stack"
    ]
   },
-  "step": "checks",
-  "step_since": "2026-11-26T00:00:23Z",
+  "step": "quiet",
+  "step_since": "2026-11-26T00:04:54Z",
   "started": "2026-11-25T23:54:04Z",
   "queued": [
    {
@@ -181,7 +181,9 @@
    "chart": null,
    "version": null,
    "revision": "7e7aed5f080a19acb6b508dca475d6b4db943829",
-   "images": [],
+   "images": [
+    "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
+   ],
    "operation": {
     "phase": "Succeeded",
     "finished": "2026-11-25T23:55:01Z",
