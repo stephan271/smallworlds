@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-27T03:18:25Z",
+ "updated": "2026-11-27T03:20:31Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -43,8 +43,8 @@
     "quay.io/jetstack/cert-manager-webhook:v1.21.3"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
+    "phase": "Succeeded",
+    "finished": "2026-11-27T03:18:55Z",
     "message": null
    },
    "wave": -10
@@ -82,7 +82,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-27T02:57:37Z",
+    "finished": "2026-11-27T03:18:41Z",
     "message": null
    },
    "wave": -10
@@ -138,8 +138,8 @@
     "dxflrs/garage:v2.5.0"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
+    "phase": "Succeeded",
+    "finished": "2026-11-27T03:18:27Z",
     "message": null
    },
    "wave": -5
@@ -157,8 +157,8 @@
     "dxflrs/garage:v2.5.0"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
+    "phase": "Succeeded",
+    "finished": "2026-11-27T03:18:30Z",
     "message": null
    },
    "wave": -5
@@ -214,9 +214,9 @@
     "ghcr.io/euro-office/documentserver:v9.3.4-hotfix.1@sha256:889e681923d2dcc8bdfb92fe128d10e185fcff880d302b6a0c0c7bf339499290"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for healthy state of /ServiceAccount/euro-office-secret-init and 2 more resources"
+    "phase": "Succeeded",
+    "finished": "2026-11-27T03:18:50Z",
+    "message": null
    },
    "wave": 0
   },
@@ -234,8 +234,8 @@
     "docker.io/tailscale/tailscale:v1.104.7@sha256:72c1e19e0aedca96b8533bbb0b4368564410ff20b17e53b804eb6c1f04a31be4"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
+    "phase": "Succeeded",
+    "finished": "2026-11-27T03:18:49Z",
     "message": null
    },
    "wave": 0
@@ -250,15 +250,17 @@
    "version": null,
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.2",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
     "ghcr.io/tensorchord/cloudnative-pgvecto.rs:16.4-v0.3.0",
+    "quay.io/keycloak/keycloak:26.8.2@sha256:7e66a96e4739239070aeaf72e4c5decf0f7f682cfc725b9f7ea2b336eaba38b3",
     "quay.io/keycloak/keycloak@sha256:7e66a96e4739239070aeaf72e4c5decf0f7f682cfc725b9f7ea2b336eaba38b3"
    ],
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": null
+    "message": "waiting for completion of hook batch/Job/keycloak-realm-config"
    },
    "wave": 0
   },
@@ -283,7 +285,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-27T02:58:46Z",
+    "finished": "2026-11-27T03:19:51Z",
     "message": null
    },
    "wave": 0
@@ -303,7 +305,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-27T02:57:31Z",
+    "finished": "2026-11-27T03:18:38Z",
     "message": null
    },
    "wave": 0
@@ -322,7 +324,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-27T02:57:33Z",
+    "finished": "2026-11-27T03:18:40Z",
     "message": null
    },
    "wave": 0
@@ -330,7 +332,7 @@
   {
    "name": "smallworlds-root",
    "group": "machinery",
-   "health": "Progressing",
+   "health": "Healthy",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -359,7 +361,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-27T02:58:23Z",
+    "finished": "2026-11-27T03:19:27Z",
     "message": null
    },
    "wave": 0
@@ -377,9 +379,9 @@
     "ghcr.io/bulwarkmail/webmail:1.22.0@sha256:d02b77b4dea0607dafcd2592a6d89d481b8dd400e4b2b72f5a4466972dc4c5a8"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for healthy state of /ServiceAccount/setup-sa and 1 more resources"
+    "phase": "Succeeded",
+    "finished": "2026-11-27T03:19:26Z",
+    "message": null
    },
    "wave": 1
   },
@@ -396,8 +398,8 @@
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
+    "phase": "Succeeded",
+    "finished": "2026-11-27T03:18:30Z",
     "message": null
    },
    "wave": 1
@@ -432,6 +434,7 @@
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
     "code.forgejo.org/forgejo/forgejo:15.0.12-rootless",
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.2",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -441,7 +444,7 @@
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": null
+    "message": "waiting for completion of hook batch/Job/forgejo-oidc-config"
    },
    "wave": 1
   },
@@ -455,18 +458,20 @@
    "version": null,
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.2",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
     "ghcr.io/open-noodle/gallery-ml:v5.11.1@sha256:d84ba8a99138682d2bd9c0506bd7469acf9121919c02e690916ac33dd17e6c36",
     "ghcr.io/open-noodle/gallery-server:v5.11.1@sha256:55084c1f2206dcc7bd1330e021cbcfe11f6a413919895d24133dac256dd5e589",
     "ghcr.io/tensorchord/cloudnative-vectorchord:18.6-1.1.1@sha256:c7672bc011351a587cc292a94aac7eeebb593ed2e120077bd9c9944c9467db93",
+    "python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd",
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": null
+    "message": "waiting for healthy state of networking.k8s.io/NetworkPolicy/database-ingress and 20 more resources"
    },
    "wave": 1
   },
@@ -487,8 +492,8 @@
     "ghcr.io/jitsi/web:stable-11509-1"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
+    "phase": "Succeeded",
+    "finished": "2026-11-27T03:19:27Z",
     "message": null
    },
    "wave": 1
@@ -503,12 +508,13 @@
    "version": null,
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
+    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
     "phase": "Running",
     "finished": null,
-    "message": null
+    "message": "waiting for completion of hook batch/Job/join-keycloak-setup"
    },
    "wave": 1
   },
@@ -527,9 +533,9 @@
     "docker.io/tailscale/tailscale:v1.104.7@sha256:72c1e19e0aedca96b8533bbb0b4368564410ff20b17e53b804eb6c1f04a31be4"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-27T02:59:31Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/member-reconciler-keycloak"
    },
    "wave": 1
   },
@@ -552,9 +558,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Succeeded",
-    "finished": "2026-11-27T02:59:45Z",
-    "message": null
+    "phase": "Running",
+    "finished": null,
+    "message": "waiting for completion of hook batch/Job/nextcloud-oidc-config"
    },
    "wave": 1
   },
@@ -572,7 +578,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-27T02:57:58Z",
+    "finished": "2026-11-27T03:19:05Z",
     "message": null
    },
    "wave": 1
@@ -580,7 +586,7 @@
   {
    "name": "stalwart",
    "group": "apps",
-   "health": "Progressing",
+   "health": "Healthy",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -598,7 +604,7 @@
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-27T03:18:11Z",
+    "finished": "2026-11-27T03:20:13Z",
     "message": null
    },
    "wave": 1
