@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-27T09:03:33Z",
+ "updated": "2026-11-27T09:05:39Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -19,8 +19,8 @@
     "nextcloud"
    ]
   },
-  "step": "storage",
-  "step_since": "2026-11-27T09:02:51Z",
+  "step": "quiet",
+  "step_since": "2026-11-27T09:03:51Z",
   "started": "2026-11-27T08:52:11Z",
   "queued": [
    {
