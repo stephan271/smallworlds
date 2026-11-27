@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-27T08:36:19Z",
+ "updated": "2026-11-27T08:44:40Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -10,13 +10,22 @@
   "date": "2026-11-27T03:33:23Z"
  },
  "now": {
-  "state": "up-to-date",
+  "state": "updating",
   "commit": "2395f91f956515394d06241008f22406c1b507ec",
   "pull": null,
-  "step": null,
+  "step": "merge",
   "step_since": null,
   "started": null,
-  "queued": [],
+  "queued": [
+   {
+    "number": 188,
+    "title": "Update Docker image docker.io/redis to v8.12",
+    "cards": [
+     "nextcloud"
+    ],
+    "since": "2026-11-27T08:43:49Z"
+   }
+  ],
   "stuck": null,
   "action": "merged #187",
   "waiting": "no queued update is ready"
@@ -970,6 +979,21 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 188,
+   "title": "Update Docker image docker.io/redis to v8.12",
+   "author": "renovate[bot]",
+   "created": "2026-11-27T08:43:49Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "nextcloud"
    ]
   }
  ]
