@@ -1,39 +1,30 @@
 {
  "schema": 1,
- "updated": "2026-11-27T03:07:55Z",
+ "updated": "2026-11-27T03:12:07Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "c305c930b218835e9d99478044cf5e4525acc234",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-27T02:56:15Z"
+  "commit": "2395f91f956515394d06241008f22406c1b507ec",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "c305c930b218835e9d99478044cf5e4525acc234",
+  "commit": "2395f91f956515394d06241008f22406c1b507ec",
   "pull": {
-   "number": 186,
-   "title": "Update Helm chart traefik to v42.4.2 (#186)",
+   "number": 187,
+   "title": "Update Docker image stalwartlabs/stalwart to v1.2.0 (#187)",
    "cards": [
-    "traefik"
+    "stalwart"
    ]
   },
-  "step": "quiet",
-  "step_since": "2026-11-27T03:06:34Z",
-  "started": "2026-11-27T02:56:15Z",
-  "queued": [
-   {
-    "number": 187,
-    "title": "Update Docker image stalwartlabs/stalwart to v1.2.0",
-    "cards": [
-     "stalwart"
-    ],
-    "since": "2026-11-27T02:49:27Z"
-   }
-  ],
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
+  "queued": [],
   "stuck": null,
-  "action": "merged #186",
+  "action": "merged #187",
   "waiting": null
  },
  "applications": [
@@ -615,6 +606,17 @@
  ],
  "commits": [
   {
+   "commit": "2395f91f956515394d06241008f22406c1b507ec",
+   "title": "Update Docker image stalwartlabs/stalwart to v1.2.0 (#187)",
+   "author": "renovate[bot]",
+   "date": "2026-11-27T03:11:39Z",
+   "pull": 187,
+   "cards": [
+    "stalwart"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "c305c930b218835e9d99478044cf5e4525acc234",
    "title": "Update Helm chart traefik to v42.4.2 (#186)",
    "author": "renovate[bot]",
@@ -624,9 +626,9 @@
     "traefik"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-27T02:56:15Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-27T03:11:34Z"
    }
   },
   {
@@ -943,21 +945,6 @@
     "repository"
    ],
    "verdict": null
-  },
-  {
-   "commit": "920c515e1b5c8e2715f0846a6b3e90d056999d0d",
-   "title": "Update Helm chart kube-prometheus-stack to v93.5.0 (#172)",
-   "author": "renovate[bot]",
-   "date": "2026-11-23T08:52:04Z",
-   "pull": 172,
-   "cards": [
-    "kube-prometheus-stack"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 3 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-23T09:13:31Z"
-   }
   }
  ],
  "pulls": [
@@ -985,21 +972,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 187,
-   "title": "Update Docker image stalwartlabs/stalwart to v1.2.0",
-   "author": "renovate[bot]",
-   "created": "2026-11-27T02:49:27Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "stalwart"
    ]
   }
  ]
