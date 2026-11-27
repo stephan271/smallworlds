@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-27T02:05:26Z",
+ "updated": "2026-11-27T02:51:08Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -10,13 +10,30 @@
   "date": "2026-11-26T08:58:08Z"
  },
  "now": {
-  "state": "up-to-date",
+  "state": "updating",
   "commit": "749ba7b3394b4f6efe53c2017973ef6cadc999ce",
   "pull": null,
-  "step": null,
+  "step": "merge",
   "step_since": null,
   "started": null,
-  "queued": [],
+  "queued": [
+   {
+    "number": 186,
+    "title": "Update Helm chart traefik to v42.4.2",
+    "cards": [
+     "traefik"
+    ],
+    "since": "2026-11-27T02:49:18Z"
+   },
+   {
+    "number": 187,
+    "title": "Update Docker image stalwartlabs/stalwart to v1.2.0",
+    "cards": [
+     "stalwart"
+    ],
+    "since": "2026-11-27T02:49:27Z"
+   }
+  ],
   "stuck": null,
   "action": "merged #185",
   "waiting": "no queued update is ready"
@@ -970,6 +987,36 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 186,
+   "title": "Update Helm chart traefik to v42.4.2",
+   "author": "renovate[bot]",
+   "created": "2026-11-27T02:49:18Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "traefik"
+   ]
+  },
+  {
+   "number": 187,
+   "title": "Update Docker image stalwartlabs/stalwart to v1.2.0",
+   "author": "renovate[bot]",
+   "created": "2026-11-27T02:49:27Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "stalwart"
    ]
   }
  ]
