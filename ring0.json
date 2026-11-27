@@ -1,31 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-27T09:26:38Z",
+ "updated": "2026-11-27T09:32:53Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "75775bca71db2d6d435239537cfe20a15c9fc47a",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-27T09:14:02Z"
+  "state": "success",
+  "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
+  "date": "2026-11-27T09:30:55Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "75775bca71db2d6d435239537cfe20a15c9fc47a",
-  "pull": {
-   "number": 189,
-   "title": "Update Docker image docker.io/redis to v8.12 (#189)",
-   "cards": [
-    "forgejo"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-27T09:25:54Z",
-  "started": "2026-11-27T09:14:01Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #189",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -615,9 +609,9 @@
     "forgejo"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-27T09:14:02Z"
+    "state": "success",
+    "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
+    "date": "2026-11-27T09:30:55Z"
    }
   },
   {
