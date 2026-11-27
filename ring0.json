@@ -1,39 +1,30 @@
 {
  "schema": 1,
- "updated": "2026-11-27T09:05:39Z",
+ "updated": "2026-11-27T09:09:50Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "ad2573ab2d4b289415cdf62eb16e774926a9d2ba",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-27T08:52:11Z"
+  "commit": "75775bca71db2d6d435239537cfe20a15c9fc47a",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "ad2573ab2d4b289415cdf62eb16e774926a9d2ba",
+  "commit": "75775bca71db2d6d435239537cfe20a15c9fc47a",
   "pull": {
-   "number": 188,
-   "title": "Update Docker image docker.io/redis to v8.12 (#188)",
+   "number": 189,
+   "title": "Update Docker image docker.io/redis to v8.12 (#189)",
    "cards": [
-    "nextcloud"
+    "forgejo"
    ]
   },
-  "step": "quiet",
-  "step_since": "2026-11-27T09:03:51Z",
-  "started": "2026-11-27T08:52:11Z",
-  "queued": [
-   {
-    "number": 189,
-    "title": "Update Docker image docker.io/redis to v8.12",
-    "cards": [
-     "forgejo"
-    ],
-    "since": "2026-11-27T08:48:28Z"
-   }
-  ],
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
+  "queued": [],
   "stuck": null,
-  "action": "merged #188",
+  "action": "merged #189",
   "waiting": null
  },
  "applications": [
@@ -615,6 +606,17 @@
  ],
  "commits": [
   {
+   "commit": "75775bca71db2d6d435239537cfe20a15c9fc47a",
+   "title": "Update Docker image docker.io/redis to v8.12 (#189)",
+   "author": "renovate[bot]",
+   "date": "2026-11-27T09:08:56Z",
+   "pull": 189,
+   "cards": [
+    "forgejo"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "ad2573ab2d4b289415cdf62eb16e774926a9d2ba",
    "title": "Update Docker image docker.io/redis to v8.12 (#188)",
    "author": "renovate[bot]",
@@ -624,9 +626,9 @@
     "nextcloud"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-27T08:52:11Z"
+    "state": "success",
+    "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
+    "date": "2026-11-27T09:08:51Z"
    }
   },
   {
@@ -947,21 +949,6 @@
     "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
     "date": "2026-11-23T13:21:03Z"
    }
-  },
-  {
-   "commit": "439bf7a54653bc6a97efe7230079aaae1c129254",
-   "title": "Ring 0 board: a rejected change fixed forward counts as verified",
-   "author": "stephan271",
-   "date": "2026-11-23T12:43:34Z",
-   "pull": 173,
-   "cards": [
-    "repository"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-23T13:01:00Z"
-   }
   }
  ],
  "pulls": [
@@ -989,21 +976,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 189,
-   "title": "Update Docker image docker.io/redis to v8.12",
-   "author": "renovate[bot]",
-   "created": "2026-11-27T08:48:28Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "forgejo"
    ]
   }
  ]
