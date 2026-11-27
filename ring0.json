@@ -1,31 +1,25 @@
 {
  "schema": 1,
- "updated": "2026-11-27T03:28:52Z",
+ "updated": "2026-11-27T03:35:08Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "2395f91f956515394d06241008f22406c1b507ec",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-27T03:16:45Z"
+  "state": "success",
+  "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
+  "date": "2026-11-27T03:33:23Z"
  },
  "now": {
-  "state": "updating",
+  "state": "up-to-date",
   "commit": "2395f91f956515394d06241008f22406c1b507ec",
-  "pull": {
-   "number": 187,
-   "title": "Update Docker image stalwartlabs/stalwart to v1.2.0 (#187)",
-   "cards": [
-    "stalwart"
-   ]
-  },
-  "step": "quiet",
-  "step_since": "2026-11-27T03:28:23Z",
-  "started": "2026-11-27T03:16:45Z",
+  "pull": null,
+  "step": null,
+  "step_since": null,
+  "started": null,
   "queued": [],
   "stuck": null,
   "action": "merged #187",
-  "waiting": null
+  "waiting": "no queued update is ready"
  },
  "applications": [
   {
@@ -615,9 +609,9 @@
     "stalwart"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-27T03:16:45Z"
+    "state": "success",
+    "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
+    "date": "2026-11-27T03:33:23Z"
    }
   },
   {
