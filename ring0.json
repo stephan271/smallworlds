@@ -1,34 +1,40 @@
 {
  "schema": 1,
- "updated": "2026-11-27T08:44:40Z",
+ "updated": "2026-11-27T08:48:52Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "2395f91f956515394d06241008f22406c1b507ec",
-  "state": "success",
-  "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
-  "date": "2026-11-27T03:33:23Z"
+  "commit": "ad2573ab2d4b289415cdf62eb16e774926a9d2ba",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "2395f91f956515394d06241008f22406c1b507ec",
-  "pull": null,
-  "step": "merge",
+  "commit": "ad2573ab2d4b289415cdf62eb16e774926a9d2ba",
+  "pull": {
+   "number": 188,
+   "title": "Update Docker image docker.io/redis to v8.12 (#188)",
+   "cards": [
+    "nextcloud"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
    {
-    "number": 188,
+    "number": 189,
     "title": "Update Docker image docker.io/redis to v8.12",
     "cards": [
-     "nextcloud"
+     "forgejo"
     ],
-    "since": "2026-11-27T08:43:49Z"
+    "since": "2026-11-27T08:48:28Z"
    }
   ],
   "stuck": null,
-  "action": "merged #187",
-  "waiting": "no queued update is ready"
+  "action": "merged #188",
+  "waiting": null
  },
  "applications": [
   {
@@ -609,6 +615,17 @@
  ],
  "commits": [
   {
+   "commit": "ad2573ab2d4b289415cdf62eb16e774926a9d2ba",
+   "title": "Update Docker image docker.io/redis to v8.12 (#188)",
+   "author": "renovate[bot]",
+   "date": "2026-11-27T08:47:06Z",
+   "pull": 188,
+   "cards": [
+    "nextcloud"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "2395f91f956515394d06241008f22406c1b507ec",
    "title": "Update Docker image stalwartlabs/stalwart to v1.2.0 (#187)",
    "author": "renovate[bot]",
@@ -941,17 +958,6 @@
     "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
     "date": "2026-11-23T13:01:00Z"
    }
-  },
-  {
-   "commit": "a49418bddf4488f2328e22af90e7bc322420dbb6",
-   "title": "Ring 0 board: a rejected change fixed forward counts as verified",
-   "author": "stephan271",
-   "date": "2026-11-23T11:30:16Z",
-   "pull": null,
-   "cards": [
-    "repository"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -982,10 +988,10 @@
    ]
   },
   {
-   "number": 188,
+   "number": 189,
    "title": "Update Docker image docker.io/redis to v8.12",
    "author": "renovate[bot]",
-   "created": "2026-11-27T08:43:49Z",
+   "created": "2026-11-27T08:48:28Z",
    "draft": false,
    "queued": true,
    "rejected": false,
@@ -993,7 +999,7 @@
     "ring0-queue"
    ],
    "cards": [
-    "nextcloud"
+    "forgejo"
    ]
   }
  ]
