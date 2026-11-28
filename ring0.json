@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "updated": "2026-11-28T03:12:19Z",
+ "updated": "2026-11-28T03:14:25Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
   "commit": "1d530c7c27ab40d8b40c0715ddf3b7e3bc7d5273",
-  "state": null,
-  "description": null,
-  "date": null
+  "state": "pending",
+  "description": "Ring 0 is syncing and verifying this commit",
+  "date": "2026-11-28T03:13:35Z"
  },
  "now": {
   "state": "updating",
@@ -19,9 +19,9 @@
     "traefik"
    ]
   },
-  "step": "waiting",
-  "step_since": null,
-  "started": null,
+  "step": "sync",
+  "step_since": "2026-11-28T03:13:35Z",
+  "started": "2026-11-28T03:13:35Z",
   "queued": [
    {
     "number": 191,
@@ -84,14 +84,14 @@
    "sync": "Synced",
    "source": "chart",
    "chart": "traefik",
-   "version": "42.4.2",
+   "version": "42.4.3",
    "revision": null,
    "images": [
-    "docker.io/traefik:v3.7.19"
+    "docker.io/traefik:v3.7.20"
    ],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-27T09:15:53Z",
+    "finished": "2026-11-28T03:13:44Z",
     "message": null
    },
    "wave": -10
@@ -348,7 +348,7 @@
    "images": [],
    "operation": {
     "phase": "Succeeded",
-    "finished": "2026-11-27T09:14:50Z",
+    "finished": "2026-11-28T03:14:17Z",
     "message": null
    },
    "wave": 0
@@ -623,7 +623,11 @@
    "cards": [
     "traefik"
    ],
-   "verdict": null
+   "verdict": {
+    "state": "pending",
+    "description": "Ring 0 is syncing and verifying this commit",
+    "date": "2026-11-28T03:13:35Z"
+   }
   },
   {
    "commit": "75775bca71db2d6d435239537cfe20a15c9fc47a",
