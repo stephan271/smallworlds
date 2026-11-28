@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-28T02:47:25Z",
+ "updated": "2026-11-28T03:08:07Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -10,13 +10,30 @@
   "date": "2026-11-27T09:30:55Z"
  },
  "now": {
-  "state": "up-to-date",
+  "state": "updating",
   "commit": "75775bca71db2d6d435239537cfe20a15c9fc47a",
   "pull": null,
-  "step": null,
+  "step": "merge",
   "step_since": null,
   "started": null,
-  "queued": [],
+  "queued": [
+   {
+    "number": 190,
+    "title": "Update Helm chart traefik to v42.4.3",
+    "cards": [
+     "traefik"
+    ],
+    "since": "2026-11-28T03:07:21Z"
+   },
+   {
+    "number": 191,
+    "title": "Update Helm chart kube-prometheus-stack to v93.10.1",
+    "cards": [
+     "kube-prometheus-stack"
+    ],
+    "since": "2026-11-28T03:07:29Z"
+   }
+  ],
   "stuck": null,
   "action": "merged #189",
   "waiting": "no queued update is ready"
@@ -974,6 +991,51 @@
    "labels": [],
    "cards": [
     "repository"
+   ]
+  },
+  {
+   "number": 190,
+   "title": "Update Helm chart traefik to v42.4.3",
+   "author": "renovate[bot]",
+   "created": "2026-11-28T03:07:21Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "traefik"
+   ]
+  },
+  {
+   "number": 191,
+   "title": "Update Helm chart kube-prometheus-stack to v93.10.1",
+   "author": "renovate[bot]",
+   "created": "2026-11-28T03:07:29Z",
+   "draft": false,
+   "queued": true,
+   "rejected": false,
+   "labels": [
+    "ring0-queue"
+   ],
+   "cards": [
+    "kube-prometheus-stack"
+   ]
+  },
+  {
+   "number": 192,
+   "title": "Update Helm chart traefik to v43",
+   "author": "renovate[bot]",
+   "created": "2026-11-28T03:07:39Z",
+   "draft": false,
+   "queued": false,
+   "rejected": false,
+   "labels": [
+    "ring0-major"
+   ],
+   "cards": [
+    "traefik"
    ]
   }
  ]
