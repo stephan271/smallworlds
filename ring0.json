@@ -1,34 +1,31 @@
 {
  "schema": 1,
- "updated": "2026-11-28T03:56:01Z",
+ "updated": "2026-11-28T03:58:07Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "d08a4057474239ba53d41714d05802f02e2aac8a",
-  "state": "success",
-  "description": "Ring 0: converged, load settled after 3 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-  "date": "2026-11-28T03:51:36Z"
+  "commit": "42c559c3cecb47fb6a657a547cd887dde702b6c2",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "d08a4057474239ba53d41714d05802f02e2aac8a",
-  "pull": null,
-  "step": "merge",
+  "commit": "42c559c3cecb47fb6a657a547cd887dde702b6c2",
+  "pull": {
+   "number": 193,
+   "title": "Update Helm chart traefik to v43 (#193)",
+   "cards": [
+    "traefik"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
-  "queued": [
-   {
-    "number": 193,
-    "title": "Update Helm chart traefik to v43",
-    "cards": [
-     "traefik"
-    ],
-    "since": "2026-11-28T03:54:04Z"
-   }
-  ],
+  "queued": [],
   "stuck": null,
-  "action": "merged #191",
-  "waiting": "no queued update is ready"
+  "action": "merged #193",
+  "waiting": null
  },
  "applications": [
   {
@@ -609,6 +606,17 @@
  ],
  "commits": [
   {
+   "commit": "42c559c3cecb47fb6a657a547cd887dde702b6c2",
+   "title": "Update Helm chart traefik to v43 (#193)",
+   "author": "smallworlds-steward[bot]",
+   "date": "2026-11-28T03:56:49Z",
+   "pull": 193,
+   "cards": [
+    "traefik"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "d08a4057474239ba53d41714d05802f02e2aac8a",
    "title": "Update Helm chart kube-prometheus-stack to v93.10.1 (#191)",
    "author": "renovate[bot]",
@@ -947,17 +955,6 @@
     "description": "Ring 0: converged, load settled after 3 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
     "date": "2026-11-23T16:30:01Z"
    }
-  },
-  {
-   "commit": "2c1a274e1dec834ce079a505db4d37500a8ae6da",
-   "title": "Document the Desk's Member Network message in doc/tenant-join.md",
-   "author": "stephan271",
-   "date": "2026-11-23T15:37:12Z",
-   "pull": null,
-   "cards": [
-    "repository"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -985,38 +982,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 192,
-   "title": "Update Helm chart traefik to v43",
-   "author": "renovate[bot]",
-   "created": "2026-11-28T03:07:39Z",
-   "draft": false,
-   "queued": false,
-   "rejected": false,
-   "labels": [
-    "ring0-major",
-    "steward-prepare-015484f3f2"
-   ],
-   "cards": [
-    "traefik"
-   ]
-  },
-  {
-   "number": 193,
-   "title": "Update Helm chart traefik to v43",
-   "author": "smallworlds-steward[bot]",
-   "created": "2026-11-28T03:54:04Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue",
-    "steward"
-   ],
-   "cards": [
-    "traefik"
    ]
   }
  ]
