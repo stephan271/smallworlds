@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-28T03:37:19Z",
+ "updated": "2026-11-28T03:39:25Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -19,8 +19,8 @@
     "kube-prometheus-stack"
    ]
   },
-  "step": "converge",
-  "step_since": "2026-11-28T03:36:19Z",
+  "step": "settle",
+  "step_since": "2026-11-28T03:39:02Z",
   "started": "2026-11-28T03:34:58Z",
   "queued": [],
   "stuck": null,
@@ -250,30 +250,28 @@
    "version": null,
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
-    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.2",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
     "ghcr.io/tensorchord/cloudnative-pgvecto.rs:16.4-v0.3.0",
     "quay.io/keycloak/keycloak@sha256:7e66a96e4739239070aeaf72e4c5decf0f7f682cfc725b9f7ea2b336eaba38b3"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/keycloak-garage-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-28T03:38:33Z",
+    "message": null
    },
    "wave": 0
   },
   {
    "name": "kube-prometheus-stack",
    "group": "platform",
-   "health": "Progressing",
+   "health": "Healthy",
    "sync": "Synced",
    "source": "chart",
    "chart": "kube-prometheus-stack",
    "version": "93.10.1",
    "revision": null,
    "images": [
-    "docker.io/grafana/grafana:13.3.1-distroless",
     "docker.io/grafana/grafana:13.3.2-distroless",
     "quay.io/kiwigrid/k8s-sidecar:2.14.3",
     "quay.io/prometheus-operator/prometheus-config-reloader:v0.95.2",
@@ -284,9 +282,9 @@
     "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.20.0"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for healthy state of apps/Deployment/kube-prometheus-stack-grafana"
+    "phase": "Succeeded",
+    "finished": "2026-11-28T03:38:46Z",
+    "message": null
    },
    "wave": 0
   },
@@ -332,7 +330,7 @@
   {
    "name": "smallworlds-root",
    "group": "machinery",
-   "health": "Progressing",
+   "health": "Healthy",
    "sync": "Synced",
    "source": "overlay",
    "chart": null,
@@ -356,14 +354,13 @@
    "version": null,
    "revision": "d08a4057474239ba53d41714d05802f02e2aac8a",
    "images": [
-    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/velero/velero:v1.18.2",
     "velero/velero-plugin-for-aws:v1.15.0@sha256:cb8fdbefc54e2d99b124f6611bc8cad31a1e546689dfb2a32c9307339c492750"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/velero-garage-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-28T03:37:23Z",
+    "message": null
    },
    "wave": 0
   },
@@ -435,7 +432,6 @@
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
     "code.forgejo.org/forgejo/forgejo:15.0.12-rootless",
-    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/redis:8.12-alpine@sha256:5af80107c1eeecb484a2269b80a26d12bfa6521787da4663bd9f19f60a163483",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.2",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -443,9 +439,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/garage-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-28T03:38:31Z",
+    "message": null
    },
    "wave": 1
   },
@@ -459,7 +455,6 @@
    "version": null,
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
-    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "docker.io/redis:8.10-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3",
     "ghcr.io/cloudnative-pg/cloudnative-pg:1.30.2",
     "ghcr.io/cloudnative-pg/plugin-barman-cloud-sidecar:v0.14.0",
@@ -469,9 +464,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/garage-init and 1 more hooks"
+    "phase": "Succeeded",
+    "finished": "2026-11-28T03:38:38Z",
+    "message": null
    },
    "wave": 1
   },
@@ -485,7 +480,6 @@
    "version": null,
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
-    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "ghcr.io/jitsi-contrib/jitsi-oidc-adapter:v20260328@sha256:c4a28b215f5ea4893e308cd3f15b1f1c6954231ab784cac6362f420e6648a745",
     "ghcr.io/jitsi/jicofo:stable-11509-1",
     "ghcr.io/jitsi/jvb:stable-11509-1",
@@ -493,9 +487,9 @@
     "ghcr.io/jitsi/web:stable-11509-1"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-28T03:37:25Z",
+    "message": null
    },
    "wave": 1
   },
@@ -509,13 +503,12 @@
    "version": null,
    "revision": "93bb6240dd36989e106ba149c253afc43581d720",
    "images": [
-    "docker.io/alpine/k8s:1.37.2@sha256:7a82aeefea3d554a43a8676b137f2b88bae6c1fe11c13862b191b3a086cc28c0",
     "python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-28T03:38:33Z",
+    "message": null
    },
    "wave": 1
   },
@@ -534,9 +527,9 @@
     "docker.io/tailscale/tailscale:v1.104.7@sha256:72c1e19e0aedca96b8533bbb0b4368564410ff20b17e53b804eb6c1f04a31be4"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/keycloak-client-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-28T03:38:34Z",
+    "message": null
    },
    "wave": 1
   },
@@ -559,9 +552,9 @@
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/garage-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-28T03:38:43Z",
+    "message": null
    },
    "wave": 1
   },
@@ -604,9 +597,9 @@
     "stalwartlabs/stalwart:v1.2.0@sha256:92f69d506e419e3d81e63383101e9e583bd8bb6893288d18ff641810196c890b"
    ],
    "operation": {
-    "phase": "Running",
-    "finished": null,
-    "message": "waiting for completion of hook batch/Job/garage-init"
+    "phase": "Succeeded",
+    "finished": "2026-11-28T03:38:05Z",
+    "message": null
    },
    "wave": 1
   }
