@@ -1,6 +1,6 @@
 {
  "schema": 1,
- "updated": "2026-11-28T11:30:43Z",
+ "updated": "2026-11-28T11:53:22Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
@@ -18,7 +18,7 @@
   "started": null,
   "queued": [],
   "stuck": null,
-  "action": "merged #193",
+  "action": "merge queue failed: HTTPError: HTTP Error 502: Bad Gateway",
   "waiting": "no queued update is ready"
  },
  "applications": [
