@@ -1,39 +1,30 @@
 {
  "schema": 1,
- "updated": "2026-11-28T03:24:50Z",
+ "updated": "2026-11-28T03:31:03Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "1d530c7c27ab40d8b40c0715ddf3b7e3bc7d5273",
-  "state": "pending",
-  "description": "Ring 0 is syncing and verifying this commit",
-  "date": "2026-11-28T03:13:35Z"
+  "commit": "d08a4057474239ba53d41714d05802f02e2aac8a",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "1d530c7c27ab40d8b40c0715ddf3b7e3bc7d5273",
+  "commit": "d08a4057474239ba53d41714d05802f02e2aac8a",
   "pull": {
-   "number": 190,
-   "title": "Update Helm chart traefik to v42.4.3 (#190)",
+   "number": 191,
+   "title": "Update Helm chart kube-prometheus-stack to v93.10.1 (#191)",
    "cards": [
-    "traefik"
+    "kube-prometheus-stack"
    ]
   },
-  "step": "quiet",
-  "step_since": "2026-11-28T03:24:47Z",
-  "started": "2026-11-28T03:13:35Z",
-  "queued": [
-   {
-    "number": 191,
-    "title": "Update Helm chart kube-prometheus-stack to v93.10.1",
-    "cards": [
-     "kube-prometheus-stack"
-    ],
-    "since": "2026-11-28T03:07:29Z"
-   }
-  ],
+  "step": "waiting",
+  "step_since": null,
+  "started": null,
+  "queued": [],
   "stuck": null,
-  "action": "merged #190",
+  "action": "merged #191",
   "waiting": null
  },
  "applications": [
@@ -180,7 +171,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "1d530c7c27ab40d8b40c0715ddf3b7e3bc7d5273",
+   "revision": "d08a4057474239ba53d41714d05802f02e2aac8a",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
@@ -615,6 +606,17 @@
  ],
  "commits": [
   {
+   "commit": "d08a4057474239ba53d41714d05802f02e2aac8a",
+   "title": "Update Helm chart kube-prometheus-stack to v93.10.1 (#191)",
+   "author": "renovate[bot]",
+   "date": "2026-11-28T03:29:53Z",
+   "pull": 191,
+   "cards": [
+    "kube-prometheus-stack"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "1d530c7c27ab40d8b40c0715ddf3b7e3bc7d5273",
    "title": "Update Helm chart traefik to v42.4.3 (#190)",
    "author": "renovate[bot]",
@@ -624,9 +626,9 @@
     "traefik"
    ],
    "verdict": {
-    "state": "pending",
-    "description": "Ring 0 is syncing and verifying this commit",
-    "date": "2026-11-28T03:13:35Z"
+    "state": "success",
+    "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
+    "date": "2026-11-28T03:29:48Z"
    }
   },
   {
@@ -949,19 +951,6 @@
     "repository"
    ],
    "verdict": null
-  },
-  {
-   "commit": "4ebc114fd1c7d983105017c33cb2c597dc43480e",
-   "title": "Close three gaps found turning the Member Network on for Ring 1",
-   "author": "stephan271",
-   "date": "2026-11-23T15:36:51Z",
-   "pull": null,
-   "cards": [
-    "join",
-    "member-network",
-    "repository"
-   ],
-   "verdict": null
   }
  ],
  "pulls": [
@@ -989,21 +978,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 191,
-   "title": "Update Helm chart kube-prometheus-stack to v93.10.1",
-   "author": "renovate[bot]",
-   "created": "2026-11-28T03:07:29Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "kube-prometheus-stack"
    ]
   },
   {
