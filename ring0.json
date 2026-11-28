@@ -1,30 +1,28 @@
 {
  "schema": 1,
- "updated": "2026-11-28T03:08:07Z",
+ "updated": "2026-11-28T03:10:13Z",
  "repository": "stephan271/smallworlds",
  "branch": "main",
  "head": {
-  "commit": "75775bca71db2d6d435239537cfe20a15c9fc47a",
-  "state": "success",
-  "description": "Ring 0: backup 1 databases, converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: G\u2026",
-  "date": "2026-11-27T09:30:55Z"
+  "commit": "1d530c7c27ab40d8b40c0715ddf3b7e3bc7d5273",
+  "state": null,
+  "description": null,
+  "date": null
  },
  "now": {
   "state": "updating",
-  "commit": "75775bca71db2d6d435239537cfe20a15c9fc47a",
-  "pull": null,
-  "step": "merge",
+  "commit": "1d530c7c27ab40d8b40c0715ddf3b7e3bc7d5273",
+  "pull": {
+   "number": 190,
+   "title": "Update Helm chart traefik to v42.4.3 (#190)",
+   "cards": [
+    "traefik"
+   ]
+  },
+  "step": "waiting",
   "step_since": null,
   "started": null,
   "queued": [
-   {
-    "number": 190,
-    "title": "Update Helm chart traefik to v42.4.3",
-    "cards": [
-     "traefik"
-    ],
-    "since": "2026-11-28T03:07:21Z"
-   },
    {
     "number": 191,
     "title": "Update Helm chart kube-prometheus-stack to v93.10.1",
@@ -35,8 +33,8 @@
    }
   ],
   "stuck": null,
-  "action": "merged #189",
-  "waiting": "no queued update is ready"
+  "action": "merged #190",
+  "waiting": null
  },
  "applications": [
   {
@@ -125,7 +123,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "75775bca71db2d6d435239537cfe20a15c9fc47a",
+   "revision": "1d530c7c27ab40d8b40c0715ddf3b7e3bc7d5273",
    "images": [
     "ghcr.io/cloudnative-pg/plugin-barman-cloud:v0.14.0"
    ],
@@ -182,7 +180,7 @@
    "source": "base",
    "chart": null,
    "version": null,
-   "revision": "75775bca71db2d6d435239537cfe20a15c9fc47a",
+   "revision": "1d530c7c27ab40d8b40c0715ddf3b7e3bc7d5273",
    "images": [
     "rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466"
    ],
@@ -617,6 +615,17 @@
  ],
  "commits": [
   {
+   "commit": "1d530c7c27ab40d8b40c0715ddf3b7e3bc7d5273",
+   "title": "Update Helm chart traefik to v42.4.3 (#190)",
+   "author": "renovate[bot]",
+   "date": "2026-11-28T03:08:30Z",
+   "pull": 190,
+   "cards": [
+    "traefik"
+   ],
+   "verdict": null
+  },
+  {
    "commit": "75775bca71db2d6d435239537cfe20a15c9fc47a",
    "title": "Update Docker image docker.io/redis to v8.12 (#189)",
    "author": "renovate[bot]",
@@ -949,21 +958,6 @@
     "repository"
    ],
    "verdict": null
-  },
-  {
-   "commit": "abdac20510340757b57079a25c1802542c2bb9a6",
-   "title": "Update Helm chart kube-prometheus-stack to v93.6.0 (#174)",
-   "author": "renovate[bot]",
-   "date": "2026-11-23T13:01:05Z",
-   "pull": 174,
-   "cards": [
-    "kube-prometheus-stack"
-   ],
-   "verdict": {
-    "state": "success",
-    "description": "Ring 0: converged, load settled after 2 min, smoke 17 hosts, e2e 56 passed, 9 skipped; data 4/4 apps intact, storage: Garage v2.5.0, rclone\u2026",
-    "date": "2026-11-23T13:21:03Z"
-   }
   }
  ],
  "pulls": [
@@ -991,21 +985,6 @@
    "labels": [],
    "cards": [
     "repository"
-   ]
-  },
-  {
-   "number": 190,
-   "title": "Update Helm chart traefik to v42.4.3",
-   "author": "renovate[bot]",
-   "created": "2026-11-28T03:07:21Z",
-   "draft": false,
-   "queued": true,
-   "rejected": false,
-   "labels": [
-    "ring0-queue"
-   ],
-   "cards": [
-    "traefik"
    ]
   },
   {
